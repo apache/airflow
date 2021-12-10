@@ -17,7 +17,7 @@
 import contextlib
 from functools import wraps
 from inspect import signature
-from typing import Callable, Iterator, TypeVar
+from typing import Callable, Iterator, TypeVar, cast
 
 from airflow import settings
 
@@ -25,7 +25,7 @@ from airflow import settings
 @contextlib.contextmanager
 def create_session() -> Iterator[settings.SASession]:
     """Contextmanager that will create and teardown a session."""
-    session: settings.SASession = settings.Session()
+    session = settings.Session()
     try:
         yield session
         session.commit()
@@ -69,3 +69,10 @@ def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
                 return func(*args, session=session, **kwargs)
 
     return wrapper
+
+
+# A fake session to use in functions decorated by provide_session. This allows
+# the 'session' argument to be of type Session instead of Optional[Session],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+NEW_SESSION: settings.SASession = cast(settings.SASession, None)

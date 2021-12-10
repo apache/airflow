@@ -149,8 +149,9 @@ class TestLocalTaskJob:
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()
 
+    @mock.patch('subprocess.check_call')
     @mock.patch('airflow.jobs.local_task_job.psutil')
-    def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, dag_maker):
+    def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
             op1 = DummyOperator(task_id='op1', run_as_user='myuser')
@@ -191,8 +192,9 @@ class TestLocalTaskJob:
             job1.heartbeat_callback()
 
     @conf_vars({('core', 'default_impersonation'): 'testuser'})
+    @mock.patch('subprocess.check_call')
     @mock.patch('airflow.jobs.local_task_job.psutil')
-    def test_localtaskjob_heartbeat_with_default_impersonation(self, psutil_mock, dag_maker):
+    def test_localtaskjob_heartbeat_with_default_impersonation(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
             op1 = DummyOperator(task_id='op1')

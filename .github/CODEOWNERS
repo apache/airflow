@@ -6,10 +6,14 @@
 # DAG Serialization
 /airflow/serialization/ @kaxil @ashb
 
+# DAG Parsing
+/airflow/dag_processing @jedcunningham @ephraimbuddy
+
 # Kubernetes
-/airflow/kubernetes/ @dimberman
-/airflow/kubernetes_executor_templates/ @dimberman
-/airflow/executors/celery_kubernetes_executor.py @dimberman
+/airflow/kubernetes/ @dstandish @jedcunningham
+/airflow/kubernetes_executor_templates/ @dstandish @jedcunningham
+/airflow/executors/celery_kubernetes_executor.py @dstandish @jedcunningham
+/airflow/executors/kubernetes_executor.py @dstandish @jedcunningham
 
 # Helm Chart
 /chart/ @dimberman @ashb @kaxil @jedcunningham
@@ -19,13 +23,13 @@
 /docs/ @mik-laj @vikramkoka
 
 # Docs (without Providers)
-/docs/apache-airflow @kaxil
-/docs/docker-stack @kaxil
+/docs/apache-airflow @kaxil @potiuk
+/docs/docker-stack @potiuk
 /docs/helm-chart @kaxil @jedcunningham
-/docs/*.py @kaxil
+/docs/*.py @kaxil @potiuk
 
 # API
-/airflow/api/ @mik-laj
+/airflow/api/ @mik-laj @ephraimbuddy
 /airflow/api_connexion/ @mik-laj @ephraimbuddy
 
 # UI
@@ -41,6 +45,16 @@
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
+/docs/apache-airflow/concepts/timetable.rst @uranusjr
+
+# Async Operators & Triggerer
+/airflow/jobs/triggerer_job.py @dstandish
+/airflow/cli/commands/triggerer_command.py @dstandish
+/airflow/models/trigger.py @dstandish
+/docs/apache-airflow/concepts/deferring.rst @dstandish
+
+# Secrets Backends
+/airflow/secrets  @dstandish @kaxil @potiuk @ashb
 
 # Providers
 /airflow/providers/google/ @turbaszek
@@ -52,7 +66,7 @@ breeze @potiuk
 breeze-complete @potiuk
 Dockerfile @potiuk @ashb @mik-laj
 Dockerfile.ci @potiuk @ashb
-/dev/ @potiuk @ashb @kaxil
+/dev/ @potiuk @ashb @kaxil  @jedcunningham
 /provider_packages/ @potiuk @ashb
 /scripts/ @potiuk @ashb @mik-laj
 /docker_tests/ @potiuk @ashb @mik-laj

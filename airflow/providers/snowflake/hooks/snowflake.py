@@ -18,7 +18,7 @@
 import os
 from contextlib import closing
 from io import StringIO
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -82,9 +82,9 @@ class SnowflakeHook(DbApiHook):
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField, StringField
+        from wtforms import StringField
 
         return {
             "extra__snowflake__account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
@@ -93,12 +93,6 @@ class SnowflakeHook(DbApiHook):
             ),
             "extra__snowflake__database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
             "extra__snowflake__region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__aws_access_key_id": StringField(
-                lazy_gettext('AWS Access Key'), widget=BS3TextFieldWidget()
-            ),
-            "extra__snowflake__aws_secret_access_key": PasswordField(
-                lazy_gettext('AWS Secret Key'), widget=BS3PasswordFieldWidget()
-            ),
             "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
         }
 
@@ -127,8 +121,6 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__warehouse': 'snowflake warehouse name',
                 'extra__snowflake__database': 'snowflake db name',
                 'extra__snowflake__region': 'snowflake hosted region',
-                'extra__snowflake__aws_access_key_id': 'aws access key id (S3ToSnowflakeOperator)',
-                'extra__snowflake__aws_secret_access_key': 'aws secret access key (S3ToSnowflakeOperator)',
                 'extra__snowflake__role': 'snowflake role',
             },
         }
@@ -222,24 +214,6 @@ class SnowflakeHook(DbApiHook):
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
-
-    def _get_aws_credentials(self) -> Tuple[Optional[Any], Optional[Any]]:
-        """
-        Returns aws_access_key_id, aws_secret_access_key
-        from extra
-
-        intended to be used by external import and export statements
-        """
-        if self.snowflake_conn_id:  # type: ignore[attr-defined]
-            connection_object = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
-            if 'aws_secret_access_key' in connection_object.extra_dejson:
-                aws_access_key_id = connection_object.extra_dejson.get(
-                    'aws_access_key_id'
-                ) or connection_object.extra_dejson.get('aws_access_key_id')
-                aws_secret_access_key = connection_object.extra_dejson.get(
-                    'aws_secret_access_key'
-                ) or connection_object.extra_dejson.get('aws_secret_access_key')
-        return aws_access_key_id, aws_secret_access_key
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)

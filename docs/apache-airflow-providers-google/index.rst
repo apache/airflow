@@ -66,7 +66,7 @@ Google services including:
   - `Google Firebase <https://firebase.google.com/>`__
   - `Google LevelDB <https://github.com/google/leveldb/>`__
   - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-  - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
+  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
 Release: 6.2.0

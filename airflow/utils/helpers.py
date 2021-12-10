@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import re
+import signal
 import warnings
 from datetime import datetime
 from functools import reduce
@@ -95,6 +95,20 @@ def ask_yesno(question: str) -> bool:
             return False
         else:
             print("Please respond by yes or no.")
+
+
+def prompt_with_timeout(question: str, timeout: int):
+    """Ask user a question and timeout after timeout"""
+
+    def handler(signum, frame):
+        raise AirflowException(f"Timeout {timeout}s reached")
+
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(timeout)
+    try:
+        return ask_yesno(question)
+    finally:
+        signal.alarm(0)
 
 
 def is_container(obj: Any) -> bool:

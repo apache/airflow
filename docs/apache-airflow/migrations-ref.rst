@@ -23,7 +23,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
 | Revision ID                    | Revises ID       | Airflow Version | Description                                                                           |
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
-| ``5e3ec427fdd3`` (head)        | ``be2bfac3da23`` | ``2.2.3``       | Increase length of email and username in ``ab_user`` and ``ab_register_user`` table   |
+| ``5e3ec427fdd3`` (head)        | ``be2bfac3da23`` | ``2.3.0``       | Increase length of email and username in ``ab_user`` and ``ab_register_user`` table   |
 |                                |                  |                 | to ``256`` characters                                                                 |
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
 | ``be2bfac3da23``               | ``7b2661a43ba3`` | ``2.2.3``       | Add has_import_errors column to DagModel                                              |

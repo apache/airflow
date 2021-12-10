@@ -64,7 +64,7 @@
   {{ super() }}
   {% if sqlite_warning | default(true) %}
     {% call show_message(category='warning', dismissible=false)  %}
-      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing
+      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing.
       We recommend using Postgres or MySQL.
       <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
     {% endcall %}

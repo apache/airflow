@@ -46,7 +46,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
-from airflow.models.param import DagParam, Param
+from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
@@ -115,7 +115,7 @@ class TestDag(unittest.TestCase):
         """
         dag = models.DAG('test-dag')
 
-        assert isinstance(dag.params, dict)
+        assert isinstance(dag.params, ParamsDict)
         assert 0 == len(dag.params)
 
     def test_params_passed_and_params_in_default_args_no_override(self):
@@ -866,7 +866,6 @@ class TestDag(unittest.TestCase):
             )
             # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
             subdag.parent_dag = dag
-            subdag.is_subdag = True
             SubDagOperator(task_id='subtask', owner='owner2', subdag=subdag)
         session = settings.Session()
         dag.sync_to_db(session=session)
@@ -932,7 +931,6 @@ class TestDag(unittest.TestCase):
 
         # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
         subdag.parent_dag = dag
-        subdag.is_subdag = True
 
         session.query(DagModel).filter(DagModel.dag_id.in_([subdag_id, dag_id])).delete(
             synchronize_session=False
@@ -1427,7 +1425,6 @@ class TestDag(unittest.TestCase):
         SubDagOperator(task_id='test', subdag=subdag, dag=dag)
         t_2 = DummyOperator(task_id='task', dag=subdag)
         subdag.parent_dag = dag
-        subdag.is_subdag = True
 
         dag.sync_to_db()
 
@@ -1806,7 +1803,6 @@ class TestDag(unittest.TestCase):
         subdag = section_1.subdag
         # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
         subdag.parent_dag = dag
-        subdag.is_subdag = True
 
         next_parent_info = dag.next_dagrun_info(None)
         assert next_parent_info.logical_date == timezone.datetime(2019, 1, 1, 0, 0)

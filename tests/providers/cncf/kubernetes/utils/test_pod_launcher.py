@@ -20,7 +20,7 @@ from unittest import mock
 import pendulum
 import pytest
 from kubernetes.client.rest import ApiException
-from requests.exceptions import BaseHTTPError
+from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher, PodStatus

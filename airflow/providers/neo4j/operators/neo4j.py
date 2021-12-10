@@ -36,6 +36,8 @@ class Neo4jOperator(BaseOperator):
     :type neo4j_conn_id: str
     """
 
+    template_fields = ['sql']
+
     def __init__(
         self,
         *,

@@ -19,14 +19,17 @@ import contextlib
 import enum
 import logging
 import os
+import sys
 import time
 from tempfile import gettempdir
-from typing import Iterable
+from typing import Any, Iterable, List
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
+from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
 from airflow.models import (  # noqa: F401
     DAG,
@@ -52,9 +55,11 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import create_session, provide_session  # noqa: F401
+from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
+from airflow.version import version
 
 log = logging.getLogger(__name__)
 
@@ -625,38 +630,97 @@ def _get_alembic_config():
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
-
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
     from alembic.runtime.environment import EnvironmentContext
-    from alembic.script import ScriptDirectory
 
-    config = _get_alembic_config()
-    script_ = ScriptDirectory.from_config(config)
+    script_, config = _get_script_dir_and_config()
     with EnvironmentContext(
         config,
         script_,
     ) as env, settings.engine.connect() as connection:
         env.configure(connection)
         context = env.get_context()
-        ticker = 0
-        while True:
+        source_heads = None
+        db_heads = None
+        for ticker in range(timeout):
             source_heads = set(script_.get_heads())
             db_heads = set(context.get_current_heads())
             if source_heads == db_heads:
-                break
-            if ticker >= timeout:
-                raise TimeoutError(
-                    f"There are still unapplied migrations after {ticker} seconds. Migration"
-                    f"Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
-                )
-            ticker += 1
+                return
             time.sleep(1)
             log.info('Waiting for migrations... %s second(s)', ticker)
+        raise TimeoutError(
+            f"There are still unapplied migrations after {timeout} seconds. Migration"
+            f"Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+        )
 
 
-def check_conn_id_duplicates(session=None) -> Iterable[str]:
+def _get_script_dir_and_config():
+    """Get config and script directory"""
+    from alembic.script import ScriptDirectory
+
+    config = _get_alembic_config()
+    script_ = ScriptDirectory.from_config(config)
+    return script_, config
+
+
+def check_and_run_migrations():
+    """Check and run migrations if necessary. Only use in a tty"""
+    from alembic.runtime.environment import EnvironmentContext
+
+    script_, config = _get_script_dir_and_config()
+    with EnvironmentContext(
+        config,
+        script_,
+    ) as env, settings.engine.connect() as connection:
+        env.configure(connection)
+        context = env.get_context()
+        source_heads = set(script_.get_heads())
+        db_heads = set(context.get_current_heads())
+        db_command = None
+        command_name = None
+        verb = None
+    if len(db_heads) < 1:
+        db_command = initdb
+        command_name = "init"
+        verb = "initialization"
+    elif source_heads != db_heads:
+        db_command = upgradedb
+        command_name = "upgrade"
+        verb = "upgrade"
+
+    if sys.stdout.isatty() and verb:
+        print()
+        question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure?"
+        try:
+            answer = helpers.prompt_with_timeout(question, timeout=4)
+            if answer:
+                try:
+                    db_command()
+                    print(f"DB {verb} done")
+                except Exception as error:
+                    print(error)
+                    print(
+                        "You still have unapplied migrations. "
+                        "You may need to {verb} the database by running `airflow db {command_name}`",
+                        f"Make sure the command is run using airflow version {version}.",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+        except AirflowException:
+            pass
+    elif source_heads != db_heads:
+        print(
+            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}` ."
+            f"Make sure the command is run using airflow version {version}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table
 
@@ -679,7 +743,7 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
         )
 
 
-def check_conn_type_null(session=None) -> Iterable[str]:
+def check_conn_type_null(session: Session) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
 
@@ -777,7 +841,7 @@ def _move_dangling_table(session, source_table: "Table", target_table_name: str,
             )
 
 
-def check_run_id_null(session) -> Iterable[str]:
+def check_run_id_null(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -819,12 +883,12 @@ def _move_dangling_task_data_to_new_table(session, source_table: "Table", target
     _move_dangling_table(session, source_table, target_table_name, where_clause)
 
 
-def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
+def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun = [TaskInstance, TaskReschedule]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
@@ -887,7 +951,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
 
 
 @provide_session
-def _check_migration_errors(session=None) -> Iterable[str]:
+def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     """
     :session: session of the sqlalchemy
     :rtype: list[str]

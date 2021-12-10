@@ -37,7 +37,7 @@ def roles_list(args):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_create(args):
     """Creates new empty role in DB"""
@@ -64,7 +64,7 @@ def roles_export(args):
     print(f"{len(exporting_roles)} roles successfully exported to {filename}")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def roles_import(args):
     """

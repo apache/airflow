@@ -227,6 +227,30 @@ class AWSAthenaHook(AwsBaseHook):
             sleep(self.sleep_time)
         return final_query_state
 
+    def get_output_location(self, query_execution_id: str) -> str:
+        """
+        Function to get the output location of the query results
+        in s3 uri format.
+
+        :param query_execution_id: Id of submitted athena query
+        :type query_execution_id: str
+        :return: str
+        """
+        output_location = None
+        if query_execution_id:
+            response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+
+            if response:
+                try:
+                    output_location = response['QueryExecution']['ResultConfiguration']['OutputLocation']
+                except KeyError:
+                    self.log.error("Error retrieving OutputLocation")
+                    raise
+        else:
+            raise ValueError("Invalid Query execution id")
+
+        return output_location
+
     def stop_query(self, query_execution_id: str) -> Dict:
         """
         Cancel the submitted athena query
