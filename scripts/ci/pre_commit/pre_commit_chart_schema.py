@@ -58,7 +58,7 @@ def walk(value, path='$'):
 
 
 def validate_object_types():
-    all_object_types = ((d, p) for d, p in walk(schema) if type(d) == dict and d.get('type') == 'object')
+    all_object_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get('type') == 'object')
     all_object_types_with_a_loose_definition = [
         (d, p)
         for d, p in all_object_types
@@ -83,7 +83,7 @@ def validate_object_types():
 
 
 def validate_array_types():
-    all_array_types = ((d, p) for d, p in walk(schema) if type(d) == dict and d.get('type') == 'array')
+    all_array_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get('type') == 'array')
     all_array_types_with_a_loose_definition = [
         (d, p) for (d, p) in all_array_types if type(d.get('items')) != dict
     ]
