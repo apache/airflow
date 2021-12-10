@@ -28,8 +28,6 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 CHART_DIR = PROJECT_SOURCE_ROOT_DIR / "chart"
-
-
 KNOWN_INVALID_TYPES = {
     # I don't know the data structure for this type with 100 certainty. We have no tests.
     "$['properties']['ingress']['properties']['web']['properties']['precedingPaths']",
@@ -38,7 +36,8 @@ KNOWN_INVALID_TYPES = {
     # The value of this parameter is passed to statsd_exporter, which does not have a strict type definition.
     "$['properties']['statsd']['properties']['extraMappings']",
 }
-schema = json.loads((CHART_DIR / "values.schema.json").read_text())
+
+SCHEMA = json.loads((CHART_DIR / "values.schema.json").read_text())
 
 
 def display_definitions_list(definitions_list):
