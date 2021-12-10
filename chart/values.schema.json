@@ -2461,6 +2461,9 @@
                                 "ports": {
                                     "description": "Ports for flower NetworkPolicy ingress (if `from` is set).",
                                     "type": "array",
+                                    "items": {
+                                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/networkpolicyport-networking-v1.json"
+                                    },
                                     "default": [
                                         {
                                             "port": "flower-ui"
