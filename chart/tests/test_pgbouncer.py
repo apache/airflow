@@ -468,5 +468,5 @@ class PgbouncerExporterTest(unittest.TestCase):
         )
         assert (
             "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
-            "/pgbouncer?sslmode=disable" == connection
+            "/pgbouncer?sslmode=require" == connection
         )
