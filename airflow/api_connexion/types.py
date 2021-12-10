@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Collection, Mapping, Optional, Tuple, Union
+from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 from flask import Response
 
@@ -25,4 +25,4 @@ APIResponse = Union[
     Mapping[str, Any],  # JSON.
 ]
 
-UpdateMask = Optional[Collection[str]]
+UpdateMask = Optional[Sequence[str]]
