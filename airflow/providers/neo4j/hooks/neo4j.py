@@ -17,7 +17,6 @@
 # under the License.
 
 """This module allows to connect to a Neo4j database."""
-from typing import Dict
 
 from neo4j import GraphDatabase, Neo4jDriver, Result
 
