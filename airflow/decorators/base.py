@@ -194,7 +194,7 @@ class DecoratedOperator(BaseOperator):
 
 T = TypeVar("T", bound=Callable)
 
-OperatorSubclass = TypeVar("OperatorSubclass", bound=BaseOperator)
+OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define
@@ -208,10 +208,11 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
     """
 
     function: T = attr.ib(validator=attr.validators.is_callable())
-    operator_class: Type[BaseOperator]
+    operator_class: Type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
 
+    decorator_name: str = attr.ib(repr=False, default="task")
     function_arg_names: Set[str] = attr.ib(repr=False)
 
     @function_arg_names.default
@@ -220,11 +221,8 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
     @function.validator
     def _validate_function(self, _, f):
-        if not callable(f):
-            # Not likely to be hit -- checked by the decorator first!
-            raise TypeError('`python_callable` param must be callable')
         if 'self' in self.function_arg_names:
-            raise TypeError('@task does not support methods')
+            raise TypeError(f'@{self.decorator_name} does not support methods')
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
@@ -279,8 +277,9 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
+    *,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Optional[Type[BaseOperator]] = None,
+    decorated_operator_class: Type[BaseOperator],
     **kwargs,
 ) -> Callable[[T], T]:
     """
@@ -300,14 +299,14 @@ def task_decorator_factory(
 
     """
     if multiple_outputs is None:
-        multiple_outputs = attr.NOTHING
+        multiple_outputs = cast(bool, attr.NOTHING)
     if python_callable:
-        return OperatorWrapper(
+        return OperatorWrapper(  # type: ignore
             function=python_callable,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
             kwargs=kwargs,
-        )  # type: ignore
+        )
     elif python_callable is not None:
         raise TypeError('No args allowed while using @task, use kwargs instead')
     return cast(

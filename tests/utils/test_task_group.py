@@ -27,7 +27,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-from airflow.utils.task_group import TaskGroup
+from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import MockOperator
@@ -1018,7 +1018,9 @@ def test_map() -> None:
         start >> process_one >> end
 
     # check the mapped operators are attached to the task broup
+    assert isinstance(process_one, MappedTaskGroup)
     assert process_one.has_task(one)
+    assert process_one.mapped_arg is literal
 
     assert isinstance(one, MappedOperator)
     assert start.downstream_list == [one]
@@ -1047,3 +1049,46 @@ def test_nested_map() -> None:
             one >> process_one_two >> four
 
         start >> process_one >> end
+
+
+def test_decorator_unknown_args():
+    """Test that unknown args passed to the decorator cause an error at parse time"""
+    with pytest.raises(TypeError):
+
+        @task_group_decorator(b=2)
+        def tg():
+            ...
+
+
+def test_decorator_partial_unmapped():
+    @task_group_decorator
+    def tg():
+        ...
+
+    with pytest.warns(UserWarning, match='was never mapped'):
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            tg.partial()
+
+
+def test_decorator_map():
+    @task_group_decorator
+    def my_task_group(my_arg_1: str, unmapped: bool):
+        assert unmapped is True
+        assert isinstance(my_arg_1, object)
+        task_1 = DummyOperator(task_id="task_1")
+        task_2 = BashOperator(task_id="task_2", bash_command='echo "${my_arg_1}"', env={'my_arg_1': my_arg_1})
+        task_3 = DummyOperator(task_id="task_3")
+        task_1 >> [task_2, task_3]
+
+        return task_1, task_2, task_3
+
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        lines = ["foo", "bar", "baz"]
+
+        (task_1, task_2, task_3) = my_task_group.partial(unmapped=True).map(my_arg_1=lines)
+
+    assert task_1 in dag.tasks
+
+    tg = dag.task_group.get_child_by_label("my_task_group")
+    assert isinstance(tg, MappedTaskGroup)
+    assert "my_arg_1" in tg.mapped_kwargs

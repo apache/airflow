@@ -22,11 +22,12 @@ together when the DAG is displayed graphically.
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.utils.helpers import validate_group_key
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -392,7 +393,11 @@ class TaskGroup(DAGNode):
             raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
         if self._parent_group:
             self._parent_group._remove(self)
-        return MappedTaskGroup(self._group_id)
+        tg = MappedTaskGroup(self._group_id)
+        tg.mapped_arg = arg
+        tg.mapped_kwargs = {}
+        tg.partial_kwargs = {}
+        return tg
 
 
 class MappedTaskGroup(TaskGroup):
@@ -401,6 +406,10 @@ class MappedTaskGroup(TaskGroup):
 
     Do not create instances of this class directly, instead use :meth:`TaskGroup.map`
     """
+
+    mapped_arg: Any = NOTSET
+    mapped_kwargs: Dict[str, Any]
+    partial_kwargs: Dict[str, Any]
 
 
 class TaskGroupContext:
