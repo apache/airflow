@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.3](#airflow-223)
 - [Airflow 2.2.2](#airflow-222)
 - [Airflow 2.2.1](#airflow-221)
 - [Airflow 2.2.0](#airflow-220)
@@ -78,6 +79,10 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.2.3
+
+No breaking changes.
 
 ## Airflow 2.2.2
 
