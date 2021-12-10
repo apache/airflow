@@ -24,7 +24,7 @@ import datetime
 import json
 import logging
 import re
-from typing import Dict, List, Set, Tuple, Any, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from flask import g, session, url_for
 from flask_appbuilder import AppBuilder
@@ -71,7 +71,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.www.fab_security.sqla.models import User, Role, Permission
+from airflow.www.fab_security.sqla.models import Permission, Role, User
 from airflow.www.views import ResourceModelView
 
 log = logging.getLogger(__name__)
@@ -110,10 +110,14 @@ class BaseSecurityManager:
     """ OAuth email whitelists """
     oauth_whitelists: Dict[str, List]
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
+
     @staticmethod
     def oauth_tokengetter():
-        """ OAuth tokengetter function override to implement your own tokengetter method """
+        """Authentication (OAuth) token getter function.
+        Override to implement your own token getter method
+        """
         return _oauth_tokengetter
+
     oauth_user_info = None
 
     user_model = None
