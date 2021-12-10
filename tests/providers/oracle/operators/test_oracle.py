@@ -54,7 +54,6 @@ class TestOracleStoredProcedureOperator(unittest.TestCase):
         procedure = 'test'
         oracle_conn_id = 'oracle_default'
         parameters = {'parameter': 'value'}
-        autocommit = False
         context = "test_context"
         task_id = "test_task_id"
 
