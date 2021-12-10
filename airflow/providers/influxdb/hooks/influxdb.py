@@ -18,7 +18,7 @@
 
 """This module allows to connect to a InfluxDB database."""
 
-from typing import List, Dict
+from typing import Dict, List
 
 import pandas as pd
 from influxdb_client import InfluxDBClient
