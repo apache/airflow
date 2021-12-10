@@ -17,6 +17,7 @@
 
 from typing import Any, Dict, Optional
 
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -34,7 +35,7 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
         ti = TaskInstance(task=operator, execution_date=dttm)
         run_id = ti.xcom_pull(task_ids=operator.task_id, key="run_id")
 
-        conn = AzureDataFactoryHook.get_connection(operator.azure_data_factory_conn_id)
+        conn = BaseHook.get_connection(operator.azure_data_factory_conn_id)
         subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
         # Both Resource Group Name and Factory Name can either be declared in the Azure Data Factory
         # connection or passed directly to the operator.
