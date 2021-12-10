@@ -23,7 +23,7 @@ from asana import Client
 from asana.error import NotFoundError
 
 try:
-    from functools import cached_property
+    from functools import cached_property  # type: ignore
 except ImportError:
     from cached_property import cached_property
 

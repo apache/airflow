@@ -28,12 +28,12 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaUpdateTaskOperator,
 )
 
-ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
-ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
+ASANA_TASK_TO_UPDATE = os.getenv("ASANA_TASK_TO_UPDATE", "update_task")
+ASANA_TASK_TO_DELETE = os.getenv("ASANA_TASK_TO_DELETE", "delete_task")
 # This example assumes a default project ID has been specified in the connection. If you
 # provide a different id in ASANA_PROJECT_ID_OVERRIDE, it will override this default
 # project ID in the AsanaFindTaskOperator example below
-ASANA_PROJECT_ID_OVERRIDE = os.environ.get("ASANA_PROJECT_ID_OVERRIDE")
+ASANA_PROJECT_ID_OVERRIDE = os.getenv("ASANA_PROJECT_ID_OVERRIDE", "test_project")
 # This connection should specify a personal access token and a default project ID
 CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 
@@ -53,6 +53,7 @@ with DAG(
     create = AsanaCreateTaskOperator(
         task_id="run_asana_create_task",
         task_parameters={"notes": "Some notes about the task."},
+        conn_id='asana_default',
         name="New Task Name",
     )
     # [END run_asana_create_task_operator]
@@ -66,6 +67,7 @@ with DAG(
     one_week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
     find = AsanaFindTaskOperator(
         task_id="run_asana_find_task",
+        conn_id='asana_default',
         search_parameters={"project": ASANA_PROJECT_ID_OVERRIDE, "modified_since": one_week_ago},
     )
     # [END run_asana_find_task_operator]
@@ -75,6 +77,7 @@ with DAG(
     # task attributes you want to update.
     update = AsanaUpdateTaskOperator(
         task_id="run_asana_update_task",
+        conn_id='asana_default',
         asana_task_gid=ASANA_TASK_TO_UPDATE,
         task_parameters={"notes": "This task was updated!", "completed": True},
     )
@@ -84,6 +87,7 @@ with DAG(
     # Delete a task. This task will complete successfully even if `asana_task_gid` does not exist.
     delete = AsanaDeleteTaskOperator(
         task_id="run_asana_delete_task",
+        conn_id='asana_default',
         asana_task_gid=ASANA_TASK_TO_DELETE,
     )
     # [END run_asana_delete_task_operator]
