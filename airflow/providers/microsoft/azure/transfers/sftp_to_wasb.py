@@ -149,7 +149,7 @@ class SFTPToWasbOperator(BaseOperator):
 
         return self.sftp_source_path, None, None
 
-    def check_wildcards_limit(self) -> Any:
+    def check_wildcards_limit(self) -> None:
         """Check if there are multiple wildcards used in the SFTP source path."""
         total_wildcards = self.sftp_source_path.count(WILDCARD)
         if total_wildcards > 1:
