@@ -21,6 +21,7 @@
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
+
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
