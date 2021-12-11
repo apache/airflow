@@ -47,6 +47,7 @@ from typing import (
 
 import attr
 import jinja2
+import jinja2.nativetypes
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
@@ -94,7 +95,7 @@ T = TypeVar('T', bound=FunctionType)
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
-def _render_jinja2(template: Any, context: Context) -> str:
+def _render_jinja2(template: Any, context: Context, *, native: bool) -> Any:
     """Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
@@ -104,16 +105,20 @@ def _render_jinja2(template: Any, context: Context) -> str:
 
     :param template: A Jinja2 template to render.
     :param context: The Airflow task context to render the template with.
+    :param native: Whether to render as native types or not. A DAG can enable
+        native type rendering with ``render_template_as_native_obj=True``.
     :returns: The render result.
     """
     env = template.environment
     if template.globals:
         context.update((k, v) for k, v in template.globals.items() if k not in context)
     try:
-        parts = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
     except Exception:
         env.handle_exception()  # Rewrite traceback to point to the template.
-    return "".join(parts)
+    if native:
+        return jinja2.nativetypes.native_concat(nodes)
+    return "".join(nodes)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -1132,7 +1137,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 template = jinja_env.get_template(content)
             else:
                 template = jinja_env.from_string(content)
-            return _render_jinja2(template, copy.copy(context))
+            native = self.has_dag() and self.dag.render_template_as_native_obj
+            return _render_jinja2(template, copy.copy(context), native=native)
 
         elif isinstance(content, (XComArg, DagParam)):
             return content.resolve(context)
