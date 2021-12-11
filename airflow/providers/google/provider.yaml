@@ -169,6 +169,8 @@ integrations:
     tags: [gcp]
   - integration-name: Google Cloud Tasks
     external-doc-url: https://cloud.google.com/tasks/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/tasks.rst
     logo: /integration-logos/gcp/Cloud-Tasks.png
     tags: [gcp]
   - integration-name: Google Cloud Text-to-Speech
