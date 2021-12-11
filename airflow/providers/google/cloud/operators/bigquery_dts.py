@@ -101,7 +101,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
 
     def execute(self, context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
         self.log.info("Creating DTS transfer config")
         response = hook.create_transfer_config(
@@ -187,7 +187,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
 
     def execute(self, context) -> None:
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
         hook.delete_transfer_config(
             transfer_config_id=self.transfer_config_id,
