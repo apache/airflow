@@ -158,6 +158,7 @@ class TestBaseSensor:
                 # verify task is re-scheduled, i.e. state set to NONE
                 assert ti.state == State.UP_FOR_RESCHEDULE
                 # verify task start date is the initial one
+                # task state realistically would be queued as defined by the task life cycle
                 assert ti.start_date == date1
                 # verify one row in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)

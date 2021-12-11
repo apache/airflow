@@ -1204,10 +1204,12 @@ class TaskInstance(Base, LoggingMixin):
             # For reporting purposes, we report based on 1-indexed,
             # not 0-indexed lists (i.e. Attempt 1 instead of
             # Attempt 0 for the first attempt).
-            # Set the task start date. In case it was re-scheduled use the initial
-            # start date that is recorded in task_reschedule table
+            # Set the task start date.
             self.start_date = timezone.utcnow()
-            if self.state == State.UP_FOR_RESCHEDULE:
+
+            # In case it was re-scheduled use the initial
+            # start date that is recorded in task_reschedule table
+            if hasattr(self.task, 'reschedule') and self.task.reschedule:
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
                     self.start_date = task_reschedule.start_date
