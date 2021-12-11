@@ -150,7 +150,7 @@ class SFTPToWasbOperator(BaseOperator):
         return self.sftp_source_path, None, None
 
     def check_wildcards_limit(self) -> Any:
-        """Check if there is multiple Wildcard."""
+        """Check if there are multiple wildcards used in the SFTP source path."""
         total_wildcards = self.sftp_source_path.count(WILDCARD)
         if total_wildcards > 1:
             raise AirflowException(
