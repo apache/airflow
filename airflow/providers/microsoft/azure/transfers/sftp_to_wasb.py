@@ -169,7 +169,7 @@ class SFTPToWasbOperator(BaseOperator):
         return SFTPHook(self.sftp_conn_id)
 
     def get_full_path_blob(self, file: str) -> str:
-        """Get a blob name based by the previous name and a blob_prefix variable"""
+        """Get a blob name based on the previous name and a blob_prefix variable"""
         return self.blob_prefix + os.path.basename(file)
 
     def copy_files_to_wasb(self, sftp_files: List[SftpFile]) -> List[str]:
