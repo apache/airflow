@@ -183,7 +183,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         if self.location:
             project = f"/{project}/locations/{self.location}"
 
-        name = f"{project}/transferConfigs/{transfer_config_id}"        
+        name = f"{project}/transferConfigs/{transfer_config_id}"
         return client.delete_transfer_config(
             request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
