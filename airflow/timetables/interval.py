@@ -140,7 +140,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             if len(croniter(self._expression).expanded) > 5:
                 raise FormatException()
             interval_description = descriptor.get_description()
-        except (FormatException, MissingFieldException):
+        except (CroniterBadCronError, FormatException, MissingFieldException):
             interval_description = ""
         self.description = interval_description
 
