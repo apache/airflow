@@ -110,7 +110,7 @@ class SFTPToWasbOperator(BaseOperator):
             if self.move_object:
                 self.log.info("Executing delete of %s", file)
 
-    def execute(self, context: Optional[Dict[Any, Any]]) -> None:
+    def execute(self, context: Dict) -> None:
         """Upload a file from SFTP to Azure Blob Storage."""
         sftp_files: List[SftpFile] = self.get_sftp_files_map()
         uploaded_files = self.copy_files_to_wasb(sftp_files)
