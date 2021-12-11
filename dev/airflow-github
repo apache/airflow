@@ -72,6 +72,8 @@ def get_issue_type(issue):
         for label in issue.labels:
             if label.name.startswith(label_prefix):
                 return label.name.replace(label_prefix, "").strip()
+            if label.name == "changelog:skip":
+                return "(skip)"
     return issue_type
 
 
@@ -107,6 +109,8 @@ def is_pr(issue: Issue) -> bool:
 
 def print_changelog(sections):
     for section, lines in sections.items():
+        if section == "(skip)":
+            continue
         print(section)
         print('"' * len(section))
         for line in lines:
@@ -133,7 +137,7 @@ def cli():
     help="Specify the previous tag on the working branch to limit"
     " searching for few commits to find the cherry-picked commits",
 )
-@click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged issues only", is_flag=True)
+@click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged PRs only", is_flag=True)
 def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
     repo = git.Repo(".", search_parent_directories=True)
 
@@ -174,6 +178,9 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             if show_uncherrypicked_only:
                 continue
             cherrypicked = click.style("Yes".ljust(6), "green")
+        elif not issue_is_pr and show_uncherrypicked_only:
+            # Don't show issues when looking for unmerged PRs
+            continue
         elif issue_is_pr:
             num_uncherrypicked[status] += 1
             cherrypicked = click.style("No".ljust(6), "red")
