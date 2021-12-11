@@ -1306,7 +1306,7 @@
     - name: warn_deployment_exposure
       description: |
         Boolean for displaying warning for publicly viewable deployment
-      version_added: 2.2.0
+      version_added: 2.3.0
       type: boolean
       example: ~
       default: "True"

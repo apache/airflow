@@ -806,7 +806,7 @@ class Airflow(AirflowBaseView):
                         'This indicates that this deployment may be accessible to the public internet. '
                         'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
                         'airflow.cfg. Read more about web deployment security <a href='
-                        '"https://airflow.apache.org/docs/apache-airflow/stable/security/webserver.html">'
+                        f'"{get_docs_url("security/webserver.html")}">'
                         'here</a>'
                     ),
                     "warning",
