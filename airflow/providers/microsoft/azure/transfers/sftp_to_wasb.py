@@ -19,7 +19,7 @@
 import os
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 try:
     from functools import cached_property
@@ -81,7 +81,7 @@ class SFTPToWasbOperator(BaseOperator):
         blob_prefix: str = "",
         sftp_conn_id: str = "sftp_default",
         wasb_conn_id: str = 'wasb_default',
-        load_options: Optional[dict] = None,
+        load_options: Optional[Dict] = None,
         move_object: bool = False,
         wasb_overwrite_object: bool = False,
         **kwargs,
