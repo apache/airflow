@@ -102,7 +102,10 @@ class TestPSRPHook(TestCase):
         self, logging, log_debug, log_error, log_info, log_warning, runspace_pool, powershell, ws_man
     ):
         runspace_options = {"connection_name": "foo"}
-        with PSRPHook(CONNECTION_ID, logging=logging, runspace_options=runspace_options) as hook:
+        wsman_options = {"encryption": "auto"}
+        with PSRPHook(
+            CONNECTION_ID, logging=logging, runspace_options=runspace_options, wsman_options=wsman_options
+        ) as hook:
             with hook.invoke() as ps:
                 assert ps.state == PSInvocationState.NOT_STARTED
             assert ps.state == PSInvocationState.COMPLETED
@@ -113,6 +116,7 @@ class TestPSRPHook(TestCase):
 
         assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
+        assert ws_man.call_args_list[0][1]["encryption"] == "auto"
 
         def assert_log(f, *args):
             assert not (logging ^ (call(*args) in f.mock_calls))

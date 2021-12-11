@@ -53,6 +53,10 @@ class PSRPHook(BaseHook):
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
         available options.
     :type runspace_options: dict
+    :param wsman_options:
+        Optional dictionary which is passed when creating the `WSMan` client. See
+        :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
+    :type wsman_options: dict
     :param exchange_keys:
         If true (default), automatically initiate a session key exchange when the
         hook is used as a context manager.
@@ -72,12 +76,14 @@ class PSRPHook(BaseHook):
         logging: bool = True,
         operation_timeout: Optional[float] = None,
         runspace_options: Optional[Dict[str, Any]] = None,
+        wsman_options: Optional[Dict[str, Any]] = None,
         exchange_keys: bool = True,
     ):
         self.conn_id = psrp_conn_id
         self._logging = logging
         self._operation_timeout = operation_timeout
         self._runspace_options = runspace_options or {}
+        self._wsman_options = wsman_options or {}
         self._exchange_keys = exchange_keys
 
     def __enter__(self):
@@ -109,12 +115,9 @@ class PSRPHook(BaseHook):
         self.log.info("Establishing WinRM connection %s to host: %s", self.conn_id, conn.host)
         wsman = WSMan(
             conn.host,
-            ssl=True,
-            auth="ntlm",
-            encryption="never",
             username=conn.login,
             password=conn.password,
-            cert_validation=False,
+            **self._wsman_options,
         )
         runspace_options = self._runspace_options.copy()
         configuration_name = conn.extra_dejson.get('configuration_name')

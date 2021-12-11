@@ -44,6 +44,10 @@ class PSRPOperator(BaseOperator):
         Optional dictionary which is passed when creating the runspace pool. See
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
         available options.
+    :param wsman_options:
+        Optional dictionary which is passed when creating the `WSMan` client. See
+        :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
+    :type wsman_options: dict
     """
 
     template_fields: Sequence[str] = (
@@ -64,6 +68,7 @@ class PSRPOperator(BaseOperator):
         parameters: Optional[Dict[str, str]] = None,
         logging: bool = True,
         runspace_options: Optional[Dict[str, Any]] = None,
+        wsman_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         args = {command, powershell, cmdlet}
@@ -81,9 +86,15 @@ class PSRPOperator(BaseOperator):
         self.parameters = parameters or {}
         self.logging = logging
         self.runspace_options = runspace_options
+        self.wsman_options = wsman_options
 
     def execute(self, context: "Context") -> List[str]:
-        with PSRPHook(self.conn_id, logging=self.logging, runspace_options=self.runspace_options) as hook:
+        with PSRPHook(
+            self.conn_id,
+            logging=self.logging,
+            runspace_options=self.runspace_options,
+            wsman_options=self.wsman_options,
+        ) as hook:
             ps = (
                 hook.invoke_cmdlet(self.cmdlet, **self.parameters)
                 if self.cmdlet
