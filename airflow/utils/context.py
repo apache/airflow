@@ -19,10 +19,11 @@
 """Jinja2 template rendering context helper."""
 
 import contextlib
+import copy
 import warnings
 from typing import AbstractSet, Any, Container, Dict, Iterator, List, MutableMapping, Tuple, ValuesView
 
-_NOT_SET: Any = object()
+from airflow.utils.types import NOTSET
 
 
 class VariableAccessor:
@@ -41,10 +42,10 @@ class VariableAccessor:
     def __repr__(self) -> str:
         return str(self.var)
 
-    def get(self, key, default: Any = _NOT_SET) -> Any:
+    def get(self, key, default: Any = NOTSET) -> Any:
         from airflow.models.variable import Variable
 
-        if default is _NOT_SET:
+        if default is NOTSET:
             return Variable.get(key, deserialize_json=self._deserialize_json)
         return Variable.get(key, default, deserialize_json=self._deserialize_json)
 
@@ -74,20 +75,20 @@ class ConnectionAccessor:
             return default_conn
 
 
-class AirflowTemplateDeprecationWarning(DeprecationWarning):
+class AirflowContextDeprecationWarning(DeprecationWarning):
     """Warn for usage of deprecated context variables in a task."""
 
 
 def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
     if not replacements:
-        return AirflowTemplateDeprecationWarning(message)
+        return AirflowContextDeprecationWarning(message)
     display_except_last = ", ".join(repr(r) for r in replacements[:-1])
     if display_except_last:
         message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
     else:
         message += f" Please use {replacements[-1]!r} instead."
-    return AirflowTemplateDeprecationWarning(message)
+    return AirflowContextDeprecationWarning(message)
 
 
 class Context(MutableMapping[str, Any]):
@@ -127,6 +128,11 @@ class Context(MutableMapping[str, Any]):
         """
         items = [(key, self[key]) for key in self._context]
         return dict, (items,)
+
+    def __copy__(self) -> "Context":
+        new = type(self)(copy.copy(self._context))
+        new._deprecation_replacements = self._deprecation_replacements.copy()
+        return new
 
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
@@ -172,4 +178,6 @@ class Context(MutableMapping[str, Any]):
         return self._context.values()
 
     def copy_only(self, keys: Container[str]) -> "Context":
-        return type(self)({k: v for k, v in self._context.items() if k in keys})
+        new = type(self)({k: v for k, v in self._context.items() if k in keys})
+        new._deprecation_replacements = self._deprecation_replacements.copy()
+        return new

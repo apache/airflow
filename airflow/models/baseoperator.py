@@ -92,6 +92,30 @@ TaskPostExecuteHook = Callable[[Context, Any], None]
 T = TypeVar('T', bound=FunctionType)
 
 
+# The 'template' argument is typed as Any because the jinja2.Template is too
+# dynamic to be effectively type-checked.
+def _render_jinja2(template: Any, context: Context) -> str:
+    """Render a Jinja2 template with given Airflow context.
+
+    The default implementation of ``jinja2.Template.render()`` converts the
+    input context into dict eagerly many times, which triggers deprecation
+    messages in our custom context class. This takes the implementation apart
+    and retain the context mapping without resolving instead.
+
+    :param template: A Jinja2 template to render.
+    :param context: The Airflow task context to render the template with.
+    :returns: The render result.
+    """
+    env = template.environment
+    if template.globals:
+        context.update((k, v) for k, v in template.globals.items() if k not in context)
+    try:
+        parts = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+    except Exception:
+        env.handle_exception()  # Rewrite traceback to point to the template.
+    return "".join(parts)
+
+
 class BaseOperatorMeta(abc.ABCMeta):
     """Metaclass of BaseOperator."""
 
@@ -1042,7 +1066,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
-    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: Optional[jinja2.Environment] = None,
+    ) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
 
@@ -1060,7 +1088,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self,
         parent: Any,
         template_fields: Iterable[str],
-        context: Dict,
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: Set,
     ) -> None:
@@ -1073,7 +1101,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     def render_template(
         self,
         content: Any,
-        context: Dict,
+        context: Context,
         jinja_env: Optional[jinja2.Environment] = None,
         seen_oids: Optional[Set] = None,
     ) -> Any:
@@ -1100,11 +1128,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         from airflow.models.xcom_arg import XComArg
 
         if isinstance(content, str):
-            if any(content.endswith(ext) for ext in self.template_ext):
-                # Content contains a filepath
-                return jinja_env.get_template(content).render(**context)
+            if any(content.endswith(ext) for ext in self.template_ext):  # Content contains a filepath.
+                template = jinja_env.get_template(content)
             else:
-                return jinja_env.from_string(content).render(**context)
+                template = jinja_env.from_string(content)
+            return _render_jinja2(template, copy.copy(context))
+
         elif isinstance(content, (XComArg, DagParam)):
             return content.resolve(context)
 
@@ -1133,7 +1162,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             return content
 
     def _render_nested_template_fields(
-        self, content: Any, context: Dict, jinja_env: jinja2.Environment, seen_oids: Set
+        self, content: Any, context: Context, jinja_env: jinja2.Environment, seen_oids: Set
     ) -> None:
         if id(content) not in seen_oids:
             seen_oids.add(id(content))
