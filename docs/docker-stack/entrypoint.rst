@@ -258,7 +258,7 @@ And then you can run this script by running the command:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "/my_after_entrypoint_script.sh"
+  docker run -it apache/airflow:2.2.3-python3.6 bash -c "/my_after_entrypoint_script.sh"
 
 
 Signal propagation
