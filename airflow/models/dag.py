@@ -1287,9 +1287,10 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         if self.render_template_as_native_obj:
-            env = NativeEnvironment(**jinja_env_options)
+            env_class: Any = NativeEnvironment
         else:
-            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)  # type: ignore
+            env_class = airflow.templates.SandboxedEnvironment
+        env: jinja2.Environment = env_class(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
@@ -1631,13 +1632,13 @@ class DAG(LoggingMixin):
         self,
         task_id: str,
         execution_date: datetime,
-        state: State,
-        upstream: Optional[bool] = False,
-        downstream: Optional[bool] = False,
-        future: Optional[bool] = False,
-        past: Optional[bool] = False,
-        commit: Optional[bool] = True,
-        session=NEW_SESSION,
+        state: TaskInstanceState,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        commit: bool = True,
+        session: Session = NEW_SESSION,
     ) -> List[TaskInstance]:
         """
         Set the state of a TaskInstance to the given state, and clear its downstream tasks that are
@@ -1981,12 +1982,11 @@ class DAG(LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k not in ('user_defined_macros', 'user_defined_filters', 'params', '_log'):
+            if k not in ('user_defined_macros', 'user_defined_filters', '_log'):
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
-        result.params = self.params
         if hasattr(self, '_log'):
             result._log = self._log
         return result

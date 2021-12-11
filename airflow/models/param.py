@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
@@ -21,16 +22,7 @@ from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 
 from airflow.exceptions import AirflowException
-
-
-class NoValueSentinel:
-    """Sentinel class used to distinguish between None and no passed value"""
-
-    def __str__(self):
-        return "NoValueSentinel"
-
-    def __repr__(self):
-        return "NoValueSentinel"
+from airflow.utils.types import NOTSET, ArgNotSet
 
 
 class Param:
@@ -47,35 +39,37 @@ class Param:
     :type schema: dict
     """
 
-    __NO_VALUE_SENTINEL = NoValueSentinel()
     CLASS_IDENTIFIER = '__class'
 
-    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: Optional[str] = None, **kwargs):
+    def __init__(self, default: Any = NOTSET, description: Optional[str] = None, **kwargs):
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
         # If we have a value, validate it once. May raise ValueError.
-        if self.has_value:
+        if not isinstance(default, ArgNotSet):
             try:
                 jsonschema.validate(self.value, self.schema, format_checker=FormatChecker())
             except ValidationError as err:
                 raise ValueError(err)
 
-    def resolve(self, value: Optional[Any] = __NO_VALUE_SENTINEL, suppress_exception: bool = False) -> Any:
+    def __copy__(self) -> "Param":
+        return Param(self.value, self.description, schema=self.schema)
+
+    def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
         Runs the validations and returns the Param's final value.
         May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
 
         :param value: The value to be updated for the Param
-        :type value: Optional[Any]
+        :type value: Any
         :param suppress_exception: To raise an exception or not when the validations fails.
             If true and validations fails, the return value would be None.
         :type suppress_exception: bool
         """
-        final_val = value if value != self.__NO_VALUE_SENTINEL else self.value
-        if isinstance(final_val, NoValueSentinel):
+        final_val = value if value is not NOTSET else self.value
+        if isinstance(final_val, ArgNotSet):
             if suppress_exception:
                 return None
             raise TypeError("No value passed and Param has no default value")
@@ -96,7 +90,7 @@ class Param:
 
     @property
     def has_value(self) -> bool:
-        return not isinstance(self.value, NoValueSentinel)
+        return self.value is not NOTSET
 
 
 class ParamsDict(MutableMapping[str, Any]):
@@ -115,7 +109,7 @@ class ParamsDict(MutableMapping[str, Any]):
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
         :type suppress_exception: bool
         """
-        params_dict = {}
+        params_dict: Dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
             if not isinstance(v, Param):
@@ -124,6 +118,12 @@ class ParamsDict(MutableMapping[str, Any]):
                 params_dict[k] = v
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
+
+    def __copy__(self) -> "ParamsDict":
+        return ParamsDict(self.__dict, self.suppress_exception)
+
+    def __deepcopy__(self, memo: Optional[Dict[int, Any]]) -> "ParamsDict":
+        return ParamsDict(copy.deepcopy(self.__dict, memo), self.suppress_exception)
 
     def __contains__(self, o: object) -> bool:
         return o in self.__dict
@@ -188,11 +188,11 @@ class ParamsDict(MutableMapping[str, Any]):
             return super().update(args[0].__dict)
         super().update(*args, **kwargs)
 
-    def dump(self) -> dict:
+    def dump(self) -> Dict[str, Any]:
         """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
-    def validate(self) -> dict:
+    def validate(self) -> Dict[str, Any]:
         """Validates & returns all the Params object stored in the dictionary"""
         resolved_dict = {}
         try:

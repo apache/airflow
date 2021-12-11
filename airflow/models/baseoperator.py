@@ -74,7 +74,7 @@ from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -149,10 +149,10 @@ class BaseOperatorMeta(abc.ABCMeta):
             dag_args: Dict[str, Any] = {}
             dag_params: Dict[str, Any] = {}
 
-            dag = kwargs.get('dag') or DagContext.get_current_dag()
+            dag: Optional[DAG] = kwargs.get('dag') or DagContext.get_current_dag()
             if dag:
                 dag_args = copy.copy(dag.default_args) or {}
-                dag_params = copy.deepcopy(dag.params) or {}
+                dag_params = copy.deepcopy(dag.params.dump())
                 task_group = TaskGroupContext.get_current_task_group(dag)
                 if task_group:
                     dag_args.update(task_group.default_args)
@@ -1171,7 +1171,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
                     env = self.get_template_env()
                     try:
-                        setattr(self, field, env.loader.get_source(env, content)[0])
+                        setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
                     except Exception as e:
                         self.log.exception(e)
                 elif isinstance(content, list):
@@ -1179,7 +1179,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                     for i, item in enumerate(content):
                         if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
                             try:
-                                content[i] = env.loader.get_source(env, item)[0]
+                                content[i] = env.loader.get_source(env, item)[0]  # type: ignore
                             except Exception as e:
                                 self.log.exception(e)
         self.prepare_template()
@@ -1211,7 +1211,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         end_date: Optional[datetime] = None,
         upstream: bool = False,
         downstream: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ):
         """
         Clears the state of task instances associated with the task, following
@@ -1244,7 +1244,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> List[TaskInstance]:
         """
         Get a set of task instance related to this task for a specific date
@@ -1300,7 +1300,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Run a set of task instances for a date range."""
         from airflow.models import DagRun
