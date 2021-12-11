@@ -17,16 +17,15 @@
 # under the License.
 """This module contains Google Ad hook."""
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Generator, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
 try:
-    from functools import cached_property
+    from functools import cached_property  # type: ignore[attr-defined]
 except ImportError:
     from cached_property import cached_property
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.ads.googleads.v8.services.types.google_ads_service import GoogleAdsRow
-from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import Resource
 
@@ -248,7 +247,7 @@ class GoogleAdsHook(BaseHook):
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(self, iterators: Generator[GRPCIterator, None, None]) -> List[GoogleAdsRow]:
+    def _extract_rows(self, iterators: List[Any]) -> List[GoogleAdsRow]:
         """
         Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
 
