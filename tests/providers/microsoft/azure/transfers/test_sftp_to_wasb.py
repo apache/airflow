@@ -37,7 +37,6 @@ EXPECTED_BLOB_NAME = "test_object3.json"
 EXPECTED_FILES = [SOURCE_PATH_NO_WILDCARD + EXPECTED_BLOB_NAME]
 
 
-# pylint: disable=unused-argument
 class TestSFTPToWasbOperator(unittest.TestCase):
     def test_init(self):
         operator = SFTPToWasbOperator(
