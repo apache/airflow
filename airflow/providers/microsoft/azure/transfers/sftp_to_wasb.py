@@ -160,7 +160,7 @@ class SFTPToWasbOperator(BaseOperator):
 
     @property
     def source_path_contains_wildcard(self) -> bool:
-        """Does source path contains a wildcard"""
+        """Checks if the SFTP source path contains a wildcard."""
         return WILDCARD in self.sftp_source_path
 
     @cached_property
