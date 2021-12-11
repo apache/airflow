@@ -112,11 +112,11 @@ class BaseSecurityManager:
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     @staticmethod
-    def oauth_tokengetter():
+    def oauth_tokengetter(token=None):
         """Authentication (OAuth) token getter function.
         Override to implement your own token getter method
         """
-        return _oauth_tokengetter
+        return _oauth_tokengetter(token)
 
     oauth_user_info = None
 
