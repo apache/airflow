@@ -20,7 +20,7 @@
 
 import contextlib
 import warnings
-from typing import Any, Container, Dict, Iterable, Iterator, List, MutableMapping, Tuple
+from typing import AbstractSet, Any, Container, Dict, Iterator, List, MutableMapping, Tuple, ValuesView
 
 _NOT_SET: Any = object()
 
@@ -74,16 +74,20 @@ class ConnectionAccessor:
             return default_conn
 
 
+class AirflowTemplateDeprecationWarning(DeprecationWarning):
+    """Warn for usage of deprecated context variables in a task."""
+
+
 def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
     if not replacements:
-        return DeprecationWarning(message)
+        return AirflowTemplateDeprecationWarning(message)
     display_except_last = ", ".join(repr(r) for r in replacements[:-1])
     if display_except_last:
         message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
     else:
         message += f" Please use {replacements[-1]!r} instead."
-    return DeprecationWarning(message)
+    return AirflowTemplateDeprecationWarning(message)
 
 
 class Context(MutableMapping[str, Any]):
@@ -139,7 +143,7 @@ class Context(MutableMapping[str, Any]):
         self._deprecation_replacements.pop(key, None)
         del self._context[key]
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key: object) -> bool:
         return key in self._context
 
     def __iter__(self) -> Iterator[str]:
@@ -158,14 +162,14 @@ class Context(MutableMapping[str, Any]):
             return NotImplemented
         return self._context != other._context
 
-    def keys(self) -> Iterable[str]:
+    def keys(self) -> AbstractSet[str]:
         return self._context.keys()
 
-    def items(self) -> Iterable[Tuple[str, Any]]:
+    def items(self) -> AbstractSet[Tuple[str, Any]]:
         return self._context.items()
 
-    def values(self) -> Iterable[Any]:
+    def values(self) -> ValuesView[Any]:
         return self._context.values()
 
-    def copy_only(self, keys: Container[str]) -> "Context[str, Any]":
+    def copy_only(self, keys: Container[str]) -> "Context":
         return type(self)({k: v for k, v in self._context.items() if k in keys})
