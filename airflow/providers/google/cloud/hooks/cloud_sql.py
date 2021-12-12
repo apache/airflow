@@ -499,7 +499,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             )
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
-        response = httpx.get(download_url, allow_redirects=True)
+        response = httpx.get(download_url, follow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, 'wb') as file:
@@ -769,7 +769,7 @@ class CloudSQLDatabaseHook(BaseHook):
 
     @staticmethod
     def _get_bool(val: Any) -> bool:
-        if val == 'False':
+        if val == 'False' or val is False:
             return False
         return True
 
