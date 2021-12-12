@@ -141,3 +141,8 @@ class TestPSRPHook(TestCase):
         with PSRPHook(CONNECTION_ID, logging=False) as hook:
             ps = hook.invoke_powershell('foo')
             assert call('foo') in ps.add_script.mock_calls
+
+    def test_invoke_local_context(self, *mocks):
+        hook = PSRPHook(CONNECTION_ID, logging=False)
+        ps = hook.invoke_powershell('foo')
+        assert call('foo') in ps.add_script.mock_calls

@@ -39,8 +39,8 @@ class PSRPHook(BaseHook):
     """
     Hook for PowerShell Remoting Protocol execution.
 
-    The hook must be used as a context manager. Entering the context opens a
-    runspace pool which can be reused for multiple shell sessions.
+    When used as a context manager, the runspace pool is reused between shell
+    sessions.
 
     :param psrp_conn_id: Required. The name of the PSRP connection.
     :type psrp_conn_id: str
@@ -130,40 +130,47 @@ class PSRPHook(BaseHook):
         Context manager that yields a PowerShell object to which commands can be
         added. Upon exit, the commands will be invoked.
         """
-        ps = PowerShell(self._conn)
-        yield ps
-        ps.begin_invoke()
-        if self._logging:
-            streams = [
-                (ps.streams.debug, self._log_record),
-                (ps.streams.error, self._log_record),
-                (ps.streams.information, self._log_record),
-                (ps.streams.progress, self._log_record),
-                (ps.streams.verbose, self._log_record),
-                (ps.streams.warning, self._log_record),
-            ]
-            offsets = [0 for _ in streams]
+        local_context = self._conn is None
+        if local_context:
+            self.__enter__()
+        try:
+            ps = PowerShell(self._conn)
+            yield ps
+            ps.begin_invoke()
+            if self._logging:
+                streams = [
+                    (ps.streams.debug, self._log_record),
+                    (ps.streams.error, self._log_record),
+                    (ps.streams.information, self._log_record),
+                    (ps.streams.progress, self._log_record),
+                    (ps.streams.verbose, self._log_record),
+                    (ps.streams.warning, self._log_record),
+                ]
+                offsets = [0 for _ in streams]
 
-            # We're using polling to make sure output and streams are
-            # handled while the process is running.
-            while ps.state == PSInvocationState.RUNNING:
-                ps.poll_invoke(timeout=self._operation_timeout)
+                # We're using polling to make sure output and streams are
+                # handled while the process is running.
+                while ps.state == PSInvocationState.RUNNING:
+                    ps.poll_invoke(timeout=self._operation_timeout)
 
-                for (i, (stream, handler)) in enumerate(streams):
-                    offset = offsets[i]
-                    while len(stream) > offset:
-                        handler(stream[offset])
-                        offset += 1
-                    offsets[i] = offset
+                    for (i, (stream, handler)) in enumerate(streams):
+                        offset = offsets[i]
+                        while len(stream) > offset:
+                            handler(stream[offset])
+                            offset += 1
+                        offsets[i] = offset
 
-        # For good measure, we'll make sure the process has
-        # stopped running in any case.
-        ps.end_invoke()
+            # For good measure, we'll make sure the process has
+            # stopped running in any case.
+            ps.end_invoke()
 
-        if ps.streams.error:
-            raise AirflowException("Process had one or more errors")
+            if ps.streams.error:
+                raise AirflowException("Process had one or more errors")
 
-        self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
+            self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
+        finally:
+            if local_context:
+                self.__exit__(None, None, None)
 
     def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: Dict[str, str]) -> PowerShell:
         """Invoke a PowerShell cmdlet and return session."""
