@@ -1202,7 +1202,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   constraints:
     permissions:
       contents: write
-    timeout-minutes: 10
+    timeout-minutes: 25
     name: "Constraints"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
