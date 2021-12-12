@@ -56,7 +56,7 @@ class DataprocJobSensor(BaseSensorOperator):
         *,
         project_id: str,
         dataproc_job_id: str,
-        region: str = None,
+        region: Optional[str] = None,
         location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         wait_timeout: Optional[int] = None,
@@ -79,7 +79,7 @@ class DataprocJobSensor(BaseSensorOperator):
         self.dataproc_job_id = dataproc_job_id
         self.region = region
         self.wait_timeout = wait_timeout
-        self.start_sensor_time = None
+        self.start_sensor_time: Optional[float] = None
 
     def execute(self, context: Dict):
         self.start_sensor_time = time.monotonic()
