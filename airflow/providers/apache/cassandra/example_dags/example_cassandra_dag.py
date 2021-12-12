@@ -35,7 +35,7 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor", table="test")
+    table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor")
 
-    record_sensor = CassandraRecordSensor(task_id="cassandra_record_sensor", table="test", keys={"p1": "v1", "p2": "v2"})
+    record_sensor = CassandraRecordSensor(task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"})
 # [END howto_operator_cassandra_sensors]
