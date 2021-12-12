@@ -65,7 +65,7 @@ You can use the operator for the following tasks:
         local_files_path=[
             "/tmp/local_folder/file1.txt",
         ],
-        remote_path="/tmp/dir_for_remote_transfer/",
+        remote_folder="/tmp/dir_for_remote_transfer/",
         operation=SFTPOperation.PUT,
         create_intermediate_dirs=True,
     )
@@ -78,8 +78,8 @@ You can use the operator for the following tasks:
     put_dir_txt_files = SFTPBatchOperator(
         task_id="put_dir_txt_files",
         ssh_conn_id="ssh_default",
-        local_path="/tmp/local_folder/",
-        remote_path="/tmp/dir_for_remote_transfer/",
+        local_folder="/tmp/local_folder/",
+        remote_folder="/tmp/dir_for_remote_transfer/",
         regexp_mask=r".*\.txt",
         operation=SFTPOperation.PUT,
         create_intermediate_dirs=True,
@@ -93,8 +93,8 @@ You can use the operator for the following tasks:
     put_dir_txt_files = SFTPBatchOperator(
         task_id="put_dir_txt_files",
         ssh_conn_id="ssh_default",
-        local_path="/tmp/local_folder/",
-        remote_path=[
+        local_folder="/tmp/local_folder/",
+        remote_files_path=[
             "/tmp/dir_for_remote_transfer/file1.txt",
             "/tmp/dir_for_remote_transfer/file2.txt",
         ],
@@ -110,22 +110,22 @@ You can use the operator for the following tasks:
     put_dir_txt_files = SFTPBatchOperator(
         task_id="put_dir_txt_files",
         ssh_conn_id="ssh_default",
-        local_path="/tmp/local_folder/",
-        remote_path="/tmp/dir_for_remote_transfer/",
+        local_folder="/tmp/local_folder/",
+        remote_folder="/tmp/dir_for_remote_transfer/",
         operation=SFTPOperation.GET,
         create_intermediate_dirs=True,
     )
 
 
-7. Get all files from the remote server that match the specified pattern to the local folder
+7. Get all files from the remote server that match the specified pattern to the local folder with overwrite files
 
 .. code-block:: python
 
     put_dir_txt_files = SFTPBatchOperator(
         task_id="put_dir_txt_files",
         ssh_conn_id="ssh_default",
-        local_path="/tmp/local_folder/",
-        remote_path="/tmp/dir_for_remote_transfer/",
+        local_folder="/tmp/local_folder/",
+        remote_folder="/tmp/dir_for_remote_transfer/",
         regexp_mask=r".*\.txt",
         operation=SFTPOperation.GET,
         create_intermediate_dirs=True,
