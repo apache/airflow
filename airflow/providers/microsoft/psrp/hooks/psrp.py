@@ -106,11 +106,8 @@ class PSRPHook(BaseHook):
         """
         Returns a runspace pool.
 
-        If the hook context has already been entered into, this will return the
-        active pool.
+        The returned object must be used as a context manager.
         """
-        if self._conn is not None:
-            return self._conn
         conn = self.get_connection(self.conn_id)
         self.log.info("Establishing WinRM connection %s to host: %s", self.conn_id, conn.host)
         wsman = WSMan(
