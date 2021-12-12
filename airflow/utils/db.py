@@ -693,9 +693,9 @@ def check_and_run_migrations():
 
     if sys.stdout.isatty() and verb:
         print()
-        question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure?"
+        question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
         try:
-            answer = helpers.prompt_with_timeout(question, timeout=4)
+            answer = helpers.prompt_with_timeout(question, timeout=4, default=False)
             if answer:
                 try:
                     db_command()

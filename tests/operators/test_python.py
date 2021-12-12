@@ -703,6 +703,25 @@ class TestShortCircuitOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
+    def test_xcom_push(self):
+        dag = DAG(
+            'shortcircuit_operator_test_xcom_push',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: 'signature')
+        dag.clear()
+        dr = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        tis = dr.get_task_instances()
+        xcom_value = tis[0].xcom_pull(task_ids='make_choice', key='return_value')
+        assert xcom_value == 'signature'
+
 
 virtualenv_string_args: List[str] = []
 

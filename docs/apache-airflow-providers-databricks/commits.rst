@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-12-05
+Latest change: 2021-12-10
 
-=================================================================================================  ===========  =============================================================================
+=================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================================================================
+=================================================================================================  ===========  =================================================================================
+`66f94f95c2 <https://github.com/apache/airflow/commit/66f94f95c2e92baad2761b5a1fa405e36c17808a>`_  2021-12-10   ``Remove db call from 'DatabricksHook.__init__()' (#20180)``
+`545ca59ba9 <https://github.com/apache/airflow/commit/545ca59ba9a0b346cbbf28cc6958f9575e5e6b0b>`_  2021-12-08   ``Unhide changelog entry for databricks (#20128)``
+`637db1a0ba <https://github.com/apache/airflow/commit/637db1a0ba9c8173372f1f5d6f60ec4c4f3699d8>`_  2021-12-07   ``Update documentation for RC2 release of November Databricks Provider (#20086)``
 `728e94a47e <https://github.com/apache/airflow/commit/728e94a47e0048829ce67096235d34019be9fac7>`_  2021-12-05   ``Refactor DatabricksHook (#19835)``
 `4925b37b66 <https://github.com/apache/airflow/commit/4925b37b661a1117dc9f1a10be11f03e67e1a413>`_  2021-12-04   ``Databricks hook: fix expiration time check (#20036)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
@@ -48,7 +51,7 @@ Commit                                                                          
 `3a0c455855 <https://github.com/apache/airflow/commit/3a0c4558558689d7498fe2fc171ad9a8e132119e>`_  2021-11-07   ``Update Databricks operators to match latest version of API 2.0 (#19443)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `f5ad26dcdd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
-=================================================================================================  ===========  =============================================================================
+=================================================================================================  ===========  =================================================================================
 
 2.0.2
 .....

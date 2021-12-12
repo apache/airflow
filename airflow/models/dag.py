@@ -1897,7 +1897,7 @@ class DAG(LoggingMixin):
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in tis)
             question = (
-                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
+                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
             ).format(count=count, ti_list=ti_list)
             do_it = utils.helpers.ask_yesno(question)
 
@@ -1954,7 +1954,7 @@ class DAG(LoggingMixin):
             return 0
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in all_tis)
-            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
+            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
