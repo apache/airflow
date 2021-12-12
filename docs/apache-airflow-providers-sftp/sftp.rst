@@ -136,4 +136,5 @@ You can use the operator for the following tasks:
 
 Parameter ``create_intermediate_dirs`` is needed to create missing intermediate directories when
 copying from remote to local and vice-versa. Default is False.
+
 Parameter ``force`` is needed to overwrite file if it already exist. Default is False.
