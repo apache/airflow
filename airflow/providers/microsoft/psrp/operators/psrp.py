@@ -51,9 +51,10 @@ class PSRPOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "command",
-        "powershell",
         "cmdlet",
+        "command",
+        "parameters",
+        "powershell",
     )
     template_fields_renderers = {"command": "powershell", "powershell": "powershell"}
     ui_color = "#901dd2"
