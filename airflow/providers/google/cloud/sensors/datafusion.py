@@ -72,7 +72,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         expected_statuses: Set[str],
         instance_name: str,
         location: str,
-        failure_statuses: Set[str] = None,
+        failure_statuses: Optional[Set[str]] = None,
         project_id: Optional[str] = None,
         namespace: str = "default",
         gcp_conn_id: str = 'google_cloud_default',
