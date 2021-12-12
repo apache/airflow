@@ -20,6 +20,7 @@
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
+from typing import Any, Dict, Optional
 
 import unicodecsv as csv
 
@@ -62,7 +63,6 @@ class VerticaToHiveOperator(BaseOperator):
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
     :type hive_cli_conn_id: str
-
     """
 
     template_fields = ('sql', 'partition', 'hive_table')
@@ -72,16 +72,16 @@ class VerticaToHiveOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql,
-        hive_table,
-        create=True,
-        recreate=False,
-        partition=None,
-        delimiter=chr(1),
-        vertica_conn_id='vertica_default',
-        hive_cli_conn_id='hive_cli_default',
-        **kwargs,
-    ):
+        sql: str,
+        hive_table: str,
+        create: bool = True,
+        recreate: bool = False,
+        partition: Optional[Dict] = None,
+        delimiter: str = chr(1),
+        vertica_conn_id: str = 'vertica_default',
+        hive_cli_conn_id: str = 'hive_cli_default',
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table

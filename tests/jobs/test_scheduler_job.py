@@ -473,6 +473,40 @@ class TestSchedulerJob:
         assert tis[3].key in res_keys
         session.rollback()
 
+    @pytest.mark.parametrize(
+        "state, total_executed_ti",
+        [
+            (DagRunState.SUCCESS, 0),
+            (DagRunState.FAILED, 0),
+            (DagRunState.RUNNING, 2),
+            (DagRunState.QUEUED, 0),
+        ],
+    )
+    def test_find_executable_task_instances_only_running_dagruns(
+        self, state, total_executed_ti, dag_maker, session
+    ):
+        """Test that only task instances of 'running' dagruns are executed"""
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_only_running_dagruns'
+        task_id_1 = 'dummy'
+        task_id_2 = 'dummydummy'
+
+        with dag_maker(dag_id=dag_id, session=session):
+            DummyOperator(task_id=task_id_1)
+            DummyOperator(task_id=task_id_2)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+
+        dr = dag_maker.create_dagrun(state=state)
+
+        tis = dr.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+        assert total_executed_ti == len(res)
+
     def test_find_executable_task_instances_order_execution_date(self, dag_maker):
         """
         Test that task instances follow execution_date order priority. If two dagruns with
