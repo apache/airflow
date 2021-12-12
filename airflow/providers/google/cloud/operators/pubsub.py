@@ -234,8 +234,8 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
                     topic_project='my-project', topic='my-topic')
             )
 
-    ``topic_project``, ``topic``, ``subscription``, and
-    ``subscription`` are templated so you can use variables in them.
+    ``topic_project``, ``topic``, ``subscription``, ``subscription_project_id`` and
+    ``impersonation_chain`` are templated so you can use variables in them.
 
     :param project_id: Optional, the Google Cloud project ID where the topic exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
