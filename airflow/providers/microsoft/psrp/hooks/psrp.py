@@ -110,16 +110,35 @@ class PSRPHook(BaseHook):
         """
         conn = self.get_connection(self.conn_id)
         self.log.info("Establishing WinRM connection %s to host: %s", self.conn_id, conn.host)
-        wsman = WSMan(
-            conn.host,
-            username=conn.login,
-            password=conn.password,
-            **self._wsman_options,
+
+        extra = conn.extra_dejson.copy()
+
+        def apply_extra(d, keys):
+            d = d.copy()
+            for key in keys:
+                value = extra.pop(key, None)
+                if value is not None:
+                    d[key] = value
+            return d
+
+        wsman_options = apply_extra(
+            self._wsman_options,
+            (
+                "auth",
+                "cert_validation",
+                "connection_timeout",
+                "locale",
+                "read_timeout",
+                "reconnection_retries",
+                "reconnection_backoff",
+                "ssl",
+            ),
         )
-        runspace_options = self._runspace_options.copy()
-        configuration_name = conn.extra_dejson.get('configuration_name')
-        if configuration_name is not None:
-            runspace_options['configuration_name'] = configuration_name
+        wsman = WSMan(conn.host, username=conn.login, password=conn.password, **wsman_options)
+        runspace_options = apply_extra(self._runspace_options, ("configuration_name",))
+
+        if extra:
+            raise AirflowException(f"Unexpected extra configuration keys: {', '.join(sorted(extra))}")
         pool = RunspacePool(wsman, **runspace_options)
         self._wsman_ref[pool] = wsman
         return pool

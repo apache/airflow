@@ -30,7 +30,9 @@ from pypsrp.messages import (
     WarningRecord,
 )
 from pypsrp.powershell import PSInvocationState
+from pytest import raises
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
 
@@ -93,6 +95,22 @@ def mock_powershell_factory():
 @patch(f"{PSRPHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
 @patch(f"{PSRPHook.__module__}.RunspacePool")
 class TestPSRPHook(TestCase):
+    def test_get_conn(self, runspace_pool, powershell, ws_man):
+        hook = PSRPHook(CONNECTION_ID)
+        assert hook.get_conn() is runspace_pool.return_value
+
+    def test_get_conn_unexpected_extra(self, runspace_pool, powershell, ws_man):
+        hook = PSRPHook(CONNECTION_ID)
+        conn = hook.get_connection(CONNECTION_ID)
+
+        def get_connection(*args):
+            conn.extra = '{"foo": "bar"}'
+            return conn
+
+        hook.get_connection = get_connection
+        with raises(AirflowException, match="Unexpected extra configuration keys: foo"):
+            hook.get_conn()
+
     @parameterized.expand([(False,), (True,)])
     @patch("logging.Logger.warning")
     @patch("logging.Logger.info")
