@@ -330,7 +330,11 @@ class SchedulerJob(BaseJob):
             pool_total = pools[pool]["total"]
             if task_instance.pool_slots > pool_total:
                 self.log.warning(
-                    "Tasks requesting more slots than pool configured. pool '%s' will not be scheduled", pool
+                    "Not executing %s since requesting %s slots when total pool '%s' slots are %s.",
+                    task_instance,
+                    task_instance.pool_slots,
+                    pool,
+                    pool_total,
                 )
                 continue
 

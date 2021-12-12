@@ -646,7 +646,6 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         session = settings.Session()
-
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.state = State.SCHEDULED
@@ -657,8 +656,9 @@ class TestSchedulerJob:
         with caplog.at_level(logging.WARNING):
             self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
-                "Tasks requesting more slots than pool configured. pool 'some_pool' will not be scheduled"
-                in caplog.text
+                "Not executing <TaskInstance: "
+                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]> "
+                "since requesting 4 slots when total pool 'some_pool' slots are 2." in caplog.text
             )
         session.flush()
         session.rollback()
