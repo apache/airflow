@@ -545,6 +545,81 @@ class TestSFTPOperator:
         assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_force_rewrite(self, dag_maker):
+        test_local_file_content = b"This is local file content"
+        test_remote_file_content = b"This is remote file content"
+        pathlib.Path(self.test_remote_batch_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.test_local_batch_dir).mkdir(parents=True, exist_ok=True)
+        with open(f'{self.test_remote_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_remote_file_content)
+        with open(f'{self.test_local_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_local_file_content)
+
+        with dag_maker(dag_id="test_force_rewrite"):
+            SFTPBatchOperator(  # Put test file to remote.
+                task_id="put_test_task",
+                ssh_hook=self.hook,
+                local_folder=self.test_local_batch_dir,
+                remote_files_path=[
+                    f'{self.test_remote_batch_dir}/{self.test_txt_file}',
+                ],
+                operation=SFTPOperation.GET,
+                create_intermediate_dirs=True,
+                force=True,
+            )
+            SSHOperator(  # Check files exists
+                task_id="read_file",
+                ssh_hook=self.hook,
+                command=fr"cat {self.test_local_batch_dir}/{self.test_txt_file}",
+                do_xcom_push=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["put_test_task"].run()
+        tis["read_file"].run()
+        pulled = tis["read_file"].xcom_pull(task_ids="read_file", key='return_value')
+        assert base64.b64decode(pulled.strip().encode('ascii')) == test_remote_file_content
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_write_existing_file(self, dag_maker):
+        test_local_file_content = b"This is local file content"
+        test_remote_file_content = b"This is remote file content"
+        pathlib.Path(self.test_remote_batch_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.test_local_batch_dir).mkdir(parents=True, exist_ok=True)
+        with open(f'{self.test_remote_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_remote_file_content)
+        with open(f'{self.test_local_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_local_file_content)
+
+        with dag_maker(dag_id="test_force_rewrite"):
+            SFTPBatchOperator(  # Get test file to remote.
+                task_id="put_test_task",
+                ssh_hook=self.hook,
+                local_folder=self.test_local_batch_dir,
+                remote_files_path=[
+                    f'{self.test_remote_batch_dir}/{self.test_txt_file}',
+                ],
+                operation=SFTPOperation.GET,
+                create_intermediate_dirs=True,
+            )
+            SFTPBatchOperator(  # Put test file to remote.
+                task_id="get_test_task",
+                ssh_hook=self.hook,
+                local_files_path=[f'{self.test_local_batch_dir}/{self.test_txt_file}'],
+                remote_folder=self.test_remote_batch_dir,
+                operation=SFTPOperation.PUT,
+                create_intermediate_dirs=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        with pytest.raises(Exception):
+            tis["put_test_task"].run()
+        with pytest.raises(Exception):
+            tis["get_test_task"].run()
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_arg_batch(self, dag_maker):
 
         with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_get"):

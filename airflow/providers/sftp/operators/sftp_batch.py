@@ -61,6 +61,8 @@ class SFTPBatchOperator(BaseOperator):
     :type confirm: bool
     :param create_intermediate_dirs: create missing intermediate directories when
     :type create_intermediate_dirs: bool
+    :param force: if the file already exists, it will be overwritten
+    :type force: bool
         copying from remote to local and vice-versa. Default is False.
         Example: The following task would copy ``file.txt`` to the remote host
         at ``/tmp/tmp1/tmp2/`` while creating ``tmp``,``tmp1`` and ``tmp2`` if they
@@ -125,6 +127,7 @@ class SFTPBatchOperator(BaseOperator):
         operation=SFTPOperation.PUT,
         confirm=True,
         create_intermediate_dirs=False,
+        force=False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -139,6 +142,7 @@ class SFTPBatchOperator(BaseOperator):
         self.operation = operation
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
+        self.force = force
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
                 f"""Unsupported operation value {self.operation},
@@ -207,11 +211,13 @@ class SFTPBatchOperator(BaseOperator):
                         for file in files_list:
                             local_file = os.path.basename(file)
                             dump_file_name_for_log = file
+                            self._check_remote_file(f"{self.remote_folder}/{local_file}", sftp_client)
                             self._transfer(sftp_client, self.local_folder, local_file, self.remote_folder)
                     if self.local_files_path and self.remote_folder:
                         for file in self.local_files_path:
                             local_file = os.path.basename(file)
                             dump_file_name_for_log = file
+                            self._check_remote_file(f"{self.remote_folder}/{local_file}", sftp_client)
                             self._transfer(sftp_client, os.path.dirname(file), local_file, self.remote_folder)
                 elif self.operation.lower() == SFTPOperation.GET:
                     if self.remote_folder and self.local_folder:
@@ -219,11 +225,13 @@ class SFTPBatchOperator(BaseOperator):
                         for file in files_list:
                             remote_file = os.path.basename(file)
                             dump_file_name_for_log = file
+                            self._check_local_file(f"{self.local_folder}/{remote_file}")
                             self._transfer(sftp_client, self.local_folder, remote_file, self.remote_folder)
                     if self.remote_files_path and self.local_folder:
                         for file in self.remote_files_path:
                             remote_file = os.path.basename(file)
                             dump_file_name_for_log = file
+                            self._check_local_file(f"{self.local_folder}/{remote_file}")
                             self._transfer(sftp_client, self.local_folder, remote_file, os.path.dirname(file))
 
         except Exception as e:
@@ -255,3 +263,21 @@ class SFTPBatchOperator(BaseOperator):
             file_msg = f"from {local_full_path} to {remote_full_path}"
             self.log.info("Starting to transfer file %s", file_msg)
             sftp_client.put(local_full_path, remote_full_path, confirm=self.confirm)
+
+    def _check_local_file(self, file_path):
+        if self.force:
+            return False
+        if Path(file_path).exists():
+            raise FileExistsError(f"File {file_path} is already exist! Turn 'force=True' for overwrite it")
+        return False
+
+    def _check_remote_file(self, file_path, sftp_client: SFTPClient):
+        try:
+            if self.force:
+                return False
+            if sftp_client.stat(file_path):
+                raise FileExistsError(
+                    f"File {file_path} is already exist! Turn 'force=True' for overwrite it"
+                )
+        except FileNotFoundError:
+            return False
