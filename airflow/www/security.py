@@ -662,7 +662,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(action_name: str) -> Permission:
+        def _get_or_create_dag_permission(action_name: str) -> Optional[Permission]:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
@@ -708,7 +708,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
             for action_name in action_names:
                 dag_perm = _get_or_create_dag_permission(action_name)
-                self.add_permission_to_role(role, dag_perm)
+                if dag_perm:
+                    self.add_permission_to_role(role, dag_perm)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""

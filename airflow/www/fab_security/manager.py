@@ -24,7 +24,7 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
 from flask import g, session, url_for
 from flask_appbuilder import AppBuilder
@@ -71,7 +71,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.www.fab_security.sqla.models import Permission, Role, User
+from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.www.views import ResourceModelView
 
 log = logging.getLogger(__name__)
@@ -120,17 +120,17 @@ class BaseSecurityManager:
 
     oauth_user_info = None
 
-    user_model = None
+    user_model: Type[User]
     """ Override to set your own User Model """
-    role_model = None
+    role_model: Type[Role]
     """ Override to set your own Role Model """
-    action_model = None
+    action_model: Type[Action]
     """ Override to set your own Action Model """
-    resource_model = None
+    resource_model: Type[Resource]
     """ Override to set your own Resource Model """
-    permission_model = None
+    permission_model: Type[Permission]
     """ Override to set your own Permission Model """
-    registeruser_model = None
+    registeruser_model: Type[RegisterUser]
     """ Override to set your own RegisterUser Model """
 
     userdbmodelview = UserDBModelView
