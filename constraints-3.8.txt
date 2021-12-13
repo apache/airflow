@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-12T16:22:04Z
+# This constraints file was automatically generated on 2021-12-13T10:44:23Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -13,7 +13,7 @@ APScheduler==3.6.3
 Authlib==0.15.5
 Babel==2.9.1
 Deprecated==1.2.13
-Flask-AppBuilder==3.4.0
+Flask-AppBuilder==3.4.1
 Flask-Babel==2.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -53,7 +53,7 @@ alabaster==0.7.12
 alembic==1.7.5
 aliyun-python-sdk-core==2.13.35
 aliyun-python-sdk-kms==2.15.0
-amqp==5.0.6
+amqp==5.0.7
 analytics-python==1.4.0
 ansiwrap==0.8.4
 anyio==3.4.0
@@ -329,7 +329,7 @@ ldap3==2.9.1
 libcst==0.3.23
 locket==0.2.1
 lockfile==0.12.2
-lxml==4.6.4
+lxml==4.7.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
@@ -339,8 +339,8 @@ mccabe==0.6.1
 mongomock==3.23.0
 monotonic==1.6
 moreorless==0.4.0
-moto==2.2.17
-msal-extensions==0.3.0
+moto==2.2.18
+msal-extensions==0.3.1
 msal==1.16.0
 msgpack==1.0.3
 msrest==0.6.21
@@ -386,7 +386,7 @@ platformdirs==2.4.0
 pluggy==1.0.0
 ply==3.11
 plyvel==1.3.0
-portalocker==1.7.1
+portalocker==2.3.2
 pre-commit==2.16.0
 presto-python-client==0.7.0
 prison==0.2.1
@@ -420,7 +420,7 @@ pymongo==3.12.3
 pymssql==2.2.2
 pyodbc==4.0.32
 pyparsing==2.4.7
-pypsrp==0.6.1
+pypsrp==0.7.0
 pyrsistent==0.18.0
 pysftp==0.2.9
 pyspark==3.2.0
@@ -559,7 +559,7 @@ websocket-client==1.2.3
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.121.0
+yandexcloud==0.122.0
 yarl==1.7.2
 zdesk==2.7.1
 zict==2.0.0
