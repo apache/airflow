@@ -22,6 +22,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
+from typing import Generator, Optional
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -66,6 +67,7 @@ from tests.test_utils.db import (
 )
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.mock_operators import CustomOperator
+from tests.utils.test_timezone import UTC
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -110,13 +112,23 @@ class TestSchedulerJob:
         # The tests expect DAGs to be fully loaded here via setUpClass method below
 
     @pytest.fixture(autouse=True)
-    def set_instance_attrs(self, dagbag):
-        self.dagbag = dagbag
+    def per_test(self) -> Generator:
         self.clean_db()
         self.scheduler_job = None
+
+        yield
+
+        if self.scheduler_job and self.scheduler_job.processor_agent:
+            self.scheduler_job.processor_agent.end()
+            self.scheduler_job = None
+        self.clean_db()
+
+    @pytest.fixture(autouse=True)
+    def set_instance_attrs(self, dagbag) -> Generator:
+        self.dagbag = dagbag
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
-        self.null_exec = MockExecutor()
+        self.null_exec: Optional[MockExecutor] = MockExecutor()
 
         # Since we don't want to store the code for the DAG defined in this file
         with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
@@ -124,10 +136,8 @@ class TestSchedulerJob:
         ):
             yield
 
-        if self.scheduler_job and self.scheduler_job.processor_agent:
-            self.scheduler_job.processor_agent.end()
-            self.scheduler_job = None
-        self.clean_db()
+        self.null_exec = None
+        self.dagbag = None
 
     def test_is_alive(self):
         self.scheduler_job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -166,7 +176,6 @@ class TestSchedulerJob:
         self.scheduler_job.heartrate = 0
         self.scheduler_job.run()
 
-    @pytest.mark.quarantined
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
         current_process = psutil.Process()
@@ -443,15 +452,20 @@ class TestSchedulerJob:
         task_id_2 = 'dummydummy'
         session = settings.Session()
         with dag_maker(dag_id=dag_id, max_active_tasks=16, session=session):
-            DummyOperator(task_id=task_id_1, pool='a')
-            DummyOperator(task_id=task_id_2, pool='b')
+            DummyOperator(task_id=task_id_1, pool='a', priority_weight=2)
+            DummyOperator(task_id=task_id_2, pool='b', priority_weight=1)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
 
-        tis = dr1.task_instances + dr2.task_instances
+        tis = [
+            dr1.get_task_instance(task_id_1, session=session),
+            dr1.get_task_instance(task_id_2, session=session),
+            dr2.get_task_instance(task_id_1, session=session),
+            dr2.get_task_instance(task_id_2, session=session),
+        ]
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
@@ -1705,13 +1719,14 @@ class TestSchedulerJob:
             session.commit()
             assert [] == self.null_exec.sorted_tasks
 
-    @pytest.mark.quarantined
     def test_scheduler_task_start_date(self):
         """
         Test that the scheduler respects task start dates that are different from DAG start dates
         """
 
-        dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"), include_examples=False)
+        dagbag = DagBag(
+            dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"), include_examples=False
+        )
         dag_id = 'test_task_start_date_scheduling'
         dag = self.dagbag.get_dag(dag_id)
         dag.is_paused_upon_creation = False
@@ -1724,7 +1739,7 @@ class TestSchedulerJob:
 
         dagbag.sync_to_db()
 
-        self.scheduler_job = SchedulerJob(executor=self.null_exec, subdir=dag.fileloc, num_runs=2)
+        self.scheduler_job = SchedulerJob(executor=self.null_exec, subdir=dag.fileloc, num_runs=3)
         self.scheduler_job.run()
 
         session = settings.Session()
@@ -1732,7 +1747,7 @@ class TestSchedulerJob:
         ti1s = tiq.filter(TaskInstance.task_id == 'dummy1').all()
         ti2s = tiq.filter(TaskInstance.task_id == 'dummy2').all()
         assert len(ti1s) == 0
-        assert len(ti2s) == 2
+        assert len(ti2s) >= 2
         for task in ti2s:
             assert task.state == State.SUCCESS
 
@@ -1757,31 +1772,6 @@ class TestSchedulerJob:
         session = settings.Session()
         assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
 
-    @conf_vars({("core", "mp_start_method"): "spawn"})
-    def test_scheduler_multiprocessing_with_spawn_method(self):
-        """
-        Test that the scheduler can successfully queue multiple dags in parallel
-        when using "spawn" mode of multiprocessing. (Fork is default on Linux and older OSX)
-        """
-        dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
-        for dag_id in dag_ids:
-            dag = self.dagbag.get_dag(dag_id)
-            dag.clear()
-
-        self.scheduler_job = SchedulerJob(
-            executor=self.null_exec,
-            subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
-            num_runs=1,
-        )
-
-        self.scheduler_job.run()
-
-        # zero tasks ran
-        dag_id = 'test_start_date_scheduling'
-        with create_session() as session:
-            assert session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count() == 0
-
-    @pytest.mark.quarantined
     def test_scheduler_verify_pool_full(self, dag_maker):
         """
         Test task instances not queued when pool is full
@@ -1808,6 +1798,7 @@ class TestSchedulerJob:
         self.scheduler_job._schedule_dag_run(dr, session)
         dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.RUNNING)
         self.scheduler_job._schedule_dag_run(dr, session)
+        session.flush()
         task_instances_list = self.scheduler_job._executable_task_instances_to_queued(
             max_tis=32, session=session
         )
@@ -1858,7 +1849,6 @@ class TestSchedulerJob:
         # As tasks require 2 slots, only 3 can fit into 6 available
         assert len(task_instances_list) == 3
 
-    @pytest.mark.quarantined
     def test_scheduler_keeps_scheduling_pool_full(self, dag_maker):
         """
         Test task instances in a pool that isn't full keep getting scheduled even when a pool is full.
@@ -1897,16 +1887,17 @@ class TestSchedulerJob:
 
         def _create_dagruns(dag: DAG):
             next_info = dag.next_dagrun_info(None)
-            for _ in range(5):
+            assert next_info is not None
+            for _ in range(30):
                 yield dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=next_info.logical_date,
                     data_interval=next_info.data_interval,
-                    state=State.RUNNING,
+                    state=DagRunState.RUNNING,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
 
-        # Create 5 dagruns for each DAG.
+        # Create 30 dagruns for each DAG.
         # To increase the chances the TIs from the "full" pool will get retrieved first, we schedule all
         # TIs from the first dag first.
         for dr in _create_dagruns(dag_d1):
@@ -2048,7 +2039,6 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    @pytest.mark.quarantined
     def test_verify_integrity_if_dag_changed(self, dag_maker):
         # CleanUp
         with create_session() as session:
@@ -2113,7 +2103,6 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    @pytest.mark.quarantined
     @pytest.mark.need_serialized_dag
     def test_retry_still_in_executor(self, dag_maker):
         """
@@ -2889,6 +2878,8 @@ class TestSchedulerJob:
                 ti.state = State.SUCCESS
                 session.flush()
 
+        self.clean_db()
+
         with dag_maker(max_active_runs=3, session=session) as dag:
             # Need to use something that doesn't immediately get marked as success by the scheduler
             BashOperator(task_id='task', bash_command='true')
@@ -2906,13 +2897,7 @@ class TestSchedulerJob:
         # Pre-condition
         assert DagRun.active_runs_of_dags(session=session) == {'test_dag': 3}
 
-        assert model.next_dagrun == timezone.convert_to_utc(
-            timezone.DateTime(
-                2016,
-                1,
-                3,
-            )
-        )
+        assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
         assert model.next_dagrun_create_after is None
 
         complete_one_dagrun()
@@ -3423,8 +3408,6 @@ def test_task_with_upstream_skip_process_task_instances():
         assert tis[dummy3.task_id].state == State.SKIPPED
 
 
-# TODO(potiuk): unquarantine me where we get rid of those pesky 195 -> 196 problem!
-@pytest.mark.quarantined
 class TestSchedulerJobQueriesCount:
     """
     These tests are designed to detect changes in the number of queries for
@@ -3456,9 +3439,9 @@ class TestSchedulerJobQueriesCount:
     @pytest.mark.parametrize(
         "expected_query_count, dag_count, task_count",
         [
-            (20, 1, 1),  # One DAG with one task per DAG file.
-            (20, 1, 5),  # One DAG with five tasks per DAG file.
-            (83, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
+            (21, 1, 1),  # One DAG with one task per DAG file.
+            (21, 1, 5),  # One DAG with five tasks per DAG file.
+            (93, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
         ],
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
@@ -3519,33 +3502,33 @@ class TestSchedulerJobQueriesCount:
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 1, 1, "1d", "None", "linear"),
-            ([23, 13, 13, 13], 1, 1, "1d", "@once", "no_structure"),
-            ([23, 13, 13, 13], 1, 1, "1d", "@once", "linear"),
-            ([23, 24, 26, 28], 1, 1, "1d", "30m", "no_structure"),
-            ([23, 24, 26, 28], 1, 1, "1d", "30m", "linear"),
-            ([23, 24, 26, 28], 1, 1, "1d", "30m", "binary_tree"),
-            ([23, 24, 26, 28], 1, 1, "1d", "30m", "star"),
-            ([23, 24, 26, 28], 1, 1, "1d", "30m", "grid"),
+            ([24, 14, 14, 14], 1, 1, "1d", "@once", "no_structure"),
+            ([24, 14, 14, 14], 1, 1, "1d", "@once", "linear"),
+            ([24, 26, 29, 32], 1, 1, "1d", "30m", "no_structure"),
+            ([24, 26, 29, 32], 1, 1, "1d", "30m", "linear"),
+            ([24, 26, 29, 32], 1, 1, "1d", "30m", "binary_tree"),
+            ([24, 26, 29, 32], 1, 1, "1d", "30m", "star"),
+            ([24, 26, 29, 32], 1, 1, "1d", "30m", "grid"),
             # One DAG with five tasks per DAG file.
             ([10, 10, 10, 10], 1, 5, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 1, 5, "1d", "None", "linear"),
-            ([23, 13, 13, 13], 1, 5, "1d", "@once", "no_structure"),
-            ([24, 14, 14, 14], 1, 5, "1d", "@once", "linear"),
-            ([23, 24, 26, 28], 1, 5, "1d", "30m", "no_structure"),
-            ([24, 26, 29, 32], 1, 5, "1d", "30m", "linear"),
-            ([24, 26, 29, 32], 1, 5, "1d", "30m", "binary_tree"),
-            ([24, 26, 29, 32], 1, 5, "1d", "30m", "star"),
-            ([24, 26, 29, 32], 1, 5, "1d", "30m", "grid"),
+            ([24, 14, 14, 14], 1, 5, "1d", "@once", "no_structure"),
+            ([25, 15, 15, 15], 1, 5, "1d", "@once", "linear"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "no_structure"),
+            ([25, 28, 32, 36], 1, 5, "1d", "30m", "linear"),
+            ([25, 28, 32, 36], 1, 5, "1d", "30m", "binary_tree"),
+            ([25, 28, 32, 36], 1, 5, "1d", "30m", "star"),
+            ([25, 28, 32, 36], 1, 5, "1d", "30m", "grid"),
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([95, 28, 28, 28], 10, 10, "1d", "@once", "no_structure"),
-            ([105, 41, 41, 41], 10, 10, "1d", "@once", "linear"),
-            ([95, 99, 99, 99], 10, 10, "1d", "30m", "no_structure"),
-            ([105, 125, 125, 125], 10, 10, "1d", "30m", "linear"),
-            ([105, 119, 119, 119], 10, 10, "1d", "30m", "binary_tree"),
-            ([105, 119, 119, 119], 10, 10, "1d", "30m", "star"),
-            ([105, 119, 119, 119], 10, 10, "1d", "30m", "grid"),
+            ([105, 38, 38, 38], 10, 10, "1d", "@once", "no_structure"),
+            ([115, 51, 51, 51], 10, 10, "1d", "@once", "linear"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
+            ([115, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
+            ([115, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
+            ([115, 139, 139, 139], 10, 10, "1d", "30m", "star"),
+            ([115, 139, 139, 139], 10, 10, "1d", "30m", "grid"),
         ],
     )
     def test_process_dags_queries_count(
@@ -3669,6 +3652,7 @@ class TestSchedulerJobQueriesCount:
                 assert end_date is None
                 assert duration is None
 
+    @pytest.mark.need_serialized_dag
     def test_catchup_works_correctly(self, dag_maker):
         """Test that catchup works correctly"""
         session = settings.Session()
