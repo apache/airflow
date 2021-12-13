@@ -1516,7 +1516,6 @@ class TestTaskInstance:
         assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
         assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
 
-    @pytest.mark.filterwarnings("error::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_template_render(self, create_task_instance):
         ti = create_task_instance(
             dag_id="test_template_render",
