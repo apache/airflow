@@ -57,7 +57,7 @@ def get_role(*, role_name: str) -> APIResponse:
     ab_security_manager = current_app.appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
-        raise NotFound(title="Role not found", detail=f"The Role with name {role_name!r} was not found")
+        raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
     return role_schema.dump(role)
 
 
@@ -94,7 +94,7 @@ def delete_role(*, role_name: str) -> APIResponse:
     ab_security_manager = current_app.appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
-        raise NotFound(title="Role not found", detail=f"The Role with name {role_name!r} was not found")
+        raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
     ab_security_manager.delete_role(role_name=role_name)
     return NoContent, 204
 
@@ -111,7 +111,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
         raise BadRequest(detail=str(err.messages))
     role = security_manager.find_role(name=role_name)
     if not role:
-        raise NotFound(title="Role not found", detail=f"Role with name: {role_name!r} was not found")
+        raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
         data_ = {}
@@ -149,6 +149,5 @@ def post_role() -> APIResponse:
         _check_action_and_resource(security_manager, perms)
         security_manager.init_role(role_name=data['name'], perms=perms)
         return role_schema.dump(role)
-    raise AlreadyExists(
-        detail=f"Role with name {role.name!r} already exist. Please update with patch endpoint"
-    )
+    detail = f"Role with name {role.name!r} already exists; please update with the PATCH endpoint"
+    raise AlreadyExists(detail=detail)

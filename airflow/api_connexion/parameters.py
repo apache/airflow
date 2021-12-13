@@ -16,7 +16,7 @@
 # under the License.
 from datetime import datetime
 from functools import wraps
-from typing import Callable, Container, Dict, Optional, TypeVar, cast
+from typing import Any, Callable, Container, Dict, Optional, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text
@@ -69,7 +69,7 @@ def check_limit(value: int) -> int:
 T = TypeVar("T", bound=Callable)
 
 
-def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Callable[[T], T]:
+def format_parameters(params_formatters: Dict[str, Callable[[Any], Any]]) -> Callable[[T], T]:
     """
     Decorator factory that create decorator that convert parameters using given formatters.
 

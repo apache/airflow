@@ -82,7 +82,7 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         response = self.client.get("/api/v1/roles/invalid-role", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         assert {
-            'detail': "The Role with name `invalid-role` was not found",
+            'detail': "Role with name 'invalid-role' was not found",
             'status': 404,
             'title': 'Role not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -271,7 +271,7 @@ class TestPostRole(TestRoleEndpoint):
         response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 409
         assert response.json == {
-            'detail': "Role with name `Test` already exist. Please update with patch endpoint",
+            'detail': "Role with name 'Test' already exists; please update with the PATCH endpoint",
             'status': 409,
             'title': 'Conflict',
             'type': EXCEPTIONS_LINK_MAP[409],
@@ -314,7 +314,7 @@ class TestDeleteRole(TestRoleEndpoint):
         )
         assert response.status_code == 404
         assert response.json == {
-            'detail': "The Role with name `invalidrolename` was not found",
+            'detail': "Role with name 'invalidrolename' was not found",
             'status': 404,
             'title': 'Role not found',
             'type': EXCEPTIONS_LINK_MAP[404],
