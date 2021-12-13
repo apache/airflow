@@ -2105,6 +2105,10 @@ Remove unnecessary parameter ``open`` in PostgresHook function ``copy_expert`` f
 
 Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
 
+`OpsgenieAlertHook` constructor does not take additional arguments or keyword arguments anymore.
+Changed the return type of `OpsgenieAlertHook.get_conn` to return a `opsgenie_sdk.AlertApi` object instead of a `requests.Session` object.
+Changed the return type of `OpsgenieAlertHook.execute` to return a `opsgenie_sdk.SuccessResponse` object instead of a `Any` type.
+
 #### `airflow.providers.imap.hooks.imap.ImapHook`
 
 #### `airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor`

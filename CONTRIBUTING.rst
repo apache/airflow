@@ -685,7 +685,6 @@ google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,f
 hashicorp                  google
 microsoft.azure            google,oracle
 mysql                      amazon,presto,trino,vertica
-opsgenie                   http
 postgres                   amazon
 salesforce                 tableau
 sftp                       ssh

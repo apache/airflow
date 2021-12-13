@@ -32,6 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/opsgenie/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-opsgenie/>
     Installing from sources <installing-providers-from-sources>
 

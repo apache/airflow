@@ -17,16 +17,21 @@
 # under the License.
 #
 
-import json
-from typing import Any, Optional
+from typing import Optional
 
-import requests
+from opsgenie_sdk import (
+    AlertApi,
+    ApiClient,
+    Configuration,
+    CreateAlertPayload,
+    OpenApiException,
+    SuccessResponse,
+)
 
-from airflow.exceptions import AirflowException
-from airflow.providers.http.hooks.http import HttpHook
+from airflow.hooks.base import BaseHook
 
 
-class OpsgenieAlertHook(HttpHook):
+class OpsgenieAlertHook(BaseHook):
     """
     This hook allows you to post alerts to Opsgenie.
     Accepts a connection that has an Opsgenie API key as the connection's password.
@@ -46,46 +51,50 @@ class OpsgenieAlertHook(HttpHook):
     conn_type = 'opsgenie'
     hook_name = 'Opsgenie'
 
-    def __init__(self, opsgenie_conn_id: str = 'opsgenie_default', *args, **kwargs) -> None:
-        super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)  # type: ignore[misc]
+    def __init__(self, opsgenie_conn_id: str = 'opsgenie_default') -> None:
+        super().__init__()  # type: ignore[misc]
+        self.conn_id = opsgenie_conn_id
+        configuration = Configuration()
+        conn = self.get_connection(self.conn_id)
+        configuration.api_key['Authorization'] = conn.password
+        configuration.host = conn.host or 'https://api.opsgenie.com'
+        self.alert_api_instance = AlertApi(ApiClient(configuration))
 
     def _get_api_key(self) -> str:
-        """Get Opsgenie api_key for creating alert"""
-        conn = self.get_connection(self.http_conn_id)
-        api_key = conn.password
-        if not api_key:
-            raise AirflowException(
-                'Opsgenie API Key is required for this hook, please check your conn_id configuration.'
-            )
-        return api_key
-
-    def get_conn(self, headers: Optional[dict] = None) -> requests.Session:
         """
-        Overwrite HttpHook get_conn because this hook just needs base_url
-        and headers, and does not need generic params
+        Get the API key from the connection
 
-        :param headers: additional headers to be passed through as a dictionary
-        :type headers: dict
+        :return: API key
+        :rtype: str
         """
-        conn = self.get_connection(self.http_conn_id)
-        self.base_url = conn.host if conn.host else 'https://api.opsgenie.com'
-        session = requests.Session()
-        if headers:
-            session.headers.update(headers)
-        return session
+        conn = self.get_connection(self.conn_id)
+        return conn.password
 
-    def execute(self, payload: Optional[dict] = None) -> Any:
+    def get_conn(self) -> AlertApi:
+        """
+        Get the underlying AlertApi client
+
+        :return: AlertApi client
+        :rtype: opsgenie_sdk.AlertApi
+        """
+        return self.alert_api_instance
+
+    def execute(self, payload: Optional[dict] = None) -> SuccessResponse:
         """
         Execute the Opsgenie Alert call
 
         :param payload: Opsgenie API Create Alert payload values
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert
         :type payload: dict
+        :return: api response
+        :rtype: opsgenie_sdk.SuccessResponse
         """
         payload = payload or {}
-        api_key = self._get_api_key()
-        return self.run(
-            endpoint='v2/alerts',
-            data=json.dumps(payload),
-            headers={'Content-Type': 'application/json', 'Authorization': f'GenieKey {api_key}'},
-        )
+
+        try:
+            create_alert_payload = CreateAlertPayload(**payload)
+            api_response = self.alert_api_instance.create_alert(create_alert_payload)
+            return api_response
+        except OpenApiException as e:
+            self.log.exception('Exception when sending alert to opsgenie with payload: %s', payload)
+            raise e

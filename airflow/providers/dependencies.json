@@ -67,9 +67,6 @@
     "trino",
     "vertica"
   ],
-  "opsgenie": [
-    "http"
-  ],
   "postgres": [
     "amazon"
   ],
