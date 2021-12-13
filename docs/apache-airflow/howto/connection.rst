@@ -213,8 +213,6 @@ If using with a Docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
-.. _connection/uri-syntax:
-
 Connection URI format
 ---------------------
 

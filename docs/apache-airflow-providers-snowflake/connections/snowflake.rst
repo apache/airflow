@@ -68,7 +68,7 @@ Extra (optional)
         <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`__.
 
 When specifying the connection in environment variable you should specify
-it using :ref:`URI syntax <apache-airflow:connection/uri-syntax>`.
+it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
 
