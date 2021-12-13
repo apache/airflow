@@ -68,7 +68,6 @@ class Param:
                 "The use of non-json-serializable params is deprecated and will be removed in "
                 " a future release",
                 DeprecationWarning,
-                stacklevel=2,
             )
         # If we have a value, validate it once. May raise ValueError.
         if not isinstance(value, ArgNotSet):
