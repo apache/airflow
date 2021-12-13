@@ -1580,7 +1580,8 @@ def update_release_notes(
                     mark_latest_changes_as_documentation_only(provider_details, latest_change)
                 else:
                     raise ValueError(
-                        "Expected only one change to be present to mark provider changes as docs-only. "
+                        "Expected only one change to be present to mark changes "
+                        f"in provider {provider_package_id} as docs-only. "
                         f"Received {len(latest_change)}."
                     )
             return False
