@@ -1,7 +1,5 @@
 #
 # Licensed to the Apache Software Foundation (ASF) under one
-# TODO: This license is not consistent with license used in the project.
-#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -15,9 +13,8 @@
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations ho
+# specific language governing permissions and limitations
 # under the License.
-#
 
 import unittest
 from unittest import mock
