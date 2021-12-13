@@ -21,7 +21,18 @@
 import contextlib
 import copy
 import warnings
-from typing import AbstractSet, Any, Container, Dict, Iterator, List, MutableMapping, Tuple, ValuesView
+from typing import (
+    AbstractSet,
+    Any,
+    Container,
+    Dict,
+    Iterator,
+    List,
+    MutableMapping,
+    Optional,
+    Tuple,
+    ValuesView,
+)
 
 from airflow.utils.types import NOTSET
 
@@ -113,8 +124,10 @@ class Context(MutableMapping[str, Any]):
         "yesterday_ds_nodash": [],
     }
 
-    def __init__(self, context: MutableMapping[str, Any]) -> None:
-        self._context = context
+    def __init__(self, context: Optional[MutableMapping[str, Any]] = None, **kwargs: Any) -> None:
+        self._context = context or {}
+        if kwargs:
+            self._context.update(kwargs)
         self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
 
     def __repr__(self) -> str:

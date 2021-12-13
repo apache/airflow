@@ -47,7 +47,6 @@ from typing import (
 
 import attr
 import jinja2
-import jinja2.nativetypes
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
@@ -72,7 +71,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.edgemodifier import EdgeModifier
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import render_template_as_native, render_template_to_string, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -91,34 +90,6 @@ TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=FunctionType)
-
-
-# The 'template' argument is typed as Any because the jinja2.Template is too
-# dynamic to be effectively type-checked.
-def _render_jinja2(template: Any, context: Context, *, native: bool) -> Any:
-    """Render a Jinja2 template with given Airflow context.
-
-    The default implementation of ``jinja2.Template.render()`` converts the
-    input context into dict eagerly many times, which triggers deprecation
-    messages in our custom context class. This takes the implementation apart
-    and retain the context mapping without resolving instead.
-
-    :param template: A Jinja2 template to render.
-    :param context: The Airflow task context to render the template with.
-    :param native: Whether to render as native types or not. A DAG can enable
-        native type rendering with ``render_template_as_native_obj=True``.
-    :returns: The render result.
-    """
-    env = template.environment
-    if template.globals:
-        context.update((k, v) for k, v in template.globals.items() if k not in context)
-    try:
-        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
-    except Exception:
-        env.handle_exception()  # Rewrite traceback to point to the template.
-    if native:
-        return jinja2.nativetypes.native_concat(nodes)
-    return "".join(nodes)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -1137,8 +1108,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 template = jinja_env.get_template(content)
             else:
                 template = jinja_env.from_string(content)
-            native = self.has_dag() and self.dag.render_template_as_native_obj
-            return _render_jinja2(template, copy.copy(context), native=native)
+            if self.has_dag() and self.dag.render_template_as_native_obj:
+                return render_template_as_native(template, context)
+            return render_template_to_string(template, context)
 
         elif isinstance(content, (XComArg, DagParam)):
             return content.resolve(context)
