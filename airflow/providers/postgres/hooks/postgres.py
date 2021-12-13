@@ -217,7 +217,7 @@ class PostgresHook(DbApiHook):
 
         :param table: Name of the target table
         :type table: str
-        :param table: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default
         :type table: str
         :return: Primary key columns list
         :rtype: List[str]
