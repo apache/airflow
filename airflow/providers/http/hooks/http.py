@@ -185,7 +185,7 @@ class HttpHook(BaseHook):
         )
 
         # Send the request.
-        send_kwargs = {
+        send_kwargs: Dict[str, Any] = {
             "timeout": extra_options.get("timeout"),
             "allow_redirects": extra_options.get("allow_redirects", True),
         }
