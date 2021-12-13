@@ -109,3 +109,10 @@ export const formatDuration = (dur) => {
   // .as('milliseconds') is necessary for .format() to work correctly
   return `${days > 0 ? `${days}d` : ''}${moment.utc(duration.as('milliseconds')).format('HH:mm:ss')}`;
 };
+
+export const approxTimeFromNow = (dur) => {
+  console.log(dur);
+  const timefromNow = moment(dur);
+  console.log(timefromNow);
+  return `${timefromNow.fromNow()}`;
+};
