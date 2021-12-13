@@ -21,7 +21,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor  # noqa
+from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.",

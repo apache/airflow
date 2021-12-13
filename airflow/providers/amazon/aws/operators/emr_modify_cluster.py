@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.emr import EmrModifyClusterOperator  # noqa
+from airflow.providers.amazon.aws.operators.emr import EmrClusterLink, EmrModifyClusterOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.",

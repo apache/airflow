@@ -24,7 +24,7 @@ import pytest
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.providers.amazon.aws.operators.emr_containers import EMRContainerOperator
+from airflow.providers.amazon.aws.operators.emr import EMRContainerOperator
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     'ResponseMetadata': {'HTTPStatusCode': 200},

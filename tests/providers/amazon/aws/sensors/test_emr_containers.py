@@ -23,7 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.providers.amazon.aws.sensors.emr_containers import EMRContainerSensor
+from airflow.providers.amazon.aws.sensors.emr import EMRContainerSensor
 
 
 class TestEMRContainerSensor(unittest.TestCase):
