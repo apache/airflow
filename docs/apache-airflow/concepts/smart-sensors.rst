@@ -25,7 +25,7 @@ Smart Sensors
 
   This is a **deprecated early-access** feature that will be removed in Airflow 2.4.0.
   It is superseded by :doc:`Deferrable Operators <deferring>`, which offer a more flexible way to
-  achieve efficient long-running sensors, as well as allowing Operators to also achieve similar
+  achieve efficient long-running sensors, as well as allowing operators to also achieve similar
   efficiency gains. If you are considering writing a new Smart Sensor, you should instead write it
   as a Deferrable Operator.
 
