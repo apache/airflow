@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
-from itertools import combinations, product
+from itertools import product
 
 import pytest
 
