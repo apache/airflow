@@ -54,7 +54,7 @@ class AirbyteJobSensor(BaseSensorOperator):
 
     def poke(self, context: dict) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
-        job = hook.get_job(job_id=self.airbyte_job_id)
+        job = hook.get_job(job_id=int(self.airbyte_job_id))
         status = job.json()['job']['status']
 
         if status == hook.FAILED:
