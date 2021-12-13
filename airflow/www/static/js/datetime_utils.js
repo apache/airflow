@@ -111,8 +111,6 @@ export const formatDuration = (dur) => {
 };
 
 export const approxTimeFromNow = (dur) => {
-  console.log(dur);
   const timefromNow = moment(dur);
-  console.log(timefromNow);
   return `${timefromNow.fromNow()}`;
 };
