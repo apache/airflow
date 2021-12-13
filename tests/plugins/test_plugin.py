@@ -23,6 +23,7 @@ from airflow.executors.base_executor import BaseExecutor
 
 # Importing base classes that we need to derive
 from airflow.hooks.base import BaseHook
+from airflow.listeners.listener import Listener
 from airflow.models.baseoperator import BaseOperator
 
 # This is the class you derive to create a plugin
@@ -56,6 +57,10 @@ class PluginSensorOperator(BaseSensorOperator):
 
 # Will show up under airflow.executors.test_plugin.PluginExecutor
 class PluginExecutor(BaseExecutor):
+    pass
+
+
+class PluginListener(Listener):
     pass
 
 
@@ -122,6 +127,7 @@ class AirflowTestPlugin(AirflowPlugin):
     ]
     operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
     timetables = [CustomCronDataIntervalTimetable]
+    listeners = [PluginListener]
 
 
 class MockPluginA(AirflowPlugin):
