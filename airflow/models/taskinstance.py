@@ -1951,7 +1951,7 @@ class TaskInstance(Base, LoggingMixin):
             'yesterday_ds': get_yesterday_ds(),
             'yesterday_ds_nodash': get_yesterday_ds_nodash(),
         }
-        return Context(context)
+        return Context(context)  # type: ignore
 
     @provide_session
     def get_rendered_template_fields(self, session=NEW_SESSION):
