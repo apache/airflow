@@ -407,7 +407,7 @@ class DataFusionHook(GoogleBaseHook):
         instance_url: str,
         pipeline_id: str,
         namespace: str = "default",
-    ) -> str:
+    ) -> Any:
         url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),

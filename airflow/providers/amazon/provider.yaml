@@ -245,6 +245,7 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
+      - airflow.providers.amazon.aws.operators.step_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
@@ -307,6 +308,7 @@ sensors:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function_execution
+      - airflow.providers.amazon.aws.sensors.step_function
 
 hooks:
   - integration-name: Amazon Athena

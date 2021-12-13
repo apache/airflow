@@ -140,6 +140,16 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
         return False
     try:
         import_string(class_name)
+    except ImportError as e:
+        # When there is an ImportError we turn it into debug warnings as this is
+        # an expected case when only some providers are installed
+        log.debug(
+            "Exception when importing '%s' from '%s' package: %s",
+            class_name,
+            provider_package,
+            e,
+        )
+        return False
     except Exception as e:
         log.warning(
             "Exception when importing '%s' from '%s' package: %s",
@@ -642,16 +652,6 @@ class ProvidersManager(LoggingMixin):
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
-        except ImportError as e:
-            # When there is an ImportError we turn it into debug warnings as this is
-            # an expected case when only some providers are installed
-            log.debug(
-                "Exception when importing '%s' from '%s' package: %s",
-                hook_class_name,
-                package_name,
-                e,
-            )
-            return None
         except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",

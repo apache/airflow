@@ -141,7 +141,7 @@ class DagRun(Base, LoggingMixin):
         self,
         dag_id: Optional[str] = None,
         run_id: Optional[str] = None,
-        queued_at: Union[datetime, None, ArgNotSet] = NOTSET,  # type: ignore
+        queued_at: Union[datetime, None, ArgNotSet] = NOTSET,
         execution_date: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         external_trigger: Optional[bool] = None,
@@ -398,7 +398,9 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_task_instances(
-        self, state: Optional[Iterable[TaskInstanceState]] = None, session=None
+        self,
+        state: Optional[Iterable[Optional[TaskInstanceState]]] = None,
+        session: Session = NEW_SESSION,
     ) -> Iterable[TI]:
         """Returns the task instances for this dag run"""
         tis = (
@@ -805,7 +807,7 @@ class DagRun(Base, LoggingMixin):
 
             if task.task_id not in task_ids:
                 Stats.incr(f"task_instance_created-{task.task_type}", 1, 1)
-                ti = TI(task, execution_date=None, run_id=self.run_id)
+                ti = TI(task, run_id=self.run_id)
                 task_instance_mutation_hook(ti)
                 session.add(ti)
 

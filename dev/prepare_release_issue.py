@@ -258,6 +258,12 @@ def generate_issue_content(
                 except UnknownObjectException:
                     console.print(f"[red]The PR #{pr_number} could not be found[/]")
                 continue
+
+            # Ignore doc-only and skipped PRs
+            label_names = [label.name for label in pr.labels]
+            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+                continue
+
             pull_requests[pr_number] = pr
             # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
             # Relate so we can find those from the body
