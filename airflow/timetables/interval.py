@@ -278,6 +278,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def serialize(self) -> Dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta
 
+        delta: Any
         if isinstance(self._delta, datetime.timedelta):
             delta = self._delta.total_seconds()
         else:
