@@ -657,8 +657,9 @@ class TestSchedulerJob:
             self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
                 "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]> "
-                "since requesting 4 slots when total pool 'some_pool' slots are 2." in caplog.text
+                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]>. "
+                "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
+                in caplog.text
             )
         session.flush()
         session.rollback()
