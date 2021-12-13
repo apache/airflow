@@ -52,7 +52,7 @@ class DockerHook(BaseHook, LoggingMixin):
 
     def __init__(
         self,
-        docker_conn_id: Optional[str]  = default_conn_name,
+        docker_conn_id: Optional[str] = default_conn_name,
         base_url: Optional[str] = None,
         version: Optional[str] = None,
         tls: Optional[str] = None,
