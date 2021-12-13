@@ -144,7 +144,7 @@ def docker_task(
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
-        decorated_operator_class=_DockerDecoratedOperator, # type: ignore
+        decorated_operator_class=_DockerDecoratedOperator,
         **kwargs,
     )
 
