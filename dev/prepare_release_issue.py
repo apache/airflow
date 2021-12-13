@@ -22,7 +22,7 @@ import re
 import subprocess
 import textwrap
 from collections import defaultdict
-from typing import Any, Dict, List, NamedTuple, Optional, Set
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Union
 
 import click
 from github import Github, Issue, PullRequest, UnknownObjectException
@@ -32,6 +32,8 @@ from rich.progress import Progress
 logger = logging.getLogger(__name__)
 
 console = Console(width=400, color_system="standard")
+
+PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
@@ -183,7 +185,7 @@ def render_template(
 
 def print_issue_content(
     current_release: str,
-    pull_requests: Dict[int, PullRequest.PullRequest],
+    pull_requests: Dict[int, PullRequestOrIssue],
     linked_issues: Dict[int, List[Issue.Issue]],
     users: Dict[int, Set[str]],
 ):
@@ -231,12 +233,12 @@ def generate_issue_content(
     else:
         excluded_prs = []
     changes = get_changes(verbose, previous_release, current_release)
-    prs = list(
-        filter(lambda pr: pr is not None and pr not in excluded_prs, [change.pr for change in changes])
-    )
+    change_prs = [change.pr for change in changes]
+    prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
+
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
-    pull_requests: Dict[int, PullRequest.PullRequest] = {}
+    pull_requests: Dict[int, PullRequestOrIssue] = {}
     linked_issues: Dict[int, List[Issue.Issue]] = defaultdict(lambda: [])
     users: Dict[int, Set[str]] = defaultdict(lambda: set())
     count_prs = len(prs)
@@ -249,6 +251,8 @@ def generate_issue_content(
             progress.console.print(
                 f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
             )
+
+            pr: PullRequestOrIssue
             try:
                 pr = repo.get_pull(pr_number)
             except UnknownObjectException:

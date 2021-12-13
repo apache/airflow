@@ -71,16 +71,16 @@ airflow_version = sorted(airflow_version, key=semver.VersionInfo.parse)
 to_check_versions: List[str] = [d for d in airflow_version if d.startswith("2.")]
 
 # 2. Compute expected options set with version added fields
-computed_options: Set[Tuple[str, str, str]] = set()
+expected_computed_options: Set[Tuple[str, str, str]] = set()
 for prev_version, curr_version in zip(to_check_versions[:-1], to_check_versions[1:]):
     print("Processing version:", curr_version)
     options_1 = fetch_config_options_for_version(prev_version)
     options_2 = fetch_config_options_for_version(curr_version)
     new_options = options_2 - options_1
-    computed_options.update(
+    expected_computed_options.update(
         {(section_name, option_name, curr_version) for section_name, option_name in new_options}
     )
-print("Computed options count:", len(computed_options))
+print("Expected computed options count:", len(expected_computed_options))
 
 # 3. Read local options set
 local_options = read_local_config_options()
@@ -92,7 +92,7 @@ local_options_plain: Set[Tuple[str, str]] = {
 }
 computed_options: Set[Tuple[str, str, str]] = {
     (section_name, option_name, version_added)
-    for section_name, option_name, version_added in computed_options
+    for section_name, option_name, version_added in expected_computed_options
     if (section_name, option_name) in local_options_plain
 }
 print("Visible computed options count:", len(computed_options))
