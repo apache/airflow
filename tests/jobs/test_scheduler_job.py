@@ -460,9 +460,12 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
 
-        tis = sorted(dr1.task_instances, key=lambda _ti: _ti.key) + sorted(
-            dr2.task_instances, key=lambda _ti: _ti.key
-        )
+        tis = [
+            dr1.get_task_instance(task_id_1, session=session),
+            dr1.get_task_instance(task_id_2, session=session),
+            dr2.get_task_instance(task_id_1, session=session),
+            dr2.get_task_instance(task_id_2, session=session),
+        ]
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
