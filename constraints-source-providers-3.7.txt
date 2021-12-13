@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-13T10:44:41Z
+# This constraints file was automatically generated on 2021-12-13T14:58:07Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -128,6 +128,7 @@ colorlog==4.8.0
 commonmark==0.9.1
 coverage==6.2
 crcmod==1.7
+cron-descriptor==1.2.24
 croniter==1.0.15
 cryptography==3.4.8
 curlify==2.2.1
@@ -260,7 +261,7 @@ ldap3==2.9.1
 libcst==0.3.23
 locket==0.2.1
 lockfile==0.12.2
-lxml==4.7.0
+lxml==4.6.5
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1

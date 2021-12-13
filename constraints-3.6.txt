@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-13T10:44:33Z
+# This constraints file was automatically generated on 2021-12-13T14:57:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -201,6 +201,7 @@ commonmark==0.9.1
 contextvars==2.4
 coverage==6.2
 crcmod==1.7
+cron-descriptor==1.2.24
 croniter==1.0.15
 cryptography==3.4.8
 curlify==2.2.1
@@ -335,7 +336,7 @@ lazy-object-proxy==1.4.3
 ldap3==2.9.1
 libcst==0.3.23
 lockfile==0.12.2
-lxml==4.7.0
+lxml==4.6.5
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
@@ -474,7 +475,7 @@ scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.9.2
 sentinels==1.0.0
-sentry-sdk==1.5.0
+sentry-sdk==1.5.1
 setproctitle==1.2.2
 simple-salesforce==1.11.4
 six==1.16.0
