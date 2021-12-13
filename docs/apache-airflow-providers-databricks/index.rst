@@ -59,7 +59,7 @@ Package apache-airflow-providers-databricks
 `Databricks <https://databricks.com/>`__
 
 
-Release: 2.0.2
+Release: 2.1.0
 
 Provider package
 ----------------

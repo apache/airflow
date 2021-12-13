@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 2.5.0
   - 2.4.0
   - 2.3.0
   - 2.2.0
@@ -191,6 +192,7 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2_start_instance
       - airflow.providers.amazon.aws.operators.ec2_stop_instance
+      - airflow.providers.amazon.aws.operators.ec2
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs
@@ -250,6 +252,9 @@ sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+  - integration-name: AWS Batch
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.batch
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
@@ -259,6 +264,7 @@ sensors:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
+      - airflow.providers.amazon.aws.sensors.ec2
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.eks

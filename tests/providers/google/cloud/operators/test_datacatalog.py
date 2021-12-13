@@ -610,7 +610,7 @@ class TestCloudDataCatalogGetTagTemplateOperator(TestCase):
 class TestCloudDataCatalogListTagsOperator(TestCase):
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{"return_value.list_tags.return_value": [TEST_TAG]},  # type: ignore
+        return_value=mock.MagicMock(list_tags=mock.MagicMock(return_value=[TEST_TAG])),
     )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogListTagsOperator(
@@ -777,7 +777,7 @@ class TestCloudDataCatalogUpdateTagOperator(TestCase):
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogUpdateTagOperator(
             task_id="task_id",
-            tag=TEST_TAG_ID,
+            tag=Tag(name=TEST_TAG_ID),
             update_mask=TEST_UPDATE_MASK,
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -796,7 +796,7 @@ class TestCloudDataCatalogUpdateTagOperator(TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_tag.assert_called_once_with(
-            tag=TEST_TAG_ID,
+            tag=Tag(name=TEST_TAG_ID),
             update_mask=TEST_UPDATE_MASK,
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -814,7 +814,7 @@ class TestCloudDataCatalogUpdateTagTemplateOperator(TestCase):
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogUpdateTagTemplateOperator(
             task_id="task_id",
-            tag_template=TEST_TAG_TEMPLATE_ID,
+            tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_ID),
             update_mask=TEST_UPDATE_MASK,
             location=TEST_LOCATION,
             tag_template_id=TEST_TAG_TEMPLATE_ID,
@@ -831,7 +831,7 @@ class TestCloudDataCatalogUpdateTagTemplateOperator(TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_tag_template.assert_called_once_with(
-            tag_template=TEST_TAG_TEMPLATE_ID,
+            tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_ID),
             update_mask=TEST_UPDATE_MASK,
             location=TEST_LOCATION,
             tag_template_id=TEST_TAG_TEMPLATE_ID,

@@ -24,12 +24,12 @@ Airflow is tested with:
 
 * Databases:
 
-  * PostgreSQL:  9.6, 10, 11, 12, 13
+  * PostgreSQL: 10, 11, 12, 13
   * MySQL: 5.7, 8
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.18.15 1.19.7 1.20.2
+* Kubernetes: 1.20.2 1.21.1
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.
@@ -43,3 +43,12 @@ Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
 wildly on the deployment options you have
+
+**Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+tested on fairly modern Linux Distros and recent versions of MacOS.
+On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
+The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__ but
+it is not a high priority. You should only use Linux-based distros as "Production" execution environment
+as this is the only environment that is supported. The only distro that is used in our CI tests and that
+is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
+``Debian Buster``.

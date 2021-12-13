@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import re
+import signal
 import warnings
 from datetime import datetime
 from functools import reduce
@@ -80,21 +80,35 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     return output
 
 
-def ask_yesno(question: str) -> bool:
-    """Helper to get yes / no answer from user."""
+def ask_yesno(question: str, default: Optional[bool] = None) -> bool:
+    """Helper to get a yes or no answer from the user."""
     yes = {'yes', 'y'}
     no = {'no', 'n'}
 
-    done = False
     print(question)
-    while not done:
+    while True:
         choice = input().lower()
+        if choice == "" and default is not None:
+            return default
         if choice in yes:
             return True
-        elif choice in no:
+        if choice in no:
             return False
-        else:
-            print("Please respond by yes or no.")
+        print("Please respond with y/yes or n/no.")
+
+
+def prompt_with_timeout(question: str, timeout: int, default: Optional[bool] = None) -> bool:
+    """Ask the user a question and timeout if they don't respond"""
+
+    def handler(signum, frame):
+        raise AirflowException(f"Timeout {timeout}s reached")
+
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(timeout)
+    try:
+        return ask_yesno(question, default)
+    finally:
+        signal.alarm(0)
 
 
 def is_container(obj: Any) -> bool:

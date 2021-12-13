@@ -34,7 +34,7 @@ from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -69,12 +69,14 @@ class SubDagOperator(BaseSensorOperator):
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
+    subdag: "DAG"
+
     @provide_session
     def __init__(
         self,
         *,
         subdag: DAG,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
         conf: Optional[Dict] = None,
         propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
         **kwargs,

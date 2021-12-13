@@ -63,3 +63,7 @@ class DataprocExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def test_run_example_dag(self):
         self.run_dag(dag_id="example_gcp_dataproc", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DATAPROC_KEY)
+    def test_run_batch_example_dag(self):
+        self.run_dag(dag_id="example_gcp_batch_dataproc", dag_folder=CLOUD_DAG_FOLDER)

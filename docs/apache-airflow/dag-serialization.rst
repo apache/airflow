@@ -93,7 +93,7 @@ Limitations
 
 *   When using user-defined filters and macros, the Rendered View in the Webserver might show incorrect results
     for TIs that have not yet executed as it might be using external modules that the Webserver won't have access to.
-    Use ``airflow tasks render`` cli command in such situation to debug or test rendering of your template_fields.
+    Use ``airflow tasks render`` CLI command in such situation to debug or test rendering of your template_fields.
     Once the tasks execution starts the Rendered Template Fields will be stored in the DB in a separate table and
     after which the correct values would be showed in the Webserver (Rendered View tab).
 

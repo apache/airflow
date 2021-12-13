@@ -948,7 +948,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object))
+            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object).decode("utf-8"))
         else:
             schema_fields = self.schema_fields
 
@@ -1203,7 +1203,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object))
+            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
         else:
             schema_fields = self.schema_fields
 

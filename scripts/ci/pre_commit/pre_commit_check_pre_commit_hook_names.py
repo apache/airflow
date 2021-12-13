@@ -27,7 +27,7 @@ import yaml
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
-    from yaml import SafeLoader  # type: ignore[no-redef]
+    from yaml import SafeLoader  # type: ignore
 
 
 def main() -> int:

@@ -63,7 +63,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -331,7 +331,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id='test_mark_non_runnable_task_as_success',
             task_id='test_mark_non_runnable_task_as_success_op',
-            dagrun_state=non_runnable_state,
+            state=non_runnable_state,
         )
         ti.run(mark_success=True)
         assert ti.state == State.SUCCESS
@@ -357,7 +357,7 @@ class TestTaskInstance:
         test that try to create a task with pool_slots less than 1
         """
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
             dag = models.DAG(dag_id='test_run_pooling_task')
             DummyOperator(
                 task_id='test_run_pooling_task_op',
@@ -972,7 +972,8 @@ class TestTaskInstance:
             for i in range(5):
                 task = DummyOperator(task_id=f'runme_{i}', dag=dag)
                 task.set_downstream(downstream)
-        run_date = task.start_date + datetime.timedelta(days=5)
+            assert task.start_date is not None
+            run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
         ti.task = downstream
@@ -1374,7 +1375,10 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: Union[str, datetime.timedelta, None], catchup: bool, scenario: List[str], dag_maker
+        schedule_interval: Union[str, datetime.timedelta, None],
+        catchup: bool,
+        scenario: List[TaskInstanceState],
+        dag_maker,
     ) -> list:
         dag_id = 'test_previous_dates'
         with dag_maker(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup):
@@ -1922,7 +1926,7 @@ class TestTaskInstance:
                     'try_number': '1',
                 },
                 'labels': {
-                    'airflow-worker': 'worker-config',
+                    'airflow-worker': '0',
                     'airflow_version': version,
                     'dag_id': 'test_render_k8s_pod_yaml',
                     'execution_date': '2016-01-01T00_00_00_plus_00_00',
@@ -2118,14 +2122,7 @@ class TestRunRawTaskQueriesCount:
     def teardown_method(self) -> None:
         self._clean()
 
-    @pytest.mark.parametrize(
-        "expected_query_count, mark_success",
-        [
-            # Expected queries, mark_success
-            (10, False),
-            (5, True),
-        ],
-    )
+    @pytest.mark.parametrize("expected_query_count, mark_success", [(12, False), (5, True)])
     @provide_session
     def test_execute_queries_count(
         self, expected_query_count, mark_success, create_task_instance, session=None

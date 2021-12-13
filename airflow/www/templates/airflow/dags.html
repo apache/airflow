@@ -58,13 +58,13 @@
       metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
       to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
       the <code>{{ moved_table_name }}</code> table to dismiss this warning. Read more about it
-      in <a href={{ get_docs_url("installing/upgrading.html") }}><b>Upgrading</b></a>.
+      in <a href={{ get_docs_url("installation/upgrading.html") }}><b>Upgrading</b></a>.
     {% endcall %}
   {% endfor %}
   {{ super() }}
   {% if sqlite_warning | default(true) %}
     {% call show_message(category='warning', dismissible=false)  %}
-      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing
+      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing.
       We recommend using Postgres or MySQL.
       <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
     {% endcall %}

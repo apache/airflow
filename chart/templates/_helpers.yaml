@@ -546,6 +546,7 @@ Create the name of the cleanup service account to use
   - airflow
   - db
   - check-migrations
+  - --migration-wait-timeout={{ .Values.images.migrationsWaitTimeout }}
   {{- else }}
   - python
   - -c

@@ -2357,6 +2357,13 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        description:
+          type: string
+          description: |
+            The description of the pool.
+
+            *New in version 2.3.0*
+          nullable: true
 
     PoolCollection:
       type: object

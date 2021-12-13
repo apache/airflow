@@ -98,8 +98,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         start_activity_name: Optional[str] = None,
         start_from_failure: Optional[bool] = None,
         parameters: Optional[Dict[str, Any]] = None,
-        timeout: Optional[int] = 60 * 60 * 24 * 7,
-        check_interval: Optional[int] = 60,
+        timeout: int = 60 * 60 * 24 * 7,
+        check_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

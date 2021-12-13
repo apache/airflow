@@ -19,7 +19,6 @@
 import os
 import subprocess
 import threading
-from pwd import getpwnam
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
@@ -58,6 +57,8 @@ class BaseTaskRunner(LoggingMixin):
             except AirflowConfigException:
                 self.run_as_user = None
 
+        self._error_file = NamedTemporaryFile(delete=True)
+
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         self.log.debug("Planning to run as the %s user", self.run_as_user)
@@ -69,7 +70,9 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True)
 
             # Give ownership of file to user; only they can read and write
-            subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
+            subprocess.check_call(
+                ['sudo', 'chown', self.run_as_user, cfg_path, self._error_file.name], close_fds=True
+            )
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
@@ -84,14 +87,6 @@ class BaseTaskRunner(LoggingMixin):
             # variables then we don't need to include those in the config copy
             # - the runner can read/execute those values as it needs
             cfg_path = tmp_configuration_copy(chmod=0o600, include_env=False, include_cmds=False)
-
-        self._error_file = NamedTemporaryFile(delete=True)
-        if self.run_as_user:
-            try:
-                os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
-            except KeyError:
-                # No user `run_as_user` found
-                pass
 
         self._cfg_path = cfg_path
         self._command = (

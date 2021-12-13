@@ -160,7 +160,7 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
 
     ```shell script
     git checkout origin/constraints-${VERSION_BRANCH}
-    git tag -s "constraints-${VERSION}"
+    git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
 
@@ -300,7 +300,7 @@ protected_branches:
 
 ## Prepare PyPI convenience "snapshot" packages
 
-At this point we have the artefact that we vote on, but as a convenience to developers we also want to
+At this point we have the artifact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to PyPI for installing via pip:
 
 To do this we need to

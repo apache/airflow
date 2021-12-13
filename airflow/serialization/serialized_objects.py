@@ -146,7 +146,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     """
     timetable_class = type(var)
     importable_string = as_importable_string(timetable_class)
-    if _get_registered_timetable(importable_string) != timetable_class:
+    if _get_registered_timetable(importable_string) is None:
         raise _TimetableNotRegistered(importable_string)
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
@@ -918,7 +918,6 @@ class SerializedDAG(DAG, BaseSerialization):
 
             if serializable_task.subdag is not None:
                 setattr(serializable_task.subdag, 'parent_dag', dag)
-                serializable_task.subdag.is_subdag = True
 
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want

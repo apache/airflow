@@ -22,10 +22,45 @@ import unittest
 from moto import mock_ec2
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.providers.amazon.aws.operators.ec2_stop_instance import EC2StopInstanceOperator
+from airflow.providers.amazon.aws.operators.ec2 import EC2StartInstanceOperator, EC2StopInstanceOperator
 
 
-class TestEC2Operator(unittest.TestCase):
+class TestEC2StartInstanceOperator(unittest.TestCase):
+    def test_init(self):
+        ec2_operator = EC2StartInstanceOperator(
+            task_id="task_test",
+            instance_id="i-123abc",
+            aws_conn_id="aws_conn_test",
+            region_name="region-test",
+            check_interval=3,
+        )
+        assert ec2_operator.task_id == "task_test"
+        assert ec2_operator.instance_id == "i-123abc"
+        assert ec2_operator.aws_conn_id == "aws_conn_test"
+        assert ec2_operator.region_name == "region-test"
+        assert ec2_operator.check_interval == 3
+
+    @mock_ec2
+    def test_start_instance(self):
+        # create instance
+        ec2_hook = EC2Hook()
+        instances = ec2_hook.conn.create_instances(
+            MaxCount=1,
+            MinCount=1,
+        )
+        instance_id = instances[0].instance_id
+
+        # start instance
+        start_test = EC2StartInstanceOperator(
+            task_id="start_test",
+            instance_id=instance_id,
+        )
+        start_test.execute(None)
+        # assert instance state is running
+        assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
+
+
+class TestEC2StopInstanceOperator(unittest.TestCase):
     def test_init(self):
         ec2_operator = EC2StopInstanceOperator(
             task_id="task_test",

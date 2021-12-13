@@ -1343,6 +1343,14 @@ OPERATORS = [
         "airflow.operators.dummy.DummyOperator",
         "airflow.operators.dummy_operator.DummyOperator",
     ),
+    (
+        "airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator",
+        "airflow.providers.amazon.aws.operators.ec2_start_instance.EC2StartInstanceOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.ec2.EC2StopInstanceOperator",
+        "airflow.providers.amazon.aws.operators.ec2_stop_instance.EC2StopInstanceOperator",
+    ),
 ]
 
 SECRETS = [
@@ -1585,6 +1593,10 @@ SENSORS = [
     (
         'airflow.providers.sftp.sensors.sftp.SFTPSensor',
         'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.ec2.EC2InstanceStateSensor',
+        'airflow.providers.amazon.aws.sensors.ec2_instance_state.EC2InstanceStateSensor',
     ),
 ]
 

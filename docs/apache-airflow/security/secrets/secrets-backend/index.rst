@@ -111,3 +111,16 @@ See :ref:`Configuration <secrets_backend_configuration>` for more details, and :
 
     If you are rolling your own secrets backend, you don't strictly need to use airflow's URI format. But
     doing so makes it easier to switch between environment variables, the metastore, and your secrets backend.
+
+Adapt to non-Airflow compatible secret formats for connections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The default implementation of Secret backend requires use of an Airflow-specific format of storing
+secrets for connections. Currently most community provided implementations require the connections to
+be stored as URIs (with the possibility of adding more friendly formats in the future)
+:doc:`apache-airflow-providers:core-extensions/secrets-backends`. However some organizations may prefer
+to keep the credentials (passwords/tokens etc) in other formats --
+for example when you want the same credentials to be used across multiple clients, or when you want to
+use built-in mechanism of rotating the credentials that do not work well with the Airflow-specific format.
+In this case you will need to roll your own secret backend as described in the previous chapter,
+possibly extending existing secret backend and adapt it to the scheme used by your organization.
