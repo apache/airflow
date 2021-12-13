@@ -20,7 +20,7 @@
 /* global document, window, $ */
 
 import getMetaValue from './meta_value';
-import { approxTimeFromNow ,formatDateTime } from './datetime_utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');

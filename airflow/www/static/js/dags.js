@@ -21,7 +21,7 @@
 
 import getMetaValue from './meta_value';
 import tiTooltip from './task_instances';
-import { approxTimeFromNow ,formatDateTime } from './datetime_utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
