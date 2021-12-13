@@ -44,7 +44,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         *,
         airbyte_job_id: str,
         airbyte_conn_id: str = 'airbyte_default',
-        api_version: Optional[str] = "v1",
+        api_version: str = "v1",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
