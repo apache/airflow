@@ -18,7 +18,7 @@
 
 """Connect to Asana."""
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from asana import Client
 from asana.error import NotFoundError
@@ -85,7 +85,7 @@ class AsanaHook(BaseHook):
 
         return Client.access_token(self.connection.password)
 
-    def create_task(self, task_name: str, params: dict) -> dict:
+    def create_task(self, task_name: str, params: Optional[dict]) -> dict:
         """
         Creates an Asana task.
 
@@ -99,7 +99,7 @@ class AsanaHook(BaseHook):
         response = self.client.tasks.create(params=merged_params)
         return response
 
-    def _merge_create_task_parameters(self, task_name: str, task_params: dict) -> dict:
+    def _merge_create_task_parameters(self, task_name: str, task_params: Optional[dict]) -> dict:
         """
         Merge create_task parameters with default params from the connection.
 
@@ -145,7 +145,7 @@ class AsanaHook(BaseHook):
             self.log.info("Asana task %s not found for deletion.", task_id)
             return {}
 
-    def find_task(self, params: dict) -> list:
+    def find_task(self, params: Optional[dict]) -> list:
         """
         Retrieves a list of Asana tasks that match search parameters.
 
@@ -158,7 +158,7 @@ class AsanaHook(BaseHook):
         response = self.client.tasks.find_all(params=merged_params)
         return list(response)
 
-    def _merge_find_task_parameters(self, search_parameters: dict) -> dict:
+    def _merge_find_task_parameters(self, search_parameters: Optional[dict]) -> dict:
         """
         Merge find_task parameters with default params from the connection.
 
