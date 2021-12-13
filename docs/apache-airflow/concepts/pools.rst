@@ -47,7 +47,8 @@ Note that if tasks are not given a pool, they are assigned to a default pool ``d
 initialized with 128 slots and can be modified through the UI or CLI (but cannot be removed).
 
 Using multiple pool slots
-----------------
+-------------------------
+
 Airflow tasks will each occupy a single pool slot by default, but they can be configured to occupy more with the ``pool_slots`` argument if required.
 This is particularly useful when several tasks that belong to the same pool don't carry the same "computational weight".
 
