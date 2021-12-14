@@ -27,14 +27,14 @@ else:
     from cached_property import cached_property
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 
 
 class AWSAthenaOperator:
     """Deprecated Operator"""
 
     warnings.warn(
-        "This Operator is deprecated. Please use "
+        "This operator is deprecated. Please use "
         "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
         DeprecationWarning,
         stacklevel=2,
@@ -105,9 +105,9 @@ class AthenaOperator(BaseOperator):
         self.query_execution_id = None  # type: Optional[str]
 
     @cached_property
-    def hook(self) -> AWSAthenaHook:
-        """Create and return an AWSAthenaHook."""
-        return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
+    def hook(self) -> AthenaHook:
+        """Create and return an AthenaHook."""
+        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
     def execute(self, context: dict) -> Optional[str]:
         """Run Presto Query on Athena"""
@@ -122,13 +122,13 @@ class AthenaOperator(BaseOperator):
         )
         query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
 
-        if query_status in AWSAthenaHook.FAILURE_STATES:
+        if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
                 f'Final state of Athena job is {query_status}, query_execution_id is '
                 f'{self.query_execution_id}. Error: {error_message}'
             )
-        elif not query_status or query_status in AWSAthenaHook.INTERMEDIATE_STATES:
+        elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
             raise Exception(
                 f'Final state of Athena job is {query_status}. Max tries of poll status exceeded, '
                 f'query_execution_id is {self.query_execution_id}.'

@@ -2116,8 +2116,12 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
     (
-        "This Operator is deprecated. Please use "
+        "This operator is deprecated. Please use "
         "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
+        "athena",
+    ),
+    (
+        "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
         "athena",
     ),
 }

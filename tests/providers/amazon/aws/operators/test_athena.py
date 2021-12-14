@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -72,9 +72,9 @@ class TestAthenaOperator(unittest.TestCase):
 
         assert self.athena.hook.sleep_time == 0
 
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("SUCCESS",))
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'check_query_status', side_effect=("SUCCESS",))
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_small_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
@@ -87,7 +87,7 @@ class TestAthenaOperator(unittest.TestCase):
         assert mock_check_query_status.call_count == 1
 
     @mock.patch.object(
-        AWSAthenaHook,
+        AthenaHook,
         'check_query_status',
         side_effect=(
             "RUNNING",
@@ -95,8 +95,8 @@ class TestAthenaOperator(unittest.TestCase):
             "SUCCESS",
         ),
     )
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_big_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
@@ -109,15 +109,15 @@ class TestAthenaOperator(unittest.TestCase):
         assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(
-        AWSAthenaHook,
+        AthenaHook,
         'check_query_status',
         side_effect=(
             None,
             None,
         ),
     )
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_failed_query_with_none(self, mock_conn, mock_run_query, mock_check_query_status):
         with pytest.raises(Exception):
             self.athena.execute({})
@@ -130,17 +130,17 @@ class TestAthenaOperator(unittest.TestCase):
         )
         assert mock_check_query_status.call_count == 3
 
-    @mock.patch.object(AWSAthenaHook, 'get_state_change_reason')
+    @mock.patch.object(AthenaHook, 'get_state_change_reason')
     @mock.patch.object(
-        AWSAthenaHook,
+        AthenaHook,
         'check_query_status',
         side_effect=(
             "RUNNING",
             "FAILED",
         ),
     )
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_failure_query(
         self, mock_conn, mock_run_query, mock_check_query_status, mock_get_state_change_reason
     ):
@@ -157,7 +157,7 @@ class TestAthenaOperator(unittest.TestCase):
         assert mock_get_state_change_reason.call_count == 1
 
     @mock.patch.object(
-        AWSAthenaHook,
+        AthenaHook,
         'check_query_status',
         side_effect=(
             "RUNNING",
@@ -165,8 +165,8 @@ class TestAthenaOperator(unittest.TestCase):
             "CANCELLED",
         ),
     )
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_cancelled_query(self, mock_conn, mock_run_query, mock_check_query_status):
         with pytest.raises(Exception):
             self.athena.execute({})
@@ -180,7 +180,7 @@ class TestAthenaOperator(unittest.TestCase):
         assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(
-        AWSAthenaHook,
+        AthenaHook,
         'check_query_status',
         side_effect=(
             "RUNNING",
@@ -188,8 +188,8 @@ class TestAthenaOperator(unittest.TestCase):
             "RUNNING",
         ),
     )
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_failed_query_with_max_tries(self, mock_conn, mock_run_query, mock_check_query_status):
         with pytest.raises(Exception):
             self.athena.execute({})
@@ -202,9 +202,9 @@ class TestAthenaOperator(unittest.TestCase):
         )
         assert mock_check_query_status.call_count == 3
 
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("SUCCESS",))
-    @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'check_query_status', side_effect=("SUCCESS",))
+    @mock.patch.object(AthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_return_value(self, mock_conn, mock_run_query, mock_check_query_status):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")

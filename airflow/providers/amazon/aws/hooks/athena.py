@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains AWS Athena hook"""
+import warnings
 from time import sleep
 from typing import Any, Dict, Optional
 
@@ -25,7 +26,17 @@ from botocore.paginate import PageIterator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSAthenaHook(AwsBaseHook):
+class AWSAthenaHook:
+    """Deprecated Hook"""
+
+    warnings.warn(
+        "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
+class AthenaHook(AwsBaseHook):
     """
     Interact with AWS Athena to run, poll queries and return query results
 

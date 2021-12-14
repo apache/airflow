@@ -144,6 +144,10 @@ HOOKS = [
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
+        "airflow.providers.amazon.aws.hooks.athena.AthenaHook",
+        "airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook",
+    ),
+    (
         "airflow.providers.amazon.aws.hooks.sqs.SQSHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
     ),
