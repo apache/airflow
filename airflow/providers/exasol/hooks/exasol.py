@@ -144,7 +144,7 @@ class ExasolHook(DbApiHook):
         self.log.info("Data saved to %s", filename)
 
     def run(
-        self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler = None
+        self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler=None
     ) -> None:
         """
         Runs a command or a list of commands. Pass a list of sql
