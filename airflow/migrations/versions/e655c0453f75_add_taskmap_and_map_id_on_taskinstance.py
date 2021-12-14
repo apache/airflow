@@ -1,0 +1,76 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""Add TaskMap and map_index on TaskInstance.
+
+Revision ID: e655c0453f75
+Revises: 587bdf053233
+Create Date: 2021-12-13 22:59:41.052584
+"""
+
+from alembic import op
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, String, text
+
+from airflow.models.base import COLLATION_ARGS
+from airflow.utils.sqlalchemy import ExtendedJSON
+
+# Revision identifiers, used by Alembic.
+revision = "e655c0453f75"
+down_revision = "587bdf053233"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    """Add TaskMap and map_index on TaskInstance."""
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.add_column(Column("map_index", Integer, server_default=text("-1")))
+        # I think we always use this name for TaskInstance after 7b2661a43ba3?
+        batch_op.drop_constraint("task_instance_pkey", type_="primary")
+        batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id", "map_index"])
+
+    op.create_table(
+        "task_map",
+        Column("dag_id", String(250, **COLLATION_ARGS), primary_key=True),
+        Column("task_id", String(250, **COLLATION_ARGS), primary_key=True),
+        Column("run_id", String(250, **COLLATION_ARGS), primary_key=True),
+        Column("map_index", Integer, primary_key=True),
+        Column("length", Integer, nullable=False),
+        Column("keys", ExtendedJSON, nullable=True),
+        ForeignKeyConstraint(
+            ["dag_id", "task_id", "run_id", "map_index"],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="task_map_task_instance_fkey",
+            ondelete="CASCADE",
+        ),
+    )
+
+
+def downgrade():
+    """Remove TaskMap and map_index on TaskInstance."""
+    op.drop_table("task_map")
+    op.execute("DELETE FROM task_instance WHERE map_index != -1")
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.drop_constraint("task_instance_pkey", type_="primary")
+        batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id"])
+        batch_op.drop_column("map_index")

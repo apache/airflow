@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import collections.abc
 import contextlib
 import hashlib
 import logging
@@ -59,6 +60,7 @@ from sqlalchemy import (
     func,
     inspect,
     or_,
+    text,
     tuple_,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -87,6 +89,7 @@ from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.plugins_manager import integrate_macros_plugins
@@ -340,6 +343,8 @@ class TaskInstance(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Float)
@@ -2129,6 +2134,29 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     @provide_session
+    def _record_task_map_for_downstreams(self, value: Any, *, session: Session = NEW_SESSION) -> None:
+        # TODO: Only record if we know this value is used in that mapped
+        # downstream task or task group. We should also error if there are
+        # mapped downstreams, but the pushed value is not mappable.
+        if not isinstance(value, collections.abc.Collection):
+            return
+        session.query(TaskMap).filter_by(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        ).delete()
+        instance = TaskMap(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            length=len(value),
+            keys=(list(value) if isinstance(value, collections.abc.Mapping) else None),
+        )
+        session.merge(instance)
+
+    @provide_session
     def xcom_push(
         self,
         key: str,
@@ -2166,6 +2194,9 @@ class TaskInstance(Base, LoggingMixin):
             run_id=self.run_id,
             session=session,
         )
+
+        if key == XCOM_RETURN_KEY:
+            self._record_task_map_for_downstreams(value, session=session)
 
     @provide_session
     def xcom_pull(
