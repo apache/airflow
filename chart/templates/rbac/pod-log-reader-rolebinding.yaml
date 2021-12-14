@@ -27,7 +27,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
 {{- if not .Values.multiNamespaceMode }}
-  namespace: {{ .Release.Namespace }}
+  namespace: "{{ .Release.Namespace }}"
 {{- end }}
   name: {{ .Release.Name }}-pod-log-reader-rolebinding
   labels:
@@ -49,5 +49,5 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "webserver.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    namespace: "{{ .Release.Namespace }}"
 {{- end }}

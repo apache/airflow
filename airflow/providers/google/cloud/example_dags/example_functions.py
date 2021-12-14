@@ -42,6 +42,7 @@ https://airflow.apache.org/concepts.html#variables
 
 import os
 from datetime import datetime
+from typing import Any, Dict
 
 from airflow import models
 from airflow.providers.google.cloud.operators.functions import (
@@ -72,7 +73,7 @@ body = {"name": FUNCTION_NAME, "entryPoint": GCF_ENTRYPOINT, "runtime": GCF_RUNT
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args = {'retries': 3}
+default_args: Dict[str, Any] = {'retries': 3}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
