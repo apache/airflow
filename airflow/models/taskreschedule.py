@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """TaskReschedule tracks rescheduled task instances."""
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -34,6 +34,7 @@ class TaskReschedule(Base):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
@@ -41,12 +42,17 @@ class TaskReschedule(Base):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, unique=False),
+        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, map_index, unique=False),
         ForeignKeyConstraint(
-            [dag_id, task_id, run_id],
-            ['task_instance.dag_id', 'task_instance.task_id', 'task_instance.run_id'],
-            name='task_reschedule_ti_fkey',
-            ondelete='CASCADE',
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="task_reschedule_ti_fkey",
+            ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             [dag_id, run_id],

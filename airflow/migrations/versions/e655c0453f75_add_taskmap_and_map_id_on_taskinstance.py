@@ -38,12 +38,37 @@ depends_on = None
 
 def upgrade():
     """Add TaskMap and map_index on TaskInstance."""
+    # We need to first remove constraints on task_reschedule since they depend on task_instance.
+    with op.batch_alter_table("task_reschedule") as batch_op:
+        batch_op.drop_index("idx_task_reschedule_dag_task_run")
+        batch_op.drop_constraint("task_reschedule_ti_fkey", "foreignkey")
+        if op.get_bind().dialect.name == "mysql":  # MySQL also creates an index.
+            batch_op.drop_index("task_reschedule_ti_fkey")
+
+    # Change task_instance's primary key.
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(Column("map_index", Integer, server_default=text("-1")))
         # I think we always use this name for TaskInstance after 7b2661a43ba3?
         batch_op.drop_constraint("task_instance_pkey", type_="primary")
+        batch_op.add_column(Column("map_index", Integer, server_default=text("-1")))
         batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id", "map_index"])
 
+    # Re-create task_reschedule's constraints.
+    with op.batch_alter_table("task_reschedule") as batch_op:
+        batch_op.add_column(Column("map_index", Integer, nullable=False, server_default=text("-1")))
+        batch_op.create_foreign_key(
+            "task_reschedule_ti_fkey",
+            "task_instance",
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ondelete="CASCADE",
+        )
+        batch_op.create_index(
+            "idx_task_reschedule_dag_task_run",
+            ["dag_id", "task_id", "run_id", "map_index"],
+            unique=False,
+        )
+
+    # Create task_map.
     op.create_table(
         "task_map",
         Column("dag_id", String(250, **COLLATION_ARGS), primary_key=True),
@@ -69,8 +94,31 @@ def upgrade():
 def downgrade():
     """Remove TaskMap and map_index on TaskInstance."""
     op.drop_table("task_map")
+
+    with op.batch_alter_table("task_reschedule") as batch_op:
+        batch_op.drop_index("idx_task_reschedule_dag_task_run")
+        batch_op.drop_constraint("task_reschedule_ti_fkey", "foreignkey")
+        if op.get_bind().dialect.name == "mysql":  # MySQL also creates an index.
+            batch_op.drop_index("task_reschedule_ti_fkey")
+        batch_op.drop_column("map_index")
+
     op.execute("DELETE FROM task_instance WHERE map_index != -1")
+
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_pkey", type_="primary")
-        batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id"])
         batch_op.drop_column("map_index")
+        batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id"])
+
+    with op.batch_alter_table("task_reschedule") as batch_op:
+        batch_op.create_foreign_key(
+            "task_reschedule_ti_fkey",
+            "task_instance",
+            ["dag_id", "task_id", "run_id"],
+            ["dag_id", "task_id", "run_id"],
+            ondelete="CASCADE",
+        )
+        batch_op.create_index(
+            "idx_task_reschedule_dag_task_run",
+            ["dag_id", "task_id", "run_id"],
+            unique=False,
+        )
