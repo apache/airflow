@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-14T13:27:07Z
+# This constraints file was automatically generated on 2021-12-14T22:17:01Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -378,7 +378,7 @@ pywinrm==0.4.2
 pyzmq==22.3.0
 qds-sdk==1.16.1
 redis==3.5.3
-redshift-connector==2.0.901
+redshift-connector==2.0.902
 requests-kerberos==0.14.0
 requests-mock==1.9.3
 requests-ntlm==1.1.0
@@ -461,7 +461,7 @@ types-paramiko==2.8.4
 types-protobuf==3.18.2
 types-python-dateutil==2.8.3
 types-python-slugify==5.0.2
-types-pytz==2021.3.2
+types-pytz==2021.3.3
 types-redis==4.0.3
 types-requests==2.26.1
 types-setuptools==57.4.4
