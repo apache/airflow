@@ -218,7 +218,7 @@ def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]
     if not td_object:
         return None
     if isinstance(td_object, dt.timedelta):
-        delta = relativedelta(yearday=31) + td_object
+        delta = relativedelta() + td_object
     else:
         delta = relativedelta(seconds=td_object)
     # relativedelta for timedelta cannot convert days to months
