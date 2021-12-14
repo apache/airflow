@@ -594,7 +594,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             id = task_id
             if dag:
                 id = f'{dag.dag_id}.{id}'
-            self.log.warning("Implicitly converting 'retries' for task: %s from %r to int", id, retries)
+            self.log.warning("Implicitly converting 'retries' for task %s from %r to int", id, retries)
             retries = parsed_retries
 
         self.executor_config = executor_config or {}
