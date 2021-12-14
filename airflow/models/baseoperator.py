@@ -590,7 +590,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 parsed_retries = int(retries)
             except (TypeError, ValueError):
                 raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-            self.log.warning("Implicitly converting 'retries' for %s from %r to int", self, retries)
+            self.log.warning("Implicitly converting 'retries' for task: %s.%s from %r to int", dag.dag_id, task_id, retries)
             retries = parsed_retries
 
         self.executor_config = executor_config or {}
