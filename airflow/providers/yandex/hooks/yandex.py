@@ -121,10 +121,7 @@ class YandexCloudBaseHook(BaseHook):
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
         credentials = self._get_credentials()
-        self.sdk = yandexcloud.SDK(
-            user_agent=self.provider_user_agent(),
-            **credentials
-        )
+        self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **credentials)
         self.default_folder_id = default_folder_id or self._get_field('folder_id', False)
         self.default_public_ssh_key = default_public_ssh_key or self._get_field('public_ssh_key', False)
         self.client = self.sdk.client

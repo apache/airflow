@@ -305,6 +305,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
             main_jar_file_uri='s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
             name='Spark job',
             properties={'spark.submit.deployMode': 'cluster'},
+            packages=None,
+            repositories=None,
+            exclude_packages=None,
         )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
@@ -364,4 +367,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             name='Pyspark job',
             properties={'spark.submit.deployMode': 'cluster'},
             python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py'],
+            packages=None,
+            repositories=None,
+            exclude_packages=None,
         )

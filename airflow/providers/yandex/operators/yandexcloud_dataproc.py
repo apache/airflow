@@ -407,9 +407,11 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     :type connection_id: Optional[str]
     :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
     :type packages: Optional[Iterable[str]]
-    :param repositories: List of additional remote repositories to search for the maven coordinates given with --packages.
+    :param repositories: List of additional remote repositories to search for the maven coordinates
+                        given with --packages.
     :type repositories: Optional[Iterable[str]]
-    :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies provided in --packages to avoid dependency conflicts.
+    :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies
+                        provided in --packages to avoid dependency conflicts.
     :type exclude_packages: Optional[Iterable[str]]
     """
 
@@ -499,9 +501,11 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     :type connection_id: Optional[str]
     :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
     :type packages: Optional[Iterable[str]]
-    :param repositories: List of additional remote repositories to search for the maven coordinates given with --packages.
+    :param repositories: List of additional remote repositories to search for the maven coordinates
+                         given with --packages.
     :type repositories: Optional[Iterable[str]]
-    :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies provided in --packages to avoid dependency conflicts.
+    :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies
+                         provided in --packages to avoid dependency conflicts.
     :type exclude_packages: Optional[Iterable[str]]
     """
 
