@@ -17,15 +17,18 @@
 # under the License.
 
 import json
+import random
+import string
 import unittest
 from unittest.mock import ANY, patch
 
 import pytest
 from freezegun import freeze_time
+from sqlalchemy.exc import DataError
 
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
-from airflow.exceptions import AirflowException, PoolNotFound
+from airflow.exceptions import AirflowBadRequest, AirflowException, PoolNotFound
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -149,6 +152,23 @@ class TestLocalClient(unittest.TestCase):
         with create_session() as session:
             assert session.query(Pool).count() == 2
 
+    def test_create_pool_bad_slots(self):
+        with pytest.raises(AirflowBadRequest, match="^Bad value for `slots`: foo$"):
+            self.client.create_pool(
+                name='foo',
+                slots='foo',
+                description='',
+            )
+
+    def test_create_pool_name_too_long(self):
+        long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
+        with pytest.raises(DataError):
+            Pool.create_or_update_pool(
+                name=long_name,
+                slots=5,
+                description='',
+            )
+
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
@@ -156,3 +176,6 @@ class TestLocalClient(unittest.TestCase):
         self.client.delete_pool(name='foo')
         with create_session() as session:
             assert session.query(Pool).count() == 1
+        for name in ('', '    '):
+            with pytest.raises(PoolNotFound, match=f"^Pool {name!r} doesn't exist$"):
+                Pool.delete_pool(name=name)

@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import random
-import string
 
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowBadRequest, PoolNotFound
+from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
@@ -185,8 +183,7 @@ class TestPool:
 
     def test_get_pool_bad_name(self):
         for name in ('', '    '):
-            with pytest.raises(AirflowBadRequest, match="^Pool name shouldn't be empty$"):
-                Pool.get_pool(pool_name=name)
+            assert not Pool.get_pool(pool_name=name)
 
     def test_get_pools(self):
         self.add_pools()
@@ -210,35 +207,6 @@ class TestPool:
         assert pool.description == ''
         assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
 
-    def test_create_pool_bad_name(self):
-        for name in ('', '    '):
-            with pytest.raises(AirflowBadRequest, match="^Pool name shouldn't be empty$"):
-                Pool.create_or_update_pool(
-                    name=name,
-                    slots=5,
-                    description='',
-                )
-
-    def test_create_pool_name_too_long(self):
-        long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
-        column_length = Pool.pool.property.columns[0].type.length
-        with pytest.raises(
-            AirflowBadRequest, match="^Pool name can't be more than %d characters$" % column_length
-        ):
-            Pool.create_or_update_pool(
-                name=long_name,
-                slots=5,
-                description='',
-            )
-
-    def test_create_pool_bad_slots(self):
-        with pytest.raises(AirflowBadRequest, match="^Bad value for `slots`: foo$"):
-            Pool.create_or_update_pool(
-                name='foo',
-                slots='foo',
-                description='',
-            )
-
     def test_delete_pool(self, session):
         self.add_pools()
         pool = Pool.delete_pool(name=self.pools[-1].pool)
@@ -249,11 +217,6 @@ class TestPool:
         with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):
             Pool.delete_pool(name='test')
 
-    def test_delete_pool_bad_name(self):
-        for name in ('', '    '):
-            with pytest.raises(AirflowBadRequest, match="^Pool name shouldn't be empty$"):
-                Pool.delete_pool(name=name)
-
     def test_delete_default_pool_not_allowed(self):
-        with pytest.raises(AirflowBadRequest, match="^default_pool cannot be deleted$"):
+        with pytest.raises(AirflowException, match="^default_pool cannot be deleted$"):
             Pool.delete_pool(Pool.DEFAULT_POOL_NAME)

@@ -21,11 +21,11 @@ from typing import Dict, Iterable, Optional, Tuple
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, PoolNotFound
+from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import nowait, with_row_locks
 from airflow.utils.state import State
 
@@ -57,13 +57,13 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session=None):
+    def get_pools(session: Session = NEW_SESSION):
         """Get all pools."""
         return session.query(Pool).all()
 
     @staticmethod
     @provide_session
-    def get_pool(pool_name, session: Session = None):
+    def get_pool(pool_name: str, session: Session = NEW_SESSION):
         """
         Get the Pool with specific pool name from the Pools.
 
@@ -71,13 +71,11 @@ class Pool(Base):
         :param session: SQLAlchemy ORM Session
         :return: the pool object
         """
-        if not (pool_name and pool_name.strip()):
-            raise AirflowBadRequest("Pool name shouldn't be empty")
         return session.query(Pool).filter(Pool.pool == pool_name).first()
 
     @staticmethod
     @provide_session
-    def get_default_pool(session: Session = None):
+    def get_default_pool(session: Session = NEW_SESSION):
         """
         Get the Pool of the default_pool from the Pools.
 
@@ -88,21 +86,10 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def create_or_update_pool(name, slots, description, session=NEW_SESSION):
+    def create_or_update_pool(name: str, slots: int, description: str, session: Session = NEW_SESSION):
         """Create a pool with given parameters or update it if it already exists."""
-        if not (name and name.strip()):
-            raise AirflowBadRequest("Pool name shouldn't be empty")
-        try:
-            slots = int(slots)
-        except ValueError:
-            raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
-
-        # Get the length of the pool column
-        pool_name_length = Pool.pool.property.columns[0].type.length
-        if len(name) > pool_name_length:
-            raise AirflowBadRequest(f"Pool name can't be more than {pool_name_length} characters")
-
-        session.expire_on_commit = False
+        if not name:
+            return
         pool = session.query(Pool).filter_by(pool=name).first()
         if pool is None:
             pool = Pool(pool=name, slots=slots, description=description)
@@ -117,13 +104,10 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def delete_pool(name, session=None):
+    def delete_pool(name: str, session: Session = NEW_SESSION):
         """Delete pool by a given name."""
-        if not (name and name.strip()):
-            raise AirflowBadRequest("Pool name shouldn't be empty")
-
         if name == Pool.DEFAULT_POOL_NAME:
-            raise AirflowBadRequest("default_pool cannot be deleted")
+            raise AirflowException("default_pool cannot be deleted")
 
         pool = session.query(Pool).filter_by(pool=name).first()
         if pool is None:
@@ -139,7 +123,7 @@ class Pool(Base):
     def slots_stats(
         *,
         lock_rows: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> Dict[str, PoolStats]:
         """
         Get Pool stats (Number of Running, Queued, Open & Total tasks)
@@ -266,7 +250,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def open_slots(self, session: Session) -> float:
+    def open_slots(self, session: Session = NEW_SESSION) -> float:
         """
         Get the number of slots open at the moment.
 

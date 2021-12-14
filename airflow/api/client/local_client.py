@@ -20,7 +20,7 @@
 from airflow.api.client import api_client
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
-from airflow.exceptions import PoolNotFound
+from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
 
 
@@ -47,6 +47,12 @@ class Client(api_client.Client):
         return [(p.pool, p.slots, p.description) for p in Pool.get_pools()]
 
     def create_pool(self, name, slots, description):
+        if not (name and name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
+        try:
+            slots = int(slots)
+        except ValueError:
+            raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
         pool = Pool.create_or_update_pool(name=name, slots=slots, description=description)
         return pool.pool, pool.slots, pool.description
 
