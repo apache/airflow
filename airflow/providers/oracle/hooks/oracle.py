@@ -17,12 +17,25 @@
 # under the License.
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional, TypeVar
 
 import cx_Oracle
 import numpy
 
 from airflow.hooks.dbapi import DbApiHook
+
+PARAM_TYPES = {bool, float, int, str}
+
+ParameterType = TypeVar('ParameterType', Dict, List, None)
+
+
+def _map_param(value):
+    if value in PARAM_TYPES:
+        # In this branch, value is a Python type; calling it produces
+        # an instance of the type which is understood by the Oracle driver
+        # in the out parameter mapping mechanism.
+        value = value()
+    return value
 
 
 class OracleHook(DbApiHook):
@@ -266,3 +279,55 @@ class OracleHook(DbApiHook):
         self.log.info('[%s] inserted %s rows', table, row_count)
         cursor.close()
         conn.close()  # type: ignore[attr-defined]
+
+    def callproc(
+        self,
+        identifier: str,
+        autocommit: bool = False,
+        parameters: ParameterType = None,
+    ) -> ParameterType:
+        """
+        Call the stored procedure identified by the provided string.
+
+        Any 'OUT parameters' must be provided with a value of either the
+        expected Python type (e.g., `int`) or an instance of that type.
+
+        The return value is a list or mapping that includes parameters in
+        both directions; the actual return type depends on the type of the
+        provided `parameters` argument.
+
+        See
+        https://cx-oracle.readthedocs.io/en/latest/api_manual/cursor.html#Cursor.var
+        for further reference.
+        """
+        if parameters is None:
+            parameters = ()
+
+        args = ",".join(
+            f":{name}"
+            for name in (parameters if isinstance(parameters, dict) else range(1, len(parameters) + 1))
+        )
+
+        sql = f"BEGIN {identifier}({args}); END;"
+
+        def handler(cursor):
+            if isinstance(cursor.bindvars, list):
+                return [v.getvalue() for v in cursor.bindvars]
+
+            if isinstance(cursor.bindvars, dict):
+                return {n: v.getvalue() for (n, v) in cursor.bindvars.items()}
+
+            raise TypeError(f"Unexpected bindvars: {cursor.bindvars!r}")
+
+        result = self.run(
+            sql,
+            autocommit=autocommit,
+            parameters=(
+                {name: _map_param(value) for (name, value) in parameters.items()}
+                if isinstance(parameters, dict)
+                else [_map_param(value) for value in parameters]
+            ),
+            handler=handler,
+        )
+
+        return result

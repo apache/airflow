@@ -291,3 +291,41 @@ class TestOracleHook(unittest.TestCase):
         rows = []
         with pytest.raises(ValueError):
             self.db_hook.bulk_insert_rows('table', rows)
+
+    def test_callproc_dict(self):
+        parameters = {"a": 1, "b": 2, "c": 3}
+
+        class bindvar(int):
+            def getvalue(self):
+                return self
+
+        self.cur.bindvars = {k: bindvar(v) for k, v in parameters.items()}
+        result = self.db_hook.callproc('proc', True, parameters)
+        assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:a,:b,:c); END;', parameters)]
+        assert result == parameters
+
+    def test_callproc_list(self):
+        parameters = [1, 2, 3]
+
+        class bindvar(int):
+            def getvalue(self):
+                return self
+
+        self.cur.bindvars = list(map(bindvar, parameters))
+        result = self.db_hook.callproc('proc', True, parameters)
+        assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:1,:2,:3); END;', parameters)]
+        assert result == parameters
+
+    def test_callproc_out_param(self):
+        parameters = [1, int, float, bool, str]
+
+        def bindvar(value):
+            m = mock.Mock()
+            m.getvalue.return_value = value
+            return m
+
+        self.cur.bindvars = [bindvar(p() if type(p) is type else p) for p in parameters]
+        result = self.db_hook.callproc('proc', True, parameters)
+        expected = [1, 0, 0.0, False, '']
+        assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:1,:2,:3,:4,:5); END;', expected)]
+        assert result == expected

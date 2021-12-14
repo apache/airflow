@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -128,7 +129,7 @@ class XComArg(TaskMixin):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Dict) -> Any:
+    def resolve(self, context: Context) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.

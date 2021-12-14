@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import re
 import signal
 import warnings
@@ -24,11 +25,13 @@ from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
 from urllib import parse
 
-from flask import url_for
-from jinja2 import Template
+import flask
+import jinja2
+import jinja2.nativetypes
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -160,7 +163,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
 def parse_template_string(template_string):
     """Parses Jinja template string."""
     if "{{" in template_string:  # jinja mode
-        return None, Template(template_string)
+        return None, jinja2.Template(template_string)
     else:
         return template_string, None
 
@@ -242,5 +245,44 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     view = conf.get('webserver', 'dag_default_view').lower()
-    url = url_for(f"Airflow.{view}")
+    url = flask.url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+# The 'template' argument is typed as Any because the jinja2.Template is too
+# dynamic to be effectively type-checked.
+def render_template(template: Any, context: Context, *, native: bool) -> Any:
+    """Render a Jinja2 template with given Airflow context.
+
+    The default implementation of ``jinja2.Template.render()`` converts the
+    input context into dict eagerly many times, which triggers deprecation
+    messages in our custom context class. This takes the implementation apart
+    and retain the context mapping without resolving instead.
+
+    :param template: A Jinja2 template to render.
+    :param context: The Airflow task context to render the template with.
+    :param native: If set to *True*, render the template into a native type. A
+        DAG can enable this with ``render_template_as_native_obj=True``.
+    :returns: The render result.
+    """
+    context = copy.copy(context)
+    env = template.environment
+    if template.globals:
+        context.update((k, v) for k, v in template.globals.items() if k not in context)
+    try:
+        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+    except Exception:
+        env.handle_exception()  # Rewrite traceback to point to the template.
+    if native:
+        return jinja2.nativetypes.native_concat(nodes)
+    return "".join(nodes)
+
+
+def render_template_to_string(template: jinja2.Template, context: Context) -> str:
+    """Shorthand to ``render_template(native=False)`` with better typing support."""
+    return render_template(template, context, native=False)
+
+
+def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
+    """Shorthand to ``render_template(native=True)`` with better typing support."""
+    return render_template(template, context, native=True)
