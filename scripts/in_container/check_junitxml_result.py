@@ -29,17 +29,18 @@ if __name__ == '__main__':
         with open(fname) as fh:
             root = ET.parse(fh)
         testsuite = root.find('.//testsuite')
-        num_failures = int(testsuite.get('failures'))
-        num_errors = int(testsuite.get('errors'))
-        if num_failures == 0 and num_errors == 0:
-            print(f'\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n')
-            sys.exit(0)
-        else:
-            print(
-                f'\n{TEXT_RED}==== Errors: {num_errors}, Failures: {num_failures}. '
-                f'Failing the test! ===={TEXT_RESET}\n'
-            )
-            sys.exit(1)
+        if testsuite:
+            num_failures = testsuite.get('failures')
+            num_errors = testsuite.get('errors')
+            if num_failures == "0" and num_errors == "0":
+                print(f'\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n')
+                sys.exit(0)
+            else:
+                print(
+                    f'\n{TEXT_RED}==== Errors: {num_errors}, Failures: {num_failures}. '
+                    f'Failing the test! ===={TEXT_RESET}\n'
+                )
+                sys.exit(1)
     except Exception as e:
         print(
             f'\n{TEXT_RED}==== There was an error when parsing the junitxml file.'
