@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
-from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
