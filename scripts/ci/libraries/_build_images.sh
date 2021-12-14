@@ -305,9 +305,10 @@ function build_images::get_local_build_cache_hash() {
 function build_images::get_remote_image_build_cache_hash() {
     set +e
     local remote_image_container_id_file
-    remote_image_container_id_file="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image-${PYTHON_MAJOR_MINOR_VERSION}"
+    remote_image_container_id_file="$(mktemp)"
     local remote_image_build_cache_file
-    remote_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
+    remote_image_build_cache_file=$(mktemp)
+    local target_remote_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Pull remote manifest image
     if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
@@ -326,10 +327,13 @@ function build_images::get_remote_image_build_cache_hash() {
     # Extract manifest and store it in local file
     docker_v cp "$(cat "${remote_image_container_id_file}"):/build-cache-hash" \
         "${remote_image_build_cache_file}"
+    # The `mv` is an atomic operation so even if we run it in parallel (for example in flake) it will
+    # never be empty (happened in the past)
+    mv "${remote_image_build_cache_file}" "${target_remote_cache_file}"
     docker_v rm --force "$(cat "${remote_image_container_id_file}")"
     rm -f "${remote_image_container_id_file}"
     verbosity::print_info
-    verbosity::print_info "Remote build cache hash: '$(cat "${remote_image_build_cache_file}")'"
+    verbosity::print_info "Remote build cache hash: '$(cat "${target_remote_cache_file}")'"
     verbosity::print_info
 }
 
