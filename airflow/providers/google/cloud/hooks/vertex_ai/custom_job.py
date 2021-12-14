@@ -737,17 +737,14 @@ class CustomJobHook(GoogleBaseHook):
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
         :type model_prediction_schema_uri: str
-        :param project: Project to run training in. Overrides project set in aiplatform.init.
-        :type project: str
-        :param location: Location to run training in. Overrides location set in aiplatform.init.
-        :type location: str
-        :param credentials: Custom credentials to use to run call training service. Overrides
-                credentials set in aiplatform.init.
-        :type credentials: auth_credentials.Credentials
+        :param project_id: Project to run training in.
+        :type project_id: str
+        :param region: Location to run training in.
+        :type region: str
         :param labels: Optional. The labels with user-defined metadata to
                 organize TrainingPipelines.
                 Label keys and values can be no longer than 64
-                characters (Unicode codepoints), can only
+                characters, can only
                 contain lowercase letters, numeric characters,
                 underscores and dashes. International characters
                 are allowed.
@@ -765,8 +762,6 @@ class CustomJobHook(GoogleBaseHook):
 
                 Note: Model trained by this TrainingPipeline is also secured
                 by this key if ``model_to_upload`` is not set separately.
-
-                Overrides encryption_spec_key_name set in aiplatform.init.
         :type training_encryption_spec_key_name: Optional[str]
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
                 managed encryption key used to protect the model. Has the
@@ -776,39 +771,16 @@ class CustomJobHook(GoogleBaseHook):
                 resource is created.
 
                 If set, the trained Model will be secured by this key.
-
-                Overrides encryption_spec_key_name set in aiplatform.init.
         :type model_encryption_spec_key_name: Optional[str]
-        :param staging_bucket: Bucket used to stage source and training artifacts. Overrides
-                staging_bucket set in aiplatform.init.
+        :param staging_bucket: Bucket used to stage source and training artifacts.
         :type staging_bucket: str
-
-        :param dataset: Vertex AI to fit this training against. Custom training script should
-                retrieve datasets through passed in environment variables uris:
-
-                os.environ["AIP_TRAINING_DATA_URI"]
-                os.environ["AIP_VALIDATION_DATA_URI"]
-                os.environ["AIP_TEST_DATA_URI"]
-
-                Additionally the dataset format is passed in as:
-
-                os.environ["AIP_DATA_FORMAT"]
-        :type dataset: Union[
-                    datasets.ImageDataset,
-                    datasets.TabularDataset,
-                    datasets.TextDataset,
-                    datasets.VideoDataset,
-                ]
+        :param dataset: Vertex AI to fit this training against.
+        :type dataset: Union[datasets.ImageDataset, datasets.TabularDataset, datasets.TextDataset,
+            datasets.VideoDataset,]
         :param annotation_schema_uri: Google Cloud Storage URI points to a YAML file describing
             annotation schema. The schema is defined as an OpenAPI 3.0.2
             [Schema Object]
             (https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.2.md#schema-object)
-            The schema files that can be used here are found in
-            gs://google-cloud-aiplatform/schema/dataset/annotation/,
-            note that the chosen schema must be consistent with
-            ``metadata``
-            of the Dataset specified by
-            ``dataset_id``.
 
             Only Annotations that both match this schema and belong to
             DataItems not ignored by the split method are used in
@@ -831,7 +803,7 @@ class CustomJobHook(GoogleBaseHook):
         :param model_labels: Optional. The labels with user-defined metadata to
                 organize your Models.
                 Label keys and values can be no longer than 64
-                characters (Unicode codepoints), can only
+                characters, can only
                 contain lowercase letters, numeric characters,
                 underscores and dashes. International characters
                 are allowed.
@@ -855,7 +827,7 @@ class CustomJobHook(GoogleBaseHook):
                 Users submitting jobs must have act-as permission on this run-as account.
         :type service_account: str
         :param network: The full name of the Compute Engine network to which the job
-                should be peered. For example, projects/12345/global/networks/myVPC.
+                should be peered.
                 Private services access must already be configured for the network.
                 If left unspecified, the job is not peered with any network.
         :type network: str
@@ -881,10 +853,6 @@ class CustomJobHook(GoogleBaseHook):
                 and values are environment variable values for those names.
                 At most 10 environment variables can be specified.
                 The Name of the environment variable must be unique.
-
-                environment_variables = {
-                    'MY_KEY': 'MY_VALUE'
-                }
         :type environment_variables: Dict[str, str]
         :param replica_count: The number of worker replicas. If replica count = 1 then one chief
                 replica will be provisioned. If replica_count > 1 the remainder will be
@@ -945,7 +913,7 @@ class CustomJobHook(GoogleBaseHook):
 
                 Supported only for tabular and time series Datasets.
         :type predefined_split_column_name: str
-        :param timestamp_split_column_name : Optional. The key is a name of one of the Dataset's data
+        :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data
                 columns. The value of the key values of the key (the values in
                 the column) must be in RFC 3339 `date-time` format, where
                 `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a
@@ -954,18 +922,9 @@ class CustomJobHook(GoogleBaseHook):
 
                 Supported only for tabular and time series Datasets.
         :type timestamp_split_column_name: str
-        :param tensorboard: Optional. The name of a Vertex AI
-                [Tensorboard][google.cloud.aiplatform.v1beta1.Tensorboard]
-                resource to which this CustomJob will upload Tensorboard
+        :param tensorboard: Optional. The name of a Vertex AI resource to which this CustomJob will upload
                 logs. Format:
                 ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
-
-                The training script should write Tensorboard to following Vertex AI environment
-                variable:
-
-                AIP_TENSORBOARD_LOG_DIR
-
-                `service_account` is required with provided `tensorboard`.
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
         :type tensorboard: str
@@ -1185,17 +1144,14 @@ class CustomJobHook(GoogleBaseHook):
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
         :type model_prediction_schema_uri: str
-        :param project: Project to run training in. Overrides project set in aiplatform.init.
-        :type project: str
-        :param location: Location to run training in. Overrides location set in aiplatform.init.
-        :type location: str
-        :param credentials: Custom credentials to use to run call training service. Overrides
-                credentials set in aiplatform.init.
-        :type credentials: auth_credentials.Credentials
+        :param project_id: Project to run training in.
+        :type project_id: str
+        :param region: Location to run training in.
+        :type region: str
         :param labels: Optional. The labels with user-defined metadata to
                 organize TrainingPipelines.
                 Label keys and values can be no longer than 64
-                characters (Unicode codepoints), can only
+                characters, can only
                 contain lowercase letters, numeric characters,
                 underscores and dashes. International characters
                 are allowed.
@@ -1213,8 +1169,6 @@ class CustomJobHook(GoogleBaseHook):
 
                 Note: Model trained by this TrainingPipeline is also secured
                 by this key if ``model_to_upload`` is not set separately.
-
-                Overrides encryption_spec_key_name set in aiplatform.init.
         :type training_encryption_spec_key_name: Optional[str]
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
                 managed encryption key used to protect the model. Has the
@@ -1224,39 +1178,16 @@ class CustomJobHook(GoogleBaseHook):
                 resource is created.
 
                 If set, the trained Model will be secured by this key.
-
-                Overrides encryption_spec_key_name set in aiplatform.init.
         :type model_encryption_spec_key_name: Optional[str]
-        :param staging_bucket: Bucket used to stage source and training artifacts. Overrides
-                staging_bucket set in aiplatform.init.
+        :param staging_bucket: Bucket used to stage source and training artifacts.
         :type staging_bucket: str
-
-        :param dataset: Vertex AI to fit this training against. Custom training script should
-                retrieve datasets through passed in environment variables uris:
-
-                os.environ["AIP_TRAINING_DATA_URI"]
-                os.environ["AIP_VALIDATION_DATA_URI"]
-                os.environ["AIP_TEST_DATA_URI"]
-
-                Additionally the dataset format is passed in as:
-
-                os.environ["AIP_DATA_FORMAT"]
-        :type dataset: Union[
-                    datasets.ImageDataset,
-                    datasets.TabularDataset,
-                    datasets.TextDataset,
-                    datasets.VideoDataset,
-                ]
+        :param dataset: Vertex AI to fit this training against.
+        :type dataset: Union[datasets.ImageDataset, datasets.TabularDataset, datasets.TextDataset,
+            datasets.VideoDataset,]
         :param annotation_schema_uri: Google Cloud Storage URI points to a YAML file describing
             annotation schema. The schema is defined as an OpenAPI 3.0.2
             [Schema Object]
             (https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.2.md#schema-object)
-            The schema files that can be used here are found in
-            gs://google-cloud-aiplatform/schema/dataset/annotation/,
-            note that the chosen schema must be consistent with
-            ``metadata``
-            of the Dataset specified by
-            ``dataset_id``.
 
             Only Annotations that both match this schema and belong to
             DataItems not ignored by the split method are used in
@@ -1279,7 +1210,7 @@ class CustomJobHook(GoogleBaseHook):
         :param model_labels: Optional. The labels with user-defined metadata to
                 organize your Models.
                 Label keys and values can be no longer than 64
-                characters (Unicode codepoints), can only
+                characters, can only
                 contain lowercase letters, numeric characters,
                 underscores and dashes. International characters
                 are allowed.
@@ -1303,7 +1234,7 @@ class CustomJobHook(GoogleBaseHook):
                 Users submitting jobs must have act-as permission on this run-as account.
         :type service_account: str
         :param network: The full name of the Compute Engine network to which the job
-                should be peered. For example, projects/12345/global/networks/myVPC.
+                should be peered.
                 Private services access must already be configured for the network.
                 If left unspecified, the job is not peered with any network.
         :type network: str
@@ -1329,10 +1260,6 @@ class CustomJobHook(GoogleBaseHook):
                 and values are environment variable values for those names.
                 At most 10 environment variables can be specified.
                 The Name of the environment variable must be unique.
-
-                environment_variables = {
-                    'MY_KEY': 'MY_VALUE'
-                }
         :type environment_variables: Dict[str, str]
         :param replica_count: The number of worker replicas. If replica count = 1 then one chief
                 replica will be provisioned. If replica_count > 1 the remainder will be
@@ -1393,7 +1320,7 @@ class CustomJobHook(GoogleBaseHook):
 
                 Supported only for tabular and time series Datasets.
         :type predefined_split_column_name: str
-        :param timestamp_split_column_name : Optional. The key is a name of one of the Dataset's data
+        :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data
                 columns. The value of the key values of the key (the values in
                 the column) must be in RFC 3339 `date-time` format, where
                 `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a
@@ -1402,18 +1329,9 @@ class CustomJobHook(GoogleBaseHook):
 
                 Supported only for tabular and time series Datasets.
         :type timestamp_split_column_name: str
-        :param tensorboard: Optional. The name of a Vertex AI
-                [Tensorboard][google.cloud.aiplatform.v1beta1.Tensorboard]
-                resource to which this CustomJob will upload Tensorboard
+        :param tensorboard: Optional. The name of a Vertex AI resource to which this CustomJob will upload
                 logs. Format:
                 ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
-
-                The training script should write Tensorboard to following Vertex AI environment
-                variable:
-
-                AIP_TENSORBOARD_LOG_DIR
-
-                `service_account` is required with provided `tensorboard`.
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
         :type tensorboard: str
@@ -1634,17 +1552,14 @@ class CustomJobHook(GoogleBaseHook):
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
         :type model_prediction_schema_uri: str
-        :param project: Project to run training in. Overrides project set in aiplatform.init.
-        :type project: str
-        :param location: Location to run training in. Overrides location set in aiplatform.init.
-        :type location: str
-        :param credentials: Custom credentials to use to run call training service. Overrides
-                credentials set in aiplatform.init.
-        :type credentials: auth_credentials.Credentials
+        :param project_id: Project to run training in.
+        :type project_id: str
+        :param region: Location to run training in.
+        :type region: str
         :param labels: Optional. The labels with user-defined metadata to
                 organize TrainingPipelines.
                 Label keys and values can be no longer than 64
-                characters (Unicode codepoints), can only
+                characters, can only
                 contain lowercase letters, numeric characters,
                 underscores and dashes. International characters
                 are allowed.
@@ -1662,8 +1577,6 @@ class CustomJobHook(GoogleBaseHook):
 
                 Note: Model trained by this TrainingPipeline is also secured
                 by this key if ``model_to_upload`` is not set separately.
-
-                Overrides encryption_spec_key_name set in aiplatform.init.
         :type training_encryption_spec_key_name: Optional[str]
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
                 managed encryption key used to protect the model. Has the
@@ -1673,38 +1586,16 @@ class CustomJobHook(GoogleBaseHook):
                 resource is created.
 
                 If set, the trained Model will be secured by this key.
-
-                Overrides encryption_spec_key_name set in aiplatform.init.
         :type model_encryption_spec_key_name: Optional[str]
-        :param staging_bucket: Bucket used to stage source and training artifacts. Overrides
-                staging_bucket set in aiplatform.init.
+        :param staging_bucket: Bucket used to stage source and training artifacts.
         :type staging_bucket: str
-        :param dataset: Vertex AI to fit this training against. Custom training script should
-                retrieve datasets through passed in environment variables uris:
-
-                os.environ["AIP_TRAINING_DATA_URI"]
-                os.environ["AIP_VALIDATION_DATA_URI"]
-                os.environ["AIP_TEST_DATA_URI"]
-
-                Additionally the dataset format is passed in as:
-
-                os.environ["AIP_DATA_FORMAT"]
-        :type dataset: Union[
-                    datasets.ImageDataset,
-                    datasets.TabularDataset,
-                    datasets.TextDataset,
-                    datasets.VideoDataset,
-                ]
+        :param dataset: Vertex AI to fit this training against.
+        :type dataset: Union[datasets.ImageDataset, datasets.TabularDataset, datasets.TextDataset,
+            datasets.VideoDataset,]
         :param annotation_schema_uri: Google Cloud Storage URI points to a YAML file describing
             annotation schema. The schema is defined as an OpenAPI 3.0.2
             [Schema Object]
             (https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.2.md#schema-object)
-            The schema files that can be used here are found in
-            gs://google-cloud-aiplatform/schema/dataset/annotation/,
-            note that the chosen schema must be consistent with
-            ``metadata``
-            of the Dataset specified by
-            ``dataset_id``.
 
             Only Annotations that both match this schema and belong to
             DataItems not ignored by the split method are used in
@@ -1727,7 +1618,7 @@ class CustomJobHook(GoogleBaseHook):
         :param model_labels: Optional. The labels with user-defined metadata to
                 organize your Models.
                 Label keys and values can be no longer than 64
-                characters (Unicode codepoints), can only
+                characters, can only
                 contain lowercase letters, numeric characters,
                 underscores and dashes. International characters
                 are allowed.
@@ -1751,7 +1642,7 @@ class CustomJobHook(GoogleBaseHook):
                 Users submitting jobs must have act-as permission on this run-as account.
         :type service_account: str
         :param network: The full name of the Compute Engine network to which the job
-                should be peered. For example, projects/12345/global/networks/myVPC.
+                should be peered.
                 Private services access must already be configured for the network.
                 If left unspecified, the job is not peered with any network.
         :type network: str
@@ -1777,10 +1668,6 @@ class CustomJobHook(GoogleBaseHook):
                 and values are environment variable values for those names.
                 At most 10 environment variables can be specified.
                 The Name of the environment variable must be unique.
-
-                environment_variables = {
-                    'MY_KEY': 'MY_VALUE'
-                }
         :type environment_variables: Dict[str, str]
         :param replica_count: The number of worker replicas. If replica count = 1 then one chief
                 replica will be provisioned. If replica_count > 1 the remainder will be
@@ -1841,7 +1728,7 @@ class CustomJobHook(GoogleBaseHook):
 
                 Supported only for tabular and time series Datasets.
         :type predefined_split_column_name: str
-        :param timestamp_split_column_name : Optional. The key is a name of one of the Dataset's data
+        :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data
                 columns. The value of the key values of the key (the values in
                 the column) must be in RFC 3339 `date-time` format, where
                 `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a
@@ -1850,18 +1737,9 @@ class CustomJobHook(GoogleBaseHook):
 
                 Supported only for tabular and time series Datasets.
         :type timestamp_split_column_name: str
-        :param tensorboard: Optional. The name of a Vertex AI
-                [Tensorboard][google.cloud.aiplatform.v1beta1.Tensorboard]
-                resource to which this CustomJob will upload Tensorboard
+        :param tensorboard: Optional. The name of a Vertex AI resource to which this CustomJob will upload
                 logs. Format:
                 ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
-
-                The training script should write Tensorboard to following Vertex AI environment
-                variable:
-
-                AIP_TENSORBOARD_LOG_DIR
-
-                `service_account` is required with provided `tensorboard`.
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
         :type tensorboard: str
