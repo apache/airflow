@@ -285,7 +285,7 @@ $('#next-run').on('mouseover', () => {
     let newTitle = '';
     if (nextRun.createAfter) {
       newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
-      newTitle += `<strong>Run Approximately:</strong> ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
     }
     if (nextRun.intervalStart && nextRun.intervalEnd) {
       newTitle += '<strong>Data Interval</strong><br>';
