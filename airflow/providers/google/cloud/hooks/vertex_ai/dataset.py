@@ -333,7 +333,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> ListAnnotationsPager:
         """
-        Lists Annotations belongs to a dataitem
+        Lists Annotations belongs to a data item
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :type project_id: str
@@ -518,12 +518,7 @@ class DatasetHook(GoogleBaseHook):
         :type dataset_id: str
         :param dataset:  Required. The Dataset which replaces the resource on the server.
         :type dataset: google.cloud.aiplatform_v1.types.Dataset
-        :param update_mask:  Required. The update mask applies to the resource. For the ``FieldMask``
-            definition, see [google.protobuf.FieldMask][google.protobuf.FieldMask].
-            Updatable fields:
-                -  ``display_name``
-                -  ``description``
-                -  ``labels``
+        :param update_mask:  Required. The update mask applies to the resource.
         :type update_mask: google.protobuf.field_mask_pb2.FieldMask
         :param retry: Designation of what errors, if any, should be retried.
         :type retry: google.api_core.retry.Retry

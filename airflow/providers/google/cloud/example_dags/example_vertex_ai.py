@@ -274,7 +274,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         export_config=TEST_EXPORT_CONFIG,
     )
-    # [END how_to_cloud_vertex_ai_export_datas_operator]
+    # [END how_to_cloud_vertex_ai_export_data_operator]
 
     # [START how_to_cloud_vertex_ai_import_data_operator]
     import_data_job = ImportDataOperator(
