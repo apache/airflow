@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin, DependencyMixinOrList
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.edgemodifier import EdgeModifier
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class XComArg(TaskMixin):
+class XComArg(DependencyMixin):
     """
     Class that represents a XCom push from a previous operator.
     Defaults to "return_value" as only key.
@@ -116,7 +116,7 @@ class XComArg(TaskMixin):
 
     def set_upstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: DependencyMixinOrList,
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
@@ -124,7 +124,7 @@ class XComArg(TaskMixin):
 
     def set_downstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: DependencyMixinOrList,
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""

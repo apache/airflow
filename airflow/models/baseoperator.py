@@ -61,7 +61,7 @@ from airflow.models.base import Operator
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin, DependencyMixinOrList
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -80,7 +80,6 @@ from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
-    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -206,7 +205,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
 
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta):
+class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -1412,7 +1411,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def _set_relatives(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: DependencyMixinOrList,
         upstream: bool = False,
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
@@ -1424,13 +1423,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         for task_object in task_or_task_list:
             task_object.update_relative(self, not upstream)
             relatives = task_object.leaves if upstream else task_object.roots
-            task_list.extend(relatives)
-
-        for task in task_list:
-            if not isinstance(task, BaseOperator):
-                raise AirflowException(
-                    f"Relationships can only be set between Operators; received {task.__class__.__name__}"
-                )
+            for task in relatives:
+                if not isinstance(task, BaseOperator):
+                    raise AirflowException(
+                        f"Relationships can only be set between Operators; received {task.__class__.__name__}"
+                    )
+                task_list.append(task)
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
@@ -1475,7 +1473,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def set_downstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: DependencyMixinOrList,
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """
@@ -1486,7 +1484,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def set_upstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: DependencyMixinOrList,
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """
@@ -1662,10 +1660,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
 
-Chainable = Union[BaseOperator, "XComArg", EdgeModifier, "TaskGroup"]
+# TODO: Deprecate for Airflow 3.0
+Chainable = DependencyMixinOrList
 
 
-def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
+def chain(*tasks: DependencyMixinOrList) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
@@ -1776,17 +1775,12 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg], XComArg,
         List[airflow.utils.TaskGroup], or airflow.utils.TaskGroup
     """
-    from airflow.models.xcom_arg import XComArg
-    from airflow.utils.task_group import TaskGroup
-
-    chainable_types = (BaseOperator, XComArg, EdgeModifier, TaskGroup)
-
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, chainable_types):
+        if isinstance(up_task, DependencyMixin):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, chainable_types):
+        if isinstance(down_task, DependencyMixin):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
@@ -1803,8 +1797,8 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
 
 
 def cross_downstream(
-    from_tasks: Sequence[Union[BaseOperator, "XComArg"]],
-    to_tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "XComArg"]]],
+    from_tasks: Sequence[DependencyMixin],
+    to_tasks: DependencyMixinOrList,
 ):
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
