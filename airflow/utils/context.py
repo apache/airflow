@@ -149,7 +149,7 @@ class Context(MutableMapping[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
-            warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]), stacklevel=2)
+            warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]))
         with contextlib.suppress(KeyError):
             return self._context[key]
         raise KeyError(key)
