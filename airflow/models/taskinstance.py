@@ -2135,11 +2135,10 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def _record_task_map_for_downstreams(self, value: Any, *, session: Session = NEW_SESSION) -> None:
-        # TODO: Only record if we know this value is used in that mapped
-        # downstream task or task group. We should also error if there are
-        # mapped downstreams, but the pushed value is not mappable.
-        if not isinstance(value, collections.abc.Collection):
+        if not self.task.has_mapped_dependants():
             return
+        if not isinstance(value, collections.abc.Collection):
+            return  # TODO: Error if the pushed value is not mappable?
         session.query(TaskMap).filter_by(
             dag_id=self.dag_id,
             task_id=self.task_id,

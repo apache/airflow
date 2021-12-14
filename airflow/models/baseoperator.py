@@ -1632,6 +1632,33 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     def map(self, **kwargs) -> "MappedOperator":
         return MappedOperator.from_operator(self, kwargs)
 
+    def has_mapped_dependants(self) -> bool:
+        """Whether any downstreams depend on this task for mapping."""
+        from airflow.utils.task_group import MappedTaskGroup
+
+        if not self.has_dag():
+            return False
+
+        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
+            """Recursively walk children in a task group.
+
+            This yields all direct children (including both tasks and task
+            groups), and all children of any task groups.
+            """
+            for key, child in group.children.items():
+                yield key, child
+                if isinstance(child, TaskGroup):
+                    yield from _walk_group(child)
+
+        for key, child in _walk_group(self.dag.task_group):
+            if key == self.task_id:
+                continue
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+                continue
+            if self.task_id in child.upstream_task_ids:
+                return True
+        return False
+
 
 def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
     if isinstance(str, cls):
