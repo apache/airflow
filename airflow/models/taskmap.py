@@ -44,7 +44,7 @@ class TaskMap(Base):
     XCom that's pulled by a downstream for mapping purposes.
     """
 
-    __tablename__ = "xcom_task_map"
+    __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
