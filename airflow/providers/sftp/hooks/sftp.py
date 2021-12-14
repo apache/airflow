@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP hook."""
-import warnings
 import datetime
 import stat
+import warnings
 from typing import Dict, List, Optional, Tuple
 
 import pysftp
@@ -47,8 +47,14 @@ class SFTPHook(SSHHook):
 
     Errors that may occur throughout but should be handled downstream.
 
-    :param sftp_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
-    :type sftp_conn_id: str
+    For consistency reasons with SSHHook, the preferred parameter is "ssh_conn_id".
+    Please note that it is still possible to use the parameter "ftp_conn_id"
+    to initialize the hook, but it will be removed in future Airflow versions.
+
+    :param ssh_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
+    :type ssh_conn_id: str
+    :param ftp_conn_id (Outdated): The :ref:`sftp connection id<howto/connection:sftp>`
+    :type ftp_conn_id: str
     """
 
     conn_name_attr = 'ssh_conn_id'
@@ -69,13 +75,13 @@ class SFTPHook(SSHHook):
         self,
         ssh_conn_id: Optional[str] = 'sftp_default',
         ftp_conn_id: Optional[str] = 'sftp_default',
-        *args, **kwargs
+        *args,
+        **kwargs,
     ) -> None:
 
         if ftp_conn_id:
             warnings.warn(
-                'Parameter `ftp_conn_id` is deprecated.'
-                'Please use `ssh_conn_id` instead.',
+                'Parameter `ftp_conn_id` is deprecated.' 'Please use `ssh_conn_id` instead.',
                 DeprecationWarning,
                 stacklevel=2,
             )
