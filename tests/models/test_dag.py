@@ -56,7 +56,7 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -1553,7 +1553,7 @@ class TestDag(unittest.TestCase):
         session = settings.Session()  # type: ignore
         dagrun_1 = dag.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
         )

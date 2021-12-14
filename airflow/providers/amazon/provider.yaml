@@ -183,6 +183,7 @@ operators:
       - airflow.providers.amazon.aws.operators.datasync
   - integration-name: AWS Database Migration Service
     python-modules:
+      - airflow.providers.amazon.aws.operators.dms
       - airflow.providers.amazon.aws.operators.dms_create_task
       - airflow.providers.amazon.aws.operators.dms_delete_task
       - airflow.providers.amazon.aws.operators.dms_describe_tasks
@@ -263,6 +264,7 @@ sensors:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms_task
+      - airflow.providers.amazon.aws.sensors.dms
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state

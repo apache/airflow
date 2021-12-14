@@ -408,8 +408,9 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: Optional[pendulum.DateTime] = None,
         dag_id: Optional[str] = None,
         task_id: Optional[str] = None,
-        run_id: Optional[str] = None,
         session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         # Given the historic order of this function (execution_date was first argument) to add a new optional

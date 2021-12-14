@@ -107,7 +107,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     def bulk_facebook_report(
         self,
-        params: Dict[str, Any],
+        params: Optional[Dict[str, Any]],
         fields: List[str],
         sleep_time: int = 5,
     ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:

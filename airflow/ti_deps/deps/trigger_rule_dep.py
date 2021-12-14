@@ -17,13 +17,15 @@
 # under the License.
 
 from collections import Counter
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule as TR
+
+if TYPE_CHECKING:
+    from airflow.settings import SASession as Session
 
 
 class TriggerRuleDep(BaseTIDep):
@@ -92,8 +94,7 @@ class TriggerRuleDep(BaseTIDep):
         upstream_failed,
         done,
         flag_upstream_failed,
-        *,
-        session: Session = NEW_SESSION,
+        session: "Session" = NEW_SESSION,
     ):
         """
         Yields a dependency status that indicate whether the given task instance's trigger
