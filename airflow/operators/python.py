@@ -248,7 +248,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         if condition:
             self.log.info('Proceeding with downstream tasks...')
-            return
+            return condition
 
         self.log.info('Skipping downstream tasks...')
 

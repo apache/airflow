@@ -22,7 +22,9 @@ from typing import Any, List, Tuple, Union
 
 from docutils import nodes
 from docutils.nodes import Node, system_message
-from docutils.parsers.rst import Directive, directives
+
+# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
+from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
 from docutils.parsers.rst.roles import code_role
 from sphinx.application import Sphinx
 from sphinx.transforms import SphinxTransform

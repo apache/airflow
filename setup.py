@@ -253,11 +253,10 @@ deprecated_api = [
 ]
 doc = [
     'click>=7.1,<9',
-    # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
-    'sphinx>=3.5.0, <5.0.0',
+    'sphinx>=4.0.0, <5.0.0',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi==1.8.0',
+    'sphinx-autoapi~=1.8.0',
     'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
@@ -470,7 +469,10 @@ slack = [
 ]
 snowflake = [
     'snowflake-connector-python>=2.4.1',
-    'snowflake-sqlalchemy>=1.1.0',
+    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
+    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
+    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
+    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
 ]
 spark = [
     'pyspark',
@@ -506,7 +508,7 @@ winrm = [
     'pywinrm~=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.97.0',
+    'yandexcloud>=0.122.0',
 ]
 zendesk = [
     'zdesk',

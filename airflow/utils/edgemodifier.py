@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from airflow.models.taskmixin import TaskMixin
 
@@ -38,10 +38,12 @@ class EdgeModifier(TaskMixin):
     is the representation of the information for one specific edge.
     """
 
-    def __init__(self, label: str = None):
+    def __init__(self, label: Optional[str] = None):
+        from airflow.models.baseoperator import BaseOperator
+
         self.label = label
-        self._upstream = []
-        self._downstream = []
+        self._upstream: List[BaseOperator] = []
+        self._downstream: List[BaseOperator] = []
 
     @property
     def roots(self):
@@ -61,7 +63,7 @@ class EdgeModifier(TaskMixin):
         Providing this also provides << via TaskMixin.
         """
         # Ensure we have a list, even if it's just one item
-        if not isinstance(task_or_task_list, list):
+        if isinstance(task_or_task_list, TaskMixin):
             task_or_task_list = [task_or_task_list]
         # Unfurl it into actual operators
         operators = []
@@ -85,7 +87,7 @@ class EdgeModifier(TaskMixin):
         Providing this also provides >> via TaskMixin.
         """
         # Ensure we have a list, even if it's just one item
-        if not isinstance(task_or_task_list, list):
+        if isinstance(task_or_task_list, TaskMixin):
             task_or_task_list = [task_or_task_list]
         # Unfurl it into actual operators
         operators = []

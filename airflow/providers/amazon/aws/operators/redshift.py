@@ -18,7 +18,7 @@
 from typing import Dict, Iterable, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook, RedshiftSQLHook
 
 
 class RedshiftSQLOperator(BaseOperator):
@@ -71,3 +71,85 @@ class RedshiftSQLOperator(BaseOperator):
         self.log.info(f"Executing statement: {self.sql}")
         hook = self.get_hook()
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+
+
+class RedshiftResumeClusterOperator(BaseOperator):
+    """
+    Resume a paused AWS Redshift Cluster
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftResumeClusterOperator`
+
+    :param cluster_identifier: id of the AWS Redshift Cluster
+    :type cluster_identifier: str
+    :param aws_conn_id: aws connection to use
+    :type aws_conn_id: str
+    """
+
+    template_fields = ("cluster_identifier",)
+    ui_color = "#eeaa11"
+    ui_fgcolor = "#ffffff"
+
+    def __init__(
+        self,
+        *,
+        cluster_identifier: str,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.cluster_identifier = cluster_identifier
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, context):
+        redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
+        if cluster_state == 'paused':
+            self.log.info("Starting Redshift cluster %s", self.cluster_identifier)
+            redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
+        else:
+            self.log.warning(
+                "Unable to resume cluster since cluster is currently in status: %s", cluster_state
+            )
+
+
+class RedshiftPauseClusterOperator(BaseOperator):
+    """
+    Pause an AWS Redshift Cluster if it has status `available`.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftPauseClusterOperator`
+
+    :param cluster_identifier: id of the AWS Redshift Cluster
+    :type cluster_identifier: str
+    :param aws_conn_id: aws connection to use
+    :type aws_conn_id: str
+    """
+
+    template_fields = ("cluster_identifier",)
+    ui_color = "#eeaa11"
+    ui_fgcolor = "#ffffff"
+
+    def __init__(
+        self,
+        *,
+        cluster_identifier: str,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.cluster_identifier = cluster_identifier
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, context):
+        redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
+        if cluster_state == 'available':
+            self.log.info("Pausing Redshift cluster %s", self.cluster_identifier)
+            redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
+        else:
+            self.log.warning(
+                "Unable to pause cluster since cluster is currently in status: %s", cluster_state
+            )

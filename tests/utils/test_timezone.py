@@ -23,6 +23,7 @@ import pendulum
 import pytest
 
 from airflow.utils import timezone
+from airflow.utils.timezone import coerce_datetime
 
 CET = pendulum.tz.timezone("Europe/Paris")
 EAT = pendulum.tz.timezone('Africa/Nairobi')  # Africa/Nairobi
@@ -71,14 +72,43 @@ class TestTimezone(unittest.TestCase):
         with pytest.raises(ValueError):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
 
-    def test_td_format(self):
-        td = datetime.timedelta(seconds=3602)
-        assert timezone.td_format(td) == '1 hour, 2 seconds'
-        td = 3200.0
-        assert timezone.td_format(td) == '53 minutes, 20 seconds'
-        td = 3200
-        assert timezone.td_format(td) == '53 minutes, 20 seconds'
-        td = 0.123
-        assert timezone.td_format(td) == '< 1 second'
-        td = None
-        assert timezone.td_format(td) is None
+@pytest.mark.parametrize(
+    'input_datetime, output_datetime',
+    [
+        pytest.param(None, None, id='None datetime'),
+        pytest.param(
+            pendulum.DateTime(2021, 11, 1),
+            pendulum.DateTime(2021, 11, 1, tzinfo=UTC),
+            id="Non aware pendulum Datetime",
+        ),
+        pytest.param(
+            pendulum.DateTime(2021, 11, 1, tzinfo=CET),
+            pendulum.DateTime(2021, 11, 1, tzinfo=CET),
+            id="Aware pendulum Datetime",
+        ),
+        pytest.param(
+            datetime.datetime(2021, 11, 1),
+            pendulum.DateTime(2021, 11, 1, tzinfo=UTC),
+            id="Non aware datetime",
+        ),
+        pytest.param(
+            datetime.datetime(2021, 11, 1, tzinfo=CET),
+            pendulum.DateTime(2021, 11, 1, tzinfo=CET),
+            id="Aware datetime",
+        ),
+    ],
+)
+def test_coerce_datetime(input_datetime, output_datetime):
+    assert output_datetime == coerce_datetime(input_datetime)
+
+def test_td_format(self):
+    td = datetime.timedelta(seconds=3602)
+    assert timezone.td_format(td) == '1 hour, 2 seconds'
+    td = 3200.0
+    assert timezone.td_format(td) == '53 minutes, 20 seconds'
+    td = 3200
+    assert timezone.td_format(td) == '53 minutes, 20 seconds'
+    td = 0.123
+    assert timezone.td_format(td) == '< 1 second'
+    td = None
+    assert timezone.td_format(td) is None

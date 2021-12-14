@@ -124,7 +124,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
         return response.get('queries', [])
 
-    def run_query(self, query_id: str, params: Dict[str, Any]) -> None:
+    def run_query(self, query_id: str, params: Optional[Dict[str, Any]]) -> None:
         """
         Runs a stored query to generate a report.
 

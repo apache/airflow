@@ -31,6 +31,7 @@ This DAG relies on the following OS environment variables:
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict
 
 from future.backports.urllib.parse import urlparse
 
@@ -99,7 +100,7 @@ create_build_from_storage_body = {
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body = {
+create_build_from_repo_body: Dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "main"}},
     "steps": [
         {

@@ -43,6 +43,7 @@ body:
         discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
       multiple: false
       options:
+        - "2.2.3rc1 (release candidate)"
         - "2.2.2 (latest released)"
         - "2.2.1"
         - "2.2.0"
