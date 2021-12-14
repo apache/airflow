@@ -91,6 +91,10 @@ class CreateDatasetOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -115,6 +119,7 @@ class CreateDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -126,10 +131,15 @@ class CreateDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Creating dataset")
         operation = hook.create_dataset(
@@ -177,6 +187,10 @@ class GetDatasetOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -202,6 +216,7 @@ class GetDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> Dataset:
@@ -214,10 +229,15 @@ class GetDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         try:
             self.log.info("Get dataset: %s", self.dataset_id)
@@ -263,6 +283,10 @@ class DeleteDatasetOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -286,6 +310,7 @@ class DeleteDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -297,10 +322,15 @@ class DeleteDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         try:
             self.log.info("Deleting dataset: %s", self.dataset_id)
@@ -338,6 +368,10 @@ class ExportDataOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -362,6 +396,7 @@ class ExportDataOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -374,10 +409,15 @@ class ExportDataOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Exporting data: %s", self.dataset_id)
         operation = hook.export_data(
@@ -414,6 +454,10 @@ class ImportDataOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -438,6 +482,7 @@ class ImportDataOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -450,10 +495,15 @@ class ImportDataOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Importing data: %s", self.dataset_id)
         operation = hook.import_data(
@@ -496,6 +546,10 @@ class ListDatasetsOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -524,6 +578,7 @@ class ListDatasetsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -539,10 +594,15 @@ class ListDatasetsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         results = hook.list_datasets(
             project_id=self.project_id,
             region=self.region,
@@ -585,6 +645,10 @@ class UpdateDatasetOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -610,6 +674,7 @@ class UpdateDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -623,10 +688,15 @@ class UpdateDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatasetHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DatasetHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Updating dataset: %s", self.dataset_id)
         result = hook.update_dataset(
             project_id=self.project_id,

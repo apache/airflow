@@ -126,6 +126,7 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         tensorboard: Optional[str] = None,
         sync=True,
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -180,8 +181,11 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         self.sync = sync
         # END Run param
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = CustomJobHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        self.hook = CustomJobHook(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
+        )
 
     def on_kill(self) -> None:
         """
@@ -465,6 +469,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -477,10 +482,15 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CustomJobHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             self.log.info("Deleting custom training pipeline: %s", self.training_pipeline)
             training_pipeline_operation = hook.delete_training_pipeline(
@@ -536,6 +546,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -550,10 +561,15 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CustomJobHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         results = hook.list_training_pipelines(
             region=self.region,
             project_id=self.project_id,
