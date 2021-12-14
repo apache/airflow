@@ -43,7 +43,7 @@ Default Airflow image is updated to ``2.2.2``
 
 The default Airflow image that is used with the Chart is now ``2.2.2``, previously it was ``2.2.1``.
 
-Changes in webserver and  flower networkPolicy
+Changes in webserver and flower ``NetworkPolicy``
 """"""""""""""""""""""""""""""""""""""""""""""
 
 ``webserver.networkPolicy.ingress.ports`` and ``flower.networkPolicy.ingress.ports`` moved away from named port to port number to avoid issues with OpenShift.
