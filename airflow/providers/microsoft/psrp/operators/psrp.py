@@ -18,6 +18,9 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
+from jinja2.nativetypes import NativeEnvironment
+from pypsrp.serializer import TaggedValue
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
@@ -29,6 +32,12 @@ if TYPE_CHECKING:
 
 class PSRPOperator(BaseOperator):
     """PowerShell Remoting Protocol operator.
+
+    Use one of the 'command', 'cmdlet', or 'powershell' arguments.
+
+    The 'securestring' template filter can be used to tag a value for
+    serialization into a `System.Security.SecureString` (applicable only
+    for DAGs which have `render_template_as_native_obj=True`).
 
     :param psrp_conn_id: connection id
     :param command: command to execute on remote host. (templated)
@@ -47,7 +56,6 @@ class PSRPOperator(BaseOperator):
     :param wsman_options:
         Optional dictionary which is passed when creating the `WSMan` client. See
         :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
-    :type wsman_options: dict
     """
 
     template_fields: Sequence[str] = (
@@ -108,3 +116,20 @@ class PSRPOperator(BaseOperator):
         if ps.had_errors:
             raise AirflowException("Process failed")
         return ps.output
+
+    def get_template_env(self):
+        # Create a template environment overlay in order to leave the underlying
+        # environment unchanged.
+        env = super().get_template_env().overlay()
+        native = isinstance(env, NativeEnvironment)
+
+        def securestring(value: str):
+            if not native:
+                raise AirflowException(
+                    "Filter 'securestring' not applicable to non-native " "templating environment"
+                )
+            return TaggedValue("SS", value)
+
+        env.filters["securestring"] = securestring
+
+        return env

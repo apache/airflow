@@ -450,7 +450,7 @@ presto = [
     pandas_requirement,
 ]
 psrp = [
-    'pypsrp~=0.5',
+    'pypsrp~=0.7',
 ]
 qubole = [
     'qds-sdk>=1.10.4',

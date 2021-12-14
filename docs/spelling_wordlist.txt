@@ -1245,6 +1245,7 @@ sdk
 secretRef
 secretRefs
 securable
+securestring
 securityManager
 seealso
 seedlist

@@ -21,9 +21,11 @@ from unittest import TestCase
 from unittest.mock import call, patch
 
 import pytest
+from jinja2.nativetypes import NativeEnvironment
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.microsoft.psrp.operators.psrp import PSRPOperator
 
 CONNECTION_ID = "conn_id"
@@ -73,3 +75,18 @@ class TestPSRPOperator(TestCase):
             assert output == ps.output
         if parameter[2]:
             assert method.mock_calls == [call('foo', bar='baz')]
+
+    def test_securestring_sandboxed(self):
+        op = PSRPOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
+        template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
+        with pytest.raises(AirflowException):
+            template.render()
+
+    @patch.object(BaseOperator, "get_template_env")
+    def test_securestring_native(self, get_template_env):
+        op = PSRPOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
+        get_template_env.return_value = NativeEnvironment()
+        template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
+        rendered = template.render()
+        assert rendered.tag == "SS"
+        assert rendered.value == "foo"

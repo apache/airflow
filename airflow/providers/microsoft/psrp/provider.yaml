@@ -27,7 +27,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - pypsrp>=0.5.0
+  - pypsrp>=0.7.0
 
 integrations:
   - integration-name: Windows PowerShell Remoting Protocol
