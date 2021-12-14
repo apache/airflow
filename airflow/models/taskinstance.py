@@ -60,7 +60,6 @@ from sqlalchemy import (
     func,
     inspect,
     or_,
-    text,
     tuple_,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -343,7 +342,7 @@ class TaskInstance(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    map_index = Column(Integer, primary_key=True, nullable=False, default=-1)
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
