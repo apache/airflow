@@ -972,6 +972,10 @@ OPERATORS = [
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
     (
+        "airflow.providers.amazon.aws.operators.athena.AthenaOperator",
+        "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
+    ),
+    (
         "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import warnings
 import sys
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -29,13 +30,24 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 
 
-class AWSAthenaOperator(BaseOperator):
+class AWSAthenaOperator:
+    """Deprecated Operator"""
+
+    warnings.warn(
+        "This Operator is deprecated. Please use "
+        "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
+class AthenaOperator(BaseOperator):
     """
     An operator that submits a presto query to athena.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AWSAthenaOperator`
+        :ref:`howto/operator:AthenaOperator`
 
     :param query: Presto to be run on athena. (templated)
     :type query: str
