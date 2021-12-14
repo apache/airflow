@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -51,7 +51,7 @@ class AirbyteHook(HttpHook):
         self.api_version: str = api_version
 
     def wait_for_job(
-        self, job_id: str, wait_seconds: float = 3, timeout: Optional[float] = 3600
+        self, job_id: Union[str, int], wait_seconds: float = 3, timeout: Optional[float] = 3600
     ) -> None:
         """
         Helper method which polls a job to check if it finishes.
