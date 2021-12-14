@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
-from airflow.models.taskmixin import DependencyMixin, DependencyMixinOrList
+from airflow.models.taskmixin import DependencyMixin
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -53,7 +53,9 @@ class EdgeModifier(DependencyMixin):
     def leaves(self):
         return self._upstream
 
-    def set_upstream(self, task_or_task_list: DependencyMixinOrList, chain: bool = True):
+    def set_upstream(
+        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
+    ):
         """
         Sets the given task/list onto the upstream attribute, and then checks if
         we have both sides so we can resolve the relationship.
@@ -82,7 +84,9 @@ class EdgeModifier(DependencyMixin):
         # Add the new tasks to our list of ones we've seen
         self._upstream.extend(operators)
 
-    def set_downstream(self, task_or_task_list: DependencyMixinOrList, chain: bool = True):
+    def set_downstream(
+        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
+    ):
         """
         Sets the given task/list onto the downstream attribute, and then checks if
         we have both sides so we can resolve the relationship.

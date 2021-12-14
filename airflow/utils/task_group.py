@@ -24,7 +24,7 @@ import re
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
-from airflow.models.taskmixin import DependencyMixin, DependencyMixinOrList
+from airflow.models.taskmixin import DependencyMixin
 from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
@@ -232,7 +232,9 @@ class TaskGroup(DependencyMixin):
                 else:
                     self.downstream_task_ids.add(task.task_id)
 
-    def _set_relative(self, task_or_task_list: DependencyMixinOrList, upstream: bool = False) -> None:
+    def _set_relative(
+        self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]], upstream: bool = False
+    ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
@@ -250,11 +252,13 @@ class TaskGroup(DependencyMixin):
         for task_like in task_or_task_list:
             self.update_relative(task_like, upstream)
 
-    def set_downstream(self, task_or_task_list: DependencyMixinOrList) -> None:
+    def set_downstream(
+        self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]]
+    ) -> None:
         """Set a TaskGroup/task/list of task downstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list: DependencyMixinOrList) -> None:
+    def set_upstream(self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]]) -> None:
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 

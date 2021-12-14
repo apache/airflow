@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskmixin import DependencyMixin, DependencyMixinOrList
+from airflow.models.taskmixin import DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.edgemodifier import EdgeModifier
 
@@ -116,7 +116,7 @@ class XComArg(DependencyMixin):
 
     def set_upstream(
         self,
-        task_or_task_list: DependencyMixinOrList,
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
@@ -124,7 +124,7 @@ class XComArg(DependencyMixin):
 
     def set_downstream(
         self,
-        task_or_task_list: DependencyMixinOrList,
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""

@@ -19,8 +19,6 @@ import warnings
 from abc import abstractmethod
 from typing import Sequence, Union
 
-DependencyMixinOrList = Union["DependencyMixin", Sequence["DependencyMixin"]]
-
 
 class DependencyMixin:
     """Mixing implementing common dependency setting methods methods like >> and <<."""
@@ -44,12 +42,12 @@ class DependencyMixin:
         raise NotImplementedError()
 
     @abstractmethod
-    def set_upstream(self, other: DependencyMixinOrList):
+    def set_upstream(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
         """Set a task or a task list to be directly upstream from the current task."""
         raise NotImplementedError()
 
     @abstractmethod
-    def set_downstream(self, other: DependencyMixinOrList):
+    def set_downstream(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
@@ -59,22 +57,22 @@ class DependencyMixin:
         Override if necessary.
         """
 
-    def __lshift__(self, other: DependencyMixinOrList):
+    def __lshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
         """Implements Task << Task"""
         self.set_upstream(other)
         return other
 
-    def __rshift__(self, other: DependencyMixinOrList):
+    def __rshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
         """Implements Task >> Task"""
         self.set_downstream(other)
         return other
 
-    def __rrshift__(self, other: DependencyMixinOrList):
+    def __rrshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
         """Called for Task >> [Task] because list don't have __rshift__ operators."""
         self.__lshift__(other)
         return self
 
-    def __rlshift__(self, other: DependencyMixinOrList):
+    def __rlshift__(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
         """Called for Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self

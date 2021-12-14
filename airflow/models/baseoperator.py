@@ -61,7 +61,7 @@ from airflow.models.base import Operator
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
-from airflow.models.taskmixin import DependencyMixin, DependencyMixinOrList
+from airflow.models.taskmixin import DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -1411,7 +1411,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
 
     def _set_relatives(
         self,
-        task_or_task_list: DependencyMixinOrList,
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         upstream: bool = False,
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
@@ -1473,7 +1473,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
 
     def set_downstream(
         self,
-        task_or_task_list: DependencyMixinOrList,
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """
@@ -1484,7 +1484,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
 
     def set_upstream(
         self,
-        task_or_task_list: DependencyMixinOrList,
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """
@@ -1661,10 +1661,10 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
 
 
 # TODO: Deprecate for Airflow 3.0
-Chainable = DependencyMixinOrList
+Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]
 
 
-def chain(*tasks: DependencyMixinOrList) -> None:
+def chain(*tasks: Union[DependencyMixin, Sequence[DependencyMixin]]) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
@@ -1798,7 +1798,7 @@ def chain(*tasks: DependencyMixinOrList) -> None:
 
 def cross_downstream(
     from_tasks: Sequence[DependencyMixin],
-    to_tasks: DependencyMixinOrList,
+    to_tasks: Union[DependencyMixin, Sequence[DependencyMixin]],
 ):
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
