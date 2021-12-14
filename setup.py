@@ -505,7 +505,7 @@ winrm = [
     'pywinrm~=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.97.0',
+    'yandexcloud>=0.122.0',
 ]
 zendesk = [
     'zdesk',
