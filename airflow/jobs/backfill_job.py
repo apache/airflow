@@ -242,7 +242,7 @@ class BackfillJob(BaseJob):
             # is changed externally, e.g. by clearing tasks from the ui. We need to cover
             # for that as otherwise those tasks would fall outside of the scope of
             # the backfill suddenly.
-            elif ti.state == TaskInstanceState.NONE:
+            elif ti.state == State.NONE:
                 self.log.warning(
                     "FIXME: task instance %s state was set to none externally or "
                     "reaching concurrency limits. Re-adding task to queue.",
@@ -373,7 +373,7 @@ class BackfillJob(BaseJob):
         try:
             for ti in dag_run.get_task_instances():
                 # all tasks part of the backfill are scheduled to run
-                if ti.state == TaskInstanceState.NONE:
+                if ti.state == State.NONE:
                     ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                 if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
@@ -468,7 +468,7 @@ class BackfillJob(BaseJob):
 
                 # guard against externally modified tasks instances or
                 # in case max concurrency has been reached at task runtime
-                elif ti.state == TaskInstanceState.NONE:
+                elif ti.state == State.NONE:
                     self.log.warning(
                         "FIXME: Task instance %s state was set to None externally. This should not happen", ti
                     )
@@ -900,7 +900,7 @@ class BackfillJob(BaseJob):
             )
 
             for ti in reset_tis:
-                ti.state = TaskInstanceState.NONE
+                ti.state = State.NONE
                 session.merge(ti)
 
             return result + reset_tis

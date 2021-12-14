@@ -457,7 +457,7 @@ class SchedulerJob(BaseJob):
         # actually enqueue them
         for ti in task_instances:
             if ti.dag_run.state in State.finished:
-                ti.set_state(TaskInstanceState.NONE, session=session)
+                ti.set_state(State.NONE, session=session)
                 continue
             command = ti.command_as_list(
                 local=True,
@@ -1185,7 +1185,7 @@ class SchedulerJob(BaseJob):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
-                        ti.state = TaskInstanceState.NONE
+                        ti.state = State.NONE
                         ti.queued_by_job_id = None
 
                     for ti in set(tis_to_reset_or_adopt) - set(to_reset):
