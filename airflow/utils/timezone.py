@@ -212,27 +212,33 @@ def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
 def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
     """
     Format a timedelta object or float/int into a readable string for time duration.
-    For example timedelta(seconds=3602) would become `1 hour 2 seconds`.
-    If the time is less than a second, the return will be `< 1 second`
+    For example timedelta(seconds=3752) would become `1h:2M:32s`.
+    If the time is less than a second, the return will be `<1s`.
     """
     if not td_object:
         return None
     if isinstance(td_object, dt.timedelta):
-        delta = relativedelta() + td_object
+        delta = relativedelta(yearday=31) + td_object
     else:
         delta = relativedelta(seconds=td_object)
-    delta = delta.normalized()
+    # relativedelta for timedelta cannot convert days to months
+    # so calculate months by assuming 30 day months and normalize
+    months, delta.days = divmod(delta.days, 30)
+    delta = delta.normalized() + relativedelta(months=months)
 
     def _format_part(key: str) -> str:
         value = int(getattr(delta, key))
         if value < 1:
             return ""
-        if value < 2:
-            key = key[:-1]  # Remove 's'.
-        return f"{value} {key}"
+        # distinguish between month/minute following strftime format
+        # and take first char of each unit, i.e. years='y', days='d'
+        if key == 'minutes':
+            key = key.upper()
+        key = key[0]
+        return f"{value}{key}"
 
     parts = map(_format_part, ("years", "months", "days", "hours", "minutes", "seconds"))
-    joined = ", ".join(part for part in parts if part)
+    joined = ":".join(part for part in parts if part)
     if not joined:
-        return "< 1 second"
+        return "<1s"
     return joined

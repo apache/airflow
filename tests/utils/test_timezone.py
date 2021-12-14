@@ -72,6 +72,23 @@ class TestTimezone(unittest.TestCase):
         with pytest.raises(ValueError):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
 
+    def test_td_format(self):
+        td = datetime.timedelta(seconds=3752)
+        assert timezone.td_format(td) == '1h:2M:32s'
+        td = 3200.0
+        assert timezone.td_format(td) == '53M:20s'
+        td = 3200
+        assert timezone.td_format(td) == '53M:20s'
+        td = 0.123
+        assert timezone.td_format(td) == '<1s'
+        td = None
+        assert timezone.td_format(td) is None
+        td = datetime.timedelta(seconds=300752)
+        assert timezone.td_format(td) == '3d:11h:32M:32s'
+        td = 434343600.0
+        assert timezone.td_format(td) == '13y:11m:17d:3h'
+
+
 @pytest.mark.parametrize(
     'input_datetime, output_datetime',
     [
@@ -100,15 +117,3 @@ class TestTimezone(unittest.TestCase):
 )
 def test_coerce_datetime(input_datetime, output_datetime):
     assert output_datetime == coerce_datetime(input_datetime)
-
-def test_td_format(self):
-    td = datetime.timedelta(seconds=3602)
-    assert timezone.td_format(td) == '1 hour, 2 seconds'
-    td = 3200.0
-    assert timezone.td_format(td) == '53 minutes, 20 seconds'
-    td = 3200
-    assert timezone.td_format(td) == '53 minutes, 20 seconds'
-    td = 0.123
-    assert timezone.td_format(td) == '< 1 second'
-    td = None
-    assert timezone.td_format(td) is None
