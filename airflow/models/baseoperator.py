@@ -559,6 +559,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         validate_key(task_id)
         self.task_id = task_id
         self.label = task_id
+        dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
             self.task_id = task_group.child_id(task_id)
@@ -590,9 +591,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 parsed_retries = int(retries)
             except (TypeError, ValueError):
                 raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-            self.log.warning(
-                "Implicitly converting 'retries' for task: %s.%s from %r to int", dag.dag_id, task_id, retries
-            )
+            id = task_id
+            if dag:
+                id = f'{dag.dag_id}.{id}'
+            self.log.warning("Implicitly converting 'retries' for task: %s from %r to int", id, retries)
             retries = parsed_retries
 
         self.executor_config = executor_config or {}
@@ -686,7 +688,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self._upstream_task_ids: Set[str] = set()
         self._downstream_task_ids: Set[str] = set()
 
-        dag = dag or DagContext.get_current_dag()
         if dag:
             self.dag = dag
 
