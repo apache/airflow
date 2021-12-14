@@ -88,7 +88,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def create_or_update_pool(name, slots, description, session=None):
+    def create_or_update_pool(name, slots, description, session=NEW_SESSION):
         """Create a pool with given parameters or update it if it already exists."""
         if not (name and name.strip()):
             raise AirflowBadRequest("Pool name shouldn't be empty")
