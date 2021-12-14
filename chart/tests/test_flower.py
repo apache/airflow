@@ -357,10 +357,6 @@ class TestFlowerNetworkPolicy:
     @pytest.mark.parametrize(
         "ports, expected_ports",
         [
-            (
-                [{"protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
-                [{"protocol": "UDP", "port": 5555}],
-            ),
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [

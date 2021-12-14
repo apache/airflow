@@ -599,10 +599,6 @@ class WebserverNetworkPolicyTest(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (
-                [{"protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
-                [{"protocol": "UDP", "port": 8080}],
-            ),
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
