@@ -1634,7 +1634,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
     def has_mapped_dependants(self) -> bool:
         """Whether any downstreams depend on this task for mapping."""
-        from airflow.utils.task_group import MappedTaskGroup
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
         if not self.has_dag():
             return False
