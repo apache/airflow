@@ -202,8 +202,7 @@ def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
     """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
-    if v.tzinfo is None:
-        v = make_aware(v)
     if isinstance(v, DateTime):
-        return v
-    return pendulum.instance(v)
+        return v if v.tzinfo else make_aware(v)
+    # Only dt.datetime is left here
+    return pendulum.instance(v if v.tzinfo else make_aware(v))

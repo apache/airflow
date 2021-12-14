@@ -116,7 +116,7 @@ def send_email_smtp(
 
 
 def build_mime_message(
-    mail_from: str,
+    mail_from: Optional[str],
     to: Union[str, Iterable[str]],
     subject: str,
     html_content: str,
@@ -201,9 +201,9 @@ def send_mime_email(
         try:
             from airflow.hooks.base import BaseHook
 
-            conn = BaseHook.get_connection(conn_id)
-            smtp_user = conn.login
-            smtp_password = conn.password
+            airflow_conn = BaseHook.get_connection(conn_id)
+            smtp_user = airflow_conn.login
+            smtp_password = airflow_conn.password
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:
