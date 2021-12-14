@@ -17,13 +17,14 @@
 # under the License.
 """This module contains SFTP to Azure Blob Storage operator."""
 import os
+import sys
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, Tuple
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
