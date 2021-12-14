@@ -22,7 +22,7 @@ import os
 import sys
 import time
 from tempfile import gettempdir
-from typing import Any, Iterable, List
+from typing import Any, Callable, Iterable, List, Tuple
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
@@ -69,7 +69,7 @@ def _format_airflow_moved_table_name(source_table, version):
 
 
 @provide_session
-def merge_conn(conn, session=None):
+def merge_conn(conn, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
@@ -77,7 +77,7 @@ def merge_conn(conn, session=None):
 
 
 @provide_session
-def add_default_pool_if_not_exists(session=None):
+def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
@@ -90,7 +90,7 @@ def add_default_pool_if_not_exists(session=None):
 
 
 @provide_session
-def create_default_connections(session=None):
+def create_default_connections(session: Session = NEW_SESSION):
     """Create default Airflow connections."""
     merge_conn(
         Connection(
@@ -594,7 +594,7 @@ def create_default_connections(session=None):
 
 
 @provide_session
-def initdb(session=None):
+def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
     upgradedb(session=session)
 
@@ -779,7 +779,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def _move_dangling_run_data_to_new_table(session, source_table: "Table", target_table_name: str):
+def _move_dangling_run_data_to_new_table(session: Session, source_table: "Table", target_table_name: str):
     where_clause = "where dag_id is null or run_id is null or execution_date is null"
     _move_dangling_table(session, source_table, target_table_name, where_clause)
 
@@ -891,7 +891,9 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
     for model in models_to_dagrun + [DagRun]:
         try:
-            metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
+            metadata.reflect(
+                only=[model.__tablename__], extend_existing=True, resolve_fks=False  # type: ignore
+            )
         except exc.InvalidRequestError:
             # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
             # version
@@ -911,7 +913,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     for model in models_to_dagrun:
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
-        source_table = metadata.tables.get(model.__tablename__)
+        source_table = metadata.tables.get(model.__tablename__)  # type: ignore
         if source_table is None:
             continue
 
@@ -956,21 +958,24 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :session: session of the sqlalchemy
     :rtype: list[str]
     """
-    for check_fn in (
+    check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
         check_task_tables_without_matching_dagruns,
-    ):
+    )
+    for check_fn in check_functions:
         yield from check_fn(session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
 
 
 @provide_session
-def upgradedb(session=None):
+def upgradedb(session: Session = NEW_SESSION):
     """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is critical assertion.")
     from alembic import command
 
     config = _get_alembic_config()
@@ -994,8 +999,10 @@ def upgradedb(session=None):
 
 
 @provide_session
-def resetdb(session=None):
+def resetdb(session: Session = NEW_SESSION):
     """Clear out the database"""
+    if not settings.engine:
+        raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
@@ -1055,7 +1062,7 @@ def drop_flask_models(connection):
 
 
 @provide_session
-def check(session=None):
+def check(session: Session = NEW_SESSION):
     """
     Checks if the database works.
 
@@ -1082,7 +1089,7 @@ class DBLocks(enum.IntEnum):
 
 
 @contextlib.contextmanager
-def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
+def create_global_lock(session: Session, lock: DBLocks, lock_timeout=1800):
     """Contextmanager that will create and teardown a global db lock."""
     conn = session.get_bind().connect()
     dialect = conn.dialect
