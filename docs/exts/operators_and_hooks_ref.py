@@ -23,7 +23,9 @@ import click
 import jinja2
 from docutils import nodes
 from docutils.nodes import Element
-from docutils.parsers.rst import Directive, directives
+
+# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
+from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
 from docutils.statemachine import StringList
 from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
