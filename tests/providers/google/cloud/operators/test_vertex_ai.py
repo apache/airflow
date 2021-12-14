@@ -15,10 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from os import name
 from unittest import mock
 
 from google.api_core.retry import Retry
+from google.cloud.aiplatform import datasets
+from google.cloud.aiplatform_v1.types import dataset
+from google.cloud.aiplatform_v1.types.dataset import Dataset
 
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    CreateAutoMLForecastingTrainingJobOperator,
+    CreateAutoMLImageTrainingJobOperator,
+    CreateAutoMLTabularTrainingJobOperator,
+    CreateAutoMLTextTrainingJobOperator,
+    CreateAutoMLVideoTrainingJobOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
     CreateCustomPythonPackageTrainingJobOperator,
@@ -94,6 +105,15 @@ TEST_IMPORT_CONFIG = [
     {},
 ]
 TEST_UPDATE_MASK = "test-update-mask"
+
+TEST_TRAINING_TARGET_COLUMN = "target"
+TEST_TRAINING_TIME_COLUMN = "time"
+TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN = "time_series_identifier"
+TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS = []
+TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS = []
+TEST_TRAINING_FORECAST_HORIZON = 10
+TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
+TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -610,4 +630,109 @@ class TestVertexAIUpdateDatasetOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+
+
+class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook):
+        op = CreateAutoMLForecastingTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            display_name=DISPLAY_NAME,
+            dataset_id=None,
+            target_column=TEST_TRAINING_TARGET_COLUMN,
+            time_column=TEST_TRAINING_TIME_COLUMN,
+            time_series_identifier_column=TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN,
+            unavailable_at_forecast_columns=TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS,
+            available_at_forecast_columns=TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS,
+            forecast_horizon=TEST_TRAINING_FORECAST_HORIZON,
+            data_granularity_unit=TEST_TRAINING_DATA_GRANULARITY_UNIT,
+            data_granularity_count=TEST_TRAINING_DATA_GRANULARITY_COUNT,
+            sync=True,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_auto_ml_forecasting_training_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            dataset=None,
+            target_column=TEST_TRAINING_TARGET_COLUMN,
+            time_column=TEST_TRAINING_TIME_COLUMN,
+            time_series_identifier_column=TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN,
+            unavailable_at_forecast_columns=TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS,
+            available_at_forecast_columns=TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS,
+            forecast_horizon=TEST_TRAINING_FORECAST_HORIZON,
+            data_granularity_unit=TEST_TRAINING_DATA_GRANULARITY_UNIT,
+            data_granularity_count=TEST_TRAINING_DATA_GRANULARITY_COUNT,
+            optimization_objective=None,
+            column_specs=None,
+            column_transformations=None,
+            labels=None,
+            training_encryption_spec_key_name=None,
+            model_encryption_spec_key_name=None,
+            training_fraction_split=None,
+            validation_fraction_split=None,
+            test_fraction_split=None,
+            predefined_split_column_name=None,
+            weight_column=None,
+            time_series_attribute_columns=None,
+            context_window=None,
+            export_evaluated_data_items=False,
+            export_evaluated_data_items_bigquery_destination_uri=None,
+            export_evaluated_data_items_override_destination=False,
+            quantiles=None,
+            validation_options=None,
+            budget_milli_node_hours=1000,
+            model_display_name=None,
+            model_labels=None,
+            sync=True,
+        )
+
+
+class TestVertexAICreateAutoMLImageTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook):
+        op = CreateAutoMLImageTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            display_name=DISPLAY_NAME,
+            dataset_id=None,
+            prediction_type="classification",
+            multi_label=False,
+            model_type="CLOUD",
+            sync=True,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_auto_ml_image_training_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            dataset=None,
+            prediction_type="classification",
+            multi_label=False,
+            model_type="CLOUD",
+            base_model=None,
+            labels=None,
+            training_encryption_spec_key_name=None,
+            model_encryption_spec_key_name=None,
+            training_fraction_split=None,
+            validation_fraction_split=None,
+            test_fraction_split=None,
+            training_filter_split=None,
+            validation_filter_split=None,
+            test_filter_split=None,
+            budget_milli_node_hours=None,
+            model_display_name=None,
+            model_labels=None,
+            disable_early_stopping=False,
+            sync=True,
         )

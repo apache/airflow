@@ -36,6 +36,13 @@ from uuid import uuid4
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    CreateAutoMLForecastingTrainingJobOperator,
+    CreateAutoMLImageTrainingJobOperator,
+    CreateAutoMLTabularTrainingJobOperator,
+    CreateAutoMLTextTrainingJobOperator,
+    CreateAutoMLVideoTrainingJobOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
     CreateCustomPythonPackageTrainingJobOperator,
@@ -120,6 +127,18 @@ TEST_IMPORT_CONFIG = [
 ]
 DATASET_TO_UPDATE = {"display_name": "test-name"}
 TEST_UPDATE_MASK = {"paths": ["displayName"]}
+
+TEST_TIME_COLUMN = "date"
+TEST_TIME_SERIES_IDENTIFIER_COLUMN = "store_name"
+TEST_TARGET_COLUMN = "sale_dollars"
+
+COLUMN_SPECS = {
+    TEST_TIME_COLUMN: "timestamp",
+    TEST_TARGET_COLUMN: "numeric",
+    "city": "categorical",
+    "zip_code": "categorical",
+    "county": "categorical",
+}
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
@@ -313,3 +332,55 @@ with models.DAG(
     create_image_dataset_job >> import_data_job >> export_data_job
     create_video_dataset_job >> update_dataset_job
     list_dataset_job
+
+with models.DAG(
+    "example_gcp_vertex_ai_auto_ml",
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as auto_ml_dag:
+    # [START how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
+    create_auto_ml_forecasting_training_job = CreateAutoMLForecastingTrainingJobOperator(
+        task_id="auto_ml_forecasting_task",
+        display_name=f"auto-ml-forecasting-{DISPLAY_NAME}",
+        optimization_objective="minimize-rmse",
+        column_specs=COLUMN_SPECS,
+        # run params
+        dataset_id="534512184680513536",
+        target_column=TEST_TARGET_COLUMN,
+        time_column=TEST_TIME_COLUMN,
+        time_series_identifier_column=TEST_TIME_SERIES_IDENTIFIER_COLUMN,
+        available_at_forecast_columns=[TEST_TIME_COLUMN],
+        unavailable_at_forecast_columns=[TEST_TARGET_COLUMN],
+        time_series_attribute_columns=["city", "zip_code", "county"],
+        forecast_horizon=30,
+        context_window=30,
+        data_granularity_unit="day",
+        data_granularity_count=1,
+        weight_column=None,
+        budget_milli_node_hours=1000,
+        model_display_name=f"auto-ml-forecasting-model-{DISPLAY_NAME}",
+        predefined_split_column_name=None,
+        region="us-central1",
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
+    create_auto_ml_image_training_job = CreateAutoMLImageTrainingJobOperator(
+        task_id="auto_ml_image_task",
+        display_name=f"auto-ml-image-{DISPLAY_NAME}",
+        dataset_id="5722658955411324928",
+        prediction_type="classification",
+        multi_label=False,
+        model_type="CLOUD",
+        training_fraction_split=0.6,
+        validation_fraction_split=0.2,
+        test_fraction_split=0.2,
+        budget_milli_node_hours=8000,
+        model_display_name=f"auto-ml-image-model-{DISPLAY_NAME}",
+        disable_early_stopping=False,
+        region="us-central1",
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
