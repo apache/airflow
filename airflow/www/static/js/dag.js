@@ -283,7 +283,7 @@ $('#pause_resume').on('change', function onChange() {
 $('#next-run').on('mouseover', () => {
   $('#next-run').attr('data-original-title', () => {
     let newTitle = '';
-    if (nextRun.createAfter){
+    if (nextRun.createAfter) {
       newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
       newTitle += `<strong>Run Approximately:</strong> ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
     }
