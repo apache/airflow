@@ -469,7 +469,10 @@ slack = [
 ]
 snowflake = [
     'snowflake-connector-python>=2.4.1',
-    'snowflake-sqlalchemy>=1.1.0',
+    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
+    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
+    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
+    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
 ]
 spark = [
     'pyspark',

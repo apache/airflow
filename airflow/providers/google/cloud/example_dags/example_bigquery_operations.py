@@ -193,10 +193,7 @@ with models.DAG(
         task_id="update_table",
         dataset_id=DATASET_NAME,
         table_id="test_table",
-        fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        fields=["emp_name", "salary"],
         table_resource={
             "friendlyName": "Updated Table",
             "description": "Updated Table",

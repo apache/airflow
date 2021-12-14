@@ -103,6 +103,13 @@ class DagRunInfo(NamedTuple):
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
+    description: str = ""
+    """Human-readable description of the timetable.
+
+    For example, this can produce something like ``'At 21:30, only on Friday'``
+    from the cron expression ``'30 21 * * 5'``. This is used in the webserver UI.
+    """
+
     periodic: bool = True
     """Whether this timetable runs periodically.
 

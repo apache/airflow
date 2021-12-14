@@ -63,7 +63,11 @@ class DockerHook(BaseHook, LoggingMixin):
         if not version:
             raise AirflowException('No Docker API version provided')
 
-        conn = self.get_connection(docker_conn_id) # type: ignore
+        if not docker_conn_id:
+            raise AirflowException('No Docker connection id provided')
+
+        conn = self.get_connection(docker_conn_id)
+
         if not conn.host:
             raise AirflowException('No Docker URL provided')
         if not conn.login:
@@ -87,7 +91,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__login(client)
         return client
 
-    def __login(self, client):
+    def __login(self, client) -> None:
         self.log.debug('Logging into Docker')
         try:
             client.login(

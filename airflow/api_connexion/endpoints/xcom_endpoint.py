@@ -18,21 +18,16 @@ from typing import Optional
 
 from flask import current_app, g
 from sqlalchemy import and_
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.schemas.xcom_schema import (
-    XComCollection,
-    XComCollectionItemSchema,
-    XComCollectionSchema,
-    xcom_collection_schema,
-    xcom_schema,
-)
+from airflow.api_connexion.schemas.xcom_schema import XComCollection, xcom_collection_schema, xcom_schema
+from airflow.api_connexion.types import APIResponse
 from airflow.models import DagRun as DR, XCom
 from airflow.security import permissions
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access(
@@ -41,18 +36,19 @@ from airflow.utils.session import provide_session
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
-    ]
+    ],
 )
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_xcom_entries(
+    *,
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Session,
     limit: Optional[int],
     offset: Optional[int] = None,
-) -> XComCollectionSchema:
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get all XCom values"""
     query = session.query(XCom)
     if dag_id == '~':
@@ -80,12 +76,17 @@ def get_xcom_entries(
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
-    ]
+    ],
 )
 @provide_session
 def get_xcom_entry(
-    dag_id: str, task_id: str, dag_run_id: str, xcom_key: str, session: Session
-) -> XComCollectionItemSchema:
+    *,
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    xcom_key: str,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get an XCom entry"""
     query = session.query(XCom).filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))

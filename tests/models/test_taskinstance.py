@@ -1516,6 +1516,27 @@ class TestTaskInstance:
         assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
         assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
 
+    def test_template_render(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_template_render",
+            task_id="test_template_render_task",
+            schedule_interval="0 12 * * *",
+        )
+        template_context = ti.get_template_context()
+        result = ti.task.render_template("Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context)
+        assert result == "Task: test_template_render -> test_template_render_task"
+
+    def test_template_render_deprecated(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_template_render",
+            task_id="test_template_render_task",
+            schedule_interval="0 12 * * *",
+        )
+        template_context = ti.get_template_context()
+        with pytest.deprecated_call():
+            result = ti.task.render_template("Execution date: {{ execution_date }}", template_context)
+        assert result.startswith("Execution date: ")
+
     @pytest.mark.parametrize(
         "content, expected_output",
         [
