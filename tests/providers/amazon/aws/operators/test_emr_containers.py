@@ -24,7 +24,7 @@ import pytest
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.providers.amazon.aws.operators.emr import EMRContainerOperator
+from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -41,7 +41,7 @@ class TestEMRContainerOperator(unittest.TestCase):
         configuration.load_test_config()
 
         self.emr_hook_mock = emr_hook_mock
-        self.emr_container = EMRContainerOperator(
+        self.emr_container = EmrContainerOperator(
             task_id='start_job',
             name='test_emr_job',
             virtual_cluster_id='vzw123456',
@@ -117,7 +117,7 @@ class TestEMRContainerOperator(unittest.TestCase):
         emr_session_mock.client.return_value = emr_client_mock
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
-        timeout_container = EMRContainerOperator(
+        timeout_container = EmrContainerOperator(
             task_id='start_job',
             name='test_emr_job',
             virtual_cluster_id='vzw123456',

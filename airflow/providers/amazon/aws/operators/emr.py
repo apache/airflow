@@ -114,7 +114,7 @@ class EmrAddStepsOperator(BaseOperator):
             return response['StepIds']
 
 
-class EMRContainerOperator(BaseOperator):
+class EmrContainerOperator(BaseOperator):
     """
     An operator that submits jobs to EMR on EKS virtual clusters.
 

@@ -117,7 +117,7 @@ class EmrBaseSensor(BaseSensorOperator):
         raise NotImplementedError('Please implement failure_message_from_response() in subclass')
 
 
-class EMRContainerSensor(BaseSensorOperator):
+class EmrContainerSensor(BaseSensorOperator):
     """
     Asks for the state of the job run until it reaches a failure state or success state.
     If the job run fails, the task will fail.

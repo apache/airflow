@@ -20,10 +20,26 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor, EMRContainerSensor  # noqa
+from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor, EmrContainerSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class EMRContainerSensor(EmrContainerSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+           Please use `airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)

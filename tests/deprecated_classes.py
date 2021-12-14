@@ -1080,7 +1080,7 @@ OPERATORS = [
         'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.emr.EMRContainerOperator',
+        'airflow.providers.amazon.aws.operators.emr.EmrContainerOperator',
         'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
     ),
     (
@@ -1104,7 +1104,7 @@ OPERATORS = [
         "airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor",
     ),
     (
-        "airflow.providers.amazon.aws.sensors.emr.EMRContainerSensor",
+        "airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor",
         "airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor",
     ),
     (

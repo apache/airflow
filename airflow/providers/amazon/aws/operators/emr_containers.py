@@ -19,10 +19,26 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.emr import EMRContainerOperator  # noqa
+from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class EMRContainerOperator(EmrContainerOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+           Please use `airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)
