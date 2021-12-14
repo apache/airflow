@@ -41,6 +41,12 @@ if __name__ == '__main__':
                     f'Failing the test! ===={TEXT_RESET}\n'
                 )
                 sys.exit(1)
+        else:
+            print(
+                f'\n{TEXT_RED}==== The testsuite element does not exist in file {fname!r}. '
+                f'Cannot evaluate status of the test! ===={TEXT_RESET}\n'
+            )
+            sys.exit(1)
     except Exception as e:
         print(
             f'\n{TEXT_RED}==== There was an error when parsing the junitxml file.'
