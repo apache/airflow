@@ -82,7 +82,7 @@ class TriggerRuleDep(BaseTIDep):
 
     @provide_session
     def _evaluate_trigger_rule(
-        self, ti, successes, skipped, failed, upstream_failed, done, flag_upstream_failed, session
+        self, ti, successes, skipped, failed, upstream_failed, done, flag_upstream_failed, *, session
     ):
         """
         Yields a dependency status that indicate whether the given task instance's trigger

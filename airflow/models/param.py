@@ -21,6 +21,7 @@ from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 
 from airflow.exceptions import AirflowException
+from airflow.utils.context import Context
 
 
 class NoValueSentinel:
@@ -215,7 +216,7 @@ class DagParam:
         self._name = name
         self._default = default
 
-    def resolve(self, context: Dict) -> Any:
+    def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:
