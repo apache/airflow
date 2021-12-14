@@ -53,7 +53,7 @@ function parse_tests_to_run() {
             tests_to_run=("${@}")
         fi
         pytest_args=(
-            "--pythonwarnings=ignore::DeprecationWarning"
+            # "--pythonwarnings=ignore::DeprecationWarning"
             "--pythonwarnings=ignore::PendingDeprecationWarning"
         )
     else
@@ -64,7 +64,7 @@ function parse_tests_to_run() {
             "--durations=100"
             "--color=yes"
             "--maxfail=50"
-            "--pythonwarnings=ignore::DeprecationWarning"
+            # "--pythonwarnings=ignore::DeprecationWarning"
             "--pythonwarnings=ignore::PendingDeprecationWarning"
             )
 

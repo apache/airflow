@@ -88,7 +88,7 @@ def main():
         raise SystemExit("You must select the tests to run.")
 
     pytest_args = (
-        "--pythonwarnings=ignore::DeprecationWarning",
+        # "--pythonwarnings=ignore::DeprecationWarning",
         "--pythonwarnings=ignore::PendingDeprecationWarning",
         "-n",
         "auto",
