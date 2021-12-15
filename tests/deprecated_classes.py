@@ -144,10 +144,6 @@ HOOKS = [
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
-        "airflow.providers.amazon.aws.hooks.athena.AthenaHook",
-        "airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook",
-    ),
-    (
         "airflow.providers.amazon.aws.hooks.sqs.SQSHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
     ),
@@ -974,10 +970,6 @@ OPERATORS = [
     (
         "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.athena.AthenaOperator",
-        "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
     ),
     (
         "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
