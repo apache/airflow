@@ -152,9 +152,11 @@ class AWSAthenaOperator(AthenaOperator):
     Please use :class:`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.
     """
 
-    warnings.warn(
-        "This operator is deprecated. Please use "
-        "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. Please use "
+            "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

@@ -269,8 +269,10 @@ class AWSAthenaHook(AthenaHook):
     Please use :class:`airflow.providers.amazon.aws.hooks.athena.AthenaHook`.
     """
 
-    warnings.warn(
-        "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
