@@ -31,7 +31,7 @@ DEFAULT_DATE = datetime(2018, 1, 1)
 ATHENA_QUERY_ID = 'eac29bf8-daa1-4ffc-b19a-0db31dc3b784'
 
 MOCK_DATA = {
-    'task_id': 'test_aws_athena_operator',
+    'task_id': 'test_athena_operator',
     'query': 'SELECT * FROM TEST_TABLE',
     'database': 'TEST_DATABASE',
     'outputLocation': 's3://test_s3_bucket/',
