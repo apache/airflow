@@ -61,7 +61,7 @@ class _SessionFactory(LoggingMixin):
         self.config = config
         self.extra_config = self.conn.extra_dejson
         self.basic_session = None
-        self.role_arn = None
+        self.role_arn: Optional[str] = None
 
     def create_session(self) -> boto3.session.Session:
         """Create AWS session."""
@@ -128,19 +128,23 @@ class _SessionFactory(LoggingMixin):
             )
         session = botocore.session.get_session()
         session._credentials = credentials
-        region_name = self.basic_session.region_name
-        session.set_config_variable("region", region_name)
+        if self.basic_session:
+            region_name = self.basic_session.region_name
+            session.set_config_variable("region", region_name)
+
         return boto3.session.Session(botocore_session=session, **session_kwargs)
 
     def _refresh_credentials(self) -> Dict[str, Any]:
         self.log.info('Refreshing credentials')
         assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
         sts_session = self.basic_session
-        if assume_role_method == 'assume_role':
+
+        if sts_session:
             sts_client = sts_session.client("sts", config=self.config)
+
+        if assume_role_method == 'assume_role':
             sts_response = self._assume_role(sts_client=sts_client)
         elif assume_role_method == 'assume_role_with_saml':
-            sts_client = sts_session.client("sts", config=self.config)
             sts_response = self._assume_role_with_saml(sts_client=sts_client)
         else:
             raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
