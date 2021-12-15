@@ -201,7 +201,7 @@ If you are using a Datadog agent in your environment, this will enable Airflow t
       valueFrom:
         fieldRef:
           fieldPath: status.hostIP
-          
+
 Celery Backend
 --------------
 
