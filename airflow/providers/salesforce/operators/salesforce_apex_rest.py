@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
+
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
@@ -41,7 +43,7 @@ class SalesforceApexRestOperator(BaseOperator):
         *,
         endpoint: str,
         method: str = 'GET',
-        payload: dict = None,
+        payload: dict,
         salesforce_conn_id: str = 'salesforce_default',
         **kwargs,
     ) -> None:
@@ -59,8 +61,11 @@ class SalesforceApexRestOperator(BaseOperator):
         :return: Apex response
         :rtype: dict
         """
+
+        result: dict = {}
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
-        result = conn.apexecute(action=self.endpoint, method=self.method, data=self.payload)
         if self.do_xcom_push:
-            return result
+            result = conn.apexecute(action=self.endpoint, method=self.method, data=self.payload)
+
+        return result
