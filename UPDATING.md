@@ -79,6 +79,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Passing ``execution_date`` to ``XCom.set()``, ``XCom.clear()``, ``XCom.get_one()``, and ``XCom.get_many()`` is deprecated
+
+Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
+
+
 ## Airflow 2.2.2
 
 No breaking changes.

@@ -105,6 +105,7 @@ Decrypt
 Decrypts
 DeidentifyContentResponse
 DeidentifyTemplate
+DependencyMixin
 Deprecations
 Deserialize
 Deserialized
@@ -1086,6 +1087,7 @@ pem
 performant
 personalizations
 pformat
+picklable
 pid
 pigcmd
 pinodb
@@ -1347,6 +1349,7 @@ tagValue
 task_group
 taskflow
 taskinstance
+taskmixin
 tblproperties
 tcp
 templatable

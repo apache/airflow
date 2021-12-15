@@ -1638,7 +1638,7 @@ class DAG(LoggingMixin):
         future: bool = False,
         past: bool = False,
         commit: bool = True,
-        session: Session = NEW_SESSION,
+        session=NEW_SESSION,
     ) -> List[TaskInstance]:
         """
         Set the state of a TaskInstance to the given state, and clear its downstream tasks that are
@@ -1649,7 +1649,7 @@ class DAG(LoggingMixin):
         :param execution_date: execution_date of the TaskInstance
         :type execution_date: datetime
         :param state: State to set the TaskInstance to
-        :type state: State
+        :type state: TaskInstanceState
         :param upstream: Include all upstream tasks of the given task_id
         :type upstream: bool
         :param downstream: Include all downstream tasks of the given task_id

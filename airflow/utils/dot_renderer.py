@@ -25,7 +25,7 @@ from airflow import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -111,7 +111,7 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[Any, Any]]
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Dict[str, str]
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, BaseOperator):

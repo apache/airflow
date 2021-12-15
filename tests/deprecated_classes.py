@@ -976,6 +976,26 @@ OPERATORS = [
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),
     (
+        "airflow.providers.amazon.aws.operators.dms.DmsCreateTaskOperator",
+        "airflow.providers.amazon.aws.operators.dms_create_task.DmsCreateTaskOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.dms.DmsDeleteTaskOperator",
+        "airflow.providers.amazon.aws.operators.dms_delete_task.DmsDeleteTaskOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator",
+        "airflow.providers.amazon.aws.operators.dms_describe_tasks.DmsDescribeTasksOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator",
+        "airflow.providers.amazon.aws.operators.dms_start_task.DmsStartTaskOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator",
+        "airflow.providers.amazon.aws.operators.dms_stop_task.DmsStopTaskOperator",
+    ),
+    (
         "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
     ),
@@ -1477,6 +1497,14 @@ SENSORS = [
     (
         "airflow.providers.amazon.aws.sensors.athena.AthenaSensor",
         "airflow.contrib.sensors.aws_athena_sensor.AthenaSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
+        "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskBaseSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.dms.DmsTaskCompletedSensor",
+        "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskCompletedSensor",
     ),
     (
         "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",

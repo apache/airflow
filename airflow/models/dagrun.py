@@ -417,7 +417,7 @@ class DagRun(Base, LoggingMixin):
                 tis = tis.filter(TI.state == state)
             else:
                 # this is required to deal with NULL values
-                if TaskInstanceState.NONE in state:
+                if State.NONE in state:
                     if all(x is None for x in state):
                         tis = tis.filter(TI.state.is_(None))
                     else:

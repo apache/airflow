@@ -26,6 +26,7 @@ from typing import (
     Any,
     Container,
     Dict,
+    ItemsView,
     Iterator,
     List,
     MutableMapping,
@@ -184,11 +185,11 @@ class Context(MutableMapping[str, Any]):
     def keys(self) -> AbstractSet[str]:
         return self._context.keys()
 
-    def items(self) -> AbstractSet[Tuple[str, Any]]:
-        return self._context.items()
+    def items(self):
+        return ItemsView(self._context)
 
-    def values(self) -> ValuesView[Any]:
-        return self._context.values()
+    def values(self):
+        return ValuesView(self._context)
 
     def copy_only(self, keys: Container[str]) -> "Context":
         new = type(self)({k: v for k, v in self._context.items() if k in keys})

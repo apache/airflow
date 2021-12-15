@@ -61,7 +61,7 @@ from airflow.models.base import Operator
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -80,7 +80,6 @@ from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
-    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -147,12 +146,12 @@ class BaseOperatorMeta(abc.ABCMeta):
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
             dag_args: Dict[str, Any] = {}
-            dag_params: Dict[str, Any] = {}
+            dag_params = ParamsDict()
 
             dag: Optional[DAG] = kwargs.get('dag') or DagContext.get_current_dag()
             if dag:
-                dag_args = copy.copy(dag.default_args) or {}
-                dag_params = copy.deepcopy(dag.params.dump())
+                dag_args = copy.copy(dag.default_args) or dag_args
+                dag_params = copy.deepcopy(dag.params) or dag_params
                 task_group = TaskGroupContext.get_current_task_group(dag)
                 if task_group:
                     dag_args.update(task_group.default_args)
@@ -206,7 +205,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
 
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta):
+class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -559,6 +558,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         validate_key(task_id)
         self.task_id = task_id
         self.label = task_id
+        dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
             self.task_id = task_group.child_id(task_id)
@@ -567,6 +567,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+        self.execution_timeout = execution_timeout
+        self.on_execute_callback = on_execute_callback
+        self.on_failure_callback = on_failure_callback
+        self.on_success_callback = on_success_callback
+        self.on_retry_callback = on_retry_callback
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
@@ -577,6 +584,28 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.end_date = end_date
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
+
+        if retries is not None and not isinstance(retries, int):
+            try:
+                parsed_retries = int(retries)
+            except (TypeError, ValueError):
+                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+            id = task_id
+            if dag:
+                id = f'{dag.dag_id}.{id}'
+            self.log.warning("Implicitly converting 'retries' for task %s from %r to int", id, retries)
+            retries = parsed_retries
+
+        self.executor_config = executor_config or {}
+        self.run_as_user = run_as_user
+        self.retries = retries
+        self.queue = queue
+        self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
+        self.pool_slots = pool_slots
+        if self.pool_slots < 1:
+            dag_str = f" in dag {dag.dag_id}" if dag else ""
+            raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
+        self.sla = sla
 
         if trigger_rule == "dummy":
             warnings.warn(
@@ -606,30 +635,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
-
-        if retries is not None and not isinstance(retries, int):
-            try:
-                parsed_retries = int(retries)
-            except (TypeError, ValueError):
-                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-            self.log.warning("Implicitly converting 'retries' for %s from %r to int", self, retries)
-            retries = parsed_retries
-
-        self.retries = retries
-        self.queue = queue
-        self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
-        self.pool_slots = pool_slots
-        if self.pool_slots < 1:
-            dag_str = f" in dag {dag.dag_id}" if dag else ""
-            raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
-        self.sla = sla
-        self.execution_timeout = execution_timeout
-        self.on_execute_callback = on_execute_callback
-        self.on_failure_callback = on_failure_callback
-        self.on_success_callback = on_success_callback
-        self.on_retry_callback = on_retry_callback
-        self._pre_execute_hook = pre_execute
-        self._post_execute_hook = post_execute
 
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
@@ -661,7 +666,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None
-        self.run_as_user = run_as_user
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -671,7 +675,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag = max_active_tis_per_dag
-        self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
@@ -684,7 +687,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self._upstream_task_ids: Set[str] = set()
         self._downstream_task_ids: Set[str] = set()
 
-        dag = dag or DagContext.get_current_dag()
         if dag:
             self.dag = dag
 
@@ -1043,9 +1045,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: Optional[jinja2.Environment] = None,
+        self, context: Context, jinja_env: Optional[jinja2.Environment] = None
     ) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
@@ -1411,7 +1411,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def _set_relatives(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         upstream: bool = False,
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
@@ -1423,13 +1423,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         for task_object in task_or_task_list:
             task_object.update_relative(self, not upstream)
             relatives = task_object.leaves if upstream else task_object.roots
-            task_list.extend(relatives)
-
-        for task in task_list:
-            if not isinstance(task, BaseOperator):
-                raise AirflowException(
-                    f"Relationships can only be set between Operators; received {task.__class__.__name__}"
-                )
+            for task in relatives:
+                if not isinstance(task, BaseOperator):
+                    raise AirflowException(
+                        f"Relationships can only be set between Operators; received {task.__class__.__name__}"
+                    )
+                task_list.append(task)
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
@@ -1474,7 +1473,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def set_downstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """
@@ -1485,7 +1484,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def set_upstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """
@@ -1661,10 +1660,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
 
-Chainable = Union[BaseOperator, "XComArg", EdgeModifier, "TaskGroup"]
+# TODO: Deprecate for Airflow 3.0
+Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]
 
 
-def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
+def chain(*tasks: Union[DependencyMixin, Sequence[DependencyMixin]]) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
@@ -1775,17 +1775,12 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg], XComArg,
         List[airflow.utils.TaskGroup], or airflow.utils.TaskGroup
     """
-    from airflow.models.xcom_arg import XComArg
-    from airflow.utils.task_group import TaskGroup
-
-    chainable_types = (BaseOperator, XComArg, EdgeModifier, TaskGroup)
-
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, chainable_types):
+        if isinstance(up_task, DependencyMixin):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, chainable_types):
+        if isinstance(down_task, DependencyMixin):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
@@ -1802,8 +1797,8 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
 
 
 def cross_downstream(
-    from_tasks: Sequence[Union[BaseOperator, "XComArg"]],
-    to_tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "XComArg"]]],
+    from_tasks: Sequence[DependencyMixin],
+    to_tasks: Union[DependencyMixin, Sequence[DependencyMixin]],
 ):
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.

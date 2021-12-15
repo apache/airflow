@@ -24,7 +24,7 @@ import re
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin
 from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
 
 
-class TaskGroup(TaskMixin):
+class TaskGroup(DependencyMixin):
     """
     A collection of tasks. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
@@ -200,7 +200,7 @@ class TaskGroup(TaskMixin):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(self, other: "TaskMixin", upstream=True) -> None:
+    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -233,7 +233,7 @@ class TaskGroup(TaskMixin):
                     self.downstream_task_ids.add(task.task_id)
 
     def _set_relative(
-        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], upstream: bool = False
+        self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]], upstream: bool = False
     ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
@@ -252,11 +252,13 @@ class TaskGroup(TaskMixin):
         for task_like in task_or_task_list:
             self.update_relative(task_like, upstream)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_downstream(
+        self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]]
+    ) -> None:
         """Set a TaskGroup/task/list of task downstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_upstream(self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]]) -> None:
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 

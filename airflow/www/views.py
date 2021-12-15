@@ -120,6 +120,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
+from airflow.utils.timezone import td_format
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -4039,9 +4040,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         start_date = self.get('start_date')
 
-        difference = '0.0'
+        difference = '0s'
         if start_date and end_date:
-            difference = str(end_date - start_date)
+            difference = td_format(end_date - start_date)
 
         return difference
 
@@ -4255,7 +4256,7 @@ class TaskRescheduleModelView(AirflowModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {
@@ -4411,7 +4412,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {

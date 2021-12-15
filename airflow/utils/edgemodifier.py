@@ -14,13 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
-from typing import List, Optional, Sequence, Union
+from airflow.models.taskmixin import DependencyMixin
 
-from airflow.models.taskmixin import TaskMixin
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 
-class EdgeModifier(TaskMixin):
+class EdgeModifier(DependencyMixin):
     """
     Class that represents edge information to be added between two
     tasks/operators. Has shorthand factory functions, like Label("hooray").
@@ -39,36 +41,39 @@ class EdgeModifier(TaskMixin):
     """
 
     def __init__(self, label: Optional[str] = None):
-        from airflow.models.baseoperator import BaseOperator
-
         self.label = label
-        self._upstream: List[BaseOperator] = []
-        self._downstream: List[BaseOperator] = []
+        self._upstream: List["BaseOperator"] = []
+        self._downstream: List["BaseOperator"] = []
 
     @property
     def roots(self):
-        """Should return list of root operator List["BaseOperator"]"""
         return self._downstream
 
     @property
     def leaves(self):
-        """Should return list of leaf operator List["BaseOperator"]"""
         return self._upstream
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], chain: bool = True):
+    def set_upstream(
+        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
+    ):
         """
         Sets the given task/list onto the upstream attribute, and then checks if
         we have both sides so we can resolve the relationship.
 
-        Providing this also provides << via TaskMixin.
+        Providing this also provides << via DependencyMixin.
         """
+        from airflow.models.baseoperator import BaseOperator
+
         # Ensure we have a list, even if it's just one item
-        if isinstance(task_or_task_list, TaskMixin):
+        if isinstance(task_or_task_list, DependencyMixin):
             task_or_task_list = [task_or_task_list]
         # Unfurl it into actual operators
-        operators = []
+        operators: List[BaseOperator] = []
         for task in task_or_task_list:
-            operators.extend(task.roots)
+            for root in task.roots:
+                if not isinstance(root, BaseOperator):
+                    raise TypeError(f"Cannot use edge labels with {type(root).__name__}, only operators")
+                operators.append(root)
         # For each already-declared downstream, pair off with each new upstream
         # item and store the edge info.
         for operator in operators:
@@ -79,20 +84,27 @@ class EdgeModifier(TaskMixin):
         # Add the new tasks to our list of ones we've seen
         self._upstream.extend(operators)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], chain: bool = True):
+    def set_downstream(
+        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
+    ):
         """
         Sets the given task/list onto the downstream attribute, and then checks if
         we have both sides so we can resolve the relationship.
 
-        Providing this also provides >> via TaskMixin.
+        Providing this also provides >> via DependencyMixin.
         """
+        from airflow.models.baseoperator import BaseOperator
+
         # Ensure we have a list, even if it's just one item
-        if isinstance(task_or_task_list, TaskMixin):
+        if isinstance(task_or_task_list, DependencyMixin):
             task_or_task_list = [task_or_task_list]
         # Unfurl it into actual operators
-        operators = []
+        operators: List[BaseOperator] = []
         for task in task_or_task_list:
-            operators.extend(task.leaves)
+            for leaf in task.leaves:
+                if not isinstance(leaf, BaseOperator):
+                    raise TypeError(f"Cannot use edge labels with {type(leaf).__name__}, only operators")
+                operators.append(leaf)
         # Pair them off with existing
         for operator in operators:
             for upstream in self._upstream:
@@ -102,7 +114,7 @@ class EdgeModifier(TaskMixin):
         # Add the new tasks to our list of ones we've seen
         self._downstream.extend(operators)
 
-    def update_relative(self, other: "TaskMixin", upstream: bool = True) -> None:
+    def update_relative(self, other: DependencyMixin, upstream: bool = True) -> None:
         """
         Called if we're not the "main" side of a relationship; we still run the
         same logic, though.

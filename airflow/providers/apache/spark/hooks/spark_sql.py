@@ -83,9 +83,11 @@ class SparkSqlHook(BaseHook):
         yarn_queue: Optional[str] = None,
     ) -> None:
         super().__init__()
+        options: Dict = {}
+        conn: Optional[Connection] = None
 
         try:
-            conn: "Optional[Connection]" = self.get_connection(conn_id)
+            conn = self.get_connection(conn_id)
         except AirflowNotFoundException:
             conn = None
             options: Dict = {}

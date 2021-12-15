@@ -820,7 +820,7 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number)
 
     @provide_session
-    def set_state(self, state: str, session=NEW_SESSION):
+    def set_state(self, state: Optional[str], session=NEW_SESSION):
         """
         Set TaskInstance state.
 
@@ -1691,7 +1691,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[str, BaseException],
+        error: Optional[Union[str, BaseException]] = None,
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
@@ -1951,7 +1951,9 @@ class TaskInstance(Base, LoggingMixin):
             'yesterday_ds': get_yesterday_ds(),
             'yesterday_ds_nodash': get_yesterday_ds_nodash(),
         }
-        return Context(context)
+        # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
+        # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
+        return Context(context)  # type: ignore
 
     @provide_session
     def get_rendered_template_fields(self, session=NEW_SESSION):
@@ -2121,31 +2123,31 @@ class TaskInstance(Base, LoggingMixin):
         """
         Make an XCom available for tasks to pull.
 
-        :param key: A key for the XCom
+        :param key: Key to store the value under.
         :type key: str
-        :param value: A value for the XCom. The value is pickled and stored
-            in the database.
-        :type value: any picklable object
-        :param execution_date: if provided, the XCom will not be visible until
-            this date. This can be used, for example, to send a message to a
-            task on a future date without it being immediately visible.
+        :param value: Value to store. What types are possible depends on whether
+            ``enable_xcom_pickling`` is true or not. If so, this can be any
+            picklable object; only be JSON-serializable may be used otherwise.
+        :param execution_date: Deprecated parameter that has no effect.
         :type execution_date: datetime
-        :param session: Sqlalchemy ORM Session
-        :type session: Session
         """
-        self_execution_date = self.get_dagrun(session).execution_date
-        if execution_date and execution_date < self_execution_date:
-            raise ValueError(
-                f'execution_date can not be in the past (current execution_date is '
-                f'{self_execution_date}; received {execution_date})'
-            )
+        if execution_date is not None:
+            self_execution_date = self.get_dagrun(session).execution_date
+            if execution_date < self_execution_date:
+                raise ValueError(
+                    f'execution_date can not be in the past (current execution_date is '
+                    f'{self_execution_date}; received {execution_date})'
+                )
+            elif execution_date is not None:
+                message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
+                warnings.warn(message, DeprecationWarning, stacklevel=3)
 
         XCom.set(
             key=key,
             value=value,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            execution_date=execution_date or self_execution_date,
+            run_id=self.run_id,
             session=session,
         )
 
@@ -2192,11 +2194,9 @@ class TaskInstance(Base, LoggingMixin):
         if dag_id is None:
             dag_id = self.dag_id
 
-        execution_date = self.get_dagrun(session).execution_date
-
         query = XCom.get_many(
-            execution_date=execution_date,
             key=key,
+            run_id=self.run_id,
             dag_ids=dag_id,
             task_ids=task_ids,
             include_prior_dates=include_prior_dates,
