@@ -1088,6 +1088,10 @@ pgbouncer:
   # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
   extraIni: ~
 
+  # Mount additional volumes into pgbouncer.
+  extraVolumes: []
+  extraVolumeMounts: []
+
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
@@ -1103,6 +1107,7 @@ pgbouncer:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    sslmode: "disable"
 
 # Configuration for the redis provisioned by the chart
 redis:

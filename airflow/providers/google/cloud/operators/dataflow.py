@@ -140,7 +140,7 @@ class DataflowConfiguration:
     def __init__(
         self,
         *,
-        job_name: Optional[str] = "{{task.task_id}}",
+        job_name: str = "{{task.task_id}}",
         append_job_name: bool = True,
         project_id: Optional[str] = None,
         location: Optional[str] = DEFAULT_DATAFLOW_LOCATION,

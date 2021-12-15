@@ -56,7 +56,7 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -1331,19 +1331,49 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, NullTimetable()),
-            ("@daily", cron_timetable("0 0 * * *")),
-            ("@weekly", cron_timetable("0 0 * * 0")),
-            ("@monthly", cron_timetable("0 0 1 * *")),
-            ("@quarterly", cron_timetable("0 0 1 */3 *")),
-            ("@yearly", cron_timetable("0 0 1 1 *")),
-            ("@once", OnceTimetable()),
-            (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1))),
+            (None, NullTimetable(), "Never, external triggers only"),
+            ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
+            ("@weekly", cron_timetable("0 0 * * 0"), "At 00:00, only on Sunday"),
+            ("@monthly", cron_timetable("0 0 1 * *"), "At 00:00, on day 1 of the month"),
+            ("@quarterly", cron_timetable("0 0 1 */3 *"), "At 00:00, on day 1 of the month, every 3 months"),
+            ("@yearly", cron_timetable("0 0 1 1 *"), "At 00:00, on day 1 of the month, only in January"),
+            ("5 0 * 8 *", cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
+            ("@once", OnceTimetable(), "Once, as soon as possible"),
+            (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), ""),
+            ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
         ]
     )
-    def test_timetable_from_schedule_interval(self, schedule_interval, expected_timetable):
+    def test_timetable_and_description_from_schedule_interval(
+        self, schedule_interval, expected_timetable, interval_description
+    ):
         dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
         assert dag.timetable == expected_timetable
+        assert dag.schedule_interval == schedule_interval
+        assert dag.timetable.description == interval_description
+
+    @parameterized.expand(
+        [
+            (NullTimetable(), "Never, external triggers only"),
+            (cron_timetable("0 0 * * *"), "At 00:00"),
+            (cron_timetable("@daily"), "At 00:00"),
+            (cron_timetable("0 0 * * 0"), "At 00:00, only on Sunday"),
+            (cron_timetable("@weekly"), "At 00:00, only on Sunday"),
+            (cron_timetable("0 0 1 * *"), "At 00:00, on day 1 of the month"),
+            (cron_timetable("@monthly"), "At 00:00, on day 1 of the month"),
+            (cron_timetable("0 0 1 */3 *"), "At 00:00, on day 1 of the month, every 3 months"),
+            (cron_timetable("@quarterly"), "At 00:00, on day 1 of the month, every 3 months"),
+            (cron_timetable("0 0 1 1 *"), "At 00:00, on day 1 of the month, only in January"),
+            (cron_timetable("@yearly"), "At 00:00, on day 1 of the month, only in January"),
+            (cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
+            (OnceTimetable(), "Once, as soon as possible"),
+            (delta_timetable(datetime.timedelta(days=1)), ""),
+            (cron_timetable("30 21 * * 5 1"), ""),
+        ]
+    )
+    def test_description_from_timetable(self, timetable, expected_description):
+        dag = DAG("test_schedule_interval_description", timetable=timetable)
+        assert dag.timetable == timetable
+        assert dag.timetable.description == expected_description
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
@@ -1523,7 +1553,7 @@ class TestDag(unittest.TestCase):
         session = settings.Session()  # type: ignore
         dagrun_1 = dag.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
         )

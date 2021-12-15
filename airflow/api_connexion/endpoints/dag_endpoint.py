@@ -14,8 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from typing import Collection, Optional
+
 from flask import current_app, g, request
 from marshmallow import ValidationError
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
 
 from airflow import DAG
@@ -29,6 +33,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
+from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
@@ -37,7 +42,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @provide_session
-def get_dag(dag_id, session=NEW_SESSION):
+def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get basic information about a DAG."""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
 
@@ -48,7 +53,7 @@ def get_dag(dag_id, session=NEW_SESSION):
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
-def get_dag_details(dag_id):
+def get_dag_details(*, dag_id: str) -> APIResponse:
     """Get details of DAG."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
@@ -59,7 +64,15 @@ def get_dag_details(dag_id):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_dags(limit, session=NEW_SESSION, offset=0, only_active=True, tags=None, dag_id_pattern=None):
+def get_dags(
+    *,
+    limit: int,
+    offset: int = 0,
+    tags: Optional[Collection[str]] = None,
+    dag_id_pattern: Optional[str] = None,
+    only_active: bool = True,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get all DAGs."""
     if only_active:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
@@ -85,7 +98,7 @@ def get_dags(limit, session=NEW_SESSION, offset=0, only_active=True, tags=None, 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
-def patch_dag(dag_id, session=NEW_SESSION, update_mask=None):
+def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
     """Update the specific DAG"""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
@@ -110,7 +123,7 @@ def patch_dag(dag_id, session=NEW_SESSION, update_mask=None):
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
 @provide_session
-def delete_dag(dag_id: str, session=NEW_SESSION):
+def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete the specific DAG."""
     # TODO: This function is shared with the /delete endpoint used by the web
     # UI, so we're reusing it to simplify maintenance. Refactor the function to

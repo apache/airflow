@@ -20,7 +20,7 @@ from unittest import mock
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
-from airflow.providers.amazon.aws.operators.dms_describe_tasks import DmsDescribeTasksOperator
+from airflow.providers.amazon.aws.operators.dms import DmsDescribeTasksOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 

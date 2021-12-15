@@ -124,7 +124,7 @@ class SkipMixin(LoggingMixin):
                 value={XCOM_SKIPMIXIN_SKIPPED: [d.task_id for d in tasks]},
                 task_id=task_id,
                 dag_id=dag_run.dag_id,
-                execution_date=dag_run.execution_date,
+                run_id=dag_run.run_id,
                 session=session,
             )
 

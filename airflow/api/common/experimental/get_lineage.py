@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Lineage apis"""
+import collections
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 from airflow.lineage import PIPELINE_INLETS, PIPELINE_OUTLETS
@@ -26,23 +27,18 @@ from airflow.utils.session import provide_session
 
 
 @provide_session
-def get_lineage(dag_id: str, execution_date: datetime.datetime, session=None) -> Dict[str, Dict[str, Any]]:
-    """Gets the lineage information for dag specified"""
+def get_lineage(dag_id: str, execution_date: datetime.datetime, *, session) -> Dict[str, Dict[str, Any]]:
+    """Gets the lineage information for dag specified."""
     dag = check_and_get_dag(dag_id)
-    check_and_get_dagrun(dag, execution_date)
+    dagrun = check_and_get_dagrun(dag, execution_date)
 
-    inlets: List[XCom] = XCom.get_many(
-        dag_ids=dag_id, execution_date=execution_date, key=PIPELINE_INLETS, session=session
-    ).all()
-    outlets: List[XCom] = XCom.get_many(
-        dag_ids=dag_id, execution_date=execution_date, key=PIPELINE_OUTLETS, session=session
-    ).all()
+    inlets = XCom.get_many(dag_ids=dag_id, run_id=dagrun.run_id, key=PIPELINE_INLETS, session=session)
+    outlets = XCom.get_many(dag_ids=dag_id, run_id=dagrun.run_id, key=PIPELINE_OUTLETS, session=session)
 
-    lineage: Dict[str, Dict[str, Any]] = {}
+    lineage: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
     for meta in inlets:
-        lineage[meta.task_id] = {'inlets': meta.value}
-
+        lineage[meta.task_id]["inlets"] = meta.value
     for meta in outlets:
-        lineage[meta.task_id]['outlets'] = meta.value
+        lineage[meta.task_id]["outlets"] = meta.value
 
-    return {'task_ids': lineage}
+    return {"task_ids": {k: v for k, v in lineage.items()}}

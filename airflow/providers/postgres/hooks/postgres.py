@@ -211,13 +211,13 @@ class PostgresHook(DbApiHook):
             token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
-    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> List[str]:
+    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> Optional[List[str]]:
         """
         Helper method that returns the table primary key
 
         :param table: Name of the target table
         :type table: str
-        :param table: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default
         :type table: str
         :return: Primary key columns list
         :rtype: List[str]

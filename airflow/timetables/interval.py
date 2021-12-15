@@ -18,6 +18,7 @@
 import datetime
 from typing import Any, Dict, Optional, Union
 
+from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
@@ -129,6 +130,19 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def __init__(self, cron: str, timezone: Timezone) -> None:
         self._expression = cron_presets.get(cron, cron)
         self._timezone = timezone
+
+        descriptor = ExpressionDescriptor(
+            expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+        )
+        try:
+            # checking for more than 5 parameters in Cron and avoiding evaluation for now,
+            # as Croniter has inconsistent evaluation with other libraries
+            if len(croniter(self._expression).expanded) > 5:
+                raise FormatException()
+            interval_description = descriptor.get_description()
+        except (CroniterBadCronError, FormatException, MissingFieldException):
+            interval_description = ""
+        self.description = interval_description
 
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
@@ -264,6 +278,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def serialize(self) -> Dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta
 
+        delta: Any
         if isinstance(self._delta, datetime.timedelta):
             delta = self._delta.total_seconds()
         else:

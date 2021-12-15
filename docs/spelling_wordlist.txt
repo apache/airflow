@@ -105,6 +105,7 @@ Decrypt
 Decrypts
 DeidentifyContentResponse
 DeidentifyTemplate
+DependencyMixin
 Deprecations
 Deserialize
 Deserialized
@@ -452,6 +453,7 @@ args
 argv
 arn
 arraysize
+artifactId
 asana
 asc
 ascii
@@ -1085,6 +1087,7 @@ pem
 performant
 personalizations
 pformat
+picklable
 pid
 pigcmd
 pinodb
@@ -1346,6 +1349,7 @@ tagValue
 task_group
 taskflow
 taskinstance
+taskmixin
 tblproperties
 tcp
 templatable

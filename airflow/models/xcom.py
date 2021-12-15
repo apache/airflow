@@ -20,6 +20,7 @@ import datetime
 import json
 import logging
 import pickle
+import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, cast, overload
 
 import pendulum
@@ -30,7 +31,7 @@ from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -41,6 +42,17 @@ log = logging.getLogger(__name__)
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
+
+# Work around 'airflow task test' generating a temporary in-memory DAG run
+# without storing it in the database. To avoid interfering with actual XCom
+# entries but still behave _somewhat_ consistently, we store XCom to a distant
+# time in the future. Eventually we want to migrate XCom's primary to use run_id
+# instead, so execution_date can just be None for this case.
+IN_MEMORY_DAGRUN_ID = "__airflow_in_memory_dagrun__"
+
+# This is the largest possible value we can store in MySQL.
+# https://dev.mysql.com/doc/refman/5.7/en/datetime.html
+_DISTANT_FUTURE = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
 
 
 class BaseXCom(Base, LoggingMixin):
@@ -134,14 +146,22 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        if run_id:
+        if run_id == IN_MEMORY_DAGRUN_ID:
+            execution_date = _DISTANT_FUTURE
+        elif run_id is not None:
             from airflow.models.dagrun import DagRun
 
-            dag_run = session.query(DagRun).filter_by(dag_id=dag_id, run_id=run_id).one()
-            execution_date = dag_run.execution_date
+            execution_date = (
+                session.query(DagRun.execution_date)
+                .filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+                .scalar()
+            )
+        else:  # Guarantees execution_date is not None.
+            message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
 
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
@@ -225,7 +245,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         if run_id is not None:
@@ -238,6 +258,9 @@ class BaseXCom(Base, LoggingMixin):
                 session=session,
             )
         elif execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
+
             query = cls.get_many(
                 execution_date=execution_date,
                 key=key,
@@ -319,48 +342,48 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
-            raise ValueError("Exactly one of execution_date or run_id must be passed")
+        from airflow.models.dagrun import DagRun
 
-        filters = []
+        if not exactly_one(execution_date is not None, run_id is not None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+        if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
+
+        query = session.query(cls)
 
         if key:
-            filters.append(cls.key == key)
+            query = query.filter(cls.key == key)
 
-        if task_ids:
-            if is_container(task_ids):
-                filters.append(cls.task_id.in_(task_ids))
-            else:
-                filters.append(cls.task_id == task_ids)
+        if is_container(task_ids):
+            query = query.filter(cls.task_id.in_(task_ids))
+        elif task_ids is not None:
+            query = query.filter(cls.task_id == task_ids)
 
-        if dag_ids:
-            if is_container(dag_ids):
-                filters.append(cls.dag_id.in_(dag_ids))
-            else:
-                filters.append(cls.dag_id == dag_ids)
+        if is_container(dag_ids):
+            query = query.filter(cls.dag_id.in_(dag_ids))
+        elif dag_ids is not None:
+            query = query.filter(cls.dag_id == dag_ids)
 
         if include_prior_dates:
-            if execution_date is None:
-                # In theory it would be possible to build a subquery that joins to DagRun and then gets the
-                # execution dates. Lets do that for 2.3
-                raise ValueError("Using include_prior_dates needs an execution_date to be passed")
-            filters.append(cls.execution_date <= execution_date)
+            if execution_date is not None:
+                query = query.filter(cls.execution_date <= execution_date)
+            else:
+                # This returns an empty query result for IN_MEMORY_DAGRUN_ID,
+                # but that is impossible to implement. Sorry?
+                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
+                query = query.filter(cls.execution_date <= dr.c.execution_date)
         elif execution_date is not None:
-            filters.append(cls.execution_date == execution_date)
-
-        query = session.query(cls).filter(*filters)
-
-        if run_id:
-            from airflow.models.dagrun import DagRun
-
+            query = query.filter(cls.execution_date == execution_date)
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            query = query.filter(cls.execution_date == _DISTANT_FUTURE)
+        else:
             query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
 
         query = query.order_by(cls.execution_date.desc(), cls.timestamp.desc())
-
         if limit:
             return query.limit(limit)
-        else:
-            return query
+        return query
 
     @classmethod
     @provide_session
@@ -408,8 +431,9 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: Optional[pendulum.DateTime] = None,
         dag_id: Optional[str] = None,
         task_id: Optional[str] = None,
-        run_id: Optional[str] = None,
         session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         # Given the historic order of this function (execution_date was first argument) to add a new optional
@@ -419,20 +443,21 @@ class BaseXCom(Base, LoggingMixin):
         if task_id is None:
             raise TypeError("clear() missing required argument: task_id")
 
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        query = session.query(cls).filter(
-            cls.dag_id == dag_id,
-            cls.task_id == task_id,
-        )
-
+        query = session.query(cls).filter(cls.dag_id == dag_id, cls.task_id == task_id)
         if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
             query = query.filter(cls.execution_date == execution_date)
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            query = query.filter(cls.execution_date == _DISTANT_FUTURE)
         else:
             from airflow.models.dagrun import DagRun
 
-            query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
+            execution_date = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).scalar()
+            query = query.filter(cls.execution_date == execution_date)
 
         return query.delete()
 
