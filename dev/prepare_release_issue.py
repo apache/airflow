@@ -273,8 +273,10 @@ def generate_issue_content(
             # Relate so we can find those from the body
             if pr.body:
                 body = pr.body.replace("\n", " ").replace("\r", " ")
-                for issue_match in ISSUE_MATCH_IN_BODY.finditer(body):
-                    linked_issue_number = int(issue_match.group(1))
+                linked_issue_numbers = {
+                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                }
+                for linked_issue_number in linked_issue_numbers:
                     progress.console.print(
                         f"Retrieving Linked issue PR#{linked_issue_number}: "
                         f"https://github.com/apache/airflow/issue/{linked_issue_number}"
