@@ -141,6 +141,7 @@ EventBufferValueType
 ExaConnection
 Exasol
 Failover
+Falsy
 Fargate
 Fernet
 FileSensor
@@ -382,6 +383,7 @@ Terraform
 TextToSpeechClient
 Tez
 Thinknear
+Truthy
 ToC
 Tooltip
 Tunables

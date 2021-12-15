@@ -634,13 +634,13 @@ class TestShortCircuitOperator(unittest.TestCase):
             # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
             # tasks
             (False, True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
-            # Skip downstream tasks via a Falsey value, do not respect trigger rules, default trigger rule on
+            # Skip downstream tasks via a Falsy value, do not respect trigger rules, default trigger rule on
             # all downstream tasks
             ([], True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
             # Skip downstream tasks, do not respect trigger rules, non-default trigger rule on a downstream
             # task
             (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
-            # Skip downstream tasks via a Falsey value, do not respect trigger rules, non-default trigger rule
+            # Skip downstream tasks via a Falsy value, do not respect trigger rules, non-default trigger rule
             # on a downstream task
             ([], True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
             # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
@@ -650,7 +650,7 @@ class TestShortCircuitOperator(unittest.TestCase):
                 TriggerRule.ALL_SUCCESS,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
             ),
-            # Skip downstream tasks via a Falsey value, respect trigger rules, default trigger rule on all
+            # Skip downstream tasks via a Falsy value, respect trigger rules, default trigger rule on all
             # downstream tasks
             (
                 [],
@@ -665,7 +665,7 @@ class TestShortCircuitOperator(unittest.TestCase):
                 TriggerRule.ALL_DONE,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
-            # Skip downstream tasks via a Falsey value, respect trigger rules, non-default trigger rule on a
+            # Skip downstream tasks via a Falsy value, respect trigger rules, non-default trigger rule on a
             # downstream task
             (
                 [],

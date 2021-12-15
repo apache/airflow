@@ -95,11 +95,14 @@ All supported options are listed in the `requirements file format <https://pip.p
 ShortCircuitOperator
 ========================
 
-Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues only
-if a condition is satisfied. The evaluation of this condition is done via the output of a ``python_callable``.
-If the ``python_callable`` returns True, the condition is considered satisfied and the pipeline is allowed to
-continue. In the example below, the tasks that follow the "condition_is_True" ShortCircuitOperator will
-execute while the tasks downstream of the "condition_is_False" ShortCircuitOperator will be skipped.
+Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
+if a condition is satisfied or a Truthy value is obtained. The evaluation of this condition and Truthy value
+is done via the output of a ``python_callable``. If the ``python_callable`` returns True or a Truthy value,
+the pipeline is allowed to continue and an :ref:`XCom <concepts:xcom>` of the output will be pushed. If the
+output is False or a Falsy value, the pipeline will be short-circuited based on the configured
+short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_True"
+ShortCircuitOperator will execute while the tasks downstream of the "condition_is_False" ShortCircuitOperator
+will be skipped.
 
 
 .. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
@@ -109,17 +112,19 @@ execute while the tasks downstream of the "condition_is_False" ShortCircuitOpera
     :end-before: [END howto_operator_short_circuit]
 
 
-The "short-circuiting" can be configured to either respect or ignore the ``trigger_rule`` defined
-for downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default configuration, all
+The "short-circuiting" can be configured to either respect or ignore the :ref:`trigger rule <concepts:trigger-rules>`
+defined for downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default configuration, all
 downstream tasks are skipped without considering the ``trigger_rule`` defined for tasks.  If this parameter is
 set to False, the direct downstream tasks are skipped but the specified ``trigger_rule`` for other subsequent
-downstream tasks are respected. In this mode, the operator assumes the direct, downstream task(s) were
-purposely meant to be skipped but perhaps not other subsequent tasks.
+downstream tasks are respected. In this short-circuiting configuration, the operator assumes the direct
+downstream task(s) were purposely meant to be skipped but perhaps not other subsequent tasks. This
+configuration is especially useful if only *part* of a pipeline should be short-circuited rather than all
+tasks which follow the ShortCircuitOperator task.
 
 In the example below, notice that the ShortCircuitOperator task is configured to respect downstream trigger
 rules. This means while the tasks that follow the "short_circuit" ShortCircuitOperator task will be skipped
 since the ``python_callable`` returns False, "task_7" will still execute as its set to execute when upstream
-tasks have completed running regardless of status.
+tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DONE`` trigger rule).
 
 .. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
     :language: python
