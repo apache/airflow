@@ -32,6 +32,10 @@ class OpsgenieAlertOperator(BaseOperator):
     Each Opsgenie API key can be pre-configured to a team integration.
     You can override these defaults in this operator.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpsgenieAlertOperator`
+
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
     :type opsgenie_conn_id: str
     :param message: The Message of the Opsgenie alert (templated)
