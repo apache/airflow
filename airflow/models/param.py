@@ -66,7 +66,7 @@ class Param:
         except Exception:
             warnings.warn(
                 "The use of non-json-serializable params is deprecated and will be removed in "
-                " a future release",
+                "a future release",
                 DeprecationWarning,
             )
         # If we have a value, validate it once. May raise ValueError.
