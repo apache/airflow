@@ -46,7 +46,7 @@ The default Airflow image that is used with the Chart is now ``2.2.2``, previous
 Changes in webserver and flower ``NetworkPolicy`` default ports
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-``webserver.networkPolicy.ingress.ports`` and ``flower.networkPolicy.ingress.ports`` moved away from named port to port number to avoid issues with OpenShift.
+The defaults for ``webserver.networkPolicy.ingress.ports`` and ``flower.networkPolicy.ingress.ports`` moved away from using named ports to numerical ports to avoid issues with OpenShift.
 
 Airflow Helm Chart 1.3.0
 ------------------------
