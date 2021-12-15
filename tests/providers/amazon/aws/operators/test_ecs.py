@@ -344,7 +344,7 @@ class TestECSOperator(unittest.TestCase):
         assert "This task is not in success state " in str(ctx.value)
         assert "'name': 'foo'" in str(ctx.value)
         assert "'lastStatus': 'STOPPED'" in str(ctx.value)
-        assert "'exitCode': 1" not in str(ctx.value)
+        assert "exitCode" not in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):
