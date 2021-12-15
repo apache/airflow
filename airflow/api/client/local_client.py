@@ -49,6 +49,9 @@ class Client(api_client.Client):
     def create_pool(self, name, slots, description):
         if not (name and name.strip()):
             raise AirflowBadRequest("Pool name shouldn't be empty")
+        pool_name_length = Pool.pool.property.columns[0].type.length
+        if len(name) > pool_name_length:
+            raise AirflowBadRequest(f"pool name cannot be more than {pool_name_length} characters")
         try:
             slots = int(slots)
         except ValueError:

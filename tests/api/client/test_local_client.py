@@ -24,7 +24,6 @@ from unittest.mock import ANY, patch
 
 import pytest
 from freezegun import freeze_time
-from sqlalchemy.exc import DataError
 
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
@@ -162,8 +161,11 @@ class TestLocalClient(unittest.TestCase):
 
     def test_create_pool_name_too_long(self):
         long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
-        with pytest.raises(DataError):
-            Pool.create_or_update_pool(
+        pool_name_length = Pool.pool.property.columns[0].type.length
+        with pytest.raises(
+            AirflowBadRequest, match=f"^pool name cannot be more than {pool_name_length} characters"
+        ):
+            self.client.create_pool(
                 name=long_name,
                 slots=5,
                 description='',
