@@ -51,7 +51,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_backfill(args, dag=None):
     """Creates backfill job or dry run for a DAG"""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
@@ -130,7 +130,7 @@ def dag_backfill(args, dag=None):
             sys.exit(1)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_trigger(args):
     """Creates a dag run for the specified dag"""
     api_client = get_current_api_client()
@@ -143,7 +143,7 @@ def dag_trigger(args):
         raise AirflowException(err)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_delete(args):
     """Deletes all DB records related to the specified dag"""
     api_client = get_current_api_client()
@@ -161,13 +161,13 @@ def dag_delete(args):
         print("Cancelled")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_pause(args):
     """Pauses a DAG"""
     set_is_paused(True, args)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_unpause(args):
     """Unpauses a DAG"""
     set_is_paused(False, args)
@@ -248,7 +248,7 @@ def _save_dot_to_file(dot: Dot, filename: str):
     print(f"File {filename} saved")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_state(args):
     """
     Returns the state (and conf if exists) of a DagRun at the command line.
@@ -269,7 +269,7 @@ def dag_state(args):
     print(str(out) + conf_out)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
@@ -314,7 +314,7 @@ def dag_next_execution(args):
         print(next_info.logical_date.isoformat())
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
@@ -331,7 +331,7 @@ def dag_list_dags(args):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_report(args):
     """Displays dagbag stats at the command line"""
@@ -349,7 +349,7 @@ def dag_report(args):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_jobs(args, dag=None):
     """Lists latest n jobs"""
@@ -384,7 +384,7 @@ def dag_list_jobs(args, dag=None):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_dag_runs(args, dag=None):
     """Lists dag runs for a given DAG"""
@@ -422,7 +422,7 @@ def dag_list_dag_runs(args, dag=None):
 
 
 @provide_session
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
@@ -464,7 +464,7 @@ def dag_test(args, session=None):
 
 
 @provide_session
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_reserialize(args, session=None):
     session.query(SerializedDagModel).delete(synchronize_session=False)
 

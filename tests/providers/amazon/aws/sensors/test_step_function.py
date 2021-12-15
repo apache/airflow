@@ -24,7 +24,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.step_function_execution import StepFunctionExecutionSensor
+from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
 
 TASK_ID = 'step_function_execution_sensor'
 EXECUTION_ARN = (
@@ -50,7 +50,7 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
         assert REGION_NAME == sensor.region_name
 
     @parameterized.expand([('FAILED',), ('TIMED_OUT',), ('ABORTED',)])
-    @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
+    @mock.patch('airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook')
     def test_exceptions(self, mock_status, mock_hook):
         hook_response = {'status': mock_status}
 
@@ -64,7 +64,7 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
         with pytest.raises(AirflowException):
             sensor.poke(self.mock_context)
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
+    @mock.patch('airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook')
     def test_running(self, mock_hook):
         hook_response = {'status': 'RUNNING'}
 
@@ -77,7 +77,7 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
 
         assert not sensor.poke(self.mock_context)
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
+    @mock.patch('airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook')
     def test_succeeded(self, mock_hook):
         hook_response = {'status': 'SUCCEEDED'}
 

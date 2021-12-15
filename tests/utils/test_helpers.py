@@ -16,12 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
+from itertools import product
 
 import pytest
 
 from airflow import AirflowException
 from airflow.utils import helpers, timezone
-from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts, validate_group_key, validate_key
+from airflow.utils.helpers import (
+    build_airflow_url_with_query,
+    exactly_one,
+    merge_dicts,
+    validate_group_key,
+    validate_key,
+)
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -230,3 +237,28 @@ class TestHelpers:
                 validate_group_key(key_id)
         else:
             validate_group_key(key_id)
+
+    def test_exactly_one(self):
+        """
+        Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
+        we get the expected return.
+
+        We check for both True / False, and truthy / falsy values 'a' and '', and verify that
+        they can safely be used in any combination.
+        """
+
+        def assert_exactly_one(true=0, truthy=0, false=0, falsy=0):
+            sample = []
+            for truth_value, num in [(True, true), (False, false), ('a', truthy), ('', falsy)]:
+                if num:
+                    sample.extend([truth_value] * num)
+            if sample:
+                expected = True if true + truthy == 1 else False
+                assert exactly_one(*sample) is expected
+
+        for row in product(range(4), range(4), range(4), range(4)):
+            assert_exactly_one(*row)
+
+    def test_exactly_one_should_fail(self):
+        with pytest.raises(ValueError):
+            exactly_one([True, False])

@@ -29,7 +29,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
@@ -68,7 +68,7 @@ def set_state(
     downstream: bool = False,
     future: bool = False,
     past: bool = False,
-    state: str = State.SUCCESS,
+    state: TaskInstanceState = TaskInstanceState.SUCCESS,
     commit: bool = False,
     session=None,
 ):

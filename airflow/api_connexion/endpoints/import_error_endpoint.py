@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
+
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -25,16 +28,17 @@ from airflow.api_connexion.schemas.error_schema import (
     import_error_collection_schema,
     import_error_schema,
 )
+from airflow.api_connexion.types import APIResponse
 from airflow.models.errors import ImportError as ImportErrorModel
 from airflow.security import permissions
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @provide_session
-def get_import_error(import_error_id, session):
+def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get an import error"""
-    error = session.query(ImportErrorModel).filter(ImportErrorModel.id == import_error_id).one_or_none()
+    error = session.query(ImportErrorModel).get(import_error_id)
 
     if error is None:
         raise NotFound(
@@ -47,7 +51,13 @@ def get_import_error(import_error_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_import_errors(session, limit, offset=None, order_by='import_error_id'):
+def get_import_errors(
+    *,
+    limit: int,
+    offset: Optional[int] = None,
+    order_by: str = "import_error_id",
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get all import errors"""
     to_replace = {"import_error_id": 'id'}
     allowed_filter_attrs = ['import_error_id', "timestamp", "filename"]

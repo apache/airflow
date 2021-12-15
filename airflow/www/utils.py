@@ -331,11 +331,10 @@ def datetime_html(dttm: Optional[DateTime]) -> str:
     as_iso = dttm.isoformat() if dttm else ''
     if not as_iso:
         return Markup('')
-    dttm = as_iso
-    if timezone.utcnow().isoformat()[:4] == dttm[:4]:
-        dttm = dttm[5:]
+    if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
+        as_iso = as_iso[5:]
     # The empty title will be replaced in JS code when non-UTC dates are displayed
-    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, dttm)
+    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso)
 
 
 def json_f(attr_name):

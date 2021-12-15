@@ -183,6 +183,7 @@ operators:
       - airflow.providers.amazon.aws.operators.datasync
   - integration-name: AWS Database Migration Service
     python-modules:
+      - airflow.providers.amazon.aws.operators.dms
       - airflow.providers.amazon.aws.operators.dms_create_task
       - airflow.providers.amazon.aws.operators.dms_delete_task
       - airflow.providers.amazon.aws.operators.dms_describe_tasks
@@ -192,6 +193,7 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2_start_instance
       - airflow.providers.amazon.aws.operators.ec2_stop_instance
+      - airflow.providers.amazon.aws.operators.ec2
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs
@@ -223,6 +225,7 @@ operators:
       - airflow.providers.amazon.aws.operators.s3_file_transform
       - airflow.providers.amazon.aws.operators.s3_list
       - airflow.providers.amazon.aws.operators.s3_list_prefixes
+      - airflow.providers.amazon.aws.operators.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_base
@@ -243,6 +246,7 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
+      - airflow.providers.amazon.aws.operators.step_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
@@ -260,9 +264,11 @@ sensors:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms_task
+      - airflow.providers.amazon.aws.sensors.dms
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
+      - airflow.providers.amazon.aws.sensors.ec2
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.eks
@@ -290,6 +296,7 @@ sensors:
       - airflow.providers.amazon.aws.sensors.s3_key
       - airflow.providers.amazon.aws.sensors.s3_keys_unchanged
       - airflow.providers.amazon.aws.sensors.s3_prefix
+      - airflow.providers.amazon.aws.sensors.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker_base
@@ -303,6 +310,7 @@ sensors:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function_execution
+      - airflow.providers.amazon.aws.sensors.step_function
 
 hooks:
   - integration-name: Amazon Athena

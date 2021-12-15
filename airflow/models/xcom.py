@@ -31,7 +31,7 @@ from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -146,7 +146,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         if run_id == IN_MEMORY_DAGRUN_ID:
@@ -245,7 +245,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         if run_id is not None:
@@ -344,7 +344,7 @@ class BaseXCom(Base, LoggingMixin):
         """:sphinx-autoapi-skip:"""
         from airflow.models.dagrun import DagRun
 
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
@@ -431,8 +431,9 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: Optional[pendulum.DateTime] = None,
         dag_id: Optional[str] = None,
         task_id: Optional[str] = None,
-        run_id: Optional[str] = None,
         session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         # Given the historic order of this function (execution_date was first argument) to add a new optional
@@ -441,7 +442,8 @@ class BaseXCom(Base, LoggingMixin):
             raise TypeError("clear() missing required argument: dag_id")
         if task_id is None:
             raise TypeError("clear() missing required argument: task_id")
-        if not (execution_date is None) ^ (run_id is None):
+
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         query = session.query(cls).filter(cls.dag_id == dag_id, cls.task_id == task_id)

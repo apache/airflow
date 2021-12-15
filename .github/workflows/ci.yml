@@ -663,17 +663,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/build_airflow/ci_build_airflow_packages.sh
         env:
           PACKAGE_FORMAT: "sdist"
-      - name: "Install and test provider packages and airflow via sdist files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          USE_AIRFLOW_VERSION: "sdist"
-          PACKAGE_FORMAT: "sdist"
       - name: "Upload provider distribution artifacts"
         uses: actions/upload-artifact@v2
         with:
           name: airflow-provider-packages
           path: "./dist/apache-airflow-providers-*.tar.gz"
           retention-days: 1
+      - name: "Install and test provider packages and airflow via sdist files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          USE_AIRFLOW_VERSION: "sdist"
+          PACKAGE_FORMAT: "sdist"
 
   tests-helm:
     timeout-minutes: 40
@@ -1180,7 +1180,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
 
   tests-helm-executor-upgrade:
-    timeout-minutes: 50
+    timeout-minutes: 80
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
@@ -1250,7 +1250,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   constraints:
     permissions:
       contents: write
-    timeout-minutes: 10
+    timeout-minutes: 25
     name: "Constraints"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:

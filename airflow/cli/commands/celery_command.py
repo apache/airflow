@@ -37,7 +37,7 @@ from airflow.utils.serve_logs import serve_logs
 WORKER_PROCESS_NAME = "worker"
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def flower(args):
     """Starts Flower, Celery monitoring tool"""
     options = [
@@ -97,7 +97,7 @@ def _run_worker(options, skip_serve_logs):
             sub_proc.terminate()
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def worker(args):
     """Starts Airflow Celery worker"""
     if not settings.validate_session():
@@ -188,7 +188,7 @@ def worker(args):
         _run_worker(options=options, skip_serve_logs=skip_serve_logs)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def stop_worker(args):
     """Sends SIGTERM to Celery worker"""
     # Read PID from file

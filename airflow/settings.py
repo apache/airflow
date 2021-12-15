@@ -79,7 +79,7 @@ LOGGING_CLASS_PATH: Optional[str] = None
 DONOT_MODIFY_HANDLERS: Optional[bool] = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-engine: Optional[Engine] = None
+engine: Engine
 Session: Callable[..., SASession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
@@ -378,6 +378,8 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
+    global engine
+
     worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True

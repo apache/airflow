@@ -684,6 +684,13 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: chart-schema-lint
+        name: Lint chart/values.schema.json file
+        entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py
+        language: python
+        pass_filenames: false
+        files: ^chart/values\.schema\.json$
+        require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node

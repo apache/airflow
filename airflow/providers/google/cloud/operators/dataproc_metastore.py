@@ -19,7 +19,7 @@
 """This module contains Google Dataproc Metastore operators."""
 
 from time import sleep
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Collection, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.metastore_v1 import MetadataExport, MetadataManagementActivity
@@ -218,7 +218,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         project_id: str,
         region: str,
         service_id: str,
-        metadata_import: MetadataImport,
+        metadata_import: Union[MetadataImport, Dict[str, Collection[str]]],
         metadata_import_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,

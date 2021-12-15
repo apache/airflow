@@ -201,9 +201,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
-        filename: str = None,
-        filetype: str = None,
-        content: str = None,
+        filename: Optional[str] = None,
+        filetype: Optional[str] = None,
+        content: Optional[str] = None,
         **kwargs,
     ) -> None:
         self.method = 'files.upload'
@@ -212,7 +212,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filename = filename
         self.filetype = filetype
         self.content = content
-        self.file_params = {}
+        self.file_params: Dict = {}
         super().__init__(method=self.method, **kwargs)
 
     def execute(self, **kwargs):

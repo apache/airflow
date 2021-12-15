@@ -63,4 +63,4 @@ def get_id_collation_args():
 
 COLLATION_ARGS = get_id_collation_args()
 
-StringID: Type[String] = functools.partial(String, length=ID_LEN, **COLLATION_ARGS)
+StringID: Type[String] = functools.partial(String, length=ID_LEN, **COLLATION_ARGS)  # type: ignore

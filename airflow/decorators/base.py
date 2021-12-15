@@ -19,7 +19,7 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -101,7 +101,7 @@ class DecoratedOperator(BaseOperator):
     :type kwargs_to_upstream: dict
     """
 
-    template_fields = ('op_args', 'op_kwargs')
+    template_fields: Iterable[str] = ('op_args', 'op_kwargs')
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
@@ -180,7 +180,7 @@ T = TypeVar("T", bound=Callable)
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: BaseOperator = None,
+    decorated_operator_class: Type[BaseOperator] = None,
     **kwargs,
 ) -> Callable[[T], T]:
     """

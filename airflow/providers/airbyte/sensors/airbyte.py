@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
-from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
@@ -42,9 +41,9 @@ class AirbyteJobSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        airbyte_job_id: str,
+        airbyte_job_id: int,
         airbyte_conn_id: str = 'airbyte_default',
-        api_version: Optional[str] = "v1",
+        api_version: str = "v1",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
