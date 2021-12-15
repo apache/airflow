@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.4](#airflow-224)
 - [Airflow 2.2.3](#airflow-223)
 - [Airflow 2.2.2](#airflow-222)
 - [Airflow 2.2.1](#airflow-221)
@@ -80,9 +81,17 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+## Airflow 2.2.4
+
+### Smart sensors deprecated
+
+Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
+
+See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.3.0/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
+
 ## Airflow 2.2.3
 
-No breaking changes.
+Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
 
 ## Airflow 2.2.2
 

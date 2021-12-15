@@ -19,6 +19,7 @@
 import datetime
 import hashlib
 import time
+import warnings
 from datetime import timedelta
 from typing import Any, Callable, Dict, Iterable
 
@@ -39,6 +40,7 @@ from airflow.utils import timezone
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
+from airflow.utils.docs import get_docs_url
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -154,6 +156,12 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         :param context: TaskInstance template context from the ti.
         :return: boolean
         """
+        docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
+        warnings.warn(
+            'Your sensor is using Smart Sensors, which are deprecated.'
+            f' Please use Deferrable Operators instead. See {docs_url} for more info.',
+            DeprecationWarning,
+        )
         poke_context = self.get_poke_context(context)
         execution_context = self.get_execution_context(context)
 
