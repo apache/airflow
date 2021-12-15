@@ -634,12 +634,26 @@ class TestShortCircuitOperator(unittest.TestCase):
             # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
             # tasks
             (False, True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
+            # Skip downstream tasks via a Falsey value, do not respect trigger rules, default trigger rule on
+            # all downstream tasks
+            ([], True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
             # Skip downstream tasks, do not respect trigger rules, non-default trigger rule on a downstream
             # task
             (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
+            # Skip downstream tasks via a Falsey value, do not respect trigger rules, non-default trigger rule
+            # on a downstream task
+            ([], True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
             # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
             (
                 False,
+                False,
+                TriggerRule.ALL_SUCCESS,
+                {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
+            ),
+            # Skip downstream tasks via a Falsey value, respect trigger rules, default trigger rule on all
+            # downstream tasks
+            (
+                [],
                 False,
                 TriggerRule.ALL_SUCCESS,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
@@ -651,18 +665,38 @@ class TestShortCircuitOperator(unittest.TestCase):
                 TriggerRule.ALL_DONE,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
+            # Skip downstream tasks via a Falsey value, respect trigger rules, non-default trigger rule on a
+            # downstream task
+            (
+                [],
+                False,
+                TriggerRule.ALL_DONE,
+                {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
+            ),
             # Do not skip downstream tasks, do not respect trigger rules, default trigger rule on all
             # downstream tasks
             (True, True, TriggerRule.ALL_SUCCESS, all_success_states),
+            # Do not skip downstream tasks via a Truthy value, do not respect trigger rules, default trigger
+            # rule on all downstream tasks
+            (["a", "b", "c"], True, TriggerRule.ALL_SUCCESS, all_success_states),
             # Do not skip downstream tasks, do not respect trigger rules, non-default trigger rule on a
             # downstream task
             (True, True, TriggerRule.ALL_DONE, all_success_states),
+            # Do not skip downstream tasks via a Truthy value, do not respect trigger rules, non-default
+            # trigger rule on a downstream task
+            (["a", "b", "c"], True, TriggerRule.ALL_DONE, all_success_states),
             # Do not skip downstream tasks, respect trigger rules, default trigger rule on all downstream
             # tasks
             (True, False, TriggerRule.ALL_SUCCESS, all_success_states),
+            # Do not skip downstream tasks via a Truthy value, respect trigger rules, default trigger rule on
+            # all downstream tasks
+            (["a", "b", "c"], False, TriggerRule.ALL_SUCCESS, all_success_states),
             # Do not skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream
             # task
             (True, False, TriggerRule.ALL_DONE, all_success_states),
+            # Do not skip downstream tasks via a Truthy value, respect trigger rules, non-default trigger rule
+            # on a downstream  task
+            (["a", "b", "c"], False, TriggerRule.ALL_DONE, all_success_states),
         ],
     )
     def test_short_circuiting(
@@ -748,9 +782,14 @@ class TestShortCircuitOperator(unittest.TestCase):
         self._assert_expected_task_states(dagrun, expected_states)
 
     def test_xcom_push(self):
-        short_op = ShortCircuitOperator(
-            task_id="make_choice", dag=self.dag, python_callable=lambda: "signature"
+        short_op_push_xcom = ShortCircuitOperator(
+            task_id="push_xcom_from_shortcircuit", dag=self.dag, python_callable=lambda: "signature"
         )
+
+        short_op_no_push_xcom = ShortCircuitOperator(
+            task_id="do_not_push_xcom_from_shortcircuit", dag=self.dag, python_callable=lambda: False
+        )
+
         self.dag.clear()
         dr = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -758,10 +797,20 @@ class TestShortCircuitOperator(unittest.TestCase):
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        short_op_push_xcom.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        short_op_no_push_xcom.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
         tis = dr.get_task_instances()
-        xcom_value = tis[0].xcom_pull(task_ids="make_choice", key="return_value")
-        assert xcom_value == "signature"
+        xcom_value_short_op_push_xcom = tis[0].xcom_pull(
+            task_ids="push_xcom_from_shortcircuit", key="return_value"
+        )
+        assert xcom_value_short_op_push_xcom == "signature"
+
+        xcom_value_short_op_no_push_xcom = tis[0].xcom_pull(
+            task_ids="do_not_push_xcom_from_shortcircuit", key="return_value"
+        )
+        assert xcom_value_short_op_no_push_xcom is None
 
 
 virtualenv_string_args: List[str] = []
