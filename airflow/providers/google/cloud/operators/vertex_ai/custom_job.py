@@ -183,8 +183,13 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.hook: Optional[CustomJobHook] = None
+
+    def execute(self, context):
         self.hook = CustomJobHook(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
     def on_kill(self) -> None:
@@ -192,7 +197,8 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         Callback called when the operator is killed.
         Cancel any running job.
         """
-        self.hook.cancel_job()
+        if self.hook:
+            self.hook.cancel_job()
 
 
 class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
@@ -215,6 +221,7 @@ class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
         self.command = command
 
     def execute(self, context):
+        super().execute(context)
         model = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -300,6 +307,7 @@ class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperato
         self.python_module_name = python_module_name
 
     def execute(self, context):
+        super().execute(context)
         model = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -388,6 +396,7 @@ class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
         self.script_path = script_path
 
     def execute(self, context):
+        super().execute(context)
         model = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,
