@@ -181,8 +181,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """
         docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
         warnings.warn(
-            'Your sensor is using Smart Sensors, which are deprecated. Please use Deferrable Operators instead.'
-            f' See {docs_url} for more info.',
+            'Your sensor is using Smart Sensors, which are deprecated.'
+            f' Please use Deferrable Operators instead. See {docs_url} for more info.',
             DeprecationWarning,
         )
         poke_context = self.get_poke_context(context)
