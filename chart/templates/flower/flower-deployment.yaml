@@ -36,8 +36,6 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
-  annotations:
-    checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
 spec:
   replicas: 1
   selector:
@@ -54,8 +52,10 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
-      {{- if or (.Values.airflowPodAnnotations) (.Values.flower.podAnnotations) }}
       annotations:
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/flower-secret: {{ include (print $.Template.BasePath "/secrets/flower-secret.yaml") . | sha256sum }}
+      {{- if or (.Values.airflowPodAnnotations) (.Values.flower.podAnnotations) }}
       {{- mustMerge .Values.flower.podAnnotations .Values.airflowPodAnnotations | toYaml | nindent 8 }}
       {{- end }}
     spec:
