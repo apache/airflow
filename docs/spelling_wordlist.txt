@@ -1347,6 +1347,7 @@ tagValue
 task_group
 taskflow
 taskinstance
+taskmixin
 tblproperties
 tcp
 templatable
