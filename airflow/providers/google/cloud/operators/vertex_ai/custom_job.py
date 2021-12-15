@@ -73,7 +73,7 @@ class VertexAITrainingPipelinesLink(BaseOperatorLink):
         )
 
 
-class _CustomTrainingJobBaseOperator(BaseOperator):
+class CustomTrainingJobBaseOperator(BaseOperator):
     """The base class for operators that launch Custom jobs on VertexAI."""
 
     def __init__(
@@ -201,7 +201,7 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
             self.hook.cancel_job()
 
 
-class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
+class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
     """Create Custom Container Training job"""
 
     template_fields = [
@@ -286,7 +286,7 @@ class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
         return result
 
 
-class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperator):
+class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
     """Create Custom Python Package Training job"""
 
     template_fields = [
@@ -373,7 +373,7 @@ class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperato
         return result
 
 
-class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
+class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
     """Create Custom Training job"""
 
     template_fields = [
