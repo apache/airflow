@@ -109,7 +109,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.allowed_states = list(allowed_states) if allowed_states else [State.SUCCESS]
         self.failed_states = list(failed_states) if failed_states else []
 
-        total_states: Iterable = self.allowed_states + self.failed_states
+        total_states: Iterable[str] = self.allowed_states + self.failed_states
         total_states = set(total_states)
 
         if set(self.failed_states).intersection(set(self.allowed_states)):
