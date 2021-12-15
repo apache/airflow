@@ -246,12 +246,14 @@ class KubernetesHook(BaseHook):
             raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
     def get_namespace(self) -> Optional[str]:
+        namespace = None
         """Returns the namespace that defined in the connection"""
         if self.conn_id:
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson
             namespace = extras.get("extra__kubernetes__namespace", "default")
-            return namespace
+
+        return namespace
 
     def get_pod_log_stream(
         self,

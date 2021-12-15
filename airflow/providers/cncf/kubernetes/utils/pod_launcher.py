@@ -31,7 +31,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import Date, DateTime, Duration, Time
 from pendulum.parsing.exceptions import ParserError
-from requests.exceptions import BaseHTTPError
+from requests.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.kube_client import get_kube_client
@@ -159,7 +159,7 @@ class PodLauncher(LoggingMixin):
                         self.log.info(message)
                         if timestamp:
                             last_log_time = timestamp
-                except BaseHTTPError:
+                except HTTPError:
                     # Catches errors like ProtocolError(TimeoutError).
                     self.log.warning(
                         'Failed to read logs for pod %s',
@@ -263,7 +263,7 @@ class PodLauncher(LoggingMixin):
                 _preload_content=False,
                 **additional_kwargs,
             )
-        except BaseHTTPError:
+        except HTTPError:
             self.log.exception('There was an error reading the kubernetes API.')
             # Reraise to be caught by self.monitor_pod.
             raise
@@ -275,7 +275,7 @@ class PodLauncher(LoggingMixin):
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
             )
-        except BaseHTTPError as e:
+        except HTTPError as e:
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
@@ -283,7 +283,7 @@ class PodLauncher(LoggingMixin):
         """Read POD information"""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
-        except BaseHTTPError as e:
+        except HTTPError as e:
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
     def _extract_xcom(self, pod: V1Pod) -> str:
