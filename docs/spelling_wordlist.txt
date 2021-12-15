@@ -383,9 +383,9 @@ Terraform
 TextToSpeechClient
 Tez
 Thinknear
-Truthy
 ToC
 Tooltip
+Truthy
 Tunables
 UA
 Umask
