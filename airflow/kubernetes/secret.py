@@ -91,20 +91,28 @@ class Secret(K8SModel):
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         """Attaches to pod"""
         cp_pod = copy.deepcopy(pod)
+
         if self.deploy_type == 'volume':
             volume, volume_mount = self.to_volume_secret()
-            cp_pod.spec.volumes = pod.spec.volumes or []
+            if cp_pod.spec.volumes is None:
+                cp_pod.spec.volumes = []
             cp_pod.spec.volumes.append(volume)
-            cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
+            if cp_pod.spec.containers[0].volume_mounts is None:
+                cp_pod.spec.containers[0].volume_mounts = []
             cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
+
         if self.deploy_type == 'env' and self.key is not None:
             env = self.to_env_secret()
-            cp_pod.spec.containers[0].env = cp_pod.spec.containers[0].env or []
+            if cp_pod.spec.containers[0].env is None:
+                cp_pod.spec.containers[0].env = []
             cp_pod.spec.containers[0].env.append(env)
+
         if self.deploy_type == 'env' and self.key is None:
             env_from = self.to_env_from_secret()
-            cp_pod.spec.containers[0].env_from = cp_pod.spec.containers[0].env_from or []
+            if cp_pod.spec.containers[0].env_from is None:
+                cp_pod.spec.containers[0].env_from = []
             cp_pod.spec.containers[0].env_from.append(env_from)
+
         return cp_pod
 
     def __eq__(self, other):
