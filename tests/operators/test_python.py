@@ -713,7 +713,6 @@ class TestShortCircuitOperator(unittest.TestCase):
             dag=self.dag,
         )
         self.short_circuit.set_downstream(self.op1)
-        self.op2.trigger_rule = TriggerRule.ALL_SUCCESS
         self.dag.clear()
 
         dagrun = self.dag.create_dagrun(
@@ -747,6 +746,22 @@ class TestShortCircuitOperator(unittest.TestCase):
 
         self.op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         self._assert_expected_task_states(dagrun, expected_states)
+
+    def test_xcom_push(self):
+        short_op = ShortCircuitOperator(
+            task_id="make_choice", dag=self.dag, python_callable=lambda: "signature"
+        )
+        self.dag.clear()
+        dr = self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        tis = dr.get_task_instances()
+        xcom_value = tis[0].xcom_pull(task_ids="make_choice", key="return_value")
+        assert xcom_value == "signature"
 
 
 virtualenv_string_args: List[str] = []
