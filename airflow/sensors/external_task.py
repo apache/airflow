@@ -259,17 +259,19 @@ class ExternalTaskSensor(BaseSensorOperator):
         implementation to pass all context variables as keyword arguments, to allow
         for more sophisticated returns of dates to return.
         """
-        if self.execution_date_fn and context:
-            from airflow.utils.operator_helpers import make_kwargs_callable
+        if self.execution_date_fn is None or context is None:
+            raise AirflowException("Execution date function or context is not provided")
 
-            # Remove "execution_date" because it is already a mandatory positional argument
-            execution_date = context["execution_date"]
-            kwargs = {k: v for k, v in context.items() if k != "execution_date"}
-            # Add "context" in the kwargs for backward compatibility (because context used to be
-            # an acceptable argument of execution_date_fn)
-            kwargs["context"] = context
-            kwargs_callable = make_kwargs_callable(self.execution_date_fn)
-            return kwargs_callable(execution_date, **kwargs)
+        from airflow.utils.operator_helpers import make_kwargs_callable
+
+        # Remove "execution_date" because it is already a mandatory positional argument
+        execution_date = context["execution_date"]
+        kwargs = {k: v for k, v in context.items() if k != "execution_date"}
+        # Add "context" in the kwargs for backward compatibility (because context used to be
+        # an acceptable argument of execution_date_fn)
+        kwargs["context"] = context
+        kwargs_callable = make_kwargs_callable(self.execution_date_fn)
+        return kwargs_callable(execution_date, **kwargs)
 
 
 class ExternalTaskMarker(DummyOperator):
