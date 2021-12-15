@@ -278,4 +278,4 @@ class OracleHook(DbApiHook):
             status = False
             message = str(e)
 
-        return status, message        
+        return status, message
