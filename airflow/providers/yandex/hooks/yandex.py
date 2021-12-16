@@ -88,11 +88,12 @@ class YandexCloudBaseHook(BaseHook):
 
         try:
             manager = ProvidersManager()
-            provider_name = manager.hooks[cls.conn_type].package_name
+            provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
             provider = manager.providers[provider_name]
             return f'apache-airflow/{airflow.__version__} {provider_name}/{provider.version}'
         except KeyError:
             warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
+            return None
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
