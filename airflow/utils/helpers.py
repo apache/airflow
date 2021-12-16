@@ -22,7 +22,19 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    MutableMapping,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 from urllib import parse
 
 import flask
@@ -31,7 +43,6 @@ import jinja2.nativetypes
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -251,7 +262,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
-def render_template(template: Any, context: Context, *, native: bool) -> Any:
+def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
     """Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
@@ -278,12 +289,12 @@ def render_template(template: Any, context: Context, *, native: bool) -> Any:
     return "".join(nodes)
 
 
-def render_template_to_string(template: jinja2.Template, context: Context) -> str:
+def render_template_to_string(template: jinja2.Template, context: MutableMapping[str, Any]) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
     return render_template(template, context, native=False)
 
 
-def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
+def render_template_as_native(template: jinja2.Template, context: MutableMapping[str, Any]) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
     return render_template(template, context, native=True)
 
