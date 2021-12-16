@@ -23,7 +23,8 @@ import threading
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
-    from pwd import getpwnam
+    # ignored to avoid flake complaining on Linux
+    from pwd import getpwnam  # flake8: noqa
 
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
