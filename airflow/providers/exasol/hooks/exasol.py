@@ -157,8 +157,6 @@ class ExasolHook(DbApiHook):
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
-        :param handler: The result handler which is called with the result of each statement.
-        :type handler: callable
         """
         if isinstance(sql, str):
             sql = [sql]
