@@ -23,12 +23,12 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.providers.amazon.aws.sensors.emr_containers import EMRContainerSensor
+from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 
-class TestEMRContainerSensor(unittest.TestCase):
+class TestEmrContainerSensor(unittest.TestCase):
     def setUp(self):
-        self.sensor = EMRContainerSensor(
+        self.sensor = EmrContainerSensor(
             task_id='test_emrcontainer_sensor',
             virtual_cluster_id='vzwemreks',
             job_id='job1234',

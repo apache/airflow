@@ -17,12 +17,14 @@
 # under the License.
 
 import json
+import sys
 from typing import Iterable
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook

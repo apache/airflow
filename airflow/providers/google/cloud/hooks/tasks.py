@@ -69,7 +69,7 @@ class CloudTasksHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: Optional[CloudTasksClient] = None
 
     def get_conn(self) -> CloudTasksClient:
         """
@@ -78,7 +78,7 @@ class CloudTasksHook(GoogleBaseHook):
         :return: Google Cloud Tasks API Client
         :rtype: google.cloud.tasks_v2.CloudTasksClient
         """
-        if not self._client:
+        if self._client is None:
             self._client = CloudTasksClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
@@ -232,7 +232,10 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         return client.get_queue(
-            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': full_queue_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -315,7 +318,10 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         client.delete_queue(
-            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': full_queue_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -353,7 +359,10 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         return client.purge_queue(
-            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': full_queue_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -391,7 +400,10 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         return client.pause_queue(
-            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': full_queue_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -429,7 +441,10 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         return client.resume_queue(
-            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': full_queue_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -440,7 +455,7 @@ class CloudTasksHook(GoogleBaseHook):
         task: Union[Dict, Task],
         project_id: str,
         task_name: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -502,7 +517,7 @@ class CloudTasksHook(GoogleBaseHook):
         queue_name: str,
         task_name: str,
         project_id: str,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -549,7 +564,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -629,7 +644,10 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_task_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
         client.delete_task(
-            request={'name': full_task_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': full_task_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -639,7 +657,7 @@ class CloudTasksHook(GoogleBaseHook):
         queue_name: str,
         task_name: str,
         project_id: str,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,

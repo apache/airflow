@@ -21,7 +21,7 @@ import unittest
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
+from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor
 
 TARGET_STATE = 'TARGET_STATE'
 FAILED_STATE = 'FAILED_STATE'

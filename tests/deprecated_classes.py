@@ -1064,16 +1064,56 @@ OPERATORS = [
         'airflow.contrib.operators.ecs_operator.ECSOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
+        'airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator',
         'airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator',
+        'airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator',
         'airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator',
+        'airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator',
         'airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator',
+        'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrContainerOperator',
+        'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator',
+        'airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrClusterLink',
+        'airflow.providers.amazon.aws.operators.emr_modify_cluster.EmrClusterLink',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
+        'airflow.providers.amazon.aws.operators.emr_modify_cluster.EmrModifyClusterOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator',
+        'airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator',
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
+        "airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor",
+        "airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor",
+        "airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
+        "airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor",
     ),
     (
         'airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator',
@@ -1559,15 +1599,15 @@ SENSORS = [
         'airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor',
+        'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
         'airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor',
+        'airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor',
         'airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor',
+        'airflow.providers.amazon.aws.sensors.emr.EmrStepSensor',
         'airflow.contrib.sensors.emr_step_sensor.EmrStepSensor',
     ),
     (

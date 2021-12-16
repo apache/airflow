@@ -2152,6 +2152,8 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.dms`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.dms`.",
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.',
 }
 
 

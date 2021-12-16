@@ -24,12 +24,13 @@ retrieve data from it, and write that data to a file for other uses.
       https://github.com/simple-salesforce/simple-salesforce
 """
 import logging
+import sys
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 import pandas as pd

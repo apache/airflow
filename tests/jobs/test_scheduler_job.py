@@ -18,6 +18,7 @@
 #
 
 import datetime
+import logging
 import os
 import shutil
 from datetime import timedelta
@@ -683,6 +684,31 @@ class TestSchedulerJob:
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
         assert 1 == len(res)
+        session.rollback()
+
+    def test_not_enough_pool_slots(self, caplog, dag_maker):
+        dag_id = 'SchedulerJobTest.test_test_not_enough_pool_slots'
+        with dag_maker(dag_id=dag_id, concurrency=16):
+            DummyOperator(task_id="dummy", pool="some_pool", pool_slots=4)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        some_pool = Pool(pool='some_pool', slots=2, description='my pool')
+        session.add(some_pool)
+        session.commit()
+        with caplog.at_level(logging.WARNING):
+            self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+            assert (
+                "Not executing <TaskInstance: "
+                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]>. "
+                "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
+                in caplog.text
+            )
+        session.flush()
         session.rollback()
 
     def test_find_executable_task_instances_none(self, dag_maker):
