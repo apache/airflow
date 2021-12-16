@@ -316,15 +316,6 @@ class SchedulerJob(BaseJob):
 
         pool_to_task_instances: DefaultDict[str, List[models.Pool]] = defaultdict(list)
         for task_instance in task_instances_to_examine:
-            # If the dag is no longer in the dagbag, don't bother
-            if not self.dagbag.get_dag(task_instance.dag_id, session=session):
-                self.log.error(
-                    "DAG '%s' for taskinstance %s not found in serialized_dag table",
-                    task_instance.dag_id,
-                    task_instance,
-                )
-                continue
-
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
@@ -412,8 +403,7 @@ class SchedulerJob(BaseJob):
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
                     serialized_dag = self.dagbag.get_dag(dag_id, session=session)
-                    # This check below may not be necessary because we have handled it before,
-                    # but it's better to be safe than sorry.
+                    # If the dag is missing, continue to the next task.
                     if not serialized_dag:
                         self.log.error(
                             "DAG '%s' for taskinstance %s not found in serialized_dag table",

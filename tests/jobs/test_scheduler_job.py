@@ -648,12 +648,12 @@ class TestSchedulerJob:
     def test_executable_task_instances_to_queued_logs_for_missing_dag_in_dagbag(
         self, dag_maker, caplog, session
     ):
-        """If DAG is no longer in dagbag, do not execute"""
+        """Only check concurrency for dag in dagbag"""
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag'
         task_id_1 = 'dummy'
         task_id_2 = 'dummydummy'
 
-        with dag_maker(dag_id=dag_id, session=session):
+        with dag_maker(dag_id=dag_id, session=session, default_args={"max_active_tis_per_dag": 1}):
             DummyOperator(task_id=task_id_1)
             DummyOperator(task_id=task_id_2)
 
