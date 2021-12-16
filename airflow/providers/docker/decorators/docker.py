@@ -21,7 +21,7 @@ import os
 import pickle
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, TypeVar, Union
 
 import dill
 
@@ -62,7 +62,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     :type multiple_outputs: bool
     """
 
-    template_fields: Iterable[str] = ('op_args', 'op_kwargs')
+    template_fields = ('op_args', 'op_kwargs')
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
@@ -79,7 +79,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
         )
 
-    def execute(self, context: Dict):
+    def execute(self, context: Any):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             input_filename = os.path.join(tmp_dir, 'script.in')
             script_filename = os.path.join(tmp_dir, 'script.py')

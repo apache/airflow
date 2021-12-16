@@ -19,7 +19,7 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -181,7 +181,7 @@ T = TypeVar("T", bound=Callable)
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Type[BaseOperator] = None,
+    decorated_operator_class: Optional[Type[BaseOperator]] = None,
     **kwargs,
 ) -> Callable[[T], T]:
     """

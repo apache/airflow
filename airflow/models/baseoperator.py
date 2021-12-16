@@ -423,9 +423,9 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     """
 
     # For derived classes to define which fields will get jinjaified
-    template_fields: Iterable[str] = ()
+    template_fields: Sequence[str] = ()
     # Defines which files extensions to look for in the templated fields
-    template_ext: Iterable[str] = ()
+    template_ext: Sequence[str] = ()
     # Template field renderers indicating type of the field, for example sql, json, bash
     template_fields_renderers: Dict[str, str] = {}
 

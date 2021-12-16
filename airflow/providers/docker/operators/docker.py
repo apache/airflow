@@ -21,7 +21,7 @@ import io
 import pickle
 import tarfile
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from docker import APIClient, tls
 from docker.errors import APIError
@@ -152,7 +152,7 @@ class DockerOperator(BaseOperator):
     :type retrieve_output_path: Optional[str]
     """
 
-    template_fields: Iterable[str] = ('image', 'command', 'environment', 'container_name')
+    template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
     template_ext = (
         '.sh',
         '.bash',
