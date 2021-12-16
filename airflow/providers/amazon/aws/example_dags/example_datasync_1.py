@@ -30,7 +30,7 @@ from datetime import datetime
 from os import getenv
 
 from airflow import models
-from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
+from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 
 # [START howto_operator_datasync_1_args_1]
 TASK_ARN = getenv("TASK_ARN", "my_aws_datasync_task_arn")
@@ -52,7 +52,7 @@ with models.DAG(
 ) as dag:
 
     # [START howto_operator_datasync_1_1]
-    datasync_task_1 = AWSDataSyncOperator(task_id="datasync_task_1", task_arn=TASK_ARN)
+    datasync_task_1 = DataSyncOperator(task_id="datasync_task_1", task_arn=TASK_ARN)
     # [END howto_operator_datasync_1_1]
 
 with models.DAG(
@@ -61,7 +61,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
 ) as dag:
     # [START howto_operator_datasync_1_2]
-    datasync_task_2 = AWSDataSyncOperator(
+    datasync_task_2 = DataSyncOperator(
         task_id="datasync_task_2",
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,

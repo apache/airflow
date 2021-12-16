@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from kubernetes import client, config, watch
 
 try:
     import airflow.utils.yaml as yaml
 except ImportError:
-    import yaml
+    import yaml  # type: ignore[no-redef]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -252,6 +254,7 @@ class KubernetesHook(BaseHook):
             extras = connection.extra_dejson
             namespace = extras.get("extra__kubernetes__namespace", "default")
             return namespace
+        return None
 
     def get_pod_log_stream(
         self,
