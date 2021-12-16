@@ -630,7 +630,7 @@ any extra values set to securityContext or uid+gid will be ignored.
 The template can be called like so:
    include "airflowSecurityContext" (list . .Values.webserver)
 
-Where '.' is the global varriables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where '.' is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
 */}}
 {{- define "airflowSecurityContext" -}}
   {{- $ := index . 0 -}}
@@ -683,7 +683,7 @@ any extra values set to securityContext or uid+gid will be ignored.
 The template can be called like so:
    include "airflowSecurityContextIds" (list . .Values.workers)
 
-Where '.' is the global varriables scope and `.Values.workers` the local variables scope for the workers template.
+Where '.' is the global variables scope and `.Values.workers` the local variables scope for the workers template.
 */}}
 {{- define "airflowSecurityContextIds" -}}
   {{- $ := index . 0 -}}
