@@ -16,38 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.sagemaker`."""
 
+import warnings
 
-class SageMakerEndpointSensor(SageMakerBaseSensor):
-    """
-    Asks for the state of the endpoint state until it reaches a terminal state.
-    If it fails the sensor errors, the task fails.
+from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor  # noqa
 
-    :param job_name: job_name of the endpoint instance to check the state of
-    :type job_name: str
-    """
-
-    template_fields = ['endpoint_name']
-    template_ext = ()
-
-    def __init__(self, *, endpoint_name, **kwargs):
-        super().__init__(**kwargs)
-        self.endpoint_name = endpoint_name
-
-    def non_terminal_states(self):
-        return SageMakerHook.endpoint_non_terminal_states
-
-    def failed_states(self):
-        return SageMakerHook.failed_states
-
-    def get_sagemaker_response(self):
-        self.log.info('Poking Sagemaker Endpoint %s', self.endpoint_name)
-        return self.get_hook().describe_endpoint(self.endpoint_name)
-
-    def get_failed_reason_from_response(self, response):
-        return response['FailureReason']
-
-    def state_from_response(self, response):
-        return response['EndpointStatus']
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

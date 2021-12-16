@@ -15,114 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
 
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.sagemaker`."""
 
+import warnings
 
-class SageMakerTrainingOperator(SageMakerBaseOperator):
-    """
-    Initiate a SageMaker training job.
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator  # noqa
 
-    This operator returns The ARN of the training job created in Amazon SageMaker.
-
-    :param config: The configuration necessary to start a training job (templated).
-
-        For details of the configuration parameter see :py:meth:`SageMaker.Client.create_training_job`
-    :type config: dict
-    :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
-    :param wait_for_completion: If wait is set to True, the time interval, in seconds,
-        that the operation waits to check the status of the training job.
-    :type wait_for_completion: bool
-    :param print_log: if the operator should print the cloudwatch log during training
-    :type print_log: bool
-    :param check_interval: if wait is set to be true, this is the time interval
-        in seconds which the operator will check the status of the training job
-    :type check_interval: int
-    :param max_ingestion_time: If wait is set to True, the operation fails if the training job
-        doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
-        the operation does not timeout.
-    :type max_ingestion_time: int
-    :param check_if_job_exists: If set to true, then the operator will check whether a training job
-        already exists for the name in the config.
-    :type check_if_job_exists: bool
-    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
-        (default) and "fail".
-        This is only relevant if check_if_job_exists is True.
-    :type action_if_job_exists: str
-    """
-
-    integer_fields = [
-        ['ResourceConfig', 'InstanceCount'],
-        ['ResourceConfig', 'VolumeSizeInGB'],
-        ['StoppingCondition', 'MaxRuntimeInSeconds'],
-    ]
-
-    def __init__(
-        self,
-        *,
-        config: dict,
-        wait_for_completion: bool = True,
-        print_log: bool = True,
-        check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
-        check_if_job_exists: bool = True,
-        action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
-        **kwargs,
-    ):
-        super().__init__(config=config, **kwargs)
-
-        self.wait_for_completion = wait_for_completion
-        self.print_log = print_log
-        self.check_interval = check_interval
-        self.max_ingestion_time = max_ingestion_time
-        self.check_if_job_exists = check_if_job_exists
-
-        if action_if_job_exists in ("increment", "fail"):
-            self.action_if_job_exists = action_if_job_exists
-        else:
-            raise AirflowException(
-                "Argument action_if_job_exists accepts only 'increment' and 'fail'. "
-                f"Provided value: '{action_if_job_exists}'."
-            )
-
-    def expand_role(self) -> None:
-        if 'RoleArn' in self.config:
-            hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
-            self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
-
-    def execute(self, context) -> dict:
-        self.preprocess_config()
-        if self.check_if_job_exists:
-            self._check_if_job_exists()
-        self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
-        response = self.hook.create_training_job(
-            self.config,
-            wait_for_completion=self.wait_for_completion,
-            print_log=self.print_log,
-            check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time,
-        )
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Sagemaker Training Job creation failed: {response}')
-        else:
-            return {'Training': self.hook.describe_training_job(self.config['TrainingJobName'])}
-
-    def _check_if_job_exists(self) -> None:
-        training_job_name = self.config["TrainingJobName"]
-        training_jobs = self.hook.list_training_jobs(name_contains=training_job_name)
-
-        # Check if given TrainingJobName already exists
-        if training_job_name in [tj["TrainingJobName"] for tj in training_jobs]:
-            if self.action_if_job_exists == "increment":
-                self.log.info("Found existing training job with name '%s'.", training_job_name)
-                new_training_job_name = f"{training_job_name}-{len(training_jobs) + 1}"
-                self.config["TrainingJobName"] = new_training_job_name
-                self.log.info("Incremented training job name to '%s'.", new_training_job_name)
-            elif self.action_if_job_exists == "fail":
-                raise AirflowException(
-                    f"A SageMaker training job with name {training_job_name} already exists."
-                )
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
