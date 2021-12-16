@@ -26,6 +26,7 @@ from kubernetes.client import models as k8s
 from airflow import DAG
 from airflow.kubernetes.secret import Secret
 from airflow.operators.bash import BashOperator
+from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 # [START howto_operator_k8s_cluster_resources]
@@ -123,6 +124,7 @@ with DAG(
         tolerations=tolerations,
         init_containers=[init_container],
         priority_class_name="medium",
+        pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
     )
 
     # [START howto_operator_k8s_private_image]
@@ -138,6 +140,7 @@ with DAG(
         in_cluster=True,
         task_id="task-two",
         get_logs=True,
+        pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
     )
     # [END howto_operator_k8s_private_image]
 
@@ -152,6 +155,7 @@ with DAG(
         in_cluster=True,
         task_id="write-xcom",
         get_logs=True,
+        pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
     )
 
     pod_task_xcom_result = BashOperator(
