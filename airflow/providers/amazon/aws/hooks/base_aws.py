@@ -144,8 +144,13 @@ class _SessionFactory(LoggingMixin):
         assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
         sts_session = self.basic_session
 
-        if sts_session:
-            sts_client = sts_session.client("sts", config=self.config)
+        if sts_session is None:
+            raise RuntimeError(
+                "Session should be initialized when refresh credentials with assume_role is used!"
+            )
+
+        sts_client = sts_session.client("sts", config=self.config)
+
         if assume_role_method == 'assume_role':
             sts_response = self._assume_role(sts_client=sts_client)
         elif assume_role_method == 'assume_role_with_saml':
