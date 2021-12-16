@@ -18,7 +18,7 @@
 {{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
 {{- $affinity := or .Values.affinity .Values.workers.affinity }}
 {{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 apiVersion: v1
 kind: Pod
 metadata:

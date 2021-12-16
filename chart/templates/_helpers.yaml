@@ -615,11 +615,24 @@ Create the name of the cleanup service account to use
   {{- end -}}
   {{- $kubeVersion -}}
 {{- end -}}
+
 {{/*
 Set the default value for securityContext
-If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid
+If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid.
+
+    +------------------------+      +-----------------+      +-------------------------+
+    | <node>.securityContext |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    +------------------------+      +-----------------+      +-------------------------+
+
+Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext,
+any extra values set to securityContext or uid+gid will be ignored.
+
+The template can be called like so:
+   include "airflowSecurityContext" (list . .Values.webserver)
+
+Where '.' is the global varriables scope and `.Values.webserver` the local variables scope for the webserver template.
 */}}
-{{- define "globalSecurityContext" -}}
+{{- define "airflowSecurityContext" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContext -}}
@@ -635,7 +648,17 @@ fsGroup: {{ $.Values.gid }}
 
 {{/*
 Set the default value for securityContext
-If no value is passed for securityContext or <node>.securityContext, defaults to UID in the local node
+If no value is passed for securityContext or <node>.securityContext, defaults to UID in the local node.
+
+    +------------------------+     +-------------+
+    | <node>.securityContext |  >  | <node>.uid  |
+    +------------------------+     +-------------+
+
+The template can be called like so:
+  include "localSecurityContext" .Values.statsd
+
+It is important to pass the local variables scope to this template as it is used to determine the local node value for uid.
+
 */}}
 {{- define "localSecurityContext" -}}
   {{- if .securityContext -}}
@@ -647,9 +670,22 @@ runAsUser: {{ .uid }}
 
 {{/*
 Set the default value for workers chown for persistent storage
-If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid
+If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid.
+The template looks for `runAsUser` and `fsGroup` specifically, any other parameter will be ignored.
+
+    +------------------------+      +-----------------+      +-------------------------+
+    | <node>.securityContext |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    +------------------------+      +-----------------+      +-------------------------+
+
+Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext,
+any extra values set to securityContext or uid+gid will be ignored.
+
+The template can be called like so:
+   include "airflowSecurityContextIds" (list . .Values.workers)
+
+Where '.' is the global varriables scope and `.Values.workers` the local variables scope for the workers template.
 */}}
-{{- define "globalSecurityContextIds" -}}
+{{- define "airflowSecurityContextIds" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContext -}}

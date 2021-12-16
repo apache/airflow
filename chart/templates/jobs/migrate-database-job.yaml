@@ -21,7 +21,7 @@
 {{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.migrateDatabaseJob) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.migrateDatabaseJob) }}
 apiVersion: batch/v1
 kind: Job
 metadata:

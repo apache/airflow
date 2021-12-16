@@ -22,7 +22,7 @@
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.cleanup) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.cleanup) }}
 {{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: batch/v1
 {{- else }}

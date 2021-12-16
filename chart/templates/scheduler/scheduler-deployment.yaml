@@ -31,7 +31,7 @@
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.scheduler) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1

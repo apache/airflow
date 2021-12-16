@@ -23,7 +23,7 @@
 {{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
 {{- $affinity := or .Values.affinity .Values.workers.affinity }}
 {{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -111,7 +111,7 @@ spec:
           command:
             - chown
             - -R
-            - "{{ include "globalSecurityContextIds" (list . .Values.workers) }}"
+            - "{{ include "airflowSecurityContextIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
           securityContext:
             runAsUser: 0

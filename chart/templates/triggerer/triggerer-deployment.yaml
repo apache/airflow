@@ -23,7 +23,7 @@
 {{- $nodeSelector := or .Values.nodeSelector .Values.triggerer.nodeSelector }}
 {{- $affinity := or .Values.affinity .Values.triggerer.affinity }}
 {{- $tolerations := or .Values.tolerations .Values.triggerer.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.triggerer) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.triggerer) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:

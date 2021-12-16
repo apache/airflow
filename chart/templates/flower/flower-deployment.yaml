@@ -23,7 +23,7 @@
 {{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.flower.affinity .Values.affinity }}
 {{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
-{{- $securityContext := include "globalSecurityContext" (list . .Values.flower) }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.flower) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
