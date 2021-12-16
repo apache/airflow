@@ -408,7 +408,7 @@ repos:
         language: pygrep
         name: Only capitalized Breeze used in Breeze2.
         description: Please use capitalized "Breeze" in the new Breeze docs
-        entry: "breeze"
+        entry: ([\W\s\n\t\r]|^)breeze([\W\s\n\t\r]|$)
         pass_filenames: true
         files: ^dev/breeze/doc
       - id: base-operator

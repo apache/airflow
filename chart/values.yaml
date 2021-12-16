@@ -114,13 +114,20 @@ ingress:
     # The hostname for the web Ingress (Deprecated - renamed to `ingress.web.hosts`)
     host: ""
 
-    # The hostnames for the web Ingress
+    # The hostnames or hosts configuration for the web Ingress
     hosts: []
+    # - name: ""
+    #   # configs for web Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the web Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
 
     # The Ingress Class for the web Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""
 
-    # configs for web Ingress TLS
+    # configs for web Ingress TLS (Deprecated - renamed to `ingress.web.hosts[*].tls`)
     tls:
       # Enable TLS termination for the web Ingress
       enabled: false
@@ -147,13 +154,19 @@ ingress:
     # The hostname for the flower Ingress (Deprecated - renamed to `ingress.flower.hosts`)
     host: ""
 
-    # The hostnames for the flower Ingress
+    # The hostnames or hosts configuration for the flower Ingress
     hosts: []
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the flower Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
 
     # The Ingress Class for the flower Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""
 
-    # configs for web Ingress TLS
+    # configs for flower Ingress TLS (Deprecated - renamed to `ingress.flower.hosts[*].tls`)
     tls:
       # Enable TLS termination for the flower Ingress
       enabled: false
@@ -626,6 +639,13 @@ createUserJob:
     # Annotations to add to create user kubernetes service account.
     annotations: {}
 
+  # Launch additional containers into user creation job
+  extraContainers: []
+
+  # Mount additional volumes into user creation job
+  extraVolumes: []
+  extraVolumeMounts: []
+
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -669,6 +689,11 @@ migrateDatabaseJob:
 
   # Launch additional containers into database migration job
   extraContainers: []
+
+  # Mount additional volumes into database migration job
+  extraVolumes: []
+  extraVolumeMounts: []
+
   nodeSelector: {}
   affinity: {}
   tolerations: []

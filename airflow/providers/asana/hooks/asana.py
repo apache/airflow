@@ -107,7 +107,7 @@ class AsanaHook(BaseHook):
         :param task_params: Other task parameters which should override defaults from the connection
         :return: A dict of merged parameters to use in the new task
         """
-        merged_params = {"name": task_name}
+        merged_params: Dict[str, Any] = {"name": task_name}
         if self.project:
             merged_params["projects"] = [self.project]
         # Only use default workspace if user did not provide a project id

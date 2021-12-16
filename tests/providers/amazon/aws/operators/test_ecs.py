@@ -327,6 +327,26 @@ class TestECSOperator(unittest.TestCase):
         assert "'exitCode': 1" in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
+    def test_check_success_tasks_handles_initialization_failure(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        # exitCode is missing during some container initialization failures
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED'}]}]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        print(str(ctx.value))
+        assert "This task is not in success state " in str(ctx.value)
+        assert "'name': 'foo'" in str(ctx.value)
+        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
+        assert "exitCode" not in str(ctx.value)
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
     def test_check_success_tasks_raises_pending(self):
         client_mock = mock.Mock()
         self.ecs.client = client_mock

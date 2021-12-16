@@ -109,15 +109,24 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          resources:
+{{ toYaml .Values.createUserJob.resources | indent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
-          resources:
-{{ toYaml .Values.createUserJob.resources | indent 12 }}
+{{- if .Values.createUserJob.extraVolumeMounts }}
+{{ toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
+{{- end }}
+{{- if .Values.createUserJob.extraContainers }}
+{{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
+{{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.createUserJob.extraVolumes }}
+{{ toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
+{{- end }}
 {{- end }}

@@ -1115,3 +1115,18 @@ def create_global_lock(session: Session, lock: DBLocks, lock_timeout=1800):
         elif dialect.name == 'mssql':
             # TODO: make locking work for MSSQL
             pass
+
+
+def get_sqla_model_classes():
+    """
+    Get all SQLAlchemy class mappers.
+
+    SQLAlchemy < 1.4 does not support registry.mappers so we use
+    try/except to handle it.
+    """
+    from airflow.models.base import Base
+
+    try:
+        return [mapper.class_ for mapper in Base.registry.mappers]
+    except AttributeError:
+        return Base._decl_class_registry.values()

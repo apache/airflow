@@ -15,16 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import shlex
+import sys
 import time
 from io import StringIO
 from typing import Any, Dict, Optional
 
 import paramiko
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.retry import exponential_sleep_generator
 
 from airflow import AirflowException

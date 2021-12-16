@@ -48,6 +48,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
@@ -143,6 +144,17 @@ class SchedulerJob(BaseJob):
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
+
+        if conf.getboolean('smart_sensor', 'use_smart_sensor'):
+            compatible_sensors = set(
+                map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
+            )
+            docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
+            warnings.warn(
+                f'Smart sensors are deprecated, yet can be used for {compatible_sensors} sensors.'
+                f' Please use Deferrable Operators instead. See {docs_url} for more info.',
+                DeprecationWarning,
+            )
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
@@ -324,6 +336,18 @@ class SchedulerJob(BaseJob):
             pool_name = pool
             if pool not in pools:
                 self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool)
+                continue
+
+            pool_total = pools[pool]["total"]
+            if task_instance.pool_slots > pool_total:
+                self.log.warning(
+                    "Not executing %s. Requested pool slots (%s) are greater than "
+                    "total pool slots: '%s' for pool: %s.",
+                    task_instance,
+                    task_instance.pool_slots,
+                    pool_total,
+                    pool,
+                )
                 continue
 
             open_slots = pools[pool]["open"]

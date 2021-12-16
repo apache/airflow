@@ -228,6 +228,24 @@ To use an external StatsD instance:
       statsd_host: ...
       statsd_port: ...
 
+Datadog
+^^^^^^^
+If you are using a Datadog agent in your environment, this will enable Airflow to export metrics to the Datadog agent.
+
+.. code-block:: yaml
+
+  statsd:
+    enabled: false
+  config:
+    metrics: # or 'scheduler' for Airflow 1
+      statsd_on: true
+      statsd_port: 8125
+  extraEnv: |-
+    - name: AIRFLOW__METRICS__STATSD_HOST
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+
 Celery Backend
 --------------
 

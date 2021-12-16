@@ -49,6 +49,7 @@ That's it; everything else will be automatically handled for you. If you're upgr
 
 Note that you cannot yet use the deferral ability from inside custom PythonOperator/TaskFlow Python functions; it is only available to traditional, class-based Operators at the moment.
 
+.. _deferring/writing:
 
 Writing Deferrable Operators
 ----------------------------
@@ -163,4 +164,4 @@ Note that every extra ``triggerer`` you run will result in an extra persistent c
 Smart Sensors
 -------------
 
-Deferrable Operators essentially supersede :doc:`Smart Sensors <smart-sensors>`, and should be preferred for almost all situations. They do solve fundamentally the same problem; Smart Sensors, however, only work for certain Sensor workload styles, have no redundancy, and require a custom DAG to run at all times.
+Deferrable Operators supersede :doc:`Smart Sensors <smart-sensors>`. They do solve fundamentally the same problem; Smart Sensors, however, only work for certain Sensor workload styles, have no redundancy, and require a custom DAG to run at all times.

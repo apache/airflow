@@ -150,11 +150,48 @@
                             "default": ""
                         },
                         "hosts": {
-                            "description": "The hostnames for the web Ingress.",
+                            "description": "The hostnames or hosts configuration for the web Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "string"
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "description": "The hostname for the web Ingress.",
+                                                "type": "string",
+                                                "default": ""
+                                            },
+                                            "tls": {
+                                                "description": "Configuration for web Ingress TLS.",
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "enabled": {
+                                                        "description": "Enable TLS termination for the web Ingress.",
+                                                        "type": "boolean",
+                                                        "default": false
+                                                    },
+                                                    "secretName": {
+                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                                        "type": "string",
+                                                        "default": ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "default": "",
+                                        "$comment": "Deprecated by object above"
+                                    }
+                                ]
                             }
                         },
                         "ingressClassName": {
@@ -163,7 +200,7 @@
                             "default": ""
                         },
                         "tls": {
-                            "description": "Configuration for web Ingress TLS.",
+                            "description": "Configuration for web Ingress TLS. (Deprecated - renamed to `ingress.web.hosts[*].tls`)",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
@@ -220,11 +257,48 @@
                             "default": ""
                         },
                         "hosts": {
-                            "description": "The hostnames for the flower Ingress.",
+                            "description": "The hostnames or hosts configuration for the flower Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "string"
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "description": "The hostname for the web Ingress.",
+                                                "type": "string",
+                                                "default": ""
+                                            },
+                                            "tls": {
+                                                "description": "Configuration for web Ingress TLS.",
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "enabled": {
+                                                        "description": "Enable TLS termination for the web Ingress.",
+                                                        "type": "boolean",
+                                                        "default": false
+                                                    },
+                                                    "secretName": {
+                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                                        "type": "string",
+                                                        "default": ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "default": "",
+                                        "$comment": "Deprecated by object above"
+                                    }
+                                ]
                             }
                         },
                         "ingressClassName": {
@@ -233,7 +307,7 @@
                             "default": ""
                         },
                         "tls": {
-                            "description": "Configuration for flower Ingress TLS.",
+                            "description": "Configuration for flower Ingress TLS. (Deprecated - renamed to `ingress.flower.hosts[*].tls`)",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
@@ -1839,6 +1913,30 @@
                         }
                     }
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers for the create user job pod",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/container-v1.json"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into create user job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volume-v1.json"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into create user job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volumemount-v1.json"
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for the create user job pod.",
                     "type": "object",
@@ -1960,6 +2058,22 @@
                     "default": [],
                     "items": {
                         "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/container-v1.json"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into migrate database job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volume-v1.json"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into migrate database job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volumemount-v1.json"
                     }
                 },
                 "nodeSelector": {

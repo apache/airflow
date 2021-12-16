@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import sys
 from time import sleep
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
@@ -73,7 +73,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         return self.glue_client.get_crawler(Name=crawler_name)['Crawler']
 
-    def update_crawler(self, **crawler_kwargs) -> str:
+    def update_crawler(self, **crawler_kwargs) -> bool:
         """
         Updates crawler configurations
 
