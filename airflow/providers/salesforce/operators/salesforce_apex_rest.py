@@ -59,7 +59,6 @@ class SalesforceApexRestOperator(BaseOperator):
         :return: Apex response
         :rtype: dict
         """
-
         result: dict = {}
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
