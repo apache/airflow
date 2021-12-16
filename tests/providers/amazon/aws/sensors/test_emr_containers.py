@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 
-class TestEMRContainerSensor(unittest.TestCase):
+class TestEmrContainerSensor(unittest.TestCase):
     def setUp(self):
         self.sensor = EmrContainerSensor(
             task_id='test_emrcontainer_sensor',

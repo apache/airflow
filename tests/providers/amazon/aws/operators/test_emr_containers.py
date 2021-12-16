@@ -35,7 +35,7 @@ SUBMIT_JOB_SUCCESS_RETURN = {
 GENERATED_UUID = '800647a9-adda-4237-94e6-f542c85fa55b'
 
 
-class TestEMRContainerOperator(unittest.TestCase):
+class TestEmrContainerOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.hooks.emr_containers.EMRContainerHook')
     def setUp(self, emr_hook_mock):
         configuration.load_test_config()
