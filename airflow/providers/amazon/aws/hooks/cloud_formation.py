@@ -25,7 +25,7 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSCloudFormationHook(AwsBaseHook):
+class CloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
 
