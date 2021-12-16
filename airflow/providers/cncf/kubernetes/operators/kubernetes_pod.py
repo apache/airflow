@@ -220,7 +220,7 @@ class KubernetesPodOperator(BaseOperator):
         do_xcom_push: bool = False,
         pod_template_file: Optional[str] = None,
         priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
+        pod_runtime_info_envs: List[PodRuntimeInfoEnv],
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
         **kwargs,
@@ -503,7 +503,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = xcom_sidecar.add_xcom_sidecar(pod)
         return pod
 
-    def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
+    def create_new_pod_for_operator(self, labels, launcher) -> Tuple[str, k8s.V1Pod, Optional[str]]:
         """
         Creates a new pod and monitors for duration of task
 
@@ -550,7 +550,7 @@ class KubernetesPodOperator(BaseOperator):
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
-    def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
+    def monitor_launched_pod(self, launcher, pod) -> Tuple[str, str, str]:
         """
         Monitors a pod to completion that was created by a previous KubernetesPodOperator
 

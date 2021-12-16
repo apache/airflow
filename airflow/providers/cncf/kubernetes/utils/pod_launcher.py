@@ -38,7 +38,7 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 def should_retry_start_pod(exception: Exception) -> bool:
@@ -140,7 +140,7 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException(msg)
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[str, V1Pod, Optional[str]]:
         """
         Monitors a pod and returns the final state, pod and xcom result
 
@@ -155,7 +155,7 @@ class PodLauncher(LoggingMixin):
                 try:
                     logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                     for line in logs:
-                        timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                        timestamp, message = self.parse_log_line(line)
                         self.log.info(message)
                         if timestamp:
                             last_log_time = timestamp
