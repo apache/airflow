@@ -62,9 +62,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = 'Elasticsearch'
 
-    formatter: logging.Formatter
-    handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
-
     def __init__(
         self,
         base_log_folder: str,
@@ -101,6 +98,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.host_field = host_field
         self.offset_field = offset_field
         self.context_set = False
+
+        self.formatter: logging.Formatter
+        self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         dag_run = ti.dag_run
@@ -323,7 +323,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
         if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
-            self.handler.stream = self.handler._open()  # type: ignore[attr-defined]
+            self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
