@@ -43,7 +43,7 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
             "extra__azure_data_factory__resource_group_name"
         )
         factory_name = operator.factory_name or conn.extra_dejson.get(
-            "extra__azure_data_factory__factory_name")
+            "extra__azure_data_factory__factory_name"
         )
         url = (
             f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
