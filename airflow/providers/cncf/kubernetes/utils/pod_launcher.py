@@ -140,7 +140,7 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException(msg)
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[str, V1Pod, Optional[str]]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
         """
         Monitors a pod and returns the final state, pod and xcom result
 
