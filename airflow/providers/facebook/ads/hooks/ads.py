@@ -16,14 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ads Reporting hooks"""
-import sys
 import time
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-if sys.version_info >= (3, 8):
+try:
     from functools import cached_property
-else:
+except ImportError:
     from cached_property import cached_property
 
 from facebook_business.adobjects.adaccount import AdAccount
