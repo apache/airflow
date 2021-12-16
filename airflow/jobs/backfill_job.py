@@ -45,7 +45,7 @@ from airflow.timetables.base import DagRunInfo
 from airflow.utils import helpers, timezone
 from airflow.utils.configuration import conf as airflow_conf, tmp_configuration_copy
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
@@ -210,28 +210,28 @@ class BackfillJob(BaseJob):
         for ti in refreshed_tis:
             # Here we remake the key by subtracting 1 to match in memory information
             reduced_key = ti.key.reduced
-            if ti.state == State.SUCCESS:
+            if ti.state == TaskInstanceState.SUCCESS:
                 ti_status.succeeded.add(reduced_key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                 ti_status.running.pop(reduced_key)
                 continue
-            if ti.state == State.SKIPPED:
+            if ti.state == TaskInstanceState.SKIPPED:
                 ti_status.skipped.add(reduced_key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                 ti_status.running.pop(reduced_key)
                 continue
-            if ti.state == State.FAILED:
+            if ti.state == TaskInstanceState.FAILED:
                 self.log.error("Task instance %s failed", ti)
                 ti_status.failed.add(reduced_key)
                 ti_status.running.pop(reduced_key)
                 continue
             # special case: if the task needs to run again put it back
-            if ti.state == State.UP_FOR_RETRY:
+            if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
                 ti_status.running.pop(reduced_key)
                 ti_status.to_run[ti.key] = ti
             # special case: if the task needs to be rescheduled put it back
-            elif ti.state == State.UP_FOR_RESCHEDULE:
+            elif ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
                 # During handling of reschedule state in ti._handle_reschedule, try number is reduced
                 # by one, so we should not use reduced_key to avoid key error
@@ -256,7 +256,7 @@ class BackfillJob(BaseJob):
         if tis_to_be_scheduled:
             filter_for_tis = TI.filter_for_tis(tis_to_be_scheduled)
             session.query(TI).filter(filter_for_tis).update(
-                values={TI.state: State.SCHEDULED}, synchronize_session=False
+                values={TI.state: TaskInstanceState.SCHEDULED}, synchronize_session=False
             )
 
     def _manage_executor_state(self, running):
@@ -280,7 +280,10 @@ class BackfillJob(BaseJob):
 
             self.log.debug("Executor state: %s task %s", state, ti)
 
-            if state in (State.FAILED, State.SUCCESS) and ti.state in self.STATES_COUNT_AS_RUNNING:
+            if (
+                state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS)
+                and ti.state in self.STATES_COUNT_AS_RUNNING
+            ):
                 msg = (
                     f"Executor reports task instance {ti} finished ({state}) although the task says its "
                     f"{ti.state}. Was the task killed externally? Info: {info}"
@@ -313,7 +316,7 @@ class BackfillJob(BaseJob):
         run: Optional[DagRun]
         if runs:
             run = runs[0]
-            if run.state == State.RUNNING:
+            if run.state == DagRunState.RUNNING:
                 respect_dag_max_active_limit = False
         else:
             run = None
@@ -327,7 +330,7 @@ class BackfillJob(BaseJob):
             execution_date=run_date,
             data_interval=dagrun_info.data_interval,
             start_date=timezone.utcnow(),
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             external_trigger=False,
             session=session,
             conf=self.conf,
@@ -339,7 +342,7 @@ class BackfillJob(BaseJob):
         run.dag = dag
 
         # explicitly mark as backfill and running
-        run.state = State.RUNNING
+        run.state = DagRunState.RUNNING
         run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
         return run
@@ -371,8 +374,8 @@ class BackfillJob(BaseJob):
             for ti in dag_run.get_task_instances():
                 # all tasks part of the backfill are scheduled to run
                 if ti.state == State.NONE:
-                    ti.set_state(State.SCHEDULED, session=session)
-                if ti.state != State.REMOVED:
+                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+                if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
             session.commit()
         except Exception:
@@ -448,14 +451,14 @@ class BackfillJob(BaseJob):
 
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
-                if ti.state == State.SUCCESS:
+                if ti.state == TaskInstanceState.SUCCESS:
                     ti_status.succeeded.add(key)
                     self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     return
-                elif ti.state == State.SKIPPED:
+                elif ti.state == TaskInstanceState.SKIPPED:
                     ti_status.skipped.add(key)
                     self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
@@ -469,18 +472,18 @@ class BackfillJob(BaseJob):
                     self.log.warning(
                         "FIXME: Task instance %s state was set to None externally. This should not happen", ti
                     )
-                    ti.set_state(State.SCHEDULED, session=session)
+                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
-                    if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
+                    if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
                         self.log.error("Task instance %s with state %s", ti, ti.state)
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
-                        ti.set_state(State.SCHEDULED, session=session)
+                        ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                 else:
                     # Default behaviour which works for subdag.
-                    if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
+                    if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
                         self.log.error("Task instance %s with state %s", ti, ti.state)
                         ti_status.failed.add(key)
                         ti_status.to_run.pop(key)
@@ -511,7 +514,7 @@ class BackfillJob(BaseJob):
                     else:
                         self.log.debug('Sending %s to executor', ti)
                         # Skip scheduled state, we are executing immediately
-                        ti.state = State.QUEUED
+                        ti.state = TaskInstanceState.QUEUED
                         ti.queued_by_job_id = self.id
                         ti.queued_dttm = timezone.utcnow()
                         session.merge(ti)
@@ -537,7 +540,7 @@ class BackfillJob(BaseJob):
                     session.commit()
                     return
 
-                if ti.state == State.UPSTREAM_FAILED:
+                if ti.state == TaskInstanceState.UPSTREAM_FAILED:
                     self.log.error("Task instance %s upstream failed", ti)
                     ti_status.failed.add(key)
                     ti_status.to_run.pop(key)
@@ -546,7 +549,7 @@ class BackfillJob(BaseJob):
                     return
 
                 # special case
-                if ti.state == State.UP_FOR_RETRY:
+                if ti.state == TaskInstanceState.UP_FOR_RETRY:
                     self.log.debug("Task instance %s retry period not expired yet", ti)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
@@ -554,7 +557,7 @@ class BackfillJob(BaseJob):
                     return
 
                 # special case
-                if ti.state == State.UP_FOR_RESCHEDULE:
+                if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                     self.log.debug("Task instance %s reschedule period not expired yet", ti)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
@@ -752,7 +755,7 @@ class BackfillJob(BaseJob):
         for dag_run in dag_runs:
             dag_run.update_state()
             if dag_run.state not in State.finished:
-                dag_run.set_state(State.FAILED)
+                dag_run.set_state(DagRunState.FAILED)
             session.merge(dag_run)
 
     @provide_session
@@ -866,13 +869,13 @@ class BackfillJob(BaseJob):
         running_tis = self.executor.running
 
         # Can't use an update here since it doesn't support joins.
-        resettable_states = [State.SCHEDULED, State.QUEUED]
+        resettable_states = [TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED]
         if filter_by_dag_run is None:
             resettable_tis = (
                 session.query(TaskInstance)
                 .join(TaskInstance.dag_run)
                 .filter(
-                    DagRun.state == State.RUNNING,
+                    DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                     TaskInstance.state.in_(resettable_states),
                 )

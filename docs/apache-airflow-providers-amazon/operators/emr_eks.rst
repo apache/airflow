@@ -23,7 +23,7 @@ Amazon EMR on EKS Operators
 
 `Amazon EMR on EKS <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks.html>`__  provides a deployment option for Amazon EMR that allows you to run open-source big data frameworks on Amazon Elastic Kubernetes Service (Amazon EKS).
 
-Airflow provides the :class:`~airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator` to submit Spark jobs to your EMR on EKS virtual cluster.
+Airflow provides the :class:`~airflow.providers.amazon.aws.operators.emr.EmrContainerOperator` to submit Spark jobs to your EMR on EKS virtual cluster.
 
 Prerequisite Tasks
 ------------------
@@ -39,7 +39,7 @@ Run a Spark job on EMR on EKS
 Purpose
 """""""
 
-The ``EMRContainerOperator`` will submit a new job to an EMR on EKS virtual cluster and wait for the job to complete. The example job below calculates the mathematical constant ``Pi``, and monitors the progress with ``EMRContainerSensor``. In a production job, you would usually refer to a Spark script on Amazon S3.
+The ``EMRContainerOperator`` will submit a new job to an EMR on EKS virtual cluster and wait for the job to complete. The example job below calculates the mathematical constant ``Pi``, and monitors the progress with ``EmrContainerSensor``. In a production job, you would usually refer to a Spark script on Amazon S3.
 
 Job configuration
 """""""""""""""""
@@ -64,7 +64,7 @@ We pass the ``virtual_cluster_id`` and ``execution_role_arn`` values as operator
     :start-after: [START howto_operator_emr_eks_jobrun]
     :end-before: [END howto_operator_emr_eks_jobrun]
 
-With the EMRContainerOperator, it will wait until the successful completion of the job or raise an ``AirflowException`` if there is an error. The operator returns the Job ID of the job run.
+With the EmrContainerOperator, it will wait until the successful completion of the job or raise an ``AirflowException`` if there is an error. The operator returns the Job ID of the job run.
 
 Reference
 ---------

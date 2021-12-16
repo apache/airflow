@@ -17,15 +17,19 @@
 # under the License.
 #
 import datetime as dt
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, overload
 
 import pendulum
+from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
 
 from airflow.settings import TIMEZONE
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.tz.timezone('UTC')
+
+if TYPE_CHECKING:
+    from pendulum.tz.timezone import Timezone
 
 
 def is_localized(value):
@@ -97,7 +101,17 @@ def convert_to_utc(value):
     return value.astimezone(utc)
 
 
-def make_aware(value, timezone=None):
+@overload
+def make_aware(v: None, timezone: Optional["Timezone"] = None) -> None:
+    ...
+
+
+@overload
+def make_aware(v: dt.datetime, timezone: Optional["Timezone"] = None) -> dt.datetime:
+    ...
+
+
+def make_aware(value: Optional[dt.datetime], timezone: Optional["Timezone"] = None) -> Optional[dt.datetime]:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -175,12 +189,56 @@ def parse(string: str, timezone=None) -> DateTime:
     return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
 
 
-def coerce_datetime(v: Union[None, dt.datetime, DateTime]) -> Optional[DateTime]:
+@overload
+def coerce_datetime(v: None) -> None:
+    ...
+
+
+@overload
+def coerce_datetime(v: dt.datetime) -> DateTime:
+    ...
+
+
+def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
     """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
-    if v.tzinfo is None:
-        v = make_aware(v)
     if isinstance(v, DateTime):
-        return v
-    return pendulum.instance(v)
+        return v if v.tzinfo else make_aware(v)
+    # Only dt.datetime is left here
+    return pendulum.instance(v if v.tzinfo else make_aware(v))
+
+
+def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
+    """
+    Format a timedelta object or float/int into a readable string for time duration.
+    For example timedelta(seconds=3752) would become `1h:2M:32s`.
+    If the time is less than a second, the return will be `<1s`.
+    """
+    if not td_object:
+        return None
+    if isinstance(td_object, dt.timedelta):
+        delta = relativedelta() + td_object
+    else:
+        delta = relativedelta(seconds=td_object)
+    # relativedelta for timedelta cannot convert days to months
+    # so calculate months by assuming 30 day months and normalize
+    months, delta.days = divmod(delta.days, 30)
+    delta = delta.normalized() + relativedelta(months=months)
+
+    def _format_part(key: str) -> str:
+        value = int(getattr(delta, key))
+        if value < 1:
+            return ""
+        # distinguish between month/minute following strftime format
+        # and take first char of each unit, i.e. years='y', days='d'
+        if key == 'minutes':
+            key = key.upper()
+        key = key[0]
+        return f"{value}{key}"
+
+    parts = map(_format_part, ("years", "months", "days", "hours", "minutes", "seconds"))
+    joined = ":".join(part for part in parts if part)
+    if not joined:
+        return "<1s"
+    return joined

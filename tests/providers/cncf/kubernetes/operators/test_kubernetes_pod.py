@@ -24,6 +24,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -50,8 +51,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
-        task_instance = TaskInstance(task=task, run_id="kub_pod_test")
-        task_instance.dag_run = DagRun(run_id="kub_pod_test", execution_date=DEFAULT_DATE)
+        task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
+        task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID, execution_date=DEFAULT_DATE)
         return {
             "dag": dag,
             "ts": DEFAULT_DATE.isoformat(),
@@ -681,8 +682,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             do_xcom_push=False,
         )
         pod = self.run_pod(k)
-        ti = TaskInstance(task=k, run_id="test_push_xcom_pod_info")
-        ti.dag_run = DagRun(run_id="test_push_xcom_pod_info", execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=k, run_id=IN_MEMORY_DAGRUN_ID)
+        ti.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID, execution_date=DEFAULT_DATE)
         pod_name = ti.xcom_pull(task_ids=k.task_id, key='pod_name')
         pod_namespace = ti.xcom_pull(task_ids=k.task_id, key='pod_namespace')
         assert pod_name and pod_name == pod.metadata.name

@@ -20,7 +20,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def rotate_fernet_key(args):
     """Rotates all encrypted connection credentials and variables"""
     with create_session() as session:

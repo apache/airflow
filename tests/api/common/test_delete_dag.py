@@ -20,7 +20,7 @@
 import pytest
 
 from airflow import models
-from airflow.api.common.experimental.delete_dag import delete_dag
+from airflow.api.common.delete_dag import delete_dag
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago

@@ -30,7 +30,6 @@ from docs.exts.docs_build.code_utils import (
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
-    ROOT_PROJECT_DIR,
     pretty_format_path,
 )
 from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
@@ -138,7 +137,7 @@ class AirflowDocsBuilder:
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
 
         build_cmd = [
-            os.path.join(ROOT_PROJECT_DIR, "docs", "exts", "docs_build", "run_patched_sphinx.py"),
+            "sphinx-build",
             "-W",  # turn warnings into errors
             "--color",  # do emit colored output
             "-T",  # show full traceback on exception
@@ -213,7 +212,7 @@ class AirflowDocsBuilder:
         os.makedirs(self._build_dir, exist_ok=True)
 
         build_cmd = [
-            os.path.join(ROOT_PROJECT_DIR, "docs", "exts", "docs_build", "run_patched_sphinx.py"),
+            "sphinx-build",
             "-T",  # show full traceback on exception
             "--color",  # do emit colored output
             "-b",  # builder to use

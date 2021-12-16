@@ -42,7 +42,7 @@ except ImportError:
         import importlib.metadata
 
         # only when we do not have importlib_metadata, the importlib.metadata is actually used
-        importlib_metadata = 'importlib.metadata'
+        importlib_metadata = 'importlib.metadata'  # type: ignore
     except ImportError:
         raise Exception(
             "Either importlib_metadata must be installed or importlib.metadata must be"

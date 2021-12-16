@@ -15,96 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains AWS S3 operators."""
-from typing import Optional
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.s3`."""
 
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+import warnings
 
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator  # noqa
 
-class S3CreateBucketOperator(BaseOperator):
-    """
-    This operator creates an S3 bucket
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:S3CreateBucketOperator`
-
-    :param bucket_name: This is bucket name you want to create
-    :type bucket_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
-    :type aws_conn_id: Optional[str]
-    :param region_name: AWS region_name. If not specified fetched from connection.
-    :type region_name: Optional[str]
-    """
-
-    template_fields = ("bucket_name",)
-
-    def __init__(
-        self,
-        *,
-        bucket_name: str,
-        aws_conn_id: Optional[str] = "aws_default",
-        region_name: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.bucket_name = bucket_name
-        self.region_name = region_name
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-
-    def execute(self, context):
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-        if not s3_hook.check_for_bucket(self.bucket_name):
-            s3_hook.create_bucket(bucket_name=self.bucket_name, region_name=self.region_name)
-            self.log.info("Created bucket with name: %s", self.bucket_name)
-        else:
-            self.log.info("Bucket with name: %s already exists", self.bucket_name)
-
-
-class S3DeleteBucketOperator(BaseOperator):
-    """
-    This operator deletes an S3 bucket
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:S3DeleteBucketOperator`
-
-    :param bucket_name: This is bucket name you want to delete
-    :type bucket_name: str
-    :param force_delete: Forcibly delete all objects in the bucket before deleting the bucket
-    :type force_delete: bool
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
-    :type aws_conn_id: Optional[str]
-    """
-
-    template_fields = ("bucket_name",)
-
-    def __init__(
-        self,
-        bucket_name: str,
-        force_delete: bool = False,
-        aws_conn_id: Optional[str] = "aws_default",
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.bucket_name = bucket_name
-        self.force_delete = force_delete
-        self.aws_conn_id = aws_conn_id
-
-    def execute(self, context):
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-        if s3_hook.check_for_bucket(self.bucket_name):
-            s3_hook.delete_bucket(bucket_name=self.bucket_name, force_delete=self.force_delete)
-            self.log.info("Deleted bucket with name: %s", self.bucket_name)
-        else:
-            self.log.info("Bucket with name: %s doesn't exist", self.bucket_name)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

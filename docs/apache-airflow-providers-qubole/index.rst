@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/qubole/index>
@@ -56,6 +62,9 @@ Release: 2.0.1
 
 Provider package
 ----------------
+
+`Qubole <https://www.qubole.com/>`__ is an open, simple, and secure data lake platform for machine learning, streaming and adhoc analytics.
+Qubole delivers a Self-Service Platform for Big Data Analytics built on Amazon Web Services, Microsoft and Google Clouds.
 
 This is a provider package for ``qubole`` provider. All classes for this provider package
 are in ``airflow.providers.qubole`` python package.

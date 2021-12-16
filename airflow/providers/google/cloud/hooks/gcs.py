@@ -311,7 +311,7 @@ class GCSHook(GoogleBaseHook):
                     self.log.info('File downloaded to %s', filename)
                     return filename
                 else:
-                    return blob.download_as_string()
+                    return blob.download_as_bytes()
 
             except GoogleCloudError:
                 if num_file_attempts == num_max_attempts:

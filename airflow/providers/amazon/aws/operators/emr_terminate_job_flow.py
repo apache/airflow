@@ -16,39 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.emr`."""
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
+import warnings
 
+from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator  # noqa
 
-class EmrTerminateJobFlowOperator(BaseOperator):
-    """
-    Operator to terminate EMR JobFlows.
-
-    :param job_flow_id: id of the JobFlow to terminate. (templated)
-    :type job_flow_id: str
-    :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-    """
-
-    template_fields = ['job_flow_id']
-    template_ext = ()
-    ui_color = '#f9c915'
-
-    def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):
-        super().__init__(**kwargs)
-        self.job_flow_id = job_flow_id
-        self.aws_conn_id = aws_conn_id
-
-    def execute(self, context: Dict[str, Any]) -> None:
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
-
-        self.log.info('Terminating JobFlow %s', self.job_flow_id)
-        response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
-
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException(f'JobFlow termination failed: {response}')
-        else:
-            self.log.info('JobFlow with id %s terminated', self.job_flow_id)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

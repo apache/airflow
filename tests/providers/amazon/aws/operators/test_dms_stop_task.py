@@ -18,7 +18,7 @@ import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
-from airflow.providers.amazon.aws.operators.dms_stop_task import DmsStopTaskOperator
+from airflow.providers.amazon.aws.operators.dms import DmsStopTaskOperator
 
 TASK_ARN = 'test_arn'
 TASK_DATA = {

@@ -18,7 +18,7 @@
 
 """This module allows to connect to a InfluxDB database."""
 
-from typing import List
+from typing import Dict, List
 
 import pandas as pd
 from influxdb_client import InfluxDBClient
@@ -50,7 +50,7 @@ class InfluxDBHook(BaseHook):
         self.influxdb_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client = None
-        self.extras = None
+        self.extras: Dict = {}
         self.uri = None
         self.org_name = None
 

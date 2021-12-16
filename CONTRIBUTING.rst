@@ -936,20 +936,30 @@ you should do:
     if not some_predicate():
         handle_the_case()
 
+The one exception to this is if you need to make an assert for typechecking (which should be almost a last resort) you can do this:
+
+.. code-block:: python
+
+    if TYPE_CHECKING:
+        assert isinstance(x, MyClass)
+
+
 Database Session Handling
 -------------------------
 
 **Explicit is better than implicit.** If a function accepts a ``session`` parameter it should not commit the
 transaction itself. Session management is up to the caller.
 
-To make this easier there is the ``create_session`` helper:
+To make this easier, there is the ``create_session`` helper:
 
 .. code-block:: python
+
+    from sqlalchemy.orm import Session
 
     from airflow.utils.session import create_session
 
 
-    def my_call(*args, session):
+    def my_call(*args, session: Session):
         ...
         # You MUST not commit the session here.
 
@@ -961,13 +971,22 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
 
 .. code-block:: python
 
-    from airflow.utils.session import provide_session
+    from sqlalchemy.orm import Session
+
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 
     @provide_session
-    def my_method(arg, session=None):
+    def my_method(arg, *, session: Session = NEW_SESSION):
         ...
         # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+
+In both cases, the ``session`` argument is a `keyword-only argument`_. This is the most preferred form if
+possible, although there are some exceptions in the code base where this cannot be used, due to backward
+compatibility considerations. In most cases, ``session`` argument should be last in the argument list.
+
+.. _`keyword-only argument`: https://www.python.org/dev/peps/pep-3102/
+
 
 Don't use time() for duration calculations
 -----------------------------------------

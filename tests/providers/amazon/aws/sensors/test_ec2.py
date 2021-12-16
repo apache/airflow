@@ -23,7 +23,7 @@ import pytest
 from moto import mock_ec2
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.providers.amazon.aws.sensors.ec2_instance_state import EC2InstanceStateSensor
+from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
 
 
 class TestEC2InstanceStateSensor(unittest.TestCase):

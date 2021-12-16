@@ -1066,7 +1066,6 @@ class DagFileProcessorManager(LoggingMixin):
             TI = airflow.models.TaskInstance
             DM = airflow.models.DagModel
             limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
             zombies = (
                 session.query(TI, DM.fileloc)
@@ -1082,6 +1081,9 @@ class DagFileProcessorManager(LoggingMixin):
                 .all()
             )
 
+            if zombies:
+                self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+
             self._last_zombie_query_time = timezone.utcnow()
             for ti, file_loc in zombies:
                 request = TaskCallbackRequest(
@@ -1089,7 +1091,7 @@ class DagFileProcessorManager(LoggingMixin):
                     simple_task_instance=SimpleTaskInstance(ti),
                     msg=f"Detected {ti} as zombie",
                 )
-                self.log.info("Detected zombie job: %s", request)
+                self.log.error("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)
                 Stats.incr('zombies_killed')
 

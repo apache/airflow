@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -62,4 +62,40 @@ class OracleOperator(BaseOperator):
     def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        if self.sql:
+            hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+
+
+class OracleStoredProcedureOperator(BaseOperator):
+    """
+    Executes stored procedure in a specific Oracle database.
+
+    :param procedure: name of stored procedure to call (templated)
+    :type procedure: str
+    :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
+        reference to a specific Oracle database.
+    :type oracle_conn_id: str
+    :param parameters: (optional) the parameters provided in the call
+    :type parameters: dict or iterable
+    """
+
+    template_fields = ('procedure',)
+    ui_color = '#ededed'
+
+    def __init__(
+        self,
+        *,
+        procedure: str,
+        oracle_conn_id: str = 'oracle_default',
+        parameters: Optional[Union[Dict, List]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.oracle_conn_id = oracle_conn_id
+        self.procedure = procedure
+        self.parameters = parameters
+
+    def execute(self, context) -> None:
+        self.log.info('Executing: %s', self.procedure)
+        hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
+        return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operator for Telegram"""
-from typing import Optional
+from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -70,7 +70,7 @@ class TelegramOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, **kwargs) -> None:
+    def execute(self, context: Dict) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
         if self.text:
             self.telegram_kwargs['text'] = self.text

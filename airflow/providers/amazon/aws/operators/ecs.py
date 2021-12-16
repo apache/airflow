@@ -393,7 +393,7 @@ class ECSOperator(BaseOperator):
             value=value,
             task_id=task_id,
             dag_id=self.dag_id,
-            execution_date=context["ti"].execution_date,
+            run_id=context["run_id"],
         )
 
     def _try_reattach_task(self, context):
@@ -431,8 +431,9 @@ class ECSOperator(BaseOperator):
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _get_task_log_fetcher(self) -> ECSTaskLogFetcher:
+        if not self.awslogs_group:
+            raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
-
         return ECSTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
@@ -469,7 +470,7 @@ class ECSOperator(BaseOperator):
                 )
             containers = task['containers']
             for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
+                if container.get('lastStatus') == 'STOPPED' and container.get('exitCode', 1) != 0:
                     if self.task_log_fetcher:
                         last_logs = "\n".join(
                             self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)

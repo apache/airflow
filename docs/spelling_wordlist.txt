@@ -1,5 +1,6 @@
 Ack
 Acyclic
+AddressesType
 AgentKey
 Airbnb
 Airbyte
@@ -17,6 +18,7 @@ Arg
 Args
 Asana
 Async
+AsyncResult
 Atlassian
 Auth
 AutoMlClient
@@ -33,6 +35,7 @@ Banco
 BaseClient
 BaseOperator
 BaseView
+BaseXCom
 Beauchemin
 Behaviour
 Bigquery
@@ -50,6 +53,7 @@ Cassanda
 Catchup
 Celect
 Cgroups
+Chainable
 Changelog
 CheckOperator
 Checklicence
@@ -62,6 +66,7 @@ Cloudwatch
 ClusterManagerClient
 Codecov
 Colour
+CommandType
 ComputeNodeState
 Computenodes
 Config
@@ -75,6 +80,7 @@ DBs
 Daemonize
 DagFileProcessorManager
 DagRun
+DagRunState
 Dagbag
 Dagre
 Dask
@@ -99,6 +105,7 @@ Decrypt
 Decrypts
 DeidentifyContentResponse
 DeidentifyTemplate
+DependencyMixin
 Deprecations
 Deserialize
 Deserialized
@@ -183,6 +190,7 @@ InspectTemplate
 Investorise
 JPype
 Jdbc
+JenkinsRequest
 Jinja
 Jinjafied
 Jinjafy
@@ -259,6 +267,7 @@ Optimise
 PEM
 POSIX
 PTarget
+PTransform
 Pagerduty
 Papermill
 Parallelize
@@ -276,6 +285,7 @@ Postgresql
 Pre
 Precommit
 PredictionServiceClient
+Preload
 Preprocessed
 Proc
 ProductSearchClient
@@ -285,13 +295,14 @@ Pubsub
 Py
 PyPI
 Pyarrow
-Pyspark
 PythonOperator
 Qplum
 Quantopian
 Qubole
+QuboleCheckHook
 Quboles
 RBAC
+ReadOnlyCredentials
 Readme
 Realtime
 Rebasing
@@ -299,6 +310,7 @@ Rebrand
 RedactImageResponse
 Reddit
 Redhat
+RefreshError
 ReidentifyContentResponse
 Reinitialising
 Remoting
@@ -316,10 +328,12 @@ SecretManagerClient
 Seedlist
 Sendgrid
 SlackHook
+SnowflakeHook
 Spark
 SparkPi
 SparkR
 SparkSQL
+SparkSession
 SpeechClient
 Splunk
 Sql
@@ -351,6 +365,7 @@ TaskFlow
 TaskGroup
 TaskGroups
 TaskInstance
+TaskInstanceKey
 Taskfail
 Templated
 Templating
@@ -435,8 +450,10 @@ appbuilder
 approle
 arg
 args
+argv
 arn
 arraysize
+artifactId
 asana
 asc
 ascii
@@ -547,6 +564,7 @@ cloudant
 cloudml
 cloudsqldatabehook
 cloudwatch
+cls
 cmake
 cmd
 cmdline
@@ -740,6 +758,7 @@ faq
 fargate
 fbee
 fc
+fd
 feedCard
 feng
 fernet
@@ -780,6 +799,7 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+getattr
 getfqdn
 getframe
 getsource
@@ -1067,6 +1087,7 @@ pem
 performant
 personalizations
 pformat
+picklable
 pid
 pigcmd
 pinodb
@@ -1132,6 +1153,7 @@ pymysql
 pyodbc
 pypa
 pypsrp
+pyspark
 pytest
 pythonic
 pythonpath
@@ -1168,6 +1190,8 @@ renewer
 replicaSet
 repo
 repos
+repr
+req
 reqs
 reserialize
 reserialized
@@ -1219,6 +1243,7 @@ serialise
 serializable
 serverless
 setMachineType
+setattr
 setdefault
 setted
 sftp
@@ -1300,6 +1325,7 @@ subscriptionId
 substring
 subtask
 subtasks
+subtype
 sudo
 sudoers
 summarization
@@ -1323,6 +1349,7 @@ tagValue
 task_group
 taskflow
 taskinstance
+taskmixin
 tblproperties
 tcp
 templatable

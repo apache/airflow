@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
+import sys
 from typing import Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
