@@ -141,6 +141,7 @@ class TestPythonOperator(TestPythonBase):
         with pytest.raises(AirflowException):
             PythonOperator(python_callable=not_callable, task_id='python_operator', dag=self.dag)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonOperator op_args are templatized"""
         recorded_calls = []
@@ -180,6 +181,7 @@ class TestPythonOperator(TestPythonBase):
             ),
         )
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
         recorded_calls = []
@@ -296,6 +298,7 @@ class TestPythonOperator(TestPythonBase):
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_context_with_kwargs(self):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -917,6 +920,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_airflow_context(self):
         def f(
             # basic
@@ -957,6 +961,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_pendulum_context(self):
         def f(
             # basic
@@ -990,6 +995,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=['pendulum'])
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_base_context(self):
         def f(
             # basic
@@ -1110,6 +1116,7 @@ class TestCurrentContextRuntime:
             op = MyContextAssertOperator(task_id="assert_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_get_context_in_old_style_context_task(self):
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")

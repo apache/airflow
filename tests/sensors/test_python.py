@@ -53,6 +53,7 @@ class TestPythonSensor(TestPythonBase):
         with pytest.raises(ZeroDivisionError):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonSensor op_args are templatized"""
         recorded_calls = []
@@ -96,6 +97,7 @@ class TestPythonSensor(TestPythonBase):
             ),
         )
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonSensor op_kwargs are templatized"""
         recorded_calls = []
