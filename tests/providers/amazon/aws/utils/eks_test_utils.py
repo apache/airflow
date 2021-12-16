@@ -20,7 +20,7 @@ import re
 from copy import deepcopy
 from typing import Dict, List, Optional, Pattern, Tuple, Type, Union
 
-from airflow.providers.amazon.aws.hooks.eks import EKSHook
+from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 from ..utils.eks_test_constants import (
     STATUS,
@@ -84,12 +84,12 @@ def attributes_to_test(
     return result
 
 
-def generate_clusters(eks_hook: EKSHook, num_clusters: int, minimal: bool) -> List[str]:
+def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> List[str]:
     """
     Generates a number of EKS Clusters with data and adds them to the mocked backend.
 
-    :param eks_hook: An EKSHook object used to call the EKS API.
-    :type eks_hook: EKSHook
+    :param eks_hook: An EksHook object used to call the EKS API.
+    :type eks_hook: EksHook
     :param num_clusters: Number of clusters to generate.
     :type num_clusters: int
     :param minimal: If True, only the required values are generated; if False all values are generated.
@@ -107,13 +107,13 @@ def generate_clusters(eks_hook: EKSHook, num_clusters: int, minimal: bool) -> Li
 
 
 def generate_fargate_profiles(
-    eks_hook: EKSHook, cluster_name: str, num_profiles: int, minimal: bool
+    eks_hook: EksHook, cluster_name: str, num_profiles: int, minimal: bool
 ) -> List[str]:
     """
     Generates a number of EKS Fargate profiles with data and adds them to the mocked backend.
 
-    :param eks_hook: An EKSHook object used to call the EKS API.
-    :type eks_hook: EKSHook
+    :param eks_hook: An EksHook object used to call the EKS API.
+    :type eks_hook: EksHook
     :param cluster_name: The name of the EKS Cluster to attach the nodegroups to.
     :type cluster_name: str
     :param num_profiles: Number of Fargate profiles to generate.
@@ -135,13 +135,13 @@ def generate_fargate_profiles(
 
 
 def generate_nodegroups(
-    eks_hook: EKSHook, cluster_name: str, num_nodegroups: int, minimal: bool
+    eks_hook: EksHook, cluster_name: str, num_nodegroups: int, minimal: bool
 ) -> List[str]:
     """
     Generates a number of EKS Managed Nodegroups with data and adds them to the mocked backend.
 
-    :param eks_hook: An EKSHook object used to call the EKS API.
-    :type eks_hook: EKSHook
+    :param eks_hook: An EksHook object used to call the EKS API.
+    :type eks_hook: EksHook
     :param cluster_name: The name of the EKS Cluster to attach the nodegroups to.
     :type cluster_name: str
     :param num_nodegroups: Number of clusters to generate.

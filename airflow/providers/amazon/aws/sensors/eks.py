@@ -16,12 +16,13 @@
 # under the License.
 #
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
+import warnings
 from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
-    EKSHook,
+    EksHook,
     FargateProfileStates,
     NodegroupStates,
 )
@@ -51,7 +52,7 @@ UNEXPECTED_TERMINAL_STATE_MSG = (
 )
 
 
-class EKSClusterStateSensor(BaseSensorOperator):
+class EksClusterStateSensor(BaseSensorOperator):
     """
     Check the state of an Amazon EKS Cluster until it reaches the target state or another terminal state.
 
@@ -94,7 +95,7 @@ class EKSClusterStateSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -111,7 +112,7 @@ class EKSClusterStateSensor(BaseSensorOperator):
         return cluster_state == self.target_state
 
 
-class EKSFargateProfileStateSensor(BaseSensorOperator):
+class EksFargateProfileStateSensor(BaseSensorOperator):
     """
     Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
 
@@ -158,7 +159,7 @@ class EKSFargateProfileStateSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -177,7 +178,7 @@ class EKSFargateProfileStateSensor(BaseSensorOperator):
         return fargate_profile_state == self.target_state
 
 
-class EKSNodegroupStateSensor(BaseSensorOperator):
+class EksNodegroupStateSensor(BaseSensorOperator):
     """
     Check the state of an EKS managed node group until it reaches the target state or another terminal state.
 
@@ -224,7 +225,7 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -241,3 +242,51 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
                 )
             )
         return nodegroup_state == self.target_state
+
+
+class EKSClusterStateSensor(EksClusterStateSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use `airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSFargateProfileStateSensor(EksFargateProfileStateSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use `airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSNodegroupStateSensor(EksNodegroupStateSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use `airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
