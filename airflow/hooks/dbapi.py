@@ -71,14 +71,15 @@ class DbApiHook(BaseHook):
 
     def __init__(self, *args, schema: Optional[str] = None, **kwargs):
         super().__init__()
-        if not self.conn_name_attr:
-            raise AirflowException("conn_name_attr is not defined")
-        elif len(args) == 1:
+        if len(args) == 1:
             setattr(self, self.conn_name_attr, args[0])
         elif self.conn_name_attr not in kwargs:
             setattr(self, self.conn_name_attr, self.default_conn_name)
         else:
             setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
+            
+        if not self.conn_name_attr:
+            raise AirflowException("conn_name_attr is not defined")
         # We should not make schema available in deriving hooks for backwards compatibility
         # If a hook deriving from DBApiHook has a need to access schema, then it should retrieve it
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
