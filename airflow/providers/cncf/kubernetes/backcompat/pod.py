@@ -28,7 +28,7 @@ from kubernetes.client import models as k8s
 warnings.warn(
     (
         "This module is deprecated. Please use `kubernetes.client.models.V1ResourceRequirements`"
-        "and `kubernetes.client.models.V1ContainerPort`."
+        " and `kubernetes.client.models.V1ContainerPort`."
     ),
     DeprecationWarning,
     stacklevel=2,
