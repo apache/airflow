@@ -16,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad hook."""
+import sys
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Generator, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.ads.googleads.v8.services.types.google_ads_service import GoogleAdsRow
@@ -248,7 +250,7 @@ class GoogleAdsHook(BaseHook):
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(self, iterators: Generator[GRPCIterator, None, None]) -> List[GoogleAdsRow]:
+    def _extract_rows(self, iterators: List[GRPCIterator]) -> List[GoogleAdsRow]:
         """
         Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
 

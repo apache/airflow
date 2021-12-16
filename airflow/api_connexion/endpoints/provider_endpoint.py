@@ -16,10 +16,14 @@
 # under the License.
 
 import re
-from typing import Dict, List
 
 from airflow.api_connexion import security
-from airflow.api_connexion.schemas.provider_schema import ProviderCollection, provider_collection_schema
+from airflow.api_connexion.schemas.provider_schema import (
+    Provider,
+    ProviderCollection,
+    provider_collection_schema,
+)
+from airflow.api_connexion.types import APIResponse
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 from airflow.security import permissions
 
@@ -28,19 +32,18 @@ def _remove_rst_syntax(value: str) -> str:
     return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
-def _provider_mapper(provider: ProviderInfo) -> Dict:
-    return {
-        "package_name": provider[1]["package-name"],
-        "description": _remove_rst_syntax(provider[1]["description"]),
-        "version": provider[0],
-    }
+def _provider_mapper(provider: ProviderInfo) -> Provider:
+    return Provider(
+        package_name=provider[1]["package-name"],
+        description=_remove_rst_syntax(provider[1]["description"]),
+        version=provider[0],
+    )
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER)])
-def get_providers():
+def get_providers() -> APIResponse:
     """Get providers"""
-    providers_info: List[ProviderInfo] = list(ProvidersManager().providers.values())
-    providers = [_provider_mapper(d) for d in providers_info]
+    providers = [_provider_mapper(d) for d in ProvidersManager().providers.values()]
     total_entries = len(providers)
     return provider_collection_schema.dump(
         ProviderCollection(providers=providers, total_entries=total_entries)

@@ -118,6 +118,7 @@ class TestDagRunEndpoint:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule_interval=None)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        return dag_instance
 
     def _create_test_dag_run(self, state='running', extra_dag=False, commit=True):
         dag_runs = []
@@ -984,6 +985,24 @@ class TestPostDagRun(TestDagRunEndpoint):
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
+        } == response.json
+
+    def test_should_respond_400_if_a_dag_has_import_errors(self, session):
+        """Test that if a dagmodel has import errors, dags won't be triggered"""
+        dm = self._create_dag("TEST_DAG_ID")
+        dm.has_import_errors = True
+        session.add(dm)
+        session.flush()
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert {
+            "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
+            "status": 400,
+            "title": 'DAG cannot be triggered',
+            "type": EXCEPTIONS_LINK_MAP[400],
         } == response.json
 
     def test_should_response_200_for_matching_execution_date_logical_date(self):

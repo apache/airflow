@@ -25,7 +25,7 @@ services:
       - "29102:9102"
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:8.2.4
     ports:
       - "23000:3000"
 

@@ -314,6 +314,56 @@ class TestPythonOperator(TestPythonBase):
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    def test_return_value_log_with_show_return_value_in_logs_default(self):
+        self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func():
+            return 'test_return_value'
+
+        python_operator = PythonOperator(task_id='python_operator', python_callable=func, dag=self.dag)
+
+        with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
+            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        assert (
+            'INFO:airflow.task.operators:Done. Returned value was: test_return_value' in cm.output
+        ), 'Return value should be shown'
+
+    def test_return_value_log_with_show_return_value_in_logs_false(self):
+        self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func():
+            return 'test_return_value'
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            python_callable=func,
+            dag=self.dag,
+            show_return_value_in_logs=False,
+        )
+
+        with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
+            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        assert (
+            'INFO:airflow.task.operators:Done. Returned value was: test_return_value' not in cm.output
+        ), 'Return value should not be shown'
+        assert (
+            'INFO:airflow.task.operators:Done. Returned value not shown' in cm.output
+        ), 'Log message that the option is turned off should be shown'
+
 
 class TestBranchOperator(unittest.TestCase):
     @classmethod
@@ -653,6 +703,25 @@ class TestShortCircuitOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
+    def test_xcom_push(self):
+        dag = DAG(
+            'shortcircuit_operator_test_xcom_push',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: 'signature')
+        dag.clear()
+        dr = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        tis = dr.get_task_instances()
+        xcom_value = tis[0].xcom_pull(task_ids='make_choice', key='return_value')
+        assert xcom_value == 'signature'
+
 
 virtualenv_string_args: List[str] = []
 
@@ -919,9 +988,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         ):
             pass
 
-        self._run_as_operator(
-            f, use_dill=True, system_site_packages=False, requirements=['pendulum', 'lazy_object_proxy']
-        )
+        self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=['pendulum'])
 
     def test_base_context(self):
         def f(
@@ -1026,7 +1093,7 @@ class MyContextAssertOperator(BaseOperator):
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context
+    assert context == current_context._context
 
 
 @pytest.fixture()
@@ -1087,3 +1154,36 @@ def test_empty_branch(dag_maker, choice, expected_states):
         return ti.state
 
     assert [get_state(tis[task_id]) for task_id in task_ids] == expected_states
+
+
+def test_virtualenv_serializable_context_fields(create_task_instance):
+    """Ensure all template context fields are listed in the operator.
+
+    This exists mainly so when a field is added to the context, we remember to
+    also add it to PythonVirtualenvOperator.
+    """
+    # These are intentionally NOT serialized into the virtual environment:
+    # * Variables pointing to the task instance itself.
+    # * Variables that are accessor instances.
+    intentionally_excluded_context_keys = [
+        "task_instance",
+        "ti",
+        "var",  # Accessor for Variable; var->json and var->value.
+        "conn",  # Accessor for Connection.
+    ]
+
+    ti = create_task_instance(
+        dag_id="test_virtualenv_serializable_context_fields",
+        task_id="test_virtualenv_serializable_context_fields_task",
+        schedule_interval=None,
+    )
+    context = ti.get_template_context()
+
+    declared_keys = {
+        *PythonVirtualenvOperator.BASE_SERIALIZABLE_CONTEXT_KEYS,
+        *PythonVirtualenvOperator.PENDULUM_SERIALIZABLE_CONTEXT_KEYS,
+        *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
+        *intentionally_excluded_context_keys,
+    }
+
+    assert set(context) == declared_keys

@@ -19,6 +19,7 @@
 
 import itertools
 import json
+import time
 import unittest
 from unittest import mock
 
@@ -29,9 +30,13 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
+    AZURE_DEFAULT_AD_ENDPOINT,
     AZURE_MANAGEMENT_ENDPOINT,
+    AZURE_METADATA_SERVICE_TOKEN_URL,
+    AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     SUBMIT_RUN_ENDPOINT,
+    TOKEN_REFRESH_LEAD_TIME,
     DatabricksHook,
     RunState,
 )
@@ -61,7 +66,7 @@ GET_RUN_RESPONSE = {
 }
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
-RESULT_STATE = None  # type: None
+RESULT_STATE = ''
 LIBRARIES = [
     {"jar": "dbfs:/mnt/libraries/library.jar"},
     {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
@@ -100,35 +105,35 @@ def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.1/clusters/start'
+    return f'https://{host}/api/2.0/clusters/start'
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.1/clusters/restart'
+    return f'https://{host}/api/2.0/clusters/restart'
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.1/clusters/delete'
+    return f'https://{host}/api/2.0/clusters/delete'
 
 
 def install_endpoint(host):
     """
     Utility function to generate the install endpoint given the host.
     """
-    return f'https://{host}/api/2.1/libraries/install'
+    return f'https://{host}/api/2.0/libraries/install'
 
 
 def uninstall_endpoint(host):
     """
     Utility function to generate the uninstall endpoint given the host.
     """
-    return f'https://{host}/api/2.1/libraries/uninstall'
+    return f'https://{host}/api/2.0/libraries/uninstall'
 
 
 def create_valid_response_mock(content):
@@ -388,6 +393,30 @@ class TestDatabricksHook(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_str(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        run_state_str = self.hook.get_run_state_str(RUN_ID)
+        assert run_state_str == f"State: {LIFE_CYCLE_STATE}. Result: {RESULT_STATE}. {STATE_MESSAGE}"
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_lifecycle(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        lifecycle_state = self.hook.get_run_state_lifecycle(RUN_ID)
+        assert lifecycle_state == LIFE_CYCLE_STATE
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_result(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        result_state = self.hook.get_run_state_result(RUN_ID)
+        assert result_state == RESULT_STATE
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_cycle(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        state_message = self.hook.get_run_state_message(RUN_ID)
+        assert state_message == STATE_MESSAGE
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_cancel_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
 
@@ -494,6 +523,14 @@ class TestDatabricksHook(unittest.TestCase):
             timeout=self.hook.timeout_seconds,
         )
 
+    def test_is_aad_token_valid_returns_true(self):
+        aad_token = {'token': 'my_token', 'expires_on': int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
+        self.assertTrue(self.hook._is_aad_token_valid(aad_token))
+
+    def test_is_aad_token_valid_returns_false(self):
+        aad_token = {'token': 'my_token', 'expires_on': int(time.time())}
+        self.assertFalse(self.hook._is_aad_token_valid(aad_token))
+
 
 class TestDatabricksHookToken(unittest.TestCase):
     """
@@ -508,6 +545,37 @@ class TestDatabricksHookToken(unittest.TestCase):
         session.commit()
 
         self.hook = DatabricksHook()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+
+
+class TestDatabricksHookTokenInPassword(unittest.TestCase):
+    """
+    Tests for DatabricksHook.
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.login = None
+        conn.password = TOKEN
+        conn.extra = None
+        session.commit()
+
+        self.hook = DatabricksHook(retry_delay=0)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_submit_run(self, mock_requests):
@@ -578,10 +646,10 @@ class TestDatabricksHookAadToken(unittest.TestCase):
     @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn.password = 'secret'
         conn.extra = json.dumps(
             {
-                'azure_client_id': '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d',
-                'azure_client_secret': 'secret',
                 'host': HOST,
                 'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
             }
@@ -607,6 +675,53 @@ class TestDatabricksHookAadToken(unittest.TestCase):
         assert kwargs['auth'].token == TOKEN
 
 
+class TestDatabricksHookAadTokenOtherClouds(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace and
+    using non-global Azure cloud (China, GovCloud, Germany)
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        self.tenant_id = '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d'
+        self.ad_endpoint = 'https://login.microsoftonline.de'
+        self.client_id = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = self.client_id
+        conn.password = 'secret'
+        conn.extra = json.dumps(
+            {
+                'host': HOST,
+                'azure_tenant_id': self.tenant_id,
+                'azure_ad_endpoint': self.ad_endpoint,
+            }
+        )
+        session.commit()
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(create_aad_token_for_resource(DEFAULT_DATABRICKS_SCOPE)),
+            create_successful_response_mock({'run_id': '1'}),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == AZURE_TOKEN_SERVICE_URL.format(self.ad_endpoint, self.tenant_id)
+        assert ad_call_args[2]['data']['client_id'] == self.client_id
+        assert ad_call_args[2]['data']['resource'] == DEFAULT_DATABRICKS_SCOPE
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+
+
 class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
@@ -615,11 +730,13 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
     @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        self.tenant_id = '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d'
+        self.client_id = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn.login = self.client_id
+        conn.password = 'secret'
+        conn.host = HOST
         conn.extra = json.dumps(
             {
-                'azure_client_id': '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d',
-                'azure_client_secret': 'secret',
-                'host': HOST,
                 'azure_resource_id': '/Some/resource',
                 'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
             }
@@ -640,9 +757,62 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
         data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
 
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == AZURE_TOKEN_SERVICE_URL.format(AZURE_DEFAULT_AD_ENDPOINT, self.tenant_id)
+        assert ad_call_args[2]['data']['client_id'] == self.client_id
+        assert ad_call_args[2]['data']['resource'] == AZURE_MANAGEMENT_ENDPOINT
+
+        ad_call_args = mock_requests.method_calls[1]
+        assert ad_call_args[1][0] == AZURE_TOKEN_SERVICE_URL.format(AZURE_DEFAULT_AD_ENDPOINT, self.tenant_id)
+        assert ad_call_args[2]['data']['client_id'] == self.client_id
+        assert ad_call_args[2]['data']['resource'] == DEFAULT_DATABRICKS_SCOPE
+
         assert run_id == '1'
         args = mock_requests.post.call_args
         kwargs = args[1]
         assert kwargs['auth'].token == TOKEN
         assert kwargs['headers']['X-Databricks-Azure-Workspace-Resource-Id'] == '/Some/resource'
         assert kwargs['headers']['X-Databricks-Azure-SP-Management-Token'] == TOKEN
+
+
+class TestDatabricksHookAadTokenManagedIdentity(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.extra = json.dumps(
+            {
+                'use_azure_managed_identity': True,
+            }
+        )
+        session.commit()
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({'compute': {'azEnvironment': 'AZUREPUBLICCLOUD'}}),
+            create_successful_response_mock(create_aad_token_for_resource(DEFAULT_DATABRICKS_SCOPE)),
+        ]
+        mock_requests.post.side_effect = [
+            create_successful_response_mock({'run_id': '1'}),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == AZURE_METADATA_SERVICE_TOKEN_URL
+        assert ad_call_args[2]['params']['api-version'] > '2018-02-01'
+        assert ad_call_args[2]['headers']['Metadata'] == 'true'
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN

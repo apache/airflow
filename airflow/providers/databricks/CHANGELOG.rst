@@ -19,6 +19,35 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Databricks: add more methods to represent run state information (#19723)``
+* ``Databricks - allow Azure SP authentication on other Azure clouds (#19722)``
+* ``Databricks: allow to specify PAT in Password field (#19585)``
+* ``Databricks jobs 2.1 (#19544)``
+* ``Update Databricks API from 2.0 to 2.1 (#19412)``
+* ``Authentication with AAD tokens in Databricks provider (#19335)``
+* ``Update Databricks operators to match latest version of API 2.0 (#19443)``
+* ``Remove db call from DatabricksHook.__init__() (#20180)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixup string concatenations (#19099)``
+* ``Databricks hook: fix expiration time check (#20036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Refactor DatabricksHook (#19835)``
+   * ``Update documentation for November 2021 provider&#39;s release (#19882)``
+   * ``Unhide changelog entry for databricks (#20128)``
+   * ``Update documentation for RC2 release of November Databricks Provider (#20086)``
+
 2.0.2
 .....
 
@@ -62,7 +91,7 @@ Breaking changes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepares provider release after PIP 21 compatibility (#15576)``
-   * ``An initial rework of the &#34;Concepts&#34; docs (#15444)``
+   * ``An initial rework of the 'Concepts' docs (#15444)``
    * ``Remove Backport Providers (#14886)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add documentation for Databricks connection (#15410)``

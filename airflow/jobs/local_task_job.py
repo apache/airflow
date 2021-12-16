@@ -66,7 +66,6 @@ class LocalTaskJob(BaseJob):
         self.pickle_id = pickle_id
         self.mark_success = mark_success
         self.external_executor_id = external_executor_id
-        self.task_runner = None
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -208,6 +207,13 @@ class LocalTaskJob(BaseJob):
                 )
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
+            if ti.state == State.SKIPPED:
+                # A DagRun timeout will cause tasks to be externally marked as skipped.
+                dagrun = ti.get_dagrun(session=session)
+                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                dagrun_timeout = ti.task.dag.dagrun_timeout
+                if dagrun_timeout and execution_time > dagrun_timeout:
+                    self.log.warning("DagRun timed out after %s.", str(execution_time))
             self.log.warning(
                 "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
@@ -217,7 +223,7 @@ class LocalTaskJob(BaseJob):
             else:
                 # if ti.state is not set by taskinstance.handle_failure, then
                 # error file will not be populated and it must be updated by
-                # external source suck as web UI
+                # external source such as web UI
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
             ti._run_finished_callback(error=error)
             self.terminating = True

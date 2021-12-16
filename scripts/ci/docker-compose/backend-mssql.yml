@@ -49,6 +49,12 @@ services:
     entrypoint:
       - bash
       - -c
-      - opt/mssql-tools/bin/sqlcmd -S mssql -U sa -P Airflow123 -i /mssql_create_airflow_db.sql || true
+      - >
+        for i in {1..10};
+        do
+            /opt/mssql-tools/bin/sqlcmd -S mssql -U sa -P Airflow123 -i /mssql_create_airflow_db.sql &&
+                exit 0;
+            sleep 1;
+        done
     volumes:
       - ./mssql_create_airflow_db.sql:/mssql_create_airflow_db.sql:ro

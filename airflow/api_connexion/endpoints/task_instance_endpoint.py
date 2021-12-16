@@ -14,12 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 
 from flask import current_app, request
 from marshmallow import ValidationError
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.query import Query
+from sqlalchemy.sql import ClauseElement
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -34,12 +37,15 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_collection_schema,
     task_instance_schema,
 )
+from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
+
+T = TypeVar("T")
 
 
 @security.requires_access(
@@ -47,10 +53,16 @@ from airflow.utils.state import State
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
 @provide_session
-def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
+def get_task_instance(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get task instance"""
     query = (
         session.query(TI)
@@ -73,13 +85,20 @@ def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
     return task_instance_schema.dump(task_instance)
 
 
-def _apply_array_filter(query, key, values):
+def _convert_state(states: Optional[Iterable[str]]) -> Optional[List[Optional[str]]]:
+    if not states:
+        return None
+    return [State.NONE if s == "none" else s for s in states]
+
+
+def _apply_array_filter(query: Query, key: ClauseElement, values: Optional[Iterable[Any]]) -> Query:
     if values is not None:
-        query = query.filter(key.in_(values))
+        cond = ((key == v) for v in values)
+        query = query.filter(or_(*cond))
     return query
 
 
-def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
+def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, T]) -> Query:
     gte_value, lte_value = value_range
     if gte_value is not None:
         query = query.filter(key >= gte_value)
@@ -96,17 +115,18 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
-    }
+    },
 )
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
 @provide_session
 def get_task_instances(
+    *,
     limit: int,
     dag_id: Optional[str] = None,
     dag_run_id: Optional[str] = None,
@@ -118,13 +138,16 @@ def get_task_instances(
     end_date_lte: Optional[str] = None,
     duration_gte: Optional[float] = None,
     duration_lte: Optional[float] = None,
-    state: Optional[str] = None,
+    state: Optional[List[str]] = None,
     pool: Optional[List[str]] = None,
     queue: Optional[List[str]] = None,
     offset: Optional[int] = None,
-    session=None,
-):
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get list of task instances."""
+    # Because state can be 'none'
+    states = _convert_state(state)
+
     base_query = session.query(TI).join(TI.dag_run)
 
     if dag_id != "~":
@@ -141,7 +164,7 @@ def get_task_instances(
     )
     base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
-    base_query = _apply_array_filter(base_query, key=TI.state, values=state)
+    base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
@@ -170,16 +193,17 @@ def get_task_instances(
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
 @provide_session
-def get_task_instances_batch(session=None):
+def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     """Get list of task instances."""
     body = request.get_json()
     try:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
+    states = _convert_state(data['state'])
     base_query = session.query(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
@@ -199,7 +223,7 @@ def get_task_instances_batch(session=None):
     base_query = _apply_range_filter(
         base_query, key=TI.duration, value_range=(data["duration_gte"], data["duration_lte"])
     )
-    base_query = _apply_array_filter(base_query, key=TI.state, values=data["state"])
+    base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=data["pool"])
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
 
@@ -228,10 +252,10 @@ def get_task_instances_batch(session=None):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
 @provide_session
-def post_clear_task_instances(dag_id: str, session=None):
+def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear task instances."""
     body = request.get_json()
     try:
@@ -262,10 +286,10 @@ def post_clear_task_instances(dag_id: str, session=None):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
 @provide_session
-def post_set_task_instances_state(dag_id, session):
+def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of task instances."""
     body = request.get_json()
     try:

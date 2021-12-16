@@ -393,11 +393,10 @@ you can also start integrations (separate Docker images) if specified as extra `
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with four panes:
+tmux session with three panes:
 
    - one to monitor the scheduler,
    - one for the webserver,
-   - one monitors and compiles JavaScript files,
    - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
@@ -1841,7 +1840,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10 11 12 13
+                 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           MySql version used. One of:
@@ -2195,7 +2194,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
                  base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
-                 build build-providers-dependencies check-apache-license check-builtin-literals
+                 build build-providers-dependencies chart-schema-lint capitalized-breeze
+                 changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
@@ -2321,7 +2321,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10 11 12 13
+                 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           MySql version used. One of:
@@ -2397,9 +2397,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.20.2 v1.19.7 v1.18.15
+                 v1.21.1 v1.20.2
 
-          Default: v1.20.2
+          Default: v1.21.1
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.

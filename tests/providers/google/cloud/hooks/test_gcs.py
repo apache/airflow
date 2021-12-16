@@ -641,12 +641,12 @@ class TestGCSHook(unittest.TestCase):
         assert str(ctx.value) == 'bucket_name and destination_object cannot be empty.'
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_download_as_string(self, mock_service):
+    def test_download_as_bytes(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
         test_object_bytes = io.BytesIO(b"input")
 
-        download_method = mock_service.return_value.bucket.return_value.blob.return_value.download_as_string
+        download_method = mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
         download_method.return_value = test_object_bytes
 
         response = self.gcs_hook.download(bucket_name=test_bucket, object_name=test_object, filename=None)
@@ -666,10 +666,10 @@ class TestGCSHook(unittest.TestCase):
         )
         download_filename_method.return_value = None
 
-        download_as_a_string_method = (
-            mock_service.return_value.bucket.return_value.blob.return_value.download_as_string
+        download_as_a_bytes_method = (
+            mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
         )
-        download_as_a_string_method.return_value = test_object_bytes
+        download_as_a_bytes_method.return_value = test_object_bytes
         response = self.gcs_hook.download(
             bucket_name=test_bucket, object_name=test_object, filename=test_file
         )
@@ -690,10 +690,10 @@ class TestGCSHook(unittest.TestCase):
         )
         download_filename_method.return_value = None
 
-        download_as_a_string_method = (
-            mock_service.return_value.bucket.return_value.blob.return_value.download_as_string
+        download_as_a_bytes_method = (
+            mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
         )
-        download_as_a_string_method.return_value = test_object_bytes
+        download_as_a_bytes_method.return_value = test_object_bytes
         mock_temp_file.return_value.__enter__.return_value = mock.MagicMock()
         mock_temp_file.return_value.__enter__.return_value.name = test_file
 

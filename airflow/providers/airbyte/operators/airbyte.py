@@ -55,8 +55,8 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         connection_id: str,
         airbyte_conn_id: str = "airbyte_default",
         asynchronous: Optional[bool] = False,
-        api_version: Optional[str] = "v1",
-        wait_seconds: Optional[float] = 3,
+        api_version: str = "v1",
+        wait_seconds: float = 3,
         timeout: Optional[float] = 3600,
         **kwargs,
     ) -> None:

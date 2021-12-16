@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import pendulum
 import sqlalchemy
@@ -36,6 +36,9 @@ from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+
+if TYPE_CHECKING:
+    from airflow.www.utils import UIAlert
 
 log = logging.getLogger(__name__)
 
@@ -73,10 +76,11 @@ SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
+DONOT_MODIFY_HANDLERS: Optional[bool] = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-engine: Optional[Engine] = None
-Session: Optional[SASession] = None
+engine: Engine
+Session: Callable[..., SASession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -197,10 +201,18 @@ def configure_vars():
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
+    global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
+
+    # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+    # If the flag is set to False, we remove all handlers from the root logger
+    # and add all handlers from 'airflow.task' logger to the root Logger. This is done
+    # to get all the logs from the print & log statements in the DAG files before a task is run
+    # The handlers are restored after the task completes execution.
+    DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 
 def configure_orm(disable_connection_pool=False):
@@ -366,6 +378,8 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
+    global engine
+
     worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -505,13 +519,6 @@ MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_upd
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
 
-# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
-# If the flag is set to False, we remove all handlers from the root logger
-# and add all handlers from 'airflow.task' logger to the root Logger. This is done
-# to get all the logs from the print & log statements in the DAG files before a task is run
-# The handlers are restored after the task completes execution.
-DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
-
 CAN_FORK = hasattr(os, "fork")
 
 EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
@@ -561,8 +568,7 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-# DASHBOARD_UIALERTS: List["UIAlert"]
-DASHBOARD_UIALERTS = []
+DASHBOARD_UIALERTS: List["UIAlert"] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

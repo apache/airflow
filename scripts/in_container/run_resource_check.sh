@@ -46,9 +46,9 @@ function resource_check() {
     else
         echo "* CPUs available ${cpus_available}. ${COLOR_GREEN}OK.${COLOR_RESET}"
     fi
-    if (( disk_available < one_meg*40 )); then
+    if (( disk_available < one_meg*20 )); then
         echo "${COLOR_YELLOW}WARNING!!!: Not enough Disk space available for Docker.${COLOR_RESET}"
-        echo "At least 40 GBs recommended. You have ${human_readable_disk}"
+        echo "At least 20 GBs recommended. You have ${human_readable_disk}"
         warning_resources="true"
     else
         echo "* Disk available ${human_readable_disk}. ${COLOR_GREEN}OK.${COLOR_RESET}"

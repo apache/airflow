@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
@@ -32,6 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -123,6 +124,11 @@ class PythonOperator(BaseOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param show_return_value_in_logs: a bool value whether to show return_value
+        logs. Defaults to True, which allows return value log output.
+        It can be set to False to prevent log output of return value when you return huge data
+        such as transmission a large amount of XCom to TaskAPI.
+    :type show_return_value_in_logs: bool
     """
 
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
@@ -145,6 +151,7 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
+        show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
@@ -163,6 +170,7 @@ class PythonOperator(BaseOperator):
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
+        self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Dict):
         context.update(self.op_kwargs)
@@ -171,7 +179,11 @@ class PythonOperator(BaseOperator):
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         return_value = self.execute_callable()
-        self.log.info("Done. Returned value was: %s", return_value)
+        if self.show_return_value_in_logs:
+            self.log.info("Done. Returned value was: %s", return_value)
+        else:
+            self.log.info("Done. Returned value not shown")
+
         return return_value
 
     def execute_callable(self):
@@ -236,7 +248,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         if condition:
             self.log.info('Proceeding with downstream tasks...')
-            return
+            return condition
 
         self.log.info('Skipping downstream tasks...')
 
@@ -303,6 +315,7 @@ class PythonVirtualenvOperator(PythonOperator):
     """
 
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
+        'ds',
         'ds_nodash',
         'inlets',
         'next_ds',
@@ -322,8 +335,13 @@ class PythonVirtualenvOperator(PythonOperator):
         'yesterday_ds_nodash',
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
+        'data_interval_end',
+        'data_interval_start',
         'execution_date',
+        'logical_date',
         'next_execution_date',
+        'prev_data_interval_end_success',
+        'prev_data_interval_start_success',
         'prev_execution_date',
         'prev_execution_date_success',
         'prev_start_date_success',
@@ -376,14 +394,13 @@ class PythonVirtualenvOperator(PythonOperator):
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
         if not self.system_site_packages:
-            if 'lazy-object-proxy' not in self.requirements:
-                self.requirements.append('lazy-object-proxy')
             if self.use_dill and 'dill' not in self.requirements:
                 self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
-    def execute(self, context: Dict):
-        serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
+    def execute(self, context: Context):
+        serializable_keys = set(self._iter_serializable_context_keys())
+        serializable_context = context.copy_only(serializable_keys)
         return super().execute(context=serializable_context)
 
     def execute_callable(self):
@@ -441,19 +458,13 @@ class PythonVirtualenvOperator(PythonOperator):
             with open(filename, 'wb') as file:
                 self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
 
-    def _get_serializable_context_keys(self):
-        def _is_airflow_env():
-            return self.system_site_packages or 'apache-airflow' in self.requirements
-
-        def _is_pendulum_env():
-            return 'pendulum' in self.requirements and 'lazy_object_proxy' in self.requirements
-
-        serializable_context_keys = self.BASE_SERIALIZABLE_CONTEXT_KEYS.copy()
-        if _is_airflow_env():
-            serializable_context_keys.update(self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
-        if _is_pendulum_env() or _is_airflow_env():
-            serializable_context_keys.update(self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS)
-        return serializable_context_keys
+    def _iter_serializable_context_keys(self):
+        yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
+        if self.system_site_packages or 'apache-airflow' in self.requirements:
+            yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
+        elif 'pendulum' in self.requirements:
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
     def _write_string_args(self, filename):
         with open(filename, 'w') as file:
@@ -478,7 +489,7 @@ class PythonVirtualenvOperator(PythonOperator):
         return super().__deepcopy__(memo)
 
 
-def get_current_context() -> Dict[str, Any]:
+def get_current_context() -> Context:
     """
     Obtain the execution context for the currently executing operator without
     altering user method's signature.

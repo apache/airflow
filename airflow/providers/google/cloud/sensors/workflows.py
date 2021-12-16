@@ -73,8 +73,11 @@ class WorkflowExecutionSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
 
-        self.success_states = success_states or {Execution.State.SUCCEEDED}
-        self.failure_states = failure_states or {Execution.State.FAILED, Execution.State.CANCELLED}
+        self.success_states = success_states or {Execution.State(Execution.State.SUCCEEDED)}
+        self.failure_states = failure_states or {
+            Execution.State(Execution.State.FAILED),
+            Execution.State(Execution.State.CANCELLED),
+        }
         self.workflow_id = workflow_id
         self.execution_id = execution_id
         self.location = location

@@ -232,7 +232,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         _, _, evaluate_validation = result
 
-        mock_download.return_value = json.dumps({"err": 0.3, "mse": 0.04, "count": 1100})
+        mock_download.return_value = json.dumps({"err": 0.3, "mse": 0.04, "count": 1100}).encode("utf-8")
         templates_dict = {"prediction_path": PREDICTION_PATH}
         with pytest.raises(ValueError) as ctx:
             evaluate_validation.python_callable(templates_dict=templates_dict)

@@ -23,6 +23,14 @@ from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 
 API_VERSION = "api_version"
 EXTRAS = {"account_id": "act_12345", "app_id": "12345", "app_secret": "1fg444", "access_token": "Ab35gf7E"}
+EXTRAS_MULTIPLE = {
+    "account_id": ["act_12345", "act_12346"],
+    "app_id": "12345",
+    "app_secret": "1fg444",
+    "access_token": "Ab35gf7E",
+}
+ACCOUNT_ID_1 = "act_12345"
+ACCOUNT_ID_2 = "act_12346"
 FIELDS = [
     "campaign_name",
     "campaign_id",
@@ -41,6 +49,14 @@ def mock_hook():
         yield hook
 
 
+@pytest.fixture()
+def mock_hook_multiple():
+    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        hook = FacebookAdsReportingHook(api_version=API_VERSION)
+        conn.return_value.extra_dejson = EXTRAS_MULTIPLE
+        yield hook
+
+
 class TestFacebookAdsReportingHook:
     @mock.patch("airflow.providers.facebook.ads.hooks.ads.FacebookAdsApi")
     def test_get_service(self, mock_api, mock_hook):
@@ -50,7 +66,6 @@ class TestFacebookAdsReportingHook:
             app_id=EXTRAS["app_id"],
             app_secret=EXTRAS["app_secret"],
             access_token=EXTRAS["access_token"],
-            account_id=EXTRAS["account_id"],
             api_version=API_VERSION,
         )
 
@@ -65,6 +80,26 @@ class TestFacebookAdsReportingHook:
             "async_percent_completion": 100,
         }
         mock_hook.bulk_facebook_report(params=PARAMS, fields=FIELDS)
-        mock_ad_account.assert_has_calls([mock.call(mock_client.get_default_account_id(), api=mock_client)])
+        mock_ad_account.assert_has_calls([mock.call(ACCOUNT_ID_1, api=mock_client)])
         ad_account.assert_called_once_with(params=PARAMS, fields=FIELDS, is_async=True)
+        ad_account.return_value.api_get.assert_has_calls([mock.call(), mock.call()])
+
+    @mock.patch("airflow.providers.facebook.ads.hooks.ads.AdAccount")
+    @mock.patch("airflow.providers.facebook.ads.hooks.ads.FacebookAdsApi")
+    def test_bulk_facebook_report_multiple_account_id(self, mock_client, mock_ad_account, mock_hook_multiple):
+        mock_client = mock_client.init()
+        ad_account = mock_ad_account().get_insights
+        ad_account.return_value.api_get.return_value = {
+            "async_status": "Job Completed",
+            "report_run_id": "12345",
+            "async_percent_completion": 100,
+        }
+        mock_hook_multiple.bulk_facebook_report(params=PARAMS, fields=FIELDS)
+        mock_ad_account.assert_has_calls(
+            [mock.call(ACCOUNT_ID_1, api=mock_client)], [mock.call(ACCOUNT_ID_2, api=mock_client)]
+        )
+        ad_account.assert_has_calls(
+            [mock.call(params=PARAMS, fields=FIELDS, is_async=True)],
+            [mock.call(params=PARAMS, fields=FIELDS, is_async=True)],
+        )
         ad_account.return_value.api_get.assert_has_calls([mock.call(), mock.call()])

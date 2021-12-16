@@ -454,6 +454,53 @@ class DataprocMetastoreHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_backup(
+        self,
+        project_id: str,
+        region: str,
+        service_id: str,
+        backup_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+    ) -> Backup:
+        """
+        Get backup from a service.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :type project_id: str
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :type region: str
+        :param service_id:  Required. The ID of the metastore service, which is used as the final component of
+            the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
+            with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
+            hyphens.
+
+            This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
+            provided, this should not be set.
+        :type service_id: str
+        :param backup_id:  Required. The ID of the metastore service backup to restore from
+        :type backup_id: str
+        :param retry: Designation of what errors, if any, should be retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The timeout for this request.
+        :type timeout: float
+        :param metadata: Strings which should be sent along with the request as metadata.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        backup = f'projects/{project_id}/locations/{region}/services/{service_id}/backups/{backup_id}'
+        client = self.get_dataproc_metastore_client()
+        result = client.get_backup(
+            request={
+                'name': backup,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_backups(
         self,
         project_id: str,

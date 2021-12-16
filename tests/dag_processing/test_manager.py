@@ -26,6 +26,7 @@ import sys
 import threading
 import unittest
 from datetime import datetime, timedelta
+from logging.config import dictConfig
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest import mock
@@ -34,6 +35,7 @@ from unittest.mock import MagicMock, PropertyMock
 import pytest
 from freezegun import freeze_time
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
@@ -111,6 +113,7 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
 
 class TestDagFileProcessorManager:
     def setup_method(self):
+        dictConfig(DEFAULT_LOGGING_CONFIG)
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()

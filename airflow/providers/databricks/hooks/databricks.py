@@ -24,6 +24,7 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 """
 import time
 from time import sleep
+from typing import Dict
 from urllib.parse import urlparse
 
 import requests
@@ -34,22 +35,26 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
 RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
 
-INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/install')
-UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/uninstall')
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
+RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
+
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
-AZURE_TOKEN_SERVICE_URL = "https://login.microsoftonline.com/{}/oauth2/token"
+# https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
+AZURE_DEFAULT_AD_ENDPOINT = "https://login.microsoftonline.com"
+AZURE_TOKEN_SERVICE_URL = "{}/{}/oauth2/token"
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
 AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
@@ -62,7 +67,9 @@ DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
 
-    def __init__(self, life_cycle_state: str, result_state: str, state_message: str) -> None:
+    def __init__(
+        self, life_cycle_state: str, result_state: str = '', state_message: str = '', *args, **kwargs
+    ) -> None:
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
         self.state_message = state_message
@@ -129,14 +136,18 @@ class DatabricksHook(BaseHook):
     ) -> None:
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
-        self.databricks_conn = None
         self.timeout_seconds = timeout_seconds
         if retry_limit < 1:
             raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
-        self.aad_tokens = {}
+        self.aad_tokens: Dict[str, dict] = {}
         self.aad_timeout_seconds = 10
+        self.databricks_conn = self.get_connection(self.databricks_conn_id)
+        if 'host' in self.databricks_conn.extra_dejson:
+            self.host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+        else:
+            self.host = self._parse_host(self.databricks_conn.host)
 
     @staticmethod
     def _parse_host(host: str) -> str:
@@ -171,13 +182,11 @@ class DatabricksHook(BaseHook):
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
-        if resource in self.aad_tokens:
-            d = self.aad_tokens[resource]
-            now = int(time.time())
-            if d['expires_on'] > (now - TOKEN_REFRESH_LEAD_TIME):  # it expires in more than 5 minutes
-                return d['token']
-            self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        aad_token = self.aad_tokens.get(resource)
+        if aad_token and self._is_aad_token_valid(aad_token):
+            return aad_token['token']
 
+        self.log.info('Existing AAD token is expired, or going to expire soon. Refreshing...')
         attempt_num = 1
         while True:
             try:
@@ -200,8 +209,11 @@ class DatabricksHook(BaseHook):
                         "resource": resource,
                         "client_secret": self.databricks_conn.password,
                     }
+                    azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
+                        "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
+                    )
                     resp = requests.post(
-                        AZURE_TOKEN_SERVICE_URL.format(tenant_id),
+                        AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
                         data=data,
                         headers={**USER_AGENT_HEADER, 'Content-Type': 'application/x-www-form-urlencoded'},
                         timeout=self.aad_timeout_seconds,
@@ -222,7 +234,7 @@ class DatabricksHook(BaseHook):
                         f'Response: {e.response.content}, Status Code: {e.response.status_code}'
                     )
 
-                self._log_request_error(attempt_num, e)
+                self._log_request_error(attempt_num, e.strerror)
 
             if attempt_num == self.retry_limit:
                 raise AirflowException(f'API requests to Azure failed {self.retry_limit} times. Giving up.')
@@ -230,21 +242,53 @@ class DatabricksHook(BaseHook):
             attempt_num += 1
             sleep(self.retry_delay)
 
-    def _fill_aad_tokens(self, headers: dict) -> str:
+    def _get_aad_headers(self) -> dict:
         """
-        Fills headers if necessary (SPN is outside of the workspace) and generates AAD token
-        :param headers: dictionary with headers to fill-in
-        :return: AAD token
+        Fills AAD headers if necessary (SPN is outside of the workspace)
+        :return: dictionary with filled AAD headers
         """
-        # SP is outside of the workspace
+        headers = {}
         if 'azure_resource_id' in self.databricks_conn.extra_dejson:
             mgmt_token = self._get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
             headers['X-Databricks-Azure-Workspace-Resource-Id'] = self.databricks_conn.extra_dejson[
                 'azure_resource_id'
             ]
             headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token
+        return headers
 
-        return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+    @staticmethod
+    def _is_aad_token_valid(aad_token: dict) -> bool:
+        """
+        Utility function to check AAD token hasn't expired yet
+        :param aad_token: dict with properties of AAD token
+        :type aad_token: dict
+        :return: true if token is valid, false otherwise
+        :rtype: bool
+        """
+        now = int(time.time())
+        if aad_token['expires_on'] > (now + TOKEN_REFRESH_LEAD_TIME):
+            return True
+        return False
+
+    @staticmethod
+    def _check_azure_metadata_service() -> None:
+        """
+        Check for Azure Metadata Service
+        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
+        """
+        try:
+            jsn = requests.get(
+                AZURE_METADATA_SERVICE_TOKEN_URL,
+                params={"api-version": "2021-02-01"},
+                headers={"Metadata": "true"},
+                timeout=2,
+            ).json()
+            if 'compute' not in jsn or 'azEnvironment' not in jsn['compute']:
+                raise AirflowException(
+                    f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
+                )
+        except (requests_exceptions.RequestException, ValueError) as e:
+            raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
 
     def _do_api_call(self, endpoint_info, json):
         """
@@ -261,47 +305,31 @@ class DatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        self.databricks_conn = self.get_connection(self.databricks_conn_id)
+        url = f'https://{self.host}/{endpoint}'
 
-        headers = USER_AGENT_HEADER.copy()
-        if 'host' in self.databricks_conn.extra_dejson:
-            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
-        else:
-            host = self.databricks_conn.host
+        aad_headers = self._get_aad_headers()
+        headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
 
         if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth.')
+            self.log.info(
+                'Using token auth. For security reasons, please set token in Password field instead of extra'
+            )
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+        elif not self.databricks_conn.login and self.databricks_conn.password:
+            self.log.info('Using token auth.')
+            auth = _TokenAuth(self.databricks_conn.password)
         elif 'azure_tenant_id' in self.databricks_conn.extra_dejson:
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")
-
-            self.log.info('Using AAD Token for SPN. ')
-            auth = _TokenAuth(self._fill_aad_tokens(headers))
+            self.log.info('Using AAD Token for SPN.')
+            auth = _TokenAuth(self._get_aad_token(DEFAULT_DATABRICKS_SCOPE))
         elif self.databricks_conn.extra_dejson.get('use_azure_managed_identity', False):
             self.log.info('Using AAD Token for managed identity.')
-            # check for Azure Metadata Service
-            # https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
-            try:
-                jsn = requests.get(
-                    AZURE_METADATA_SERVICE_TOKEN_URL,
-                    params={"api-version": "2021-02-01"},
-                    headers={"Metadata": "true"},
-                    timeout=2,
-                ).json()
-                if 'compute' not in jsn or 'azEnvironment' not in jsn['compute']:
-                    raise AirflowException(
-                        f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
-                    )
-            except (requests_exceptions.RequestException, ValueError) as e:
-                raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
-
-            auth = _TokenAuth(self._fill_aad_tokens(headers))
+            self._check_azure_metadata_service()
+            auth = _TokenAuth(self._get_aad_token(DEFAULT_DATABRICKS_SCOPE))
         else:
             self.log.info('Using basic auth.')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
-
-        url = f'https://{self._parse_host(host)}/{endpoint}'
 
         if method == 'GET':
             request_func = requests.get
@@ -346,31 +374,31 @@ class DatabricksHook(BaseHook):
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
 
-    def run_now(self, json: dict) -> str:
+    def run_now(self, json: dict) -> int:
         """
         Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :type json: dict
-        :return: the run_id as a string
+        :return: the run_id as an int
         :rtype: str
         """
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response['run_id']
 
-    def submit_run(self, json: dict) -> str:
+    def submit_run(self, json: dict) -> int:
         """
         Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :type json: dict
-        :return: the run_id as a string
+        :return: the run_id as an int
         :rtype: str
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
 
-    def get_run_page_url(self, run_id: str) -> str:
+    def get_run_page_url(self, run_id: int) -> str:
         """
         Retrieves run_page_url.
 
@@ -381,21 +409,29 @@ class DatabricksHook(BaseHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
-    def get_job_id(self, run_id: str) -> str:
+    def get_job_id(self, run_id: int) -> int:
         """
         Retrieves job_id from run_id.
 
         :param run_id: id of the run
-        :type run_id: str
+        :type run_id: int
         :return: Job id for given Databricks run
         """
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['job_id']
 
-    def get_run_state(self, run_id: str) -> RunState:
+    def get_run_state(self, run_id: int) -> RunState:
         """
         Retrieves run state of the run.
+
+        Please note that any Airflow tasks that call the ``get_run_state`` method will result in
+        failure unless you have enabled xcom pickling.  This can be done using the following
+        environment variable: ``AIRFLOW__CORE__ENABLE_XCOM_PICKLING``
+
+        If you do not want to enable xcom pickling, use the ``get_run_state_str`` method to get
+        a string describing state, or ``get_run_state_lifecycle``, ``get_run_state_result``, or
+        ``get_run_state_message`` to get individual components of the run state.
 
         :param run_id: id of the run
         :return: state of the run
@@ -403,13 +439,49 @@ class DatabricksHook(BaseHook):
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         state = response['state']
-        life_cycle_state = state['life_cycle_state']
-        # result_state may not be in the state if not terminal
-        result_state = state.get('result_state', None)
-        state_message = state['state_message']
-        return RunState(life_cycle_state, result_state, state_message)
+        return RunState(**state)
 
-    def cancel_run(self, run_id: str) -> None:
+    def get_run_state_str(self, run_id: int) -> str:
+        """
+        Return the string representation of RunState.
+
+        :param run_id: id of the run
+        :return: string describing run state
+        """
+        state = self.get_run_state(run_id)
+        run_state_str = (
+            f"State: {state.life_cycle_state}. Result: {state.result_state}. {state.state_message}"
+        )
+        return run_state_str
+
+    def get_run_state_lifecycle(self, run_id: int) -> str:
+        """
+        Returns the lifecycle state of the run
+
+        :param run_id: id of the run
+        :return: string with lifecycle state
+        """
+        return self.get_run_state(run_id).life_cycle_state
+
+    def get_run_state_result(self, run_id: int) -> str:
+        """
+        Returns the resulting state of the run
+
+        :param run_id: id of the run
+        :return: string with resulting state
+        """
+        return self.get_run_state(run_id).result_state
+
+    def get_run_state_message(self, run_id: int) -> str:
+        """
+        Returns the state message for the run
+
+        :param run_id: id of the run
+        :return: string with state message
+        """
+        return self.get_run_state(run_id).state_message
+
+    def cancel_run(self, run_id: int) -> None:
         """
         Cancels the run.
 
@@ -471,9 +543,6 @@ def _retryable_error(exception) -> bool:
         or exception.response is not None
         and exception.response.status_code >= 500
     )
-
-
-RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
 
 class _TokenAuth(AuthBase):

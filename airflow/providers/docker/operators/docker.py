@@ -58,7 +58,7 @@ class DockerOperator(BaseOperator):
     be provided with the parameter ``docker_conn_id``.
 
     :param image: Docker image from which to create the container.
-        If image tag is omitted, "latest" will be used.
+        If image tag is omitted, "latest" will be used. (templated)
     :type image: str
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
@@ -152,7 +152,7 @@ class DockerOperator(BaseOperator):
     :type retrieve_output_path: Optional[str]
     """
 
-    template_fields = ('command', 'environment', 'container_name')
+    template_fields: Iterable[str] = ('image', 'command', 'environment', 'container_name')
     template_ext = (
         '.sh',
         '.bash',
@@ -281,6 +281,8 @@ class DockerOperator(BaseOperator):
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
             self.environment.pop('AIRFLOW_TMP_DIR', None)
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,

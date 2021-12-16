@@ -94,3 +94,25 @@ All together, here is our DAG:
     :language: python
     :start-after: [START redshift_operator_howto_guide]
     :end-before: [END redshift_operator_howto_guide]
+
+
+.. _howto/operator:RedshiftResumeClusterOperator:
+
+Resume a Redshift Cluster
+"""""""""""""""""""""""""""""""""""""""""""
+
+To resume a 'paused' AWS Redshift Cluster you can use
+:class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift>`
+
+This Operator leverages the AWS CLI
+`resume-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/resume-cluster.html>`__ API
+
+.. _howto/operator:RedshiftPauseClusterOperator:
+
+Pause a Redshift Cluster
+"""""""""""""""""""""""""""""""""""""""""""
+
+To pause an 'available' AWS Redshift Cluster you can use
+:class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift>`
+This Operator leverages the AWS CLI
+`pause-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/pause-cluster.html>`__ API

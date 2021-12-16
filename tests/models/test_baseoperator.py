@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import uuid
 from datetime import date, datetime
+from typing import Any
 from unittest import mock
 
 import jinja2
@@ -577,9 +579,11 @@ class TestBaseOperator:
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
+        _class_arg: Any
+
         def __init_subclass__(cls, class_arg=None, **kwargs) -> None:
             cls._class_arg = class_arg
-            super().__init_subclass__(**kwargs)
+            super().__init_subclass__()
 
         def execute(self, context):
             self.context_arg = context
@@ -597,3 +601,41 @@ def test_init_subclass_args():
 
     assert task_copy._class_arg == class_arg
     assert task_copy.context_arg == context
+
+
+def test_operator_retries_invalid(dag_maker):
+    with pytest.raises(AirflowException) as ctx:
+        with dag_maker():
+            BaseOperator(
+                task_id='test_illegal_args',
+                retries='foo',
+            )
+    assert str(ctx.value) == "'retries' type must be int, not str"
+
+
+@pytest.mark.parametrize(
+    ("retries", "expected"),
+    [
+        pytest.param(None, [], id="None"),
+        pytest.param(5, [], id="5"),
+        pytest.param(
+            "1",
+            [
+                (
+                    "airflow.models.baseoperator.BaseOperator",
+                    logging.WARNING,
+                    "Implicitly converting 'retries' for task test_dag.test_illegal_args from '1' to int",
+                ),
+            ],
+            id="str",
+        ),
+    ],
+)
+def test_operator_retries(caplog, dag_maker, retries, expected):
+    with caplog.at_level(logging.WARNING):
+        with dag_maker():
+            BaseOperator(
+                task_id='test_illegal_args',
+                retries=retries,
+            )
+    assert caplog.record_tuples == expected

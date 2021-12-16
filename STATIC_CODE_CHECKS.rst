@@ -148,6 +148,12 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``       Regenerates the JSON file with cross-provider dependencies
 ------------------------------------ ---------------------------------------------------------------- ------------
+``chart-schema-lint``                  Lint chart/values.schema.json file
+------------------------------------ ---------------------------------------------------------------- ------------
+``capitalized-breeze``                 Breeze has to be Capitalized in Breeze2
+------------------------------------ ---------------------------------------------------------------- ------------
+``changelog-duplicates``               Checks for duplicate changelog entries
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-apache-license``               Checks compatibility with Apache License requirements
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-builtin-literals``             Require literal syntax when initializing Python builtin types

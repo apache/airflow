@@ -91,23 +91,30 @@ Example pod templates
 
 With these requirements in mind, here are some examples of basic ``pod_template_file`` YAML files.
 
+.. note::
+
+    The examples below should work when using default Airflow configuration values. However, many custom
+    configuration values need to be explicitly passed to the pod via this template too. This includes,
+    but is not limited to, sql configuration, required Airflow connections, dag folder path and
+    logging settings. See :doc:`../configurations-ref` for details.
+
 Storing DAGs in the image:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
 Storing DAGs in a ``persistentVolume``:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
 Pulling DAGs from ``git``:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]
@@ -124,7 +131,7 @@ Please note that the scheduler will override the ``metadata.name`` of the V1pod 
 To overwrite the base container of the pod launched by the KubernetesExecutor,
 create a V1pod with a single container, and overwrite the fields as follows:
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
+.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
     :language: python
     :start-after: [START task_with_volume]
     :end-before: [END task_with_volume]
@@ -134,9 +141,8 @@ Note that the following fields **will all be extended** instead of overwritten. 
 To add a sidecar container to the launched pod, create a V1pod with an empty first container with the
 name ``base`` and a second container containing your desired sidecar.
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
+.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
     :language: python
-    :dedent: 8
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]
 
@@ -145,11 +151,38 @@ This will replace the default ``pod_template_file`` named in the airflow.cfg and
 
 Here is an example of a task with both features:
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
-    :language: python
-    :dedent: 8
-    :start-after: [START task_with_template]
-    :end-before: [END task_with_template]
+.. code-block:: python
+
+    import os
+    from datetime import datetime
+
+    from airflow import DAG
+    from airflow.decorators import task
+    from airflow.example_dags.libs.helper import print_stuff
+    from airflow.settings import AIRFLOW_HOME
+
+    from kubernetes.client import models as k8s
+
+    with DAG(
+        dag_id="example_pod_template_file",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+        tags=["example3"],
+    ) as dag:
+        executor_config_template = {
+            "pod_template_file": os.path.join(
+                AIRFLOW_HOME, "pod_templates/basic_template.yaml"
+            ),
+            "pod_override": k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(labels={"release": "stable"})
+            ),
+        }
+
+        @task(executor_config=executor_config_template)
+        def task_with_template():
+            print_stuff()
+
 
 Managing dags and logs
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -184,7 +217,7 @@ In contrast to CeleryExecutor, KubernetesExecutor does not require additional co
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
 Historically, in scenarios such as burstable workloads, this presented a resource utilization advantage over CeleryExecutor, where you needed
-a fixed number of long-running celery worker pods, whether or not there were tasks to run.
+a fixed number of long-running Celery worker pods, whether or not there were tasks to run.
 
 However, the :doc:`official Apache Airflow Helm chart <helm-chart:index>` can automatically scale celery workers down to zero based on the number of tasks in the queue,
 so when using the official chart, this is no longer an advantage.

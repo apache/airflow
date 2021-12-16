@@ -1766,7 +1766,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param labels: A dictionary containing labels for the BiqQuery table.
         :type labels: dict
         :param description: A string containing the description for the BigQuery table.
-        :type descriptin: str
+        :type description: str
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning

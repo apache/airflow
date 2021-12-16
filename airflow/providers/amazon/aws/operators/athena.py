@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import sys
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.models import BaseOperator

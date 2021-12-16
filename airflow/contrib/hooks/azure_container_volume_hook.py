@@ -17,15 +17,15 @@
 # under the License.
 """
 This module is deprecated.
-Please use :mod:`airflow.providers.microsoft.azure.hooks.azure_container_volume`.
+Please use :mod:`airflow.providers.microsoft.azure.hooks.container_volume`.
 """
 
 import warnings
 
-from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook  # noqa
+from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.azure_container_volume`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_volume`.",
     DeprecationWarning,
     stacklevel=2,
 )

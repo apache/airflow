@@ -75,6 +75,47 @@ class TestGlueJobHook(unittest.TestCase):
         ).get_or_create_glue_job()
         assert glue_job == mock_glue_job
 
+    @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    def test_get_or_create_glue_job_worker_type(self, mock_get_conn, mock_get_iam_execution_role):
+        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
+        some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
+        some_s3_bucket = "my-includes"
+
+        mock_glue_job = mock_get_conn.return_value.get_job()['Job']['Name']
+        glue_job = AwsGlueJobHook(
+            job_name='aws_test_glue_job',
+            desc='This is test case job from Airflow',
+            script_location=some_script,
+            iam_role_name='my_test_role',
+            s3_bucket=some_s3_bucket,
+            region_name=self.some_aws_region,
+            create_job_kwargs={'WorkerType': 'G.2X', 'NumberOfWorkers': 60},
+        ).get_or_create_glue_job()
+        assert glue_job == mock_glue_job
+
+    @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    def test_init_worker_type_value_error(self, mock_get_conn, mock_get_iam_execution_role):
+        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
+        some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
+        some_s3_bucket = "my-includes"
+
+        with self.assertRaises(
+            ValueError,
+            msg="ValueError should be raised for specifying the num_of_dpus and worker type together!",
+        ):
+            AwsGlueJobHook(
+                job_name='aws_test_glue_job',
+                desc='This is test case job from Airflow',
+                script_location=some_script,
+                iam_role_name='my_test_role',
+                s3_bucket=some_s3_bucket,
+                region_name=self.some_aws_region,
+                num_of_dpus=20,
+                create_job_kwargs={'WorkerType': 'G.2X', 'NumberOfWorkers': 60},
+            )
+
     @mock.patch.object(AwsGlueJobHook, "get_job_state")
     @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
     @mock.patch.object(AwsGlueJobHook, "get_conn")

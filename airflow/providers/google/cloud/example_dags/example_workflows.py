@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.google.cloud.operators.workflows import (
@@ -30,7 +31,6 @@ from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsUpdateWorkflowOperator,
 )
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
-from airflow.utils.dates import days_ago
 
 LOCATION = os.environ.get("GCP_WORKFLOWS_LOCATION", "us-central1")
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
@@ -80,7 +80,12 @@ SLEEP_WORKFLOW = {
 }
 
 
-with DAG("example_cloud_workflows", schedule_interval='@once', start_date=days_ago(1)) as dag:
+with DAG(
+    "example_cloud_workflows",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
     # [START how_to_create_workflow]
     create_workflow = WorkflowsCreateWorkflowOperator(
         task_id="create_workflow",

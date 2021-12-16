@@ -18,7 +18,7 @@
 
 import json
 from typing import Type
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -177,8 +177,9 @@ def test_create_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((MODEL,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, MODEL)),
 )
 def test_update_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._factory_exists = Mock(return_value=True)
-    hook.update_factory(*user_args)
+    with patch.object(hook, "_factory_exists") as mock_factory_exists:
+        mock_factory_exists.return_value = True
+        hook.update_factory(*user_args)
 
     hook._conn.factories.create_or_update.assert_called_with(*sdk_args)
 
@@ -188,7 +189,8 @@ def test_update_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((MODEL,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, MODEL)),
 )
 def test_update_factory_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._factory_exists = Mock(return_value=False)
+    with patch.object(hook, "_factory_exists") as mock_factory_exists:
+        mock_factory_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Factory .+ does not exist"):
         hook.update_factory(*user_args)
@@ -229,8 +231,9 @@ def test_create_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._linked_service_exists = Mock(return_value=True)
-    hook.update_linked_service(*user_args)
+    with patch.object(hook, "_linked_service_exists") as mock_linked_service_exists:
+        mock_linked_service_exists.return_value = True
+        hook.update_linked_service(*user_args)
 
     hook._conn.linked_services.create_or_update(*sdk_args)
 
@@ -240,7 +243,8 @@ def test_update_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_linked_service_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._linked_service_exists = Mock(return_value=False)
+    with patch.object(hook, "_linked_service_exists") as mock_linked_service_exists:
+        mock_linked_service_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Linked service .+ does not exist"):
         hook.update_linked_service(*user_args)
@@ -281,8 +285,9 @@ def test_create_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._dataset_exists = Mock(return_value=True)
-    hook.update_dataset(*user_args)
+    with patch.object(hook, "_dataset_exists") as mock_dataset_exists:
+        mock_dataset_exists.return_value = True
+        hook.update_dataset(*user_args)
 
     hook._conn.datasets.create_or_update.assert_called_with(*sdk_args)
 
@@ -292,7 +297,8 @@ def test_update_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_dataset_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._dataset_exists = Mock(return_value=False)
+    with patch.object(hook, "_dataset_exists") as mock_dataset_exists:
+        mock_dataset_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Dataset .+ does not exist"):
         hook.update_dataset(*user_args)
@@ -333,8 +339,9 @@ def test_create_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._pipeline_exists = Mock(return_value=True)
-    hook.update_pipeline(*user_args)
+    with patch.object(hook, "_pipeline_exists") as mock_pipeline_exists:
+        mock_pipeline_exists.return_value = True
+        hook.update_pipeline(*user_args)
 
     hook._conn.pipelines.create_or_update.assert_called_with(*sdk_args)
 
@@ -344,7 +351,8 @@ def test_update_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_pipeline_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._pipeline_exists = Mock(return_value=False)
+    with patch.object(hook, "_pipeline_exists") as mock_pipeline_exists:
+        mock_pipeline_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Pipeline .+ does not exist"):
         hook.update_pipeline(*user_args)
@@ -451,8 +459,9 @@ def test_create_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._trigger_exists = Mock(return_value=True)
-    hook.update_trigger(*user_args)
+    with patch.object(hook, "_trigger_exists") as mock_trigger_exists:
+        mock_trigger_exists.return_value = True
+        hook.update_trigger(*user_args)
 
     hook._conn.triggers.create_or_update.assert_called_with(*sdk_args)
 
@@ -462,7 +471,8 @@ def test_update_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_trigger_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._trigger_exists = Mock(return_value=False)
+    with patch.object(hook, "_trigger_exists") as mock_trigger_exists:
+        mock_trigger_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Trigger .+ does not exist"):
         hook.update_trigger(*user_args)

@@ -23,6 +23,8 @@ LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 source "${LIBRARIES_DIR}/_all_libs.sh"
 
+python3 "$( dirname "${BASH_SOURCE[0]}" )/ci_run_docker_tests.py" "--initialize"
+
 initialization::set_output_color_variables
 
 export PARALLEL_TAIL_LENGTH=5

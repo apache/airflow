@@ -23,6 +23,7 @@ This example requires that your project contains Datastore instance.
 """
 
 import os
+from datetime import datetime
 from typing import Any, Dict
 
 from airflow import models
@@ -30,12 +31,15 @@ from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
     CloudDatastoreBeginTransactionOperator,
     CloudDatastoreCommitOperator,
+    CloudDatastoreDeleteOperationOperator,
     CloudDatastoreExportEntitiesOperator,
+    CloudDatastoreGetOperationOperator,
     CloudDatastoreImportEntitiesOperator,
     CloudDatastoreRollbackOperator,
     CloudDatastoreRunQueryOperator,
 )
-from airflow.utils import dates
+
+START_DATE = datetime(2021, 1, 1)
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
@@ -43,7 +47,8 @@ BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 with models.DAG(
     "example_gcp_datastore",
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     tags=["example"],
 ) as dag:
     # [START how_to_export_task]
@@ -82,8 +87,9 @@ TRANSACTION_OPTIONS: Dict[str, Any] = {"readWrite": {}}
 
 with models.DAG(
     "example_gcp_datastore_operations",
-    start_date=dates.days_ago(1),
     schedule_interval='@once',  # Override to match your needs
+    start_date=START_DATE,
+    catchup=False,
     tags=["example"],
 ) as dag2:
     # [START how_to_allocate_ids]
@@ -160,3 +166,20 @@ with models.DAG(
     #   begin_transaction_commit >> commit_task
     #   begin_transaction_to_rollback >> rollback_transaction
     #   begin_transaction_query >> run_query
+
+    OPERATION_NAME = 'operations/example-operation-unique-id'
+    # [START get_operation_state]
+    get_operation = CloudDatastoreGetOperationOperator(
+        task_id='get_operation',
+        name=OPERATION_NAME,
+        gcp_conn_id='google_cloud_default',
+    )
+    # [END get_operation_state]
+
+    # [START delete_operation]
+    delete_operation = CloudDatastoreDeleteOperationOperator(
+        task_id='delete_operation',
+        name=OPERATION_NAME,
+        gcp_conn_id='google_cloud_default',
+    )
+    # [END delete_operation]

@@ -24,7 +24,7 @@ import re
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin
 from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
 
 
-class TaskGroup(TaskMixin):
+class TaskGroup(DependencyMixin):
     """
     A collection of tasks. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
@@ -115,22 +115,10 @@ class TaskGroup(TaskMixin):
                 raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
             self.used_group_ids = self._parent_group.used_group_ids
 
-        self._group_id = group_id
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
-        if group_id in self.used_group_ids:
-            if not add_suffix_on_collision:
-                raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
-            base = re.split(r'__\d+$', group_id)[0]
-            suffixes = sorted(
-                int(re.split(r'^.+__', used_group_id)[1])
-                for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
-            )
-            if not suffixes:
-                self._group_id += '__1'
-            else:
-                self._group_id = f'{base}__{suffixes[-1] + 1}'
+        self._group_id = group_id
+        self._check_for_group_id_collisions(add_suffix_on_collision)
 
         self.used_group_ids.add(self.group_id)
         self.used_group_ids.add(self.downstream_join_id)
@@ -149,6 +137,25 @@ class TaskGroup(TaskMixin):
         self.downstream_group_ids: Set[Optional[str]] = set()
         self.upstream_task_ids: Set[Optional[str]] = set()
         self.downstream_task_ids: Set[Optional[str]] = set()
+
+    def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
+        if self._group_id is None:
+            return
+        # if given group_id already used assign suffix by incrementing largest used suffix integer
+        # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
+        if self._group_id in self.used_group_ids:
+            if not add_suffix_on_collision:
+                raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
+            base = re.split(r'__\d+$', self._group_id)[0]
+            suffixes = sorted(
+                int(re.split(r'^.+__', used_group_id)[1])
+                for used_group_id in self.used_group_ids
+                if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
+            )
+            if not suffixes:
+                self._group_id += '__1'
+            else:
+                self._group_id = f'{base}__{suffixes[-1] + 1}'
 
     @classmethod
     def create_root(cls, dag: "DAG") -> "TaskGroup":
@@ -193,7 +200,7 @@ class TaskGroup(TaskMixin):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(self, other: "TaskMixin", upstream=True) -> None:
+    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -226,7 +233,7 @@ class TaskGroup(TaskMixin):
                     self.downstream_task_ids.add(task.task_id)
 
     def _set_relative(
-        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], upstream: bool = False
+        self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]], upstream: bool = False
     ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
@@ -245,11 +252,13 @@ class TaskGroup(TaskMixin):
         for task_like in task_or_task_list:
             self.update_relative(task_like, upstream)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_downstream(
+        self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]]
+    ) -> None:
         """Set a TaskGroup/task/list of task downstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_upstream(self, task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]]) -> None:
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 

@@ -238,6 +238,7 @@ repos:
           ^scripts/.*\.py$|
           ^dev|
           ^provider_packages|
+          ^docker_tests|
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
@@ -403,6 +404,13 @@ repos:
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
           git|
           ^CHANGELOG\.txt$
+      - id: capitalized-breeze
+        language: pygrep
+        name: Only capitalized Breeze used in Breeze2.
+        description: Please use capitalized "Breeze" in the new Breeze docs
+        entry: "breeze"
+        pass_filenames: true
+        files: ^dev/breeze/doc
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -623,7 +631,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-url
-          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.18.15-standalone/service-v1.json
+          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json
         language: python
         pass_filenames: true
         files: scripts/ci/kubernetes/nodeport.yaml
@@ -676,6 +684,13 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: chart-schema-lint
+        name: Lint chart/values.schema.json file
+        entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py
+        language: python
+        pass_filenames: false
+        files: ^chart/values\.schema\.json$
+        require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node
@@ -690,6 +705,12 @@ repos:
         files: ^airflow/www/static/js/
         entry: scripts/ci/static_checks/www_lint.sh
         pass_filenames: false
+      - id: changelog-duplicates
+        name: Check changelogs for duplicate entries
+        language: python
+        files: CHANGELOG\.txt$|CHANGELOG\.rst$
+        entry: scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
+        pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
@@ -707,22 +728,23 @@ repos:
       - id: mypy
         name: Run mypy
         language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/
+        exclude: ^provider_packages|^chart|^docs|^airflow/_vendor/
+        require_serial: true
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^chart/.*\.py$
-        require_serial: false
+        require_serial: true
       - id: mypy
         name: Run mypy for /docs/ folder
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^docs/.*\.py$
         exclude: rtd-deprecation
-        require_serial: false
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system

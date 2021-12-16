@@ -19,7 +19,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import pytz
 from google.api_core.exceptions import AlreadyExists
@@ -179,7 +179,7 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        update_mask: Optional[FieldMask] = None,
+        update_mask: Optional[Union[FieldMask, Dict[str, List[str]]]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -299,8 +299,8 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
 
     :param filter_: Filter to restrict results to specific workflows.
     :type filter_: str
-    :param order_by: Comma-separated list of fields that that
-        specify the order of the results. Default sorting order for a field is ascending.
+    :param order_by: Comma-separated list of fields that
+        specifies the order of the results. Default sorting order for a field is ascending.
         To specify descending order for a field, append a "desc" suffix.
         If not specified, the results will be returned in an unspecified order.
     :type order_by: str

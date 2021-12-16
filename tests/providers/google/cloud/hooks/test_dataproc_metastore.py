@@ -130,6 +130,24 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    def test_get_backup(self, mock_client) -> None:
+        self.hook.get_backup(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            service_id=TEST_SERVICE_ID,
+            backup_id=TEST_BACKUP_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.get_backup.assert_called_once_with(
+            request=dict(
+                name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
+            ),
+            metadata=(),
+            retry=None,
+            timeout=None,
+        )
+
+    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
     def test_delete_backup(self, mock_client) -> None:
         self.hook.delete_backup(
             project_id=TEST_PROJECT_ID,
