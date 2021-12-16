@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.emr`."""
 
 import warnings
@@ -31,14 +31,14 @@ warnings.warn(
 class EMRContainerOperator(EmrContainerOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`.
+    Please use :class:`airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`.
     """
 
     def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
-           Please use `airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`.""",
+            Please use `airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(**kwargs)

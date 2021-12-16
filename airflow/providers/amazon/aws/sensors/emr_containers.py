@@ -32,7 +32,7 @@ warnings.warn(
 class EMRContainerSensor(EmrContainerSensor):
     """
     This class is deprecated.
-    Please use `airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
+    Please use  :class:`airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
     """
 
     def __init__(self, **kwargs):
@@ -40,6 +40,6 @@ class EMRContainerSensor(EmrContainerSensor):
             """This class is deprecated.
            Please use `airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(**kwargs)
