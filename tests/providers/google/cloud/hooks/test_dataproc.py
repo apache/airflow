@@ -241,7 +241,7 @@ class TestDataprocHook(unittest.TestCase):
                 cluster=CLUSTER,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -258,7 +258,7 @@ class TestDataprocHook(unittest.TestCase):
                 cluster_uuid=None,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -273,7 +273,7 @@ class TestDataprocHook(unittest.TestCase):
                 region=GCP_LOCATION,
                 cluster_name=CLUSTER_NAME,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -289,7 +289,7 @@ class TestDataprocHook(unittest.TestCase):
                 region=GCP_LOCATION,
                 cluster_name=CLUSTER_NAME,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -307,7 +307,7 @@ class TestDataprocHook(unittest.TestCase):
                 filter=filter_,
                 page_size=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -333,7 +333,7 @@ class TestDataprocHook(unittest.TestCase):
                 graceful_decommission_timeout=None,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -364,7 +364,7 @@ class TestDataprocHook(unittest.TestCase):
                     graceful_decommission_timeout=None,
                     request_id=None,
                 ),
-                metadata=None,
+                metadata=(),
                 retry=None,
                 timeout=None,
             )
@@ -532,7 +532,7 @@ class TestDataprocHook(unittest.TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
@@ -552,7 +552,7 @@ class TestDataprocHook(unittest.TestCase):
                 ),
                 retry=None,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
             assert warning_message == str(warnings[0].message)
 
@@ -572,7 +572,7 @@ class TestDataprocHook(unittest.TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
@@ -593,7 +593,7 @@ class TestDataprocHook(unittest.TestCase):
                 ),
                 retry=None,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
             assert warning_message == str(warnings[0].message)
         with pytest.raises(TypeError):
@@ -620,7 +620,7 @@ class TestDataprocHook(unittest.TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
@@ -636,7 +636,7 @@ class TestDataprocHook(unittest.TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
@@ -656,7 +656,7 @@ class TestDataprocHook(unittest.TestCase):
                 ),
                 retry=None,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
             assert warning_message == str(warnings[0].message)
 
@@ -676,7 +676,7 @@ class TestDataprocHook(unittest.TestCase):
                 batch_id=BATCH_ID,
                 request_id=None,
             ),
-            metadata="",
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -693,7 +693,7 @@ class TestDataprocHook(unittest.TestCase):
             request=dict(
                 name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -710,7 +710,7 @@ class TestDataprocHook(unittest.TestCase):
             request=dict(
                 name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -728,7 +728,7 @@ class TestDataprocHook(unittest.TestCase):
                 page_size=None,
                 page_token=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

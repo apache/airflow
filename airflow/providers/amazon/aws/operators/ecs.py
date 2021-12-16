@@ -470,7 +470,7 @@ class ECSOperator(BaseOperator):
                 )
             containers = task['containers']
             for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
+                if container.get('lastStatus') == 'STOPPED' and container.get('exitCode', 1) != 0:
                     if self.task_log_fetcher:
                         last_logs = "\n".join(
                             self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)

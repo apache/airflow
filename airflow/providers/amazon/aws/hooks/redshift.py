@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS Redshift clusters."""
-
+import sys
 from typing import Dict, List, Optional, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 import redshift_connector
@@ -212,7 +212,7 @@ class RedshiftSQLHook(DbApiHook):
 
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> List[str]:
+    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> Optional[List[str]]:
         """
         Helper method that returns the table primary key
         :param table: Name of the target table
@@ -239,8 +239,8 @@ class RedshiftSQLHook(DbApiHook):
     def get_conn(self) -> RedshiftConnection:
         """Returns a redshift_connector.Connection object"""
         conn_params = self._get_conn_params()
-        conn_kwargs = self.conn.extra_dejson
-        conn_kwargs: Dict = {**conn_params, **conn_kwargs}
+        conn_kwargs_dejson = self.conn.extra_dejson
+        conn_kwargs: Dict = {**conn_params, **conn_kwargs_dejson}
         conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
 
         return conn

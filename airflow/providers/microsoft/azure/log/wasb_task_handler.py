@@ -17,13 +17,14 @@
 # under the License.
 import os
 import shutil
+import sys
 from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 
-try:
-    from functools import cached_property  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
     from cached_property import cached_property
 
 from airflow.configuration import conf

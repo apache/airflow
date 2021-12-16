@@ -22,12 +22,13 @@ if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
+
 from kubernetes import client, config, watch
 
 try:
     import airflow.utils.yaml as yaml
 except ImportError:
-    import yaml
+    import yaml  # type: ignore[no-redef]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -253,7 +254,6 @@ class KubernetesHook(BaseHook):
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson
             namespace = extras.get("extra__kubernetes__namespace", "default")
-
         return namespace
 
     def get_pod_log_stream(
