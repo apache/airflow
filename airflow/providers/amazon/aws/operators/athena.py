@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import warnings
 import sys
+import warnings
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
