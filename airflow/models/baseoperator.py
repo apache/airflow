@@ -209,6 +209,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             result = func(self, **kwargs, default_args=default_args)
             # Store the args passed to init -- we need them to support task.map serialzation!
+            kwargs.pop('task_id', None)
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
             # Here we set upstream task defined by XComArgs passed to template fields of the operator
@@ -1673,7 +1674,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
 
 def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
-    if isinstance(str, cls):
+    if isinstance(cls, str):
         # Serialized version -- would have been validated at parse time
         return
 
@@ -1702,11 +1703,31 @@ def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, v
         raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
 
 
-@attr.define(kw_only=True)
+def _MappedOperator_minimal_repr(cls, fields):
+    results = []
+    fields = iter(fields)
+    for field in fields:
+        results.append(field)
+        if field.name == "dag":
+            # Everything after 'dag' attribute is exluced form repr
+            break
+
+    for field in fields:
+        results.append(field.evolve(repr=False))
+    return results
+
+
+@attr.define(kw_only=True, field_transformer=_MappedOperator_minimal_repr)
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
 
-    operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
+    def _operator_class_repr(val):
+        # Can be a string if we are de-serialized
+        if isinstance(val, str):
+            return val.rsplit('.', 1)[-1]
+        return val.__name__
+
+    operator_class: Type[BaseOperator] = attr.ib(repr=_operator_class_repr)
     task_type: str = attr.ib()
     task_id: str
     partial_kwargs: Dict[str, Any]
@@ -1714,16 +1735,35 @@ class MappedOperator(DAGNode):
         validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
     )
     dag: Optional["DAG"] = None
-    upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
-    downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
+    upstream_task_ids: Set[str] = attr.ib(factory=set)
+    downstream_task_ids: Set[str] = attr.ib(factory=set)
 
-    task_group: Optional["TaskGroup"] = attr.ib(repr=False)
-
+    task_group: Optional["TaskGroup"] = attr.ib()
     # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
     start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
     end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
     owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
     max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
+
+    # Needed for SerializedBaseOperator
+    _is_dummy: bool = attr.ib()
+
+    deps: Iterable[BaseTIDep] = attr.ib()
+    operator_extra_links: Iterable['BaseOperatorLink'] = ()
+    params: ParamsDict = None
+    template_fields: Iterable[str] = attr.ib()
+
+    del _operator_class_repr
+
+    @_is_dummy.default
+    def _is_dummy_default(self):
+        from airflow.operators.dummy import DummyOperator
+
+        return issubclass(self.operator_class, DummyOperator)
+
+    @deps.default
+    def _deps_from_class(self):
+        return self.operator_class.deps
 
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
@@ -1744,6 +1784,8 @@ class MappedOperator(DAGNode):
             mapped_kwargs=mapped_kwargs,
             owner=operator.owner,
             max_active_tis_per_dag=operator.max_active_tis_per_dag,
+            deps=operator.deps,
+            params=operator.params,
         )
 
     @classmethod
@@ -1789,6 +1831,10 @@ class MappedOperator(DAGNode):
 
         return TaskGroupContext.get_current_task_group(self.dag)
 
+    @template_fields.default
+    def _template_fields_default(self):
+        return self.operator_class.template_fields
+
     @property
     def node_id(self):
         return self.task_id
@@ -1819,6 +1865,28 @@ class MappedOperator(DAGNode):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
+
+    @property
+    def inherits_from_dummy_operator(self):
+        """Used to determine if an Operator is inherited from DummyOperator"""
+        # This looks like `isinstance(self, DummyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
+        # of its sub-classes (which don't inherit from anything but BaseOperator).
+        return getattr(self, '_is_dummy', False)
+
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: ClassVar[Optional[FrozenSet[str]]] = None
+
+    @classmethod
+    def get_serialized_fields(cls):
+        if cls.__serialized_fields is None:
+            fields_dict = attr.fields_dict(cls)
+            cls.__serialized_fields = frozenset(
+                fields_dict.keys()
+                - {'deps', 'inherits_from_dummy_operator', 'operator_extra_links', 'upstream_task_ids'}
+                | {'template_fields'}
+            )
+        return cls.__serialized_fields
 
 
 # TODO: Deprecate for Airflow 3.0

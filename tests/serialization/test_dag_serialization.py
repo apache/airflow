@@ -1549,3 +1549,31 @@ def test_kubernetes_optional():
 
         # basic serialization should succeed
         module.SerializedDAG.to_dict(make_simple_dag()["simple_dag"])
+
+
+def test_mapped_operator_serde():
+    real_op = BashOperator.partial(task_id='a').map(bash_command=[1, 2, {'a': 'b'}])
+
+    serialized = SerializedBaseOperator._serialize(real_op)
+
+    assert serialized == {
+        '_is_dummy': False,
+        '_is_mapped': True,
+        '_task_module': 'airflow.operators.bash',
+        '_task_type': 'BashOperator',
+        'downstream_task_ids': [],
+        'mapped_kwargs': {
+            'bash_command': [
+                1,
+                2,
+                {"__type": "dict", "__var": {'a': 'b'}},
+            ]
+        },
+        'partial_kwargs': {},
+        'task_id': 'a',
+        'template_fields': ['bash_command', 'env'],
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+
+    assert op.operator_class == "airflow.operators.bash.BashOperator"

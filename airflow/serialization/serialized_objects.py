@@ -31,7 +31,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink, MappedOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
 from airflow.models.param import Param, ParamsDict
@@ -303,6 +303,8 @@ class BaseSerialization:
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
             return SerializedDAG.serialize_dag(var)
+        elif isinstance(var, MappedOperator):
+            return SerializedBaseOperator.serialize_mapped_operator(var)
         elif isinstance(var, BaseOperator):
             return SerializedBaseOperator.serialize_operator(var)
         elif isinstance(var, cls._datetime_types):
@@ -538,6 +540,14 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self._task_type = task_type
 
     @classmethod
+    def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
+        serialize_op = cls.serialize_operator(op)
+        serialize_op['_task_type'] = op.operator_class.__name__
+        serialize_op['_task_module'] = op.operator_class.__module__
+        serialize_op['_is_mapped'] = True
+        return serialize_op
+
+    @classmethod
     def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
@@ -588,7 +598,21 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
         """Deserializes an operator from a JSON object."""
-        op = SerializedBaseOperator(task_id=encoded_op['task_id'])
+        # Check if it's a mapped operator
+        if "mapped_kwargs" in encoded_op:
+            op = MappedOperator(
+                task_id=encoded_op['task_id'],
+                dag=None,
+                operator_class='.'.join(filter(None, (encoded_op['_task_module'], encoded_op['_task_type']))),
+                # These are all re-set later
+                partial_kwargs={},
+                mapped_kwargs={},
+                deps=tuple(),
+                is_dummy=False,
+                template_fields=(),
+            )
+        else:
+            op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
@@ -625,7 +649,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if k == "label":
                 # Label shouldn't be set anymore --  it's computed from task_id now
                 continue
-            if k == "_downstream_task_ids":
+            if k in {"_downstream_task_ids", "downstream_task_ids"}:
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
@@ -655,10 +679,14 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize(v)
             # else use v as it is
 
-            setattr(op, k, v)
+            if hasattr(op, k) and isinstance(v, set):
+                getattr(op, k).update(v)
+            else:
+                setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
-            setattr(op, k, None)
+            if not hasattr(op, k):
+                setattr(op, k, None)
 
         # Set all the template_field to None that were not present in Serialized JSON
         for field in op.template_fields:

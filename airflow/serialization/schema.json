@@ -211,7 +211,13 @@
         "doc_md":  { "type": "string" },
         "doc_json":  { "type": "string" },
         "doc_yaml":  { "type": "string" },
-        "doc_rst":  { "type": "string" }
+        "doc_rst":  { "type": "string" },
+        "mapped_kwargs": { "type": "object" },
+        "partial_kwargs": { "type": "object" }
+      },
+      "dependencies": {
+        "mapped_kwargs":[ "partial_kwargs"],
+        "partial_kwargs":[ "mapped_kwargs"]
       },
       "additionalProperties": true
     },
