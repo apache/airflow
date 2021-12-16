@@ -1657,7 +1657,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def delete(self):
         """Deletes DAG."""
-        from airflow.api.common.experimental import delete_dag
+        from airflow.api.common import delete_dag
         from airflow.exceptions import DagNotFound
 
         dag_id = request.values.get('dag_id')

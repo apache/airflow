@@ -125,10 +125,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
 @provide_session
 def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete the specific DAG."""
-    # TODO: This function is shared with the /delete endpoint used by the web
-    # UI, so we're reusing it to simplify maintenance. Refactor the function to
-    # another place when the experimental/legacy API is removed.
-    from airflow.api.common.experimental import delete_dag as delete_dag_module
+    from airflow.api.common import delete_dag as delete_dag_module
 
     try:
         delete_dag_module.delete_dag(dag_id, session=session)

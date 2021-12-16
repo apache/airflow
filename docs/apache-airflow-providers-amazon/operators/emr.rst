@@ -31,12 +31,12 @@ Overview
 
 Airflow to AWS EMR integration provides several operators to create and interact with EMR service.
 
- - :class:`~airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor`
- - :class:`~airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr_modify_cluster.EmrModifyClusterOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator`
 
 Two example_dags are provided which showcase these operators in action.
 
