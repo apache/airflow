@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Classes for interacting with Kubernetes API"""
-"""This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements`
+"""Classes for interacting with Kubernetes API
+This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements`
 and :mod:`kubernetes.client.models.V1ContainerPort`."""
+
 import warnings
 
 from kubernetes.client import models as k8s
