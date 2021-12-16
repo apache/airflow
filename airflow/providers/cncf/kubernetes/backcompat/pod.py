@@ -14,9 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Classes for interacting with Kubernetes API
+"""
+Classes for interacting with Kubernetes API.
+
 This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements`
-and :mod:`kubernetes.client.models.V1ContainerPort`."""
+and :mod:`kubernetes.client.models.V1ContainerPort`.
+"""
 
 import warnings
 
@@ -33,7 +36,7 @@ warnings.warn(
 
 
 class Resources:
-    """backwards compat for Resources"""
+    """backwards compat for Resources."""
 
     __slots__ = (
         'request_memory',
