@@ -39,7 +39,7 @@ With ``KubernetesExecutor`` or ``CeleryKubernetesExecutor`` you can also provide
 This may be useful if you need different configuration between worker types for ``CeleryKubernetesExecutor``
 or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
 
-As an example, let's say we want to set ``priorityClassName`` on our workers:
+As an example, let's say you want to set ``priorityClassName`` on your workers:
 
 .. note::
 
