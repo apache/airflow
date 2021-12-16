@@ -220,3 +220,6 @@ pip-wheel-metadata
 
 # Generated UI licenses
 licenses/LICENSES-ui.txt
+
+# Packaged Breeze2 on Windows
+/Breeze2.exe

@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import json
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
@@ -49,10 +51,28 @@ class Param:
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
+        if self.has_value:
+            self._validate(self.value, self.schema)
+
+    @staticmethod
+    def _validate(value, schema):
+        """
+        1. Check that value is json-serializable; if not, warn.  In future release we will require
+        the value to be json-serializable.
+        2. Validate ``value`` against ``schema``
+        """
+        try:
+            json.dumps(value)
+        except Exception:
+            warnings.warn(
+                "The use of non-json-serializable params is deprecated and will be removed in "
+                "a future release",
+                DeprecationWarning,
+            )
         # If we have a value, validate it once. May raise ValueError.
-        if not isinstance(default, ArgNotSet):
+        if not isinstance(value, ArgNotSet):
             try:
-                jsonschema.validate(self.value, self.schema, format_checker=FormatChecker())
+                jsonschema.validate(value, schema, format_checker=FormatChecker())
             except ValidationError as err:
                 raise ValueError(err)
 
