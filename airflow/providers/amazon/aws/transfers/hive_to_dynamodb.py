@@ -22,7 +22,7 @@ import json
 from typing import TYPE_CHECKING, Callable, Optional, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 
 if TYPE_CHECKING:
@@ -96,7 +96,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         self.log.info(self.sql)
 
         data = hive.get_pandas_df(self.sql, schema=self.schema)
-        dynamodb = AwsDynamoDBHook(
+        dynamodb = DynamoDBHook(
             aws_conn_id=self.aws_conn_id,
             table_name=self.table_name,
             table_keys=self.table_keys,

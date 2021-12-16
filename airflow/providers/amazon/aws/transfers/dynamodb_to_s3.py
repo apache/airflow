@@ -29,7 +29,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Optional
 from uuid import uuid4
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 if TYPE_CHECKING:
@@ -129,7 +129,7 @@ class DynamoDBToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context') -> None:
-        hook = AwsDynamoDBHook(aws_conn_id=self.aws_conn_id)
+        hook = DynamoDBHook(aws_conn_id=self.aws_conn_id)
         table = hook.get_conn().Table(self.dynamodb_table_name)
 
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
