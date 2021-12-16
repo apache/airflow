@@ -17,7 +17,9 @@
 # under the License.
 #
 from datetime import datetime
-from typing import Callable, Dict, List, Mapping, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Sequence, TypeVar
+
+R = TypeVar("R")
 
 AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
     'AIRFLOW_CONTEXT_DAG_ID': {'default': 'airflow.ctx.dag_id', 'env_var_format': 'AIRFLOW_CTX_DAG_ID'},
@@ -41,7 +43,7 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 }
 
 
-def context_to_airflow_vars(context, in_env_var_format=False):
+def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> Dict[str, str]:
     """
     Given a context, this function provides a dictionary of values that can be used to
     externally reconstruct relations between dags, dag_runs, tasks and task_instances.
@@ -88,7 +90,11 @@ def context_to_airflow_vars(context, in_env_var_format=False):
     return params
 
 
-def determine_kwargs(func: Callable, args: Union[Tuple, List], kwargs: Mapping) -> Dict:
+def determine_kwargs(
+    func: Callable[..., Any],
+    args: Sequence[Any],
+    kwargs: Mapping[str, Any],
+) -> Mapping[str, Any]:
     """
     Inspect the signature of a given callable to determine which arguments in kwargs need
     to be passed to the callable.
@@ -118,7 +124,7 @@ def determine_kwargs(func: Callable, args: Union[Tuple, List], kwargs: Mapping) 
     return {key: kwargs[key] for key in signature.parameters if key in kwargs}
 
 
-def make_kwargs_callable(func: Callable) -> Callable:
+def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
     """
     Make a new callable that can accept any number of positional or keyword arguments
     but only forwards those required by the given callable func.
