@@ -218,7 +218,7 @@ class EksCreateNodegroupOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSCreateNodegroupOperator`
+        :ref:`howto/operator:EksCreateNodegroupOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster to create the managed nodegroup in. (templated)
     :type cluster_name: str
