@@ -18,7 +18,7 @@
 Customizing Workers
 ===================
 
-Both ``CeleryExecutor`` and ``KubernetsExecutor`` workers can be highly customized with the :ref:`workers parameters <parameters:workers>`.
+Both ``CeleryExecutor`` and ``KubernetesExecutor`` workers can be highly customized with the :ref:`workers parameters <parameters:workers>`.
 For example, to set resources on workers:
 
 .. code-block:: yaml
