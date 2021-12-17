@@ -107,15 +107,15 @@ class DecoratedOperator(BaseOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Tuple[str, ...] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
     def __init__(
         self,
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: List,
-        op_kwargs: Dict[str, Any],
+        op_args: Optional[List] = None,
+        op_kwargs: Optional[Dict] = None,
         multiple_outputs: bool = False,
         kwargs_to_upstream: Optional[Dict] = None,
         **kwargs,
@@ -123,6 +123,8 @@ class DecoratedOperator(BaseOperator):
         kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
+        op_args = op_args or []
+        op_kwargs = op_kwargs or {}
 
         # Check that arguments can be binded
         signature(python_callable).bind(*op_args, **op_kwargs)

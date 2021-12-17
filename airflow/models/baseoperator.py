@@ -444,7 +444,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     )
 
     # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs: Tuple[str, ...] = ()
+    shallow_copy_attrs: Sequence[str] = ()
 
     # Defines the operator level extra links
     operator_extra_links: Iterable['BaseOperatorLink'] = ()
