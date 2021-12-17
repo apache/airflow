@@ -19,7 +19,7 @@ import unittest
 
 import boto3
 
-from airflow.providers.amazon.aws.sensors.redshift_cluster import AwsRedshiftClusterSensor
+from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 
 try:
     from moto import mock_redshift
@@ -27,7 +27,7 @@ except ImportError:
     mock_redshift = None
 
 
-class TestAwsRedshiftClusterSensor(unittest.TestCase):
+class TestRedshiftClusterSensor(unittest.TestCase):
     @staticmethod
     def _create_cluster():
         client = boto3.client('redshift', region_name='us-east-1')
@@ -44,7 +44,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
     @mock_redshift
     def test_poke(self):
         self._create_cluster()
-        op = AwsRedshiftClusterSensor(
+        op = RedshiftClusterSensor(
             task_id='test_cluster_sensor',
             poke_interval=1,
             timeout=5,
@@ -58,7 +58,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
     @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
-        op = AwsRedshiftClusterSensor(
+        op = RedshiftClusterSensor(
             task_id='test_cluster_sensor',
             poke_interval=1,
             timeout=5,
@@ -73,7 +73,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
     @mock_redshift
     def test_poke_cluster_not_found(self):
         self._create_cluster()
-        op = AwsRedshiftClusterSensor(
+        op = RedshiftClusterSensor(
             task_id='test_cluster_sensor',
             poke_interval=1,
             timeout=5,

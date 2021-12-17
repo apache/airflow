@@ -21,7 +21,7 @@ from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
 
-class AwsRedshiftClusterSensor(BaseSensorOperator):
+class RedshiftClusterSensor(BaseSensorOperator):
     """
     Waits for a Redshift cluster to reach a specific status.
 
@@ -58,3 +58,20 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
 
         self.hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         return self.hook
+
+
+class AwsRedshiftClusterSensor(RedshiftClusterSensor):
+    """
+    AwsRedshiftClusterSensor has been renamed to RedshiftClusterSensor and will be removed in a future
+    release.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        import warnings
+
+        warnings.warn(
+            f"AwsRedshiftClusterSensor has been renamed to RedshiftClusterSensor.  AwsRedshiftClusterSensor will be removed in a future release.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(**kwargs)
