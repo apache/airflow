@@ -43,10 +43,15 @@ from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
-from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.serialization.serialized_objects import (
+    SerializedBaseOperator,
+    SerializedDAG,
+    SerializedTaskGroup,
+)
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.task_group import TaskGroup
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -1153,7 +1158,6 @@ class TestStringifiedDAGs:
         Test TaskGroup serialization/deserialization.
         """
         from airflow.operators.dummy import DummyOperator
-        from airflow.utils.task_group import TaskGroup
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", start_date=execution_date) as dag:
@@ -1229,7 +1233,6 @@ class TestStringifiedDAGs:
         """
         from airflow.operators.dummy import DummyOperator
         from airflow.serialization.serialized_objects import SerializedTaskGroup
-        from airflow.utils.task_group import TaskGroup
 
         """
                     start
@@ -1577,3 +1580,35 @@ def test_mapped_operator_serde():
     op = SerializedBaseOperator.deserialize_operator(serialized)
 
     assert op.operator_class == "airflow.operators.bash.BashOperator"
+
+
+def test_mapped_task_group_serde():
+    execution_date = datetime(2020, 1, 1)
+
+    literal = [1, 2, {'a': 'b'}]
+    with DAG("test", start_date=execution_date) as dag:
+        with TaskGroup("process_one", dag=dag).map(literal) as process_one:
+            BaseOperator(task_id='one')
+
+    serialized = SerializedTaskGroup.serialize_task_group(process_one)
+
+    assert serialized == {
+        '_group_id': 'process_one',
+        'children': {'process_one.one': ('operator', 'process_one.one')},
+        'downstream_group_ids': [],
+        'downstream_task_ids': [],
+        'prefix_group_id': True,
+        'tooltip': '',
+        'ui_color': 'CornflowerBlue',
+        'ui_fgcolor': '#000',
+        'upstream_group_ids': [],
+        'upstream_task_ids': [],
+        'mapped_arg': [
+            1,
+            2,
+            {"__type": "dict", "__var": {'a': 'b'}},
+        ],
+    }
+
+    with DAG("test", start_date=execution_date):
+        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict)

@@ -400,7 +400,7 @@ class TaskGroup(DAGNode):
             raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
         if self._parent_group:
             self._parent_group._remove(self)
-        return MappedTaskGroup(group_id=self._group_id, mapped_arg=arg)
+        return MappedTaskGroup(group_id=self._group_id, dag=self.dag, mapped_arg=arg)
 
 
 class MappedTaskGroup(TaskGroup):

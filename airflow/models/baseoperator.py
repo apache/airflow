@@ -1727,7 +1727,7 @@ class MappedOperator(DAGNode):
             return val.rsplit('.', 1)[-1]
         return val.__name__
 
-    operator_class: Type[BaseOperator] = attr.ib(repr=_operator_class_repr)
+    operator_class: Union[Type[BaseOperator], str] = attr.ib(repr=_operator_class_repr)
     task_type: str = attr.ib()
     task_id: str
     partial_kwargs: Dict[str, Any]

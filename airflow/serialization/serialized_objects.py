@@ -43,7 +43,7 @@ from airflow.settings import json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import as_importable_string, import_string
-from airflow.utils.task_group import TaskGroup
+from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 try:
     # isort: off
@@ -596,7 +596,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialize_op
 
     @classmethod
-    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
+    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Union[BaseOperator, MappedOperator]:
         """Deserializes an operator from a JSON object."""
         # Check if it's a mapped operator
         if "mapped_kwargs" in encoded_op:
@@ -1010,6 +1010,14 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "upstream_task_ids": cls._serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
         }
+
+        if isinstance(task_group, MappedTaskGroup):
+            if task_group.mapped_arg:
+                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_arg)
+            if task_group.mapped_kwargs:
+                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_kwargs)
+            if task_group.partial_kwargs:
+                serialize_group['mapped_arg'] = cls._serialize(task_group.partial_kwargs)
 
         return serialize_group
 
