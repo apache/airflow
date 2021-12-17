@@ -17,13 +17,14 @@
 # under the License.
 
 import time
+import warnings
 from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsGlueJobHook(AwsBaseHook):
+class GlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue - create job, trigger, crawler
 
@@ -222,3 +223,19 @@ class AwsGlueJobHook(AwsBaseHook):
             except Exception as general_error:
                 self.log.error("Failed to create aws glue job, error: %s", general_error)
                 raise
+
+
+class AwsGlueJobHook(GlueJobHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

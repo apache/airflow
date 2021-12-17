@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.sensors.base import BaseSensorOperator
 
 
-class AwsGlueJobSensor(BaseSensorOperator):
+class GlueJobSensor(BaseSensorOperator):
     """
     Waits for an AWS Glue Job to reach any of the status below
     'FAILED', 'STOPPED', 'SUCCEEDED'
@@ -43,7 +44,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
         self.errored_states = ['FAILED', 'STOPPED', 'TIMEOUT']
 
     def poke(self, context):
-        hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
+        hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
         job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
         if job_state in self.success_states:
@@ -54,3 +55,19 @@ class AwsGlueJobSensor(BaseSensorOperator):
             raise AirflowException(job_error_message)
         else:
             return False
+
+
+class AwsGlueJobSensor(GlueJobSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

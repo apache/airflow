@@ -17,12 +17,13 @@
 # under the License.
 
 """This module contains AWS Glue Catalog Hook"""
+import warnings
 from typing import Optional, Set
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsGlueCatalogHook(AwsBaseHook):
+class GlueCatalogHook(AwsBaseHook):
     """
     Interact with AWS Glue Catalog
 
@@ -93,7 +94,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
         :type expression: str
         :rtype: bool
 
-        >>> hook = AwsGlueCatalogHook()
+        >>> hook = GlueCatalogHook()
         >>> t = 'static_babynames_partitioned'
         >>> hook.check_for_partition('airflow', t, "ds='2015-01-01'")
         True
@@ -112,7 +113,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
         :type table_name: str
         :rtype: dict
 
-        >>> hook = AwsGlueCatalogHook()
+        >>> hook = GlueCatalogHook()
         >>> r = hook.get_table('db', 'table_foo')
         >>> r['Name'] = 'table_foo'
         """
@@ -133,3 +134,19 @@ class AwsGlueCatalogHook(AwsBaseHook):
         table = self.get_table(database_name, table_name)
 
         return table['StorageDescriptor']['Location']
+
+
+class AwsGlueCatalogHook(GlueCatalogHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.glue_catalog.GlueCatalogHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.glue_catalog.GlueCatalogHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
