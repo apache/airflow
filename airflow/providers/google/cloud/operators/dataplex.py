@@ -17,7 +17,7 @@
 
 """This module contains Google Dataplex operators."""
 from time import sleep
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
@@ -50,13 +50,29 @@ class DataplexCreateTaskOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
         request must have  domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     :param asynchronous: Flag informing should the Dataplex task be created asynchronously.
         This is useful for long running creating tasks and
         waiting on them asynchronously using the DataplexTaskSensor
     :type asynchronous: bool
     """
 
-    template_fields = ("project_id", "dataplex_task_id", "body", "validate_only", "delegate_to")
+    template_fields = (
+        "project_id",
+        "dataplex_task_id",
+        "body",
+        "validate_only",
+        "delegate_to",
+        "impersonation_chain",
+    )
     template_fields_renderers = {'body': 'json'}
 
     def __init__(
@@ -70,6 +86,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         *args,
         **kwargs,
@@ -84,16 +101,18 @@ class DataplexCreateTaskOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
     def execute(self, context: dict) -> dict:
         hook = DataplexHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, api_version=self.api_version
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
-        if not self.asynchronous:
-            self.log.info(f"Creating Dataplex task {self.dataplex_task_id}")
-        else:
-            self.log.info(f"Creating Dataplex task {self.dataplex_task_id} asynchronously")
+        self.log.info(f"Creating Dataplex task {self.dataplex_task_id}")
+
         try:
             operation = hook.create_task(
                 project_id=self.project_id,
@@ -114,23 +133,18 @@ class DataplexCreateTaskOperator(BaseOperator):
             if err.resp.status not in (409, '409'):
                 raise
             self.log.info(f"Task {self.dataplex_task_id} already exists")
-            task = hook.get_task(
-                project_id=self.project_id,
-                region=self.region,
-                lake_id=self.lake_id,
-                dataplex_task_id=self.dataplex_task_id,
-            )
             # Wait for task to be ready
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-                if task['state'] != 'CREATING':
-                    break
-                sleep(time_to_wait)
                 task = hook.get_task(
                     project_id=self.project_id,
                     region=self.region,
                     lake_id=self.lake_id,
                     dataplex_task_id=self.dataplex_task_id,
                 )
+                if task['state'] != 'CREATING':
+                    break
+                sleep(time_to_wait)
+
         return task
 
 
@@ -153,9 +167,18 @@ class DataplexDeleteTaskOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
         request must have  domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("project_id", "dataplex_task_id", "delegate_to")
+    template_fields = ("project_id", "dataplex_task_id", "delegate_to", "impersonation_chain")
 
     def __init__(
         self,
@@ -166,6 +189,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -177,10 +201,14 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataplexHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, api_version=self.api_version
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info(f"Deleting Dataplex task {self.dataplex_task_id}")
 
@@ -223,9 +251,26 @@ class DataplexListTasksOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
         request must have  domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("project_id", "page_size", "page_token", "filter", "order_by", "delegate_to")
+    template_fields = (
+        "project_id",
+        "page_size",
+        "page_token",
+        "filter",
+        "order_by",
+        "delegate_to",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -239,6 +284,7 @@ class DataplexListTasksOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -253,10 +299,14 @@ class DataplexListTasksOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataplexHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, api_version=self.api_version
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info(f"Listing Dataplex tasks from lake {self.lake_id}")
 
@@ -291,9 +341,18 @@ class DataplexGetTaskOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
         request must have  domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("project_id", "dataplex_task_id", "delegate_to")
+    template_fields = ("project_id", "dataplex_task_id", "delegate_to", "impersonation_chain")
 
     def __init__(
         self,
@@ -304,6 +363,7 @@ class DataplexGetTaskOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -315,10 +375,14 @@ class DataplexGetTaskOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataplexHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, api_version=self.api_version
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info(f"Retrieving Dataplex task {self.dataplex_task_id}")
 

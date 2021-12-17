@@ -30,6 +30,8 @@ BODY = {"body": "test"}
 DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
+DELEGATE_TO = "test-delegate-to"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 def get_tasks_return_value(conn):
@@ -44,7 +46,11 @@ class TestDataplexHook(TestCase):
             BASE_STRING.format("GoogleBaseHook.__init__"),
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.hook = DataplexHook(gcp_conn_id=GCP_CONN_ID)
+            self.hook = DataplexHook(
+                gcp_conn_id=GCP_CONN_ID,
+                delegate_to=DELEGATE_TO,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
 
     @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_conn"))
     def test_create_task(self, get_conn_mock):

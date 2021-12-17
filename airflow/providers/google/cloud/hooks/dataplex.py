@@ -18,7 +18,7 @@
 """This module contains Google Dataplex hook."""
 import os
 from time import sleep
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
@@ -39,8 +39,13 @@ class DataplexHook(GoogleBaseHook):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.api_key = API_KEY
         self.api_version = api_version
 

@@ -40,7 +40,6 @@ SPARK_FILE_NAME = os.environ.get("SPARK_FILE_NAME", "INVALID FILE NAME")
 SPARK_FILE_FULL_PATH = f"gs://{BUCKET}/{SPARK_FILE_NAME}"
 DATAPLEX_TASK_ID = "task001"
 TRIGGER_SPEC_TYPE = "ON_DEMAND"
-EXPECTED_STATUS = ["ACTIVE"]
 
 # [START howto_dataplex_configuration]
 EXAMPLE_TASK_BODY = {
@@ -108,7 +107,6 @@ with models.DAG(
         region=REGION,
         lake_id=LAKE_ID,
         dataplex_task_id=DATAPLEX_TASK_ID,
-        expected_status=EXPECTED_STATUS,
         task_id="dataplex_task_state",
     )
     # [END howto_dataplex_task_state_sensor]
