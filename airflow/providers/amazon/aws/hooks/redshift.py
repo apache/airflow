@@ -22,8 +22,8 @@ from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.hooks.redshift_sql` "
-    "or `airflow.hooks.redshift_cluster` as appropriate.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
+    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
     DeprecationWarning,
     stacklevel=2,
 )

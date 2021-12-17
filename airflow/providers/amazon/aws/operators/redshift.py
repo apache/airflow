@@ -24,8 +24,8 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
 from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.redshift_sql` "
-    "or `airflow.operators.redshift_cluster` as appropriate.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
+    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
     DeprecationWarning,
     stacklevel=2,
 )
