@@ -696,6 +696,11 @@ def test_task_mapping_default_args():
     assert mapped.start_date == pendulum.instance(default_args['start_date'])
 
 
+def test_map_unknown_arg_raises():
+    with pytest.raises(TypeError, match=r"argument 'file'"):
+        BaseOperator(task_id='a').map(file=[1, 2, {'a': 'b'}])
+
+
 def test_partial_on_instance() -> None:
     """`.partial` on an instance should fail -- it's only designed to be called on classes"""
     with pytest.raises(TypeError):
@@ -715,5 +720,5 @@ def test_partial_on_class_invalid_ctor_args() -> None:
 
     I.e. if an arg is not known on the class or any of its parent classes we error at parse time
     """
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
         MockOperator.partial(task_id='a', foo='bar', bar=2)

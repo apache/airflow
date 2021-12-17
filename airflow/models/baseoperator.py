@@ -237,31 +237,9 @@ class BaseOperatorMeta(abc.ABCMeta):
 
     # The class level partial function. This is what handles the actual mapping
     def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs):
-        unknown_args = set(kwargs.keys())
-        # Validate that the args we passed are known -- at call/DAG parse time, not run time!
-        #
-        # This loop _assumes_ that all unknown args from a class are passed to the superclass's __init__, but
-        # there is no way for us to validate that this is actually what operators do.
-        for clazz in cls.mro():
-            # Mypy doesn't like doing `clas.__init__`, Error is: Cannot access "__init__" directly
-            init = clazz.__init__  # type: ignore
-
-            if not hasattr(init, '_BaseOperatorMeta__param_names'):
-                continue
-            unknown_args.difference_update(init.__param_names)
-            if not unknown_args:
-                # If we have no args left ot check: stop looking at the MRO chian
-                break
-
-        if unknown_args:
-            if len(unknown_args) == 1:
-                raise TypeError(
-                    f'{cls.__name__}.partial got unexpected keyword argument {unknown_args.pop()!r}'
-                )
-            else:
-                names = ", ".join(repr(n) for n in unknown_args)
-                raise TypeError(f'{cls.__name__}.partial got unexpected keyword arguments {names}')
         operator_class = cast("Type[BaseOperator]", cls)
+        # Validate that the args we passed are known -- at call/DAG parse time, not run time!
+        _validate_kwarg_names_for_mapping(operator_class, "partial", kwargs)
         return MappedOperator(
             task_id=task_id, operator_class=operator_class, dag=dag, partial_kwargs=kwargs, mapped_kwargs={}
         )
@@ -1665,6 +1643,36 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         )
 
 
+def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
+    if isinstance(str, cls):
+        # Serialized version -- would have been validated at parse time
+        return
+
+    # use a dict so order of args is same as code order
+    unknown_args = value.copy()
+    for clazz in cls.mro():
+        # Mypy doesn't like doing `clas.__init__`, Error is: Cannot access "__init__" directly
+        init = clazz.__init__  # type: ignore
+
+        if not hasattr(init, '_BaseOperatorMeta__param_names'):
+            continue
+
+        for name in init._BaseOperatorMeta__param_names:
+            unknown_args.pop(name, None)
+
+        if not unknown_args:
+            # If we have no args left ot check: stop looking at the MRO chian
+            return
+
+    if len(unknown_args) == 1:
+        raise TypeError(
+            f'{cls.__name__}.{func_name} got unexpected keyword argument {unknown_args.popitem()[0]!r}'
+        )
+    else:
+        names = ", ".join(repr(n) for n in unknown_args)
+        raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
+
+
 @attr.define(kw_only=True)
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
@@ -1672,7 +1680,9 @@ class MappedOperator(DAGNode):
     operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
     task_id: str
     partial_kwargs: Dict[str, Any]
-    mapped_kwargs: Dict[str, Any]
+    mapped_kwargs: Dict[str, Any] = attr.ib(
+        validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
+    )
     operator: Optional[BaseOperator] = None
     dag: Optional["DAG"] = None
     upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)

@@ -17,8 +17,8 @@
 
 import functools
 import inspect
+import itertools
 import re
-from inspect import signature
 from typing import (
     Any,
     Callable,
@@ -54,7 +54,7 @@ def validate_python_callable(python_callable):
     """
     if not callable(python_callable):
         raise TypeError('`python_callable` param must be callable')
-    if 'self' in signature(python_callable).parameters.keys():
+    if 'self' in inspect.signature(python_callable).parameters.keys():
         raise AirflowException('@task does not support methods')
 
 
@@ -142,7 +142,7 @@ class DecoratedOperator(BaseOperator):
         op_kwargs = op_kwargs or {}
 
         # Check that arguments can be binded
-        signature(python_callable).bind(*op_args, **op_kwargs)
+        inspect.signature(python_callable).bind(*op_args, **op_kwargs)
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
@@ -184,7 +184,7 @@ class DecoratedOperator(BaseOperator):
         python_callable = kwargs['python_callable']
         default_args = kwargs.get('default_args') or {}
         op_kwargs = kwargs.get('op_kwargs') or {}
-        f_sig = signature(python_callable)
+        f_sig = inspect.signature(python_callable)
         for arg in f_sig.parameters:
             if arg not in op_kwargs and arg in default_args:
                 op_kwargs[arg] = default_args[arg]
@@ -217,7 +217,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
     @function_arg_names.default
     def _get_arg_names(self):
-        return set(signature(self.function).parameters)
+        return set(inspect.signature(self.function).parameters)
 
     @function.validator
     def _validate_function(self, _, f):
@@ -226,7 +226,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
-        sig = signature(self.function).return_annotation
+        sig = inspect.signature(self.function).return_annotation
         ttype = getattr(sig, "__origin__", None)
 
         return sig is not inspect.Signature.empty and ttype in (dict, Dict)
@@ -246,6 +246,21 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
+    def _validate_arg_names(self, funcname: str, kwargs: Dict[str, Any], valid_names: Set[str] = set()):
+        unknown_args = kwargs.copy()
+        for name in itertools.chain(self.function_arg_names, valid_names):
+            unknown_args.pop(name, None)
+
+            if not unknown_args:
+                # If we have no args left ot check, we are valid
+                return
+
+        if len(unknown_args) == 1:
+            raise TypeError(f'{funcname} got unexpected keyword argument {unknown_args.popitem()[0]!r}')
+        else:
+            names = ", ".join(repr(n) for n in unknown_args)
+            raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
+
     def map(
         self, *args, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> XComArg:
@@ -254,22 +269,25 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
 
-        mapped_arg = XComArg(
-            operator=MappedOperator(
-                operator_class=self.operator_class,
-                task_id=task_id,
-                dag=dag,
-                task_group=task_group,
-                partial_kwargs=self.kwargs,
-                mapped_kwargs=kwargs,
-            ),
-        )
+        self._validate_arg_names("map", kwargs)
 
-        return mapped_arg
+        operator = MappedOperator(
+            operator_class=self.operator_class,
+            task_id=task_id,
+            dag=dag,
+            task_group=task_group,
+            partial_kwargs=self.kwargs,
+            # Set them to empty to bypass the validation, as for decorated stuff we validate ourselves
+            mapped_kwargs={},
+        )
+        operator.mapped_kwargs.update(kwargs)
+
+        return XComArg(operator=operator)
 
     def partial(
         self, *args, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> "OperatorWrapper[T, OperatorSubclass]":
+        self._validate_arg_names("partial", kwargs, {'task_id'})
         partial_kwargs = self.kwargs.copy()
         partial_kwargs.update(kwargs)
         return attr.evolve(self, kwargs=partial_kwargs)

@@ -517,6 +517,20 @@ def test_mapped_decorator() -> None:
     assert doubled_1.operator.task_id == "double__1"
 
 
+def test_mapped_decorator_invalid_args() -> None:
+    @task_decorator
+    def double(number: int):
+        return number * 2
+
+    with DAG('test_dag', start_date=DEFAULT_DATE):
+        literal = [1, 2, 3]
+
+        with pytest.raises(TypeError, match="arguments 'other', 'b'"):
+            double.partial(other=1, b='a')
+        with pytest.raises(TypeError, match="argument 'other'"):
+            double.map(number=literal, other=1)
+
+
 def test_partial_mapped_decorator() -> None:
     @task_decorator
     def product(number: int, multiple: int):
