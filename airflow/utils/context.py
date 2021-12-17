@@ -202,6 +202,8 @@ def context_copy_partial(source: Context, keys: Container[str]) -> "Context":
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
     functions.
+
+    :meta private:
     """
     new = Context({k: v for k, v in source._context.items() if k in keys})
     new._deprecation_replacements = source._deprecation_replacements.copy()
@@ -219,6 +221,8 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
     functions.
+
+    :meta private:
     """
 
     def _deprecated_proxy_factory(k: str, v: Any) -> Any:
