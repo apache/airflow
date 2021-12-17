@@ -2198,7 +2198,7 @@ class DAG(LoggingMixin):
             self.add_task(task)
 
     def _remove_task(self, task_id: str) -> None:
-        # This is "private" as removing could leave a whole in dependencies if done incorrectly, and this
+        # This is "private" as removing could leave a hole in dependencies if done incorrectly, and this
         # doesn't guard against that
         task = self.task_dict.pop(task_id)
         tg = getattr(task, 'task_group', None)
