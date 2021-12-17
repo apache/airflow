@@ -36,6 +36,7 @@ from typing import (
 
 import attr
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
@@ -197,8 +198,8 @@ T = TypeVar("T", bound=Callable)
 OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
-@attr.define
-class OperatorWrapper(Generic[T, OperatorSubclass]):
+@attr.define(slots=False)
+class _TaskDecorator(Generic[T, OperatorSubclass]):
     """
     Helper class for providing dynamic task mapping to decorated functions.
 
@@ -213,11 +214,14 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
-    function_arg_names: Set[str] = attr.ib(repr=False)
 
-    @function_arg_names.default
-    def _get_arg_names(self):
-        return set(inspect.signature(self.function).parameters)
+    @cached_property
+    def function_signature(self):
+        return inspect.signature(self.function)
+
+    @cached_property
+    def function_arg_names(self) -> Set[str]:
+        return set(self.function_signature.parameters)
 
     @function.validator
     def _validate_function(self, _, f):
@@ -226,10 +230,10 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
-        sig = inspect.signature(self.function).return_annotation
-        ttype = getattr(sig, "__origin__", None)
+        return_type = self.function_signature.return_annotation
+        ttype = getattr(return_type, "__origin__", None)
 
-        return sig is not inspect.Signature.empty and ttype in (dict, Dict)
+        return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
 
     def __attrs_post_init__(self):
         self.kwargs.setdefault('task_id', self.function.__name__)
@@ -256,7 +260,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
                 return
 
         if len(unknown_args) == 1:
-            raise TypeError(f'{funcname} got unexpected keyword argument {unknown_args.popitem()[0]!r}')
+            raise TypeError(f'{funcname} got unexpected keyword argument {next(iter(unknown_args))!r}')
         else:
             names = ", ".join(repr(n) for n in unknown_args)
             raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
@@ -286,7 +290,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
     def partial(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "OperatorWrapper[T, OperatorSubclass]":
+    ) -> "_TaskDecorator[T, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs, {'task_id'})
         partial_kwargs = self.kwargs.copy()
         partial_kwargs.update(kwargs)
@@ -319,7 +323,7 @@ def task_decorator_factory(
     if multiple_outputs is None:
         multiple_outputs = cast(bool, attr.NOTHING)
     if python_callable:
-        return OperatorWrapper(  # type: ignore
+        return _TaskDecorator(  # type: ignore
             function=python_callable,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
@@ -330,7 +334,7 @@ def task_decorator_factory(
     return cast(
         "Callable[[T], T]",
         functools.partial(
-            OperatorWrapper,
+            _TaskDecorator,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
             kwargs=kwargs,

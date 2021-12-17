@@ -1630,17 +1630,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def map(self, **kwargs) -> "MappedOperator":
-        return MappedOperator(
-            operator_class=type(self),
-            operator=self,
-            task_id=self.task_id,
-            task_group=getattr(self, 'task_group', None),
-            dag=getattr(self, '_dag', None),
-            start_date=self.start_date,
-            end_date=self.end_date,
-            partial_kwargs=self.__init_kwargs,
-            mapped_kwargs=kwargs,
-        )
+        return MappedOperator.from_operator(self, kwargs)
 
 
 def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
@@ -1651,7 +1641,7 @@ def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, v
     # use a dict so order of args is same as code order
     unknown_args = value.copy()
     for clazz in cls.mro():
-        # Mypy doesn't like doing `clas.__init__`, Error is: Cannot access "__init__" directly
+        # Mypy doesn't like doing `class.__init__`, Error is: Cannot access "__init__" directly
         init = clazz.__init__  # type: ignore
 
         if not hasattr(init, '_BaseOperatorMeta__param_names'):
@@ -1683,7 +1673,6 @@ class MappedOperator(DAGNode):
     mapped_kwargs: Dict[str, Any] = attr.ib(
         validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
     )
-    operator: Optional[BaseOperator] = None
     dag: Optional["DAG"] = None
     upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
@@ -1693,12 +1682,26 @@ class MappedOperator(DAGNode):
     start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
     end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
 
-    def __attrs_post_init__(self):
-        if self.dag and self.operator:
-            # When BaseOperator() was called with a DAG, it would have been added straight away, but now we
-            # are mapped, we want to _remove_ that task (`self.operator`) from the dag
-            self.dag._remove_task(self.task_id)
+    @classmethod
+    def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
+        dag: Optional["DAG"] = getattr(operator, '_dag', None)
+        if dag:
+            # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
+            # are mapped, we want to _remove_ that task from the dag
+            dag._remove_task(operator.task_id)
 
+        return MappedOperator(
+            operator_class=type(operator),
+            task_id=operator.task_id,
+            task_group=getattr(operator, 'task_group', None),
+            dag=getattr(operator, '_dag', None),
+            start_date=operator.start_date,
+            end_date=operator.end_date,
+            partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
+            mapped_kwargs=mapped_kwargs,
+        )
+
+    def __attrs_post_init__(self):
         if self.task_group:
             self.task_id = self.task_group.child_id(self.task_id)
             self.task_group.add(self)

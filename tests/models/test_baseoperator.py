@@ -676,7 +676,7 @@ def test_task_mapping_without_dag_context():
     task1 >> mapped
 
     assert isinstance(mapped, MappedOperator)
-    assert mapped.operator
+    assert mapped in dag.tasks
     assert task1.downstream_list == [mapped]
     assert mapped in dag.tasks
     # At parse time there should only be two tasks!

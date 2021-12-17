@@ -2075,10 +2075,10 @@ class DAG(LoggingMixin):
         # the cut.
         subdag_task_groups = dag.task_group.get_task_group_dict()
         for group in subdag_task_groups.values():
-            group.upstream_group_ids.intersection_update(subdag_task_groups.keys())
-            group.downstream_group_ids.intersection_update(subdag_task_groups.keys())
-            group.upstream_task_ids.intersection_update(dag.task_dict.keys())
-            group.downstream_task_ids.intersection_update(dag.task_dict.keys())
+            group.upstream_group_ids.intersection_update(subdag_task_groups)
+            group.downstream_group_ids.intersection_update(subdag_task_groups)
+            group.upstream_task_ids.intersection_update(dag.task_dict)
+            group.downstream_task_ids.intersection_update(dag.task_dict)
 
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
