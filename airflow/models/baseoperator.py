@@ -99,7 +99,7 @@ class _PartialDescriptor:
         self, obj: "BaseOperator", cls: "Optional[Type[BaseOperator]]" = None
     ) -> Callable[..., "MappedOperator"]:
         # Call this "partial" so it looks nicer in stack traces
-        def partial(*, task_id: str, **kwargs):
+        def partial(**kwargs):
             raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
 
         if obj is not None:
@@ -217,7 +217,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             return result
 
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
-        apply_defaults.__param_names = set(non_varaidc_params.keys())  # type: ignore
+        apply_defaults.__param_names = set(non_varaidc_params)  # type: ignore
 
         return cast(T, apply_defaults)
 
