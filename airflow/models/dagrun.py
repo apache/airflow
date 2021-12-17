@@ -298,7 +298,7 @@ class DagRun(Base, LoggingMixin):
         dag_id: Optional[Union[str, List[str]]] = None,
         run_id: Optional[str] = None,
         execution_date: Optional[Union[datetime, List[datetime]]] = None,
-        state: Optional[DagRunState] = None,
+        state: Optional[Union[str, DagRunState]] = None,
         external_trigger: Optional[bool] = None,
         no_backfills: bool = False,
         run_type: Optional[DagRunType] = None,
