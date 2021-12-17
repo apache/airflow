@@ -323,7 +323,12 @@ class PodLauncher(LoggingMixin):
         return None
 
     def process_status(self, pod_name: str, pod_phase: str) -> TaskInstanceState:
-        """Process status information for the JOB"""
+        """
+        Convert a K8S Pod phase to Airflow task state.
+        :param pod_name: Name of the pod
+        :param pod_phase: Phase of the pod
+        :return: Airflow task state corresponding to the pod phase
+        """
         pod_phase = pod_phase.lower()
         if pod_phase == PodStatus.PENDING:
             return State.QUEUED
