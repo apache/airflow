@@ -393,11 +393,7 @@ class TaskGroup(DAGNode):
             raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
         if self._parent_group:
             self._parent_group._remove(self)
-        tg = MappedTaskGroup(self._group_id)
-        tg.mapped_arg = arg
-        tg.mapped_kwargs = {}
-        tg.partial_kwargs = {}
-        return tg
+        return MappedTaskGroup(group_id=self._group_id, mapped_arg=arg)
 
 
 class MappedTaskGroup(TaskGroup):
@@ -410,6 +406,13 @@ class MappedTaskGroup(TaskGroup):
     mapped_arg: Any = NOTSET
     mapped_kwargs: Dict[str, Any]
     partial_kwargs: Dict[str, Any]
+
+    def __init__(self, group_id: Optional[str] = None, mapped_arg: Any = NOTSET, **kwargs):
+        if mapped_arg is not NOTSET:
+            self.mapped_arg = mapped_arg
+        self.mapped_kwargs = {}
+        self.partial_kwargs = {}
+        super().__init__(group_id=group_id, **kwargs)
 
 
 class TaskGroupContext:
