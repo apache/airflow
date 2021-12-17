@@ -673,6 +673,40 @@ class TestSchedulerJob:
         assert len(tis) == 2
         assert all(ti.state == State.FAILED for ti in tis)
 
+    def test_max_active_task_in_a_dag_with_large_dag_does_not_affect_other_dags(self, dag_maker, session):
+
+        dag_id_1 = 'first_dag'
+        dag_id_2 = 'second_dag'
+        with dag_maker(dag_id_1, max_active_tasks=1):
+            for i in range(10):
+                BashOperator(task_id=f"mytask{i}", bash_command='sleep 1d')
+        dr1 = dag_maker.create_dagrun(run_id=dag_id_1, state=DagRunState.RUNNING)
+        tis1 = dr1.get_task_instances()
+        for ti in tis1:
+            ti.state = TaskInstanceState.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 1 == len(res)
+        session.query(TaskInstance).filter(TaskInstance.state == TaskInstanceState.QUEUED).count() == 1
+        with dag_maker(dag_id_2, max_active_tasks=2):
+            for i in range(20):
+                BashOperator(task_id=f"mytask{i}", bash_command='sleep 1d')
+        dr2 = dag_maker.create_dagrun(run_id=dag_id_2, state=DagRunState.RUNNING)
+        tis2 = dr2.get_task_instances()
+        for ti in tis2:
+            ti.state = TaskInstanceState.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        for i in range(2):
+            self.scheduler_job._executable_task_instances_to_queued(max_tis=8, session=session)
+            session.flush()
+        queued_tis_query = session.query(TaskInstance).filter(TaskInstance.state == TaskInstanceState.QUEUED)
+
+        queued_tis_query.count() == 3
+        assert len({ti.dag_id for ti in queued_tis_query}) == 2
+
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
         with dag_maker(dag_id=dag_id, max_active_tasks=16):

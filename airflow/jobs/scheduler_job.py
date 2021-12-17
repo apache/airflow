@@ -289,7 +289,11 @@ class SchedulerJob(BaseJob):
             .filter(not_(DM.is_paused))
             .filter(TI.state == TaskInstanceState.SCHEDULED)
             .options(selectinload('dag_model'))
-            .order_by(-TI.priority_weight, DR.execution_date)
+            .order_by(
+                -TI.priority_weight,
+                nulls_first(TI.last_scheduling_decision, session=session),
+                DR.execution_date,
+            )
         )
         starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
         if starved_pools:
@@ -396,6 +400,7 @@ class SchedulerJob(BaseJob):
                         dag_id,
                         max_active_tasks_per_dag_limit,
                     )
+                    task_instance.last_scheduling_decision = timezone.utcnow()
                     continue
 
                 task_concurrency_limit: Optional[int] = None
@@ -593,6 +598,13 @@ class SchedulerJob(BaseJob):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
+            # update the last_scheduling_decision for all task in this dag
+            session.query(TI).filter(TI.dag_id == ti.dag_id, TI.state == State.SCHEDULED,).update(
+                {
+                    TI.last_scheduling_decision: timezone.utcnow(),
+                },
+                synchronize_session=False,
+            )
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, "

@@ -23,7 +23,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
 | Revision ID                    | Revises ID       | Airflow Version | Description                                                                           |
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
-| ``e655c0453f75`` (head)        | ``587bdf053233`` | ``2.3.0``       | Add ``map_index`` column to TaskInstance to identify task-mapping, and a ``task_map`` |
+| ``a3a9ad5d1c54`` (head)        | ``e655c0453f75`` | ``2.2.4``       | Add ``last_scheduling_decision`` column to TaskInstance                               |
++--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
+| ``e655c0453f75``               | ``587bdf053233`` | ``2.3.0``       | Add ``map_index`` column to TaskInstance to identify task-mapping, and a ``task_map`` |
 |                                |                  |                 | table to track mapping values from XCom.                                              |
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
 | ``587bdf053233``               | ``f9da662e7089`` | ``2.3.0``       | Add index for ``dag_id`` column in ``job`` table.                                     |

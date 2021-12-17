@@ -729,7 +729,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             )
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None
-        if task_concurrency and not max_active_tis_per_dag:
+        if task_concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",

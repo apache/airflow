@@ -376,6 +376,8 @@ class TaskInstance(Base, LoggingMixin):
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
     next_kwargs = Column(ExtendedJSON)
+    # When a scheduler last attempted to schedule this TI
+    last_scheduling_decision = Column(UtcDateTime)
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -388,6 +390,7 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
+        Index('idx_last_scheduling_decision', last_scheduling_decision),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
