@@ -19,12 +19,11 @@ import json
 import math
 import time
 from datetime import datetime as dt
-from typing import Iterable, Optional, Tuple, Union
+from typing import Dict, Iterable, Optional, Tuple, Union
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_event import V1Event
 from kubernetes.client.models.v1_event_list import V1EventList
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
@@ -38,7 +37,7 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 def should_retry_start_pod(exception: Exception) -> bool:
@@ -140,13 +139,13 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException(msg)
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[TaskInstanceState, V1Pod, Optional[Dict]]:
         """
         Monitors a pod and returns the final state, pod and xcom result
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
-        :return:  Tuple[State, Optional[str]]
+        :return:  Tuple[TaskInstanceState, V1Pod, Optional[Dict]]
         """
         if get_logs:
             read_logs_since_sec = None
@@ -189,7 +188,7 @@ class PodLauncher(LoggingMixin):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
         remote_pod = self.read_pod(pod)
-        return self._task_status(remote_pod), remote_pod, result
+        return self._pod_state_to_task_state(remote_pod), remote_pod, result
 
     def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
         """
@@ -212,19 +211,21 @@ class PodLauncher(LoggingMixin):
             return None, line
         return last_log_time, message
 
-    def _task_status(self, event: V1Event) -> str:
-        self.log.info('Event: %s had an event of type %s', event.metadata.name, event.status.phase)
-        status = self.process_status(event.metadata.name, event.status.phase)
+    def _pod_state_to_task_state(self, pod: V1Pod) -> TaskInstanceState:
+        pod_name = pod.metadata.name
+        pod_phase = pod.status.phase
+        self.log.info('Pod %s is in phase %s', pod_name, pod_phase)
+        status = self.process_status(pod_name, pod_phase)
         return status
 
     def pod_not_started(self, pod: V1Pod) -> bool:
         """Tests if pod has not started"""
-        state = self._task_status(self.read_pod(pod))
+        state = self._pod_state_to_task_state(self.read_pod(pod))
         return state == State.QUEUED
 
     def pod_is_running(self, pod: V1Pod) -> bool:
         """Tests if pod is running"""
-        state = self._task_status(self.read_pod(pod))
+        state = self._pod_state_to_task_state(self.read_pod(pod))
         return state not in (State.SUCCESS, State.FAILED)
 
     def base_container_is_running(self, pod: V1Pod) -> bool:
@@ -308,7 +309,7 @@ class PodLauncher(LoggingMixin):
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
-    def _exec_pod_command(self, resp, command: str) -> None:
+    def _exec_pod_command(self, resp, command: str) -> Optional[str]:
         if resp.is_open():
             self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
@@ -321,19 +322,19 @@ class PodLauncher(LoggingMixin):
                     break
         return None
 
-    def process_status(self, job_id: str, status: str) -> str:
+    def process_status(self, pod_name: str, pod_phase: str) -> TaskInstanceState:
         """Process status information for the JOB"""
-        status = status.lower()
-        if status == PodStatus.PENDING:
+        pod_phase = pod_phase.lower()
+        if pod_phase == PodStatus.PENDING:
             return State.QUEUED
-        elif status == PodStatus.FAILED:
-            self.log.error('Event with job id %s Failed', job_id)
+        elif pod_phase == PodStatus.FAILED:
+            self.log.error('Pod %s Failed', pod_name)
             return State.FAILED
-        elif status == PodStatus.SUCCEEDED:
-            self.log.info('Event with job id %s Succeeded', job_id)
+        elif pod_phase == PodStatus.SUCCEEDED:
+            self.log.info('Pod %s Succeeded', pod_name)
             return State.SUCCESS
-        elif status == PodStatus.RUNNING:
+        elif pod_phase == PodStatus.RUNNING:
             return State.RUNNING
         else:
-            self.log.error('Event: Invalid state %s on job %s', status, job_id)
+            self.log.error('Invalid phase %s on pod %s', pod_phase, pod_name)
             return State.FAILED

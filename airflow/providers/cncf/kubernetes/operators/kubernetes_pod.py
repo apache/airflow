@@ -46,7 +46,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
 from airflow.utils.helpers import validate_key
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -381,7 +381,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def handle_pod_overlap(
         self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
-    ) -> Tuple[State, k8s.V1Pod, Optional[str]]:
+    ) -> Tuple[TaskInstanceState, k8s.V1Pod, Optional[Dict]]:
         """
 
         In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
@@ -503,7 +503,9 @@ class KubernetesPodOperator(BaseOperator):
             pod = xcom_sidecar.add_xcom_sidecar(pod)
         return pod
 
-    def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
+    def create_new_pod_for_operator(
+        self, labels, launcher
+    ) -> Tuple[TaskInstanceState, k8s.V1Pod, Optional[Dict]]:
         """
         Creates a new pod and monitors for duration of task
 
@@ -550,7 +552,7 @@ class KubernetesPodOperator(BaseOperator):
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
-    def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
+    def monitor_launched_pod(self, launcher, pod) -> Tuple[TaskInstanceState, k8s.V1Pod, Optional[Dict]]:
         """
         Monitors a pod to completion that was created by a previous KubernetesPodOperator
 
