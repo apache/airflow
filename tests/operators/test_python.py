@@ -19,6 +19,7 @@ import copy
 import logging
 import sys
 import unittest.mock
+import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
@@ -39,6 +40,7 @@ from airflow.operators.python import (
     get_current_context,
 )
 from airflow.utils import timezone
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -141,7 +143,6 @@ class TestPythonOperator(TestPythonBase):
         with pytest.raises(AirflowException):
             PythonOperator(python_callable=not_callable, task_id='python_operator', dag=self.dag)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonOperator op_args are templatized"""
         recorded_calls = []
@@ -181,7 +182,6 @@ class TestPythonOperator(TestPythonBase):
             ),
         )
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
         recorded_calls = []
@@ -298,7 +298,6 @@ class TestPythonOperator(TestPythonBase):
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_context_with_kwargs(self):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -1099,7 +1098,9 @@ class MyContextAssertOperator(BaseOperator):
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context._context
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
+        assert context == current_context._context
 
 
 @pytest.fixture()
@@ -1116,7 +1117,6 @@ class TestCurrentContextRuntime:
             op = MyContextAssertOperator(task_id="assert_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_get_context_in_old_style_context_task(self):
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")

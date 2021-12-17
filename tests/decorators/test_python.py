@@ -248,7 +248,6 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
         recorded_calls = []
@@ -287,7 +286,6 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ),
         )
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
         recorded_calls = []

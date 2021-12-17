@@ -480,7 +480,6 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             )
 
     @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_logging_with_run_task(self):
         #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
         # as that is what gets displayed
