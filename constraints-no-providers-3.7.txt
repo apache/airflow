@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-16T17:16:20Z
+# This constraints file was automatically generated on 2021-12-17T02:32:01Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -85,7 +85,7 @@ google-auth==2.3.3
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
-grpcio==1.42.0
+grpcio==1.43.0
 gssapi==1.7.2
 gunicorn==20.1.0
 h11==0.12.0
@@ -93,7 +93,7 @@ httpcore==0.14.3
 httpx==0.21.1
 humanize==3.13.1
 idna==3.3
-importlib-metadata==4.8.3
+importlib-metadata==4.9.0
 importlib-resources==5.4.0
 inflection==0.5.1
 iso8601==1.0.2
