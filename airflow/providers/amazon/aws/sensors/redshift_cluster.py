@@ -61,19 +61,3 @@ class RedshiftClusterSensor(BaseSensorOperator):
 
         self.hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         return self.hook
-
-
-class AwsRedshiftClusterSensor(RedshiftClusterSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. Please use"
-            ":class:`airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

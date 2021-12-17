@@ -1784,6 +1784,10 @@ SENSORS = [
         "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor",
         "airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor",
     ),
+    (
+        "airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor",
+        "airflow.providers.amazon.aws.sensors.redshift.RedshiftClusterSensor",
+    ),
 ]
 
 TRANSFERS = [
