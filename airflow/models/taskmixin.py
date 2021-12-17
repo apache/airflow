@@ -16,7 +16,7 @@
 # under the License.
 
 import warnings
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Set, Union
 
 import pendulum
@@ -101,7 +101,7 @@ class TaskMixin(DependencyMixin):
         return super().__init_subclass__()
 
 
-class DAGNode(DependencyMixin):
+class DAGNode(DependencyMixin, metaclass=ABCMeta):
     """
     A base class for a node in the graph of a workflow -- an Operator or a Task Group, either mapped or
     unmapped.
