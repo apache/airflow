@@ -70,7 +70,8 @@ class AwsRedshiftClusterSensor(RedshiftClusterSensor):
         import warnings
 
         warnings.warn(
-            f"AwsRedshiftClusterSensor has been renamed to RedshiftClusterSensor.  AwsRedshiftClusterSensor will be removed in a future release.",
+            "AwsRedshiftClusterSensor has been renamed to RedshiftClusterSensor."
+            " AwsRedshiftClusterSensor will be removed in a future release.",
             category=DeprecationWarning,
             stacklevel=2,
         )
