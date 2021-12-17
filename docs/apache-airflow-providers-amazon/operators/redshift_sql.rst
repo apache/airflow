@@ -27,10 +27,10 @@ RedshiftSQLOperator
 Overview
 --------
 
-Use the :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
+Use the :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift_sql>` to execute
 statements against an Amazon Redshift cluster.
 
-:class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftSQLOperator>` works together with
+:class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift_sql.RedshiftSQLOperator>` works together with
 :class:`RedshiftSQLHook <airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook>` to establish
 connections with Amazon Redshift.
 
@@ -41,7 +41,7 @@ example_redshift.py
 Purpose
 """""""
 
-This is a basic example dag for using :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>`
+This is a basic example dag for using :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift_sql>`
 to execute statements against an Amazon Redshift cluster.
 
 Create a table
@@ -94,25 +94,3 @@ All together, here is our DAG:
     :language: python
     :start-after: [START redshift_operator_howto_guide]
     :end-before: [END redshift_operator_howto_guide]
-
-
-.. _howto/operator:RedshiftResumeClusterOperator:
-
-Resume a Redshift Cluster
-"""""""""""""""""""""""""""""""""""""""""""
-
-To resume a 'paused' AWS Redshift Cluster you can use
-:class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift>`
-
-This Operator leverages the AWS CLI
-`resume-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/resume-cluster.html>`__ API
-
-.. _howto/operator:RedshiftPauseClusterOperator:
-
-Pause a Redshift Cluster
-"""""""""""""""""""""""""""""""""""""""""""
-
-To pause an 'available' AWS Redshift Cluster you can use
-:class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift>`
-This Operator leverages the AWS CLI
-`pause-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/pause-cluster.html>`__ API
