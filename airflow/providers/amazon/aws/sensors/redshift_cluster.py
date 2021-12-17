@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AwsRedshiftClusterSensor(BaseSensorOperator):
+class RedshiftClusterSensor(BaseSensorOperator):
     """
     Waits for a Redshift cluster to reach a specific status.
 
@@ -61,3 +61,19 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
 
         self.hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         return self.hook
+
+
+class AwsRedshiftClusterSensor(RedshiftClusterSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. Please use"
+            ":class:`airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
