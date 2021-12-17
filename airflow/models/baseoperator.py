@@ -126,13 +126,13 @@ class BaseOperatorMeta(abc.ABCMeta):
         # per decoration, i.e. each function decorated using apply_defaults will
         # have a different sig_cache.
         sig_cache = signature(func)
-        non_varaidc_params = {
+        non_variadic_params = {
             name: param
             for (name, param) in sig_cache.parameters.items()
             if param.name != 'self' and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
         non_optional_args = {
-            name for (name, param) in non_varaidc_params.items() if param.default == param.empty
+            name for (name, param) in non_variadic_params.items() if param.default == param.empty
         }
 
         class autostacklevel_warn:
@@ -217,7 +217,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             return result
 
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
-        apply_defaults.__param_names = set(non_varaidc_params)  # type: ignore
+        apply_defaults.__param_names = set(non_variadic_params)  # type: ignore
 
         return cast(T, apply_defaults)
 
