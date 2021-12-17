@@ -27,6 +27,8 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('switch.css') }}">
 {% endblock %}
 
+{% set dag_is_paused = dag.get_is_paused() %}
+
 {% block head_meta %}
   {{ super() }}
   <meta name="dag_id" content="{{ dag.dag_id }}">
@@ -36,7 +38,7 @@
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
-  <meta name="is_paused" content="{{ dag.is_paused }}">
+  <meta name="is_paused" content="{{ dag_is_paused }}">
   {% if dag_model is defined and dag_model.next_dagrun_create_after is defined and dag_model.next_dagrun_create_after is not none %}
     <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
     <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
@@ -70,11 +72,11 @@
         {% if appbuilder.sm.can_edit_dag(dag.dag_id) %}
           {% set switch_tooltip = 'Pause/Unpause DAG' %}
         {% else %}
-          {% set switch_tooltip = 'DAG is Paused' if dag.is_paused else 'DAG is Active' %}
+          {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
         {% endif %}
         <label class="switch-label{{' disabled' if not can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
           <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
-                 type="checkbox"{{ " checked" if not dag.is_paused else "" }}
+                 type="checkbox"{{ " checked" if not dag_is_paused else "" }}
                  {{ " disabled" if not can_edit else "" }}>
           <span class="switch" aria-hidden="true"></span>
         </label>

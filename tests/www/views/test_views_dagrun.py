@@ -93,6 +93,7 @@ def running_dag_run(session):
     dr = dag.create_dagrun(
         state="running",
         execution_date=execution_date,
+        data_interval=(execution_date, execution_date),
         run_id="test_dag_runs_action",
         session=session,
     )
