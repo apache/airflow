@@ -198,8 +198,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     :param job_name: name of the SageMaker training job to check the state of
 
     :type job_name: str
-    :param print_log: if the operator should print the
-    cloudwatch log
+    :param print_log: if the operator should print the cloudwatch log
     :type print_log: bool
     """
 
