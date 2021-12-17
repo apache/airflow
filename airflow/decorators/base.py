@@ -262,7 +262,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
             raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
 
     def map(
-        self, *args, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> XComArg:
 
         dag = dag or DagContext.get_current_dag()
@@ -285,7 +285,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
         return XComArg(operator=operator)
 
     def partial(
-        self, *args, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> "OperatorWrapper[T, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs, {'task_id'})
         partial_kwargs = self.kwargs.copy()
