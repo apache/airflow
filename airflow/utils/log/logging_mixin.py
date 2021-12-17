@@ -21,6 +21,7 @@ import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
+from typing import Optional
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -37,18 +38,17 @@ def remove_escape_codes(text: str) -> str:
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name"""
 
+    _log: Optional[logging.Logger] = None
+
     def __init__(self, context=None):
         self._set_context(context)
 
     @property
     def log(self) -> Logger:
         """Returns a logger."""
-        try:
-            # FIXME: LoggingMixin should have a default _log field.
-            return self._log  # type: ignore
-        except AttributeError:
+        if self._log is None:
             self._log = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
-            return self._log
+        return self._log
 
     def _set_context(self, context):
         if context is not None:
