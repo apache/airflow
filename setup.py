@@ -199,7 +199,7 @@ amazon = [
     pandas_requirement,
 ]
 apache_beam = [
-    'apache-beam>=2.20.0',
+    'apache-beam>=2.33.0',
 ]
 asana = ['asana>=0.10']
 async_packages = [
