@@ -19,7 +19,7 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Type, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -114,10 +114,10 @@ class DecoratedOperator(BaseOperator):
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_args: Optional[Sequence] = None,
+        op_kwargs: Optional[Dict[str, Any]] = None,
         multiple_outputs: bool = False,
-        kwargs_to_upstream: Optional[Dict] = None,
+        kwargs_to_upstream: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
