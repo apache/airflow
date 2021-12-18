@@ -26,6 +26,7 @@ from dateutil import relativedelta
 from sqlalchemy import event, nullsfirst
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
+from sqlalchemy.sql.expression import asc, desc
 from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow.configuration import conf
@@ -217,16 +218,20 @@ def nowait(session: Session) -> Dict[str, Any]:
         return {}
 
 
-def nulls_first(col, session: Session) -> Dict[str, Any]:
+def nulls_first(col, ascending, session: Session) -> Dict[str, Any]:
     """
     Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
     In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
     appear first when the order is ASC (ascending)
     """
     if session.bind.dialect.name == "postgresql":
-        return nullsfirst(col)
+        if ascending:
+            return nullsfirst(asc(col))
+        return nullsfirst(desc(col))
     else:
-        return col
+        if ascending:
+            return asc(col)
+        return desc(col)
 
 
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)

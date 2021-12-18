@@ -281,6 +281,7 @@ class SchedulerJob(BaseJob):
         # Get all task instances associated with scheduled
         # DagRuns which are not backfilled, in the given states,
         # and the dag is not paused
+
         query = (
             session.query(TI)
             .join(TI.dag_run)
@@ -291,7 +292,7 @@ class SchedulerJob(BaseJob):
             .options(selectinload('dag_model'))
             .order_by(
                 -TI.priority_weight,
-                nulls_first(TI.last_scheduling_decision, session=session),
+                nulls_first(TI.last_scheduling_decision, ascending=False, session=session),
                 DR.execution_date,
             )
         )
@@ -400,7 +401,15 @@ class SchedulerJob(BaseJob):
                         dag_id,
                         max_active_tasks_per_dag_limit,
                     )
-                    task_instance.last_scheduling_decision = timezone.utcnow()
+                    # Set the last_scheduling_decision for all task instances in this dag
+                    session.query(TI).filter(
+                        TI.dag_id == task_instance.dag_id, TI.state == State.SCHEDULED
+                    ).update(
+                        {
+                            TI.last_scheduling_decision: timezone.utcnow(),
+                        },
+                        synchronize_session=False,
+                    )
                     continue
 
                 task_concurrency_limit: Optional[int] = None
@@ -598,7 +607,7 @@ class SchedulerJob(BaseJob):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            # reset the last_scheduling_decision for all task in this dag
+            # reset the last_scheduling_decision for all tasks instances in this dag
             session.query(TI).filter(TI.dag_id == ti.dag_id, TI.state == State.SCHEDULED).update(
                 {
                     TI.last_scheduling_decision: None,

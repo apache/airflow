@@ -287,7 +287,7 @@ class DagRun(Base, LoggingMixin):
                 func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs
             )
         query = query.order_by(
-            nulls_first(cls.last_scheduling_decision, session=session),
+            nulls_first(cls.last_scheduling_decision, ascending=True, session=session),
             cls.execution_date,
         )
 
