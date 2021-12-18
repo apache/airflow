@@ -106,6 +106,9 @@ def init_appbuilder_views(app):
         views.XComModelView, permissions.RESOURCE_XCOM, category=permissions.RESOURCE_ADMIN_MENU
     )
     appbuilder.add_view(
+        views.EventNoteView, permissions.RESOURCE_EVENT_NOTE, category=permissions.RESOURCE_BROWSE_MENU
+    )
+    appbuilder.add_view(
         views.DagDependenciesView,
         permissions.RESOURCE_DAG_DEPENDENCIES,
         category=permissions.RESOURCE_BROWSE_MENU,

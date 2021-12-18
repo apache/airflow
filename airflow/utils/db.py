@@ -51,6 +51,7 @@ from airflow.models import (  # noqa: F401
     TaskReschedule,
     Variable,
     XCom,
+    EventNote
 )
 
 # We need to add this model manually to get reset working well

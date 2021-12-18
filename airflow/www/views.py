@@ -101,7 +101,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, EventNote, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -123,7 +123,7 @@ from airflow.utils.strings import to_boolean
 from airflow.utils.timezone import td_format
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.decorators import action_logging, gzipped
+from airflow.www.decorators import action_logging, gzipped, event_noting
 from airflow.www.forms import (
     ConnectionForm,
     DagRunEditForm,
@@ -1593,6 +1593,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
+    @event_noting
     @action_logging
     def run(self):
         """Runs Task Instance."""
@@ -1659,6 +1660,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
         ]
     )
+    @event_noting
     @action_logging
     def delete(self):
         """Deletes DAG."""
@@ -1695,6 +1697,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    @event_noting
     @provide_session
     def trigger(self, session=None):
         """Triggers DAG Run."""
@@ -1864,6 +1867,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
+    @event_noting
     @action_logging
     def clear(self):
         """Clears the Dag."""
@@ -1931,6 +1935,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @provide_session
+    @event_noting
     def blocked(self, session=None):
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
@@ -2034,6 +2039,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         ]
     )
+    @event_noting
     @action_logging
     def dagrun_failed(self):
         """Mark DagRun failed."""
@@ -2216,6 +2222,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
+    @event_noting
     @action_logging
     def failed(self):
         """Mark task as failed."""
@@ -2249,6 +2256,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
+    @event_noting
     @action_logging
     def success(self):
         """Mark task as success."""
@@ -2848,6 +2856,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         ]
     )
+    @event_noting
     @action_logging
     def paused(self):
         """Toggle paused."""
@@ -3304,6 +3313,54 @@ class SlaMissModelView(AirflowModelView):
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
+
+
+class EventNoteView(AirflowModelView):
+    """View to show Event Note table"""
+
+    route_base = '/notes'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(EventNote)  # type: ignore
+
+    class_permission_name = permissions.RESOURCE_EVENT_NOTE
+    method_permission_name = {
+        'list': 'read',
+        'delete': 'delete',
+        'action_muldelete': 'delete',
+        'edit': 'edit',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    list_columns = ['dag_id', 'task_id', 'execution_date', 'owner', 'event', 'note', 'timestamp']
+    edit_columns = ['note']
+    search_columns = ['dag_id', 'task_id', 'note', 'owner', 'event', 'execution_date']
+    base_order = ('execution_date', 'desc')
+    base_filters = [['dag_id', DagFilter, lambda: []]]
+    formatters_columns = {
+        'task_id': wwwutils.task_instance_link,
+        'execution_date': wwwutils.datetime_f('execution_date'),
+        'timestamp': wwwutils.datetime_f('timestamp'),
+        'dag_id': wwwutils.dag_link,
+    }
+
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_EVENT_NOTE),
+        ]
+    )
+    def action_muldelete(self, items):
+        """Multiple delete action."""
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
 
 
 class XComModelView(AirflowModelView):

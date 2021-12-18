@@ -27,6 +27,8 @@ from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
+from airflow.models.event_note import EventNote
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 T = TypeVar("T", bound=Callable)
@@ -71,6 +73,43 @@ def action_logging(f: T) -> T:
 
         return f(*args, **kwargs)
 
+    return cast(T, wrapper)
+
+
+def event_noting(f: T) -> T:
+    """Decorator to add a note"""
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        with create_session() as session:
+            if not request.values.get("note"):
+                return f(*args, **kwargs)
+            if g.user.is_anonymous:
+                user = 'anonymous'
+            else:
+                user = g.user.username
+            note = EventNote(
+                event=f.__name__,
+                owner=user,
+                execution_date=request.values.get("execution_date"),
+                timestamp=timezone.utcnow(),
+                task_id=request.values.get('task_id'),
+                dag_id=request.values.get('dag_id'),
+                note=request.values.get("note"),
+            )
+
+            if 'execution_date' in request.values:
+                execution_date_value = request.values.get('execution_date')
+                try:
+                    note.execution_date = pendulum.parse(execution_date_value, strict=False)
+                except ParserError:
+                    logger.exception(
+                        "Failed to parse execution_date from the request: %s", execution_date_value
+                    )
+                    pass
+
+            session.add(note)
+        return f(*args, **kwargs)
     return cast(T, wrapper)
 
 
