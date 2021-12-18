@@ -18,10 +18,9 @@
 
 import datetime
 import os
-from typing import Any, Callable, Collection, FrozenSet, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable, Optional, Union
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
@@ -109,8 +108,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.allowed_states = list(allowed_states) if allowed_states else [State.SUCCESS]
         self.failed_states = list(failed_states) if failed_states else []
 
-        total_states: Iterable[str] = self.allowed_states + self.failed_states
-        total_states = set(total_states)
+        total_states = set(self.allowed_states + self.failed_states)
 
         if set(self.failed_states).intersection(set(self.allowed_states)):
             raise AirflowException(
@@ -214,7 +212,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     )
         self._has_checked_existence = True
 
-    def get_count(self, dttm_filter: Iterable, session: Session, states: Iterable) -> int:
+    def get_count(self, dttm_filter, session, states) -> int:
         """
         Get the count of records against dttm filter and states
 
@@ -259,9 +257,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         implementation to pass all context variables as keyword arguments, to allow
         for more sophisticated returns of dates to return.
         """
-        if self.execution_date_fn is None or context is None:
-            raise AirflowException("Execution date function or context is not provided")
-
         from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "execution_date" because it is already a mandatory positional argument
@@ -270,6 +265,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)
         kwargs["context"] = context
+        if TYPE_CHECKING:
+            assert self.execution_date_fn is not None
         kwargs_callable = make_kwargs_callable(self.execution_date_fn)
         return kwargs_callable(execution_date, **kwargs)
 
