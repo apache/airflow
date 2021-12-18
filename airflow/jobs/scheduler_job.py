@@ -598,10 +598,10 @@ class SchedulerJob(BaseJob):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            # update the last_scheduling_decision for all task in this dag
-            session.query(TI).filter(TI.dag_id == ti.dag_id, TI.state == State.SCHEDULED,).update(
+            # reset the last_scheduling_decision for all task in this dag
+            session.query(TI).filter(TI.dag_id == ti.dag_id, TI.state == State.SCHEDULED).update(
                 {
-                    TI.last_scheduling_decision: timezone.utcnow(),
+                    TI.last_scheduling_decision: None,
                 },
                 synchronize_session=False,
             )
