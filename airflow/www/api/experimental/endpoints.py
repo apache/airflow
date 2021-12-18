@@ -103,11 +103,11 @@ def trigger_dag(dag_id):
         try:
             execution_date = timezone.parse(execution_date)
         except ValueError:
+            log.error("Given execution date could not be identified as a date.")
             error_message = (
                 f'Given execution date, {execution_date}, could not be identified as a date. '
                 f'Example date format: 2015-11-16T14:34:15+00:00'
             )
-            log.error(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
 
@@ -253,11 +253,11 @@ def task_instance_info(dag_id, execution_date, task_id):
     try:
         execution_date = timezone.parse(execution_date)
     except ValueError:
+        log.error("Given execution date could not be identified as a date.")
         error_message = (
             f'Given execution date, {execution_date}, could not be identified as a date. '
             f'Example date format: 2015-11-16T14:34:15+00:00'
         )
-        log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 
@@ -289,11 +289,11 @@ def dag_run_status(dag_id, execution_date):
     try:
         execution_date = timezone.parse(execution_date)
     except ValueError:
+        log.error("Given execution date could not be identified as a date.")
         error_message = (
             f'Given execution date, {execution_date}, could not be identified as a date. '
             f'Example date format: 2015-11-16T14:34:15+00:00'
         )
-        log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 
@@ -402,11 +402,11 @@ def get_lineage(dag_id: str, execution_date: str):
     try:
         execution_dt = timezone.parse(execution_date)
     except ValueError:
+        log.error("Given execution date could not be identified as a date.")
         error_message = (
             f'Given execution date, {execution_date}, could not be identified as a date. '
             f'Example date format: 2015-11-16T14:34:15+00:00'
         )
-        log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 

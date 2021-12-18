@@ -152,7 +152,7 @@ If you use bash, run this command and re-login:
 
 .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
+    echo 'export PATH="$(brew --prefix)/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
     . ~/.bash_profile
 
 
@@ -160,7 +160,7 @@ If you use zsh, run this command and re-login:
 
 .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+    echo 'export PATH="$(brew --prefix)/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
 

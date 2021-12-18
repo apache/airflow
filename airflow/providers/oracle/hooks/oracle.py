@@ -17,7 +17,7 @@
 # under the License.
 
 from datetime import datetime
-from typing import Dict, List, Optional, TypeVar
+from typing import Dict, List, Optional, Union
 
 import cx_Oracle
 import numpy
@@ -25,8 +25,6 @@ import numpy
 from airflow.hooks.dbapi import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
-
-ParameterType = TypeVar('ParameterType', Dict, List, None)
 
 
 def _map_param(value):
@@ -284,8 +282,8 @@ class OracleHook(DbApiHook):
         self,
         identifier: str,
         autocommit: bool = False,
-        parameters: ParameterType = None,
-    ) -> ParameterType:
+        parameters: Optional[Union[List, Dict]] = None,
+    ) -> Optional[Union[List, Dict]]:
         """
         Call the stored procedure identified by the provided string.
 
@@ -301,7 +299,7 @@ class OracleHook(DbApiHook):
         for further reference.
         """
         if parameters is None:
-            parameters = ()
+            parameters = []
 
         args = ",".join(
             f":{name}"

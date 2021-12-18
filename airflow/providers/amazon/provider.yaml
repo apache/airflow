@@ -105,7 +105,8 @@ integrations:
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/redshift.rst
+      - /docs/apache-airflow-providers-amazon/operators/redshift_sql.rst
+      - /docs/apache-airflow-providers-amazon/operators/redshift_cluster.rst
     tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
@@ -252,6 +253,8 @@ operators:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
+      - airflow.providers.amazon.aws.operators.redshift_sql
+      - airflow.providers.amazon.aws.operators.redshift_cluster
 
 sensors:
   - integration-name: Amazon Athena
@@ -295,6 +298,7 @@ sensors:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.sensors.redshift
+      - airflow.providers.amazon.aws.sensors.redshift_cluster
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.sensors.s3_key
@@ -375,6 +379,8 @@ hooks:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.hooks.redshift
+      - airflow.providers.amazon.aws.hooks.redshift_sql
+      - airflow.providers.amazon.aws.hooks.redshift_cluster
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
@@ -461,7 +467,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
-  - airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+  - airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
 
 extra-links:
   - airflow.providers.amazon.aws.operators.emr.EmrClusterLink
@@ -474,7 +480,7 @@ connection-types:
     connection-type: aws
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
-  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
 
 secrets-backends:

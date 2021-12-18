@@ -2154,6 +2154,11 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.dms`.",
     'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.',
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
+    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
+    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
 }
 
 

@@ -988,7 +988,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         if self._pre_execute_hook is not None:
             self._pre_execute_hook(context)
 
-    def execute(self, context: Any):
+    def execute(self, context: Context) -> Any:
         """
         This is the main method to derive when creating an operator.
         Context is the same dictionary used as when rendering jinja templates.
