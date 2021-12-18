@@ -96,6 +96,12 @@ class DynamoDBToS3Operator(BaseOperator):
     :type s3_key_prefix: Optional[str]
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     :type process_func: Callable[[Dict[str, Any]], bytes]
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :type aws_conn_id: str
     """
 
     def __init__(
