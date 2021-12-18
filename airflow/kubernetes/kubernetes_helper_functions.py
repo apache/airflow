@@ -64,8 +64,6 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
     try_number = int(annotations['try_number'])
     annotation_run_id = annotations.get('run_id')
 
-    task_instance_run_id: str = ''
-
     if not annotation_run_id and 'execution_date' in annotations:
         # Compat: Look up the run_id from the TI table!
         from airflow.models.dagrun import DagRun
@@ -86,5 +84,7 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
             )
             .scalar()
         )
+    else:
+        task_instance_run_id = annotation_run_id
 
     return TaskInstanceKey(dag_id, task_id, task_instance_run_id, try_number)
