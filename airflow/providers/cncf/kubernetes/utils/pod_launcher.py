@@ -329,6 +329,6 @@ class PodLauncher(LoggingMixin):
                 if resp.peek_stdout():
                     return resp.read_stdout()
                 if resp.peek_stderr():
-                    self.log.info(resp.read_stderr())
+                    self.log.info("stderr from command: %s", resp.read_stderr())
                     break
         return None
