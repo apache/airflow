@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.createUserJob) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -65,8 +66,7 @@ spec:
         {{- end }}
       {{- end }}
     spec:
-      securityContext:
-          runAsUser: {{ .Values.uid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}

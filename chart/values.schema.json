@@ -76,6 +76,20 @@
             "default": "2.2.2",
             "x-docsSection": "Common"
         },
+        "securityContext": {
+            "description": "Pod security context definition. The values in this parameter will be used when `securityContext` is not defined for specific Pods",
+            "type": "object",
+            "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+            "default": {},
+            "x-docsSection": "Kubernetes",
+            "examples": [
+                {
+                    "runAsUser": 50000,
+                    "runAsGroup": 0,
+                    "fsGroup": 0
+                }
+            ]
+        },
         "nodeSelector": {
             "description": "Select certain nodes for all pods.",
             "type": "object",
@@ -1379,6 +1393,19 @@
                             "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/resourcerequirements-v1.json"
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the worker pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
@@ -1657,6 +1684,19 @@
                             "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/resourcerequirements-v1.json"
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the scheduler pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
@@ -1860,6 +1900,19 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
@@ -1959,6 +2012,19 @@
                         "type": "object",
                         "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/toleration-v1.json"
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the create user job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "resources": {
                     "description": "Resources for the create user job pod",
@@ -2098,6 +2164,19 @@
                         "type": "object",
                         "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/toleration-v1.json"
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the migrate database job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
@@ -2284,6 +2363,19 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the webserver job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 },
                 "resources": {
                     "description": "Resources for webserver pods.",
@@ -2788,6 +2880,19 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the flower pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
@@ -2903,6 +3008,19 @@
                     "description": "Additional mappings for StatsD exporter.",
                     "type": "array",
                     "default": []
+                },
+                "securityContext": {
+                    "description": "Security context for the statsd pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
@@ -3654,6 +3772,19 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
@@ -3812,6 +3943,18 @@
                             "description": "Git sync container name.",
                             "type": "string",
                             "default": "git-sync"
+                        },
+                        "securityContext": {
+                            "description": "Security context for the gitSync container. If not set, the values from `securityContext` will be used.",
+                            "type": "object",
+                            "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0
+                                }
+                            ]
                         },
                         "uid": {
                             "description": "Git sync container run as user parameter.",

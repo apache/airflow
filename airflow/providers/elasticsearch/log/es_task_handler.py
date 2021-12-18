@@ -22,7 +22,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -97,8 +97,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.host_field = host_field
         self.offset_field = offset_field
-        self.handler = None
         self.context_set = False
+
+        self.formatter: logging.Formatter
+        self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         dag_run = ti.dag_run
@@ -294,9 +296,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 # already been initialized
                 return
 
-            self.handler = logging.StreamHandler(stream=sys.__stdout__)  # type: ignore
-            self.handler.setLevel(self.level)  # type: ignore
-            self.handler.setFormatter(self.formatter)  # type: ignore
+            self.handler = logging.StreamHandler(stream=sys.__stdout__)
+            self.handler.setLevel(self.level)
+            self.handler.setFormatter(self.formatter)
         else:
             super().set_context(ti)
         self.context_set = True
@@ -320,8 +322,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:
-            self.handler.stream = self.handler._open()
+        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+            self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.

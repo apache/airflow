@@ -468,7 +468,9 @@ slack = [
     'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
-    'snowflake-connector-python>=2.4.1',
+    # Snowflake connector 2.7.2 requires pyarrow >=6.0.0 but apache-beam requires < 6.0.0
+    # We should remove the limitation when apache-beam upgrades pyarrow
+    'snowflake-connector-python>=2.4.1,<2.7.2',
     # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
     # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
     # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234

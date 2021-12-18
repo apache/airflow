@@ -283,3 +283,130 @@ In order to enable the usage of SCCs, one must set the parameter :ref:`rbac.crea
 In this chart, SCCs are bound to the Pods via RoleBindings meaning that the option ``rbac.create`` must also be set to ``true`` in order to fully enable the SCC usage.
 
 For more information about SCCs and what can be achieved with this construct, please refer to `Managing security context constraints <https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html#scc-prioritization_configuring-internal-oauth/>`_.
+
+Security Context
+----------------
+
+In Kubernetes a ``securityContext`` can be used to define user ids, group ids and capabilities such as running a container in privileged mode.
+
+When deploying an application to Kubernetes, it is recommended to give the least privilege to containers so as
+to reduce access and protect the host where the container is running.
+
+In the Airflow Helm chart, the ``securityContext`` can be configured in several ways:
+
+  * :ref:`uid <parameters:Airflow>` (configures the global uid or RunAsUser)
+  * :ref:`gid <parameters:Airflow>` (configures the global gid or fsGroup)
+  * :ref:`securityContext <parameters:Kubernetes>` (same as ``uid`` but allows for setting all `Pod securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core>`_)
+
+The same way one can configure the global :ref:`securityContext <parameters:Kubernetes>`, it is also possible to configure different values for specific workloads by setting their local ``securityContext`` as follows:
+
+.. code-block:: yaml
+
+  workers:
+    securityContext:
+      runAsUser: 5000
+      fsGroup: 0
+
+In the example above, the workers Pod ``securityContext`` will be set to ``runAsUser: 5000`` and ``runAsGroup: 0``.
+
+As one can see, the local setting will take precedence over the global setting when defined. The following explains the precedence rule for ``securityContext`` options in this chart:
+
+.. code-block:: yaml
+
+  uid: 40000
+  gid: 0
+
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 0
+
+  workers:
+    securityContext:
+      runAsUser: 1001
+      fsGroup: 0
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        securityContext:    # As the securityContext was defined in ``workers``, its value will take priority
+          runAsUser: 1001
+          fsGroup: 0
+
+If we remove both the ``securityContext`` and ``workers.securityContext`` from the example above, the output will be the following:
+
+.. code-block:: yaml
+
+  uid: 40000
+  gid: 0
+
+  securityContext: {}
+
+  workers:
+    securityContext: {}
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        securityContext:
+          runAsUser: 40000   # As the securityContext was not defined in ``workers`` or ``podSecurity``, the value from uid will be used
+          fsGroup: 0         # As the securityContext was not defined in ``workers`` or ``podSecurity``, the value from gid will be used
+        initContainers:
+          - name: wait-for-airflow-migrations
+        ...
+        containers:
+          - name: worker
+        ...
+
+And finally if we set ``securityContext`` but not ``workers.securityContext``:
+
+.. code-block:: yaml
+
+  uid: 40000
+  gid: 0
+
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 0
+
+  workers:
+    securityContext: {}
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        securityContext:     # As the securityContext was not defined in ``workers``, the values from securityContext will take priority
+          runAsUser: 50000
+          fsGroup: 0
+        initContainers:
+          - name: wait-for-airflow-migrations
+        ...
+        containers:
+          - name: worker
+        ...

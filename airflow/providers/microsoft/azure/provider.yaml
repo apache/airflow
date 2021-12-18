@@ -225,3 +225,6 @@ secrets-backends:
 
 logging:
   - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
+
+extra-links:
+  - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink

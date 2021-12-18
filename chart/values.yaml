@@ -32,6 +32,12 @@ kubeVersionOverride: ""
 uid: 50000
 gid: 0
 
+# Default security context for airflow
+securityContext: {}
+#  runAsUser: 50000
+#  fsGroup: 0
+#  runAsGroup: 0
+
 # Airflow home directory
 # Used for mount paths
 airflowHome: /opt/airflow
@@ -405,6 +411,12 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -549,6 +561,12 @@ scheduler:
   # (when not using LocalExecutor and workers.persistence)
   strategy: ~
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -628,6 +646,12 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -667,6 +691,12 @@ migrateDatabaseJob:
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
 
   # Create ServiceAccount
   serviceAccount:
@@ -737,6 +767,12 @@ webserver:
 
   # Allow overriding Update Strategy for Webserver
   strategy: ~
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
 
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
@@ -861,6 +897,12 @@ triggerer:
     # Annotations to add to triggerer kubernetes service account.
     annotations: {}
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -935,6 +977,12 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -997,6 +1045,12 @@ statsd:
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 65534
+  #  fsGroup: 0
+  #  runAsGroup: 0
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -1263,6 +1317,11 @@ cleanup:
     # Annotations to add to cleanup cronjob kubernetes service account.
     annotations: {}
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  runAsGroup: 0
+
 # Configuration for postgresql subchart
 # Not recommended for production
 postgresql:
@@ -1434,6 +1493,12 @@ dags:
     wait: 60
     containerName: git-sync
     uid: 65533
+
+    # When not set, the values defined in the global securityContext will be used
+    securityContext: {}
+    #  runAsUser: 65533
+    #  runAsGroup: 0
+
     extraVolumeMounts: []
     env: []
     resources: {}

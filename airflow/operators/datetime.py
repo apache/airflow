@@ -100,7 +100,7 @@ def target_times_as_dates(
     if upper is not None and isinstance(upper, datetime.time):
         upper = datetime.datetime.combine(base_date, upper)
 
-    if any(date is None for date in (lower, upper)):
+    if lower is None or upper is None:
         return lower, upper
 
     if upper < lower:

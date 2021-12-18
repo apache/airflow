@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Optional, Union
+from typing import Any, Container, Optional, Union
 
 from pendulum import DateTime
 
@@ -88,3 +88,5 @@ class Context(TypedDict, total=False):
     var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str
+
+def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...

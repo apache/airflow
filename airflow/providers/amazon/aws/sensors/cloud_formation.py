@@ -24,7 +24,7 @@ if sys.version_info >= (3, 8):
 else:
     from cached_property import cached_property
 
-from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -59,9 +59,9 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
     @cached_property
-    def hook(self) -> AWSCloudFormationHook:
-        """Create and return an AWSCloudFormationHook"""
-        return AWSCloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+    def hook(self) -> CloudFormationHook:
+        """Create and return an CloudFormationHook"""
+        return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class CloudFormationDeleteStackSensor(BaseSensorOperator):
@@ -102,6 +102,6 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
     @cached_property
-    def hook(self) -> AWSCloudFormationHook:
-        """Create and return an AWSCloudFormationHook"""
-        return AWSCloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+    def hook(self) -> CloudFormationHook:
+        """Create and return an CloudFormationHook"""
+        return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

@@ -18,7 +18,7 @@
 
 import datetime
 import os
-from typing import Any, Callable, FrozenSet, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable, Optional, Union
 
 from sqlalchemy import func
 
@@ -96,7 +96,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         *,
         external_dag_id: str,
         external_task_id: Optional[str] = None,
-        external_task_ids: Optional[Iterable[str]] = None,
+        external_task_ids: Optional[Collection[str]] = None,
         allowed_states: Optional[Iterable[str]] = None,
         failed_states: Optional[Iterable[str]] = None,
         execution_delta: Optional[datetime.timedelta] = None,
@@ -108,8 +108,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.allowed_states = list(allowed_states) if allowed_states else [State.SUCCESS]
         self.failed_states = list(failed_states) if failed_states else []
 
-        total_states = self.allowed_states + self.failed_states
-        total_states = set(total_states)
+        total_states = set(self.allowed_states + self.failed_states)
 
         if set(self.failed_states).intersection(set(self.allowed_states)):
             raise AirflowException(
@@ -266,6 +265,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)
         kwargs["context"] = context
+        if TYPE_CHECKING:
+            assert self.execution_date_fn is not None
         kwargs_callable = make_kwargs_callable(self.execution_date_fn)
         return kwargs_callable(execution_date, **kwargs)
 
