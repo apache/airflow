@@ -393,7 +393,7 @@ class KubernetesPodOperator(BaseOperator):
     def extract_xcom(self, pod):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.launcher.extract_xcom(pod)
-        self.log.info(result)
+        self.log.info("xcom result: \n%s", result)
         return json.loads(result)
 
     def execute(self, context):
