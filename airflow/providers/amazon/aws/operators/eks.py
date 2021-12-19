@@ -635,9 +635,9 @@ class EKSPodOperator(KubernetesPodOperator):
         # file is stored locally in the worker and not in the cluster.
         in_cluster: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
-        pod_context: str = None,
-        pod_name: str = None,
-        pod_username: str = None,
+        pod_context: Optional[str] = None,
+        pod_name: Optional[str] = None,
+        pod_username: Optional[str] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
@@ -24,9 +25,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
