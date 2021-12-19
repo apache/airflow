@@ -86,7 +86,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:

@@ -49,7 +49,7 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
             project_id=PROJECT_ID,
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -73,7 +73,7 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
             project_id=PROJECT_ID,
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

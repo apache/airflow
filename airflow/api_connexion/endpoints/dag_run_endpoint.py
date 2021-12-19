@@ -88,7 +88,7 @@ def _fetch_dag_runs(
     start_date_lte: Optional[str],
     limit: Optional[int],
     offset: Optional[int],
-    order_by: Optional[str],
+    order_by: str,
 ) -> Tuple[List[DagRun], int]:
     if start_date_gte:
         query = query.filter(DagRun.start_date >= start_date_gte)

@@ -37,8 +37,10 @@ def _convert_item_to_json_bytes(item: Dict[str, Any]) -> bytes:
     return (json.dumps(item) + '\n').encode('utf-8')
 
 
-def _upload_file_to_s3(file_obj: IO, bucket_name: str, s3_key_prefix: str) -> None:
-    s3_client = S3Hook().get_conn()
+def _upload_file_to_s3(
+    file_obj: IO, bucket_name: str, s3_key_prefix: str, aws_conn_id: str = 'aws_default'
+) -> None:
+    s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
         Filename=file_obj.name,
@@ -94,6 +96,12 @@ class DynamoDBToS3Operator(BaseOperator):
     :type s3_key_prefix: Optional[str]
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     :type process_func: Callable[[Dict[str, Any]], bytes]
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :type aws_conn_id: str
     """
 
     def __init__(
@@ -105,6 +113,7 @@ class DynamoDBToS3Operator(BaseOperator):
         dynamodb_scan_kwargs: Optional[Dict[str, Any]] = None,
         s3_key_prefix: str = '',
         process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -114,9 +123,12 @@ class DynamoDBToS3Operator(BaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context) -> None:
-        table = AwsDynamoDBHook().get_conn().Table(self.dynamodb_table_name)
+        hook = AwsDynamoDBHook(aws_conn_id=self.aws_conn_id)
+        table = hook.get_conn().Table(self.dynamodb_table_name)
+
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         with NamedTemporaryFile() as f:
@@ -127,7 +139,7 @@ class DynamoDBToS3Operator(BaseOperator):
                 raise e
             finally:
                 if err is None:
-                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
+                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix, self.aws_conn_id)
 
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
@@ -145,7 +157,7 @@ class DynamoDBToS3Operator(BaseOperator):
 
             # Upload the file to S3 if reach file size limit
             if getsize(temp_file.name) >= self.file_size:
-                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix)
+                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.aws_conn_id)
                 temp_file.close()
 
                 temp_file = NamedTemporaryFile()

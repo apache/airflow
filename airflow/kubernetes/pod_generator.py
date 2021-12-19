@@ -440,7 +440,7 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(pod_id: str) -> str:
+    def make_unique_pod_id(pod_id: str) -> Optional[str]:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253

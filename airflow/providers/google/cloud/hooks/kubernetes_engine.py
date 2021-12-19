@@ -25,14 +25,16 @@ from typing import Dict, Optional, Sequence, Union
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
-from google.cloud import container_v1, exceptions
+
+# not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
+from google.cloud import container_v1, exceptions  # type: ignore[attr-defined]
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
@@ -141,7 +143,11 @@ class GKEHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_cluster(
-        self, name: str, project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
+        self,
+        name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT,
     ) -> Optional[str]:
         """
         Deletes the cluster, including the Kubernetes endpoint and all
@@ -179,7 +185,11 @@ class GKEHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
-        self, cluster: Union[Dict, Cluster], project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
+        self,
+        cluster: Union[Dict, Cluster],
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT,
     ) -> str:
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
@@ -228,7 +238,11 @@ class GKEHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_cluster(
-        self, name: str, project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
+        self,
+        name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT,
     ) -> Cluster:
         """
         Gets details of specified cluster
