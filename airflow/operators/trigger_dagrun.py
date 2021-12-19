@@ -167,6 +167,9 @@ class TriggerDagRunOperator(BaseOperator):
             else:
                 raise e
 
+        if not dag_run:
+            raise AirflowException("Invalid DAG run")
+
         # Store the execution date from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context['task_instance']

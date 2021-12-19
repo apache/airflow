@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 
 import dill
 
@@ -148,7 +148,7 @@ class PythonOperator(BaseOperator):
         *,
         python_callable: Callable,
         op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
         show_return_value_in_logs: bool = True,
