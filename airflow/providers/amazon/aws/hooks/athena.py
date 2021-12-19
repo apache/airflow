@@ -227,7 +227,7 @@ class AWSAthenaHook(AwsBaseHook):
             sleep(self.sleep_time)
         return final_query_state
 
-    def get_output_location(self, query_execution_id: str) -> str:
+    def get_output_location(self, query_execution_id: str) -> Optional[str]:
         """
         Function to get the output location of the query results
         in s3 uri format.

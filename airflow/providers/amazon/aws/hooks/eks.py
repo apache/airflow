@@ -499,7 +499,7 @@ class EKSHook(AwsBaseHook):
         :return: A List of the combined results of the provided API call.
         :rtype: List
         """
-        name_collection = []
+        name_collection: List = []
         token = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:
