@@ -349,7 +349,7 @@ class EKSHook(AwsBaseHook):
             )
         return response
 
-    def get_cluster_state(self, clusterName: str) -> Optional[ClusterStates]:
+    def get_cluster_state(self, clusterName: str) -> ClusterStates:
         """
         Returns the current status of a given Amazon EKS Cluster.
 
@@ -360,19 +360,16 @@ class EKSHook(AwsBaseHook):
         :rtype: ClusterStates
         """
         eks_client = self.conn
-        result = None
 
         try:
-            result = ClusterStates(eks_client.describe_cluster(name=clusterName).get('cluster').get('status'))
+            return ClusterStates(eks_client.describe_cluster(name=clusterName).get('cluster').get('status'))
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
-                result = ClusterStates.NONEXISTENT
+                return ClusterStates.NONEXISTENT
+            else:
+                raise
 
-        return result
-
-    def get_fargate_profile_state(
-        self, clusterName: str, fargateProfileName: str
-    ) -> Optional[FargateProfileStates]:
+    def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
         Returns the current status of a given AWS Fargate profile.
 
@@ -385,10 +382,9 @@ class EKSHook(AwsBaseHook):
         :rtype: AWS FargateProfileStates
         """
         eks_client = self.conn
-        result = None
 
         try:
-            result = FargateProfileStates(
+            return FargateProfileStates(
                 eks_client.describe_fargate_profile(
                     clusterName=clusterName, fargateProfileName=fargateProfileName
                 )
@@ -397,11 +393,11 @@ class EKSHook(AwsBaseHook):
             )
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
-                result = FargateProfileStates.NONEXISTENT
+                return FargateProfileStates.NONEXISTENT
+            else:
+                raise
 
-        return result
-
-    def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> Optional[NodegroupStates]:
+    def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
         Returns the current status of a given Amazon EKS managed node group.
 
@@ -414,19 +410,18 @@ class EKSHook(AwsBaseHook):
         :rtype: NodegroupStates
         """
         eks_client = self.conn
-        result = None
 
         try:
-            result = NodegroupStates(
+            return NodegroupStates(
                 eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
                 .get('nodegroup')
                 .get('status')
             )
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
-                result = NodegroupStates.NONEXISTENT
-
-        return result
+                return NodegroupStates.NONEXISTENT
+            else:
+                raise
 
     def list_clusters(
         self,
