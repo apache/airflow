@@ -18,6 +18,7 @@
 
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
@@ -62,7 +63,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         self.collection_name = collection_name
         self.document_id = document_id
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("*** Intering poke")
         hook = AzureCosmosDBHook(self.azure_cosmos_conn_id)
         return hook.get_document(self.document_id, self.database_name, self.collection_name) is not None

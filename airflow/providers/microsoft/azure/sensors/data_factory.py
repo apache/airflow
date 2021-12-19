@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional
+from typing import Optional
 
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -23,6 +23,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunStatus,
 )
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
@@ -58,7 +59,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         pipeline_run_status = self.hook.get_pipeline_run_status(
             run_id=self.run_id,

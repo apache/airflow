@@ -36,9 +36,9 @@ with DAG(
     default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME},
 ) as dag:
 
-    wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
+    wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")  # type: ignore
 
-    transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
+    transfer_files_to_gcs = AzureBlobStorageToGCSOperator(  # type: ignore
         task_id="transfer_files_to_gcs",
         # AZURE arg
         file_path=GCP_OBJECT_NAME,

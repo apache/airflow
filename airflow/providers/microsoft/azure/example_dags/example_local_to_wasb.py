@@ -31,7 +31,9 @@ with DAG(
     catchup=False,
     default_args={"container_name": "mycontainer", "blob_name": "myblob"},
 ) as dag:
-    upload = LocalFilesystemToWasbOperator(task_id="upload_file", file_path=PATH_TO_UPLOAD_FILE)
-    delete = WasbDeleteBlobOperator(task_id="delete_file")
+    upload = LocalFilesystemToWasbOperator(  # type: ignore
+        task_id="upload_file", file_path=PATH_TO_UPLOAD_FILE
+    )
+    delete = WasbDeleteBlobOperator(task_id="delete_file")  # type: ignore
 
     upload >> delete

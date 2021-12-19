@@ -21,6 +21,7 @@ from typing import List, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
+from airflow.utils.context import Context
 
 
 class PSRPOperator(BaseOperator):
@@ -56,7 +57,7 @@ class PSRPOperator(BaseOperator):
         self.command = command
         self.powershell = powershell
 
-    def execute(self, context: dict) -> List[str]:
+    def execute(self, context: Context) -> List[str]:
         with PSRPHook(self.conn_id) as hook:
             ps = hook.invoke_powershell(
                 f"cmd.exe /c @'\n{self.command}\n'@" if self.command else self.powershell

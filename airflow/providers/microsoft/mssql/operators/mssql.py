@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.hooks.dbapi import DbApiHook
@@ -90,7 +91,7 @@ class MsSqlOperator(BaseOperator):
                 self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
         return self._hook
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
         hook.run(  # type: ignore[union-attr]

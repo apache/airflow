@@ -20,6 +20,7 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+from airflow.utils.context import Context
 
 
 class LocalFilesystemToWasbOperator(BaseOperator):
@@ -60,7 +61,7 @@ class LocalFilesystemToWasbOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.load_options = load_options
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: Context) -> None:
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(

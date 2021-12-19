@@ -20,6 +20,7 @@ from typing import Optional
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class WasbBlobSensor(BaseSensorOperator):
@@ -56,7 +57,7 @@ class WasbBlobSensor(BaseSensorOperator):
         self.blob_name = blob_name
         self.check_options = check_options
 
-    def poke(self, context: dict):
+    def poke(self, context: Context):
         self.log.info('Poking for blob: %s\n in wasb://%s', self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_blob(self.container_name, self.blob_name, **self.check_options)
@@ -96,7 +97,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.prefix = prefix
         self.check_options = check_options
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info('Poking for prefix: %s in wasb://%s', self.prefix, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)

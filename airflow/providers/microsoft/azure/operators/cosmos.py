@@ -18,6 +18,7 @@
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
+from airflow.utils.context import Context
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):
@@ -54,7 +55,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         self.document = document
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: Context) -> None:
         # Create the hook
         hook = AzureCosmosDBHook(azure_cosmos_conn_id=self.azure_cosmos_conn_id)
 
