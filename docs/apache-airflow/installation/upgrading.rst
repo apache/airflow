@@ -87,6 +87,7 @@ How to drop the table using Kubernetes:
 2. Run the following commands in the python shell:
 
  .. code-block:: python
+
      from airflow.settings import Session
 
      session = Session()
