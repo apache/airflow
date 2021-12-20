@@ -16,7 +16,7 @@
 # under the License.
 
 """This module contains Google Dataplex sensors."""
-from typing import List, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
