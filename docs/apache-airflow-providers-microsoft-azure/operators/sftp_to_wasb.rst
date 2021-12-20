@@ -32,10 +32,6 @@ Please follow Azure
 `instructions <https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?tabs=azure-portal>`_
 to do it.
 
-Please, check `WASB <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/stable/connections/wasb.html>`_
-and `SFTP <https://airflow.apache.org/docs/apache-airflow-providers-sftp/stable/connections/sftp.html>`_
-for how to do such `connection <https://airflow.apache.org/docs/stable/howto/connection/index.html#editing-a-connection-with-the-ui>`_.
-
 See following example.
 Set values for these fields:
 
