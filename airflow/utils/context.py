@@ -191,7 +191,14 @@ class Context(MutableMapping[str, Any]):
     def values(self):
         return ValuesView(self._context)
 
-    def copy_only(self, keys: Container[str]) -> "Context":
-        new = type(self)({k: v for k, v in self._context.items() if k in keys})
-        new._deprecation_replacements = self._deprecation_replacements.copy()
-        return new
+
+def context_copy_partial(source: Context, keys: Container[str]) -> "Context":
+    """Create a context by copying items under selected keys in ``source``.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+    """
+    new = Context({k: v for k, v in source._context.items() if k in keys})
+    new._deprecation_replacements = source._deprecation_replacements.copy()
+    return new

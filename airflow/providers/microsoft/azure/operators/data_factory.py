@@ -17,12 +17,42 @@
 
 from typing import Any, Dict, Optional
 
-from airflow.models import BaseOperator
+from airflow.hooks.base import BaseHook
+from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
+
+
+class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
+    """Constructs a link to monitor a pipeline run in Azure Data Factory."""
+
+    name = "Monitor Pipeline Run"
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        run_id = ti.xcom_pull(task_ids=operator.task_id, key="run_id")
+
+        conn = BaseHook.get_connection(operator.azure_data_factory_conn_id)
+        subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
+        # Both Resource Group Name and Factory Name can either be declared in the Azure Data Factory
+        # connection or passed directly to the operator.
+        resource_group_name = operator.resource_group_name or conn.extra_dejson.get(
+            "extra__azure_data_factory__resource_group_name"
+        )
+        factory_name = operator.factory_name or conn.extra_dejson.get(
+            "extra__azure_data_factory__factory_name"
+        )
+        url = (
+            f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
+            f"?factory=/subscriptions/{subscription_id}/"
+            f"resourceGroups/{resource_group_name}/providers/Microsoft.DataFactory/"
+            f"factories/{factory_name}"
+        )
+
+        return url
 
 
 class AzureDataFactoryRunPipelineOperator(BaseOperator):
@@ -84,6 +114,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     template_fields_renderers = {"parameters": "json"}
 
     ui_color = "#0678d4"
+
+    operator_extra_links = (AzureDataFactoryPipelineRunLink(),)
 
     def __init__(
         self,

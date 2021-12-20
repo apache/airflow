@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Interact with AWS Redshift clusters."""
-import warnings
-
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
-from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
-    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
-__all__ = ["RedshiftHook", "RedshiftSQLHook"]

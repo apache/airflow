@@ -33,7 +33,9 @@ from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Unio
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
-from google.cloud import storage
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
@@ -112,6 +114,13 @@ def _fallback_object_url_to_object_name_and_bucket_name(
         return cast(T, _inner_wrapper)
 
     return _wrapper
+
+
+# A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
+# This allows the 'bucket' argument to be of type str instead of Optional[str],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+PROVIDE_BUCKET: str = cast(str, None)
 
 
 class GCSHook(GoogleBaseHook):
@@ -299,7 +308,7 @@ class GCSHook(GoogleBaseHook):
 
         num_file_attempts = 0
 
-        while num_file_attempts < num_max_attempts:
+        while True:
             try:
                 num_file_attempts += 1
                 client = self.get_conn()
@@ -333,7 +342,7 @@ class GCSHook(GoogleBaseHook):
     @contextmanager
     def provide_file(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
     ):
@@ -363,7 +372,7 @@ class GCSHook(GoogleBaseHook):
     @contextmanager
     def provide_file_and_upload(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
     ):
@@ -716,11 +725,11 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str,
         timespan_start: datetime,
         timespan_end: datetime,
-        versions: bool = None,
-        max_results: int = None,
-        prefix: str = None,
-        delimiter: str = None,
-    ) -> list:
+        versions: Optional[bool] = None,
+        max_results: Optional[int] = None,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+    ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
         updated in the time between ``timespan_start`` and ``timespan_end``.

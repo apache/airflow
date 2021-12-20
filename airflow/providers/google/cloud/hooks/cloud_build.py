@@ -26,7 +26,7 @@ from google.cloud.devtools.cloudbuild import CloudBuildClient
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
@@ -95,7 +95,7 @@ class CloudBuildHook(GoogleBaseHook):
     def cancel_build(
         self,
         id_: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -135,7 +135,7 @@ class CloudBuildHook(GoogleBaseHook):
     def create_build(
         self,
         build: Union[Dict, Build],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -189,7 +189,7 @@ class CloudBuildHook(GoogleBaseHook):
     def create_build_trigger(
         self,
         trigger: Union[dict, BuildTrigger],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -233,7 +233,7 @@ class CloudBuildHook(GoogleBaseHook):
     def delete_build_trigger(
         self,
         trigger_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -272,7 +272,7 @@ class CloudBuildHook(GoogleBaseHook):
     def get_build(
         self,
         id_: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -312,7 +312,7 @@ class CloudBuildHook(GoogleBaseHook):
     def get_build_trigger(
         self,
         trigger_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -354,8 +354,8 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_build_triggers(
         self,
-        project_id: str,
         location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -410,8 +410,8 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_builds(
         self,
-        project_id: str,
         location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: Optional[int] = None,
         page_token: Optional[int] = None,
         filter_: Optional[str] = None,
@@ -471,7 +471,7 @@ class CloudBuildHook(GoogleBaseHook):
     def retry_build(
         self,
         id_: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -523,7 +523,7 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         trigger_id: str,
         source: Union[dict, RepoSource],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

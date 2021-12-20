@@ -111,6 +111,12 @@ class retry_if_operation_in_progress(tenacity.retry_if_exception):
         super().__init__(is_operation_in_progress_exception)
 
 
+# A fake project_id to use in functions decorated by fallback_to_default_project_id
+# This allows the 'project_id' argument to be of type str instead of Optional[str],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+PROVIDE_PROJECT_ID: str = cast(str, None)
+
 T = TypeVar("T", bound=Callable)
 RT = TypeVar('RT')
 

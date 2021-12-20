@@ -18,6 +18,7 @@
 from typing import Callable, Dict, List, Optional
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import determine_kwargs
 
 
@@ -62,7 +63,7 @@ class PythonSensor(BaseSensorOperator):
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
 
-    def poke(self, context: Dict):
+    def poke(self, context: Context) -> bool:
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)

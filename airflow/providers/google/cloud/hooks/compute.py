@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -192,7 +192,7 @@ class ComputeEngineHook(GoogleBaseHook):
     def insert_instance_template(
         self,
         body: dict,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: Optional[str] = None,
     ) -> None:
         """
@@ -230,7 +230,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         zone: str,
         resource_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
@@ -386,7 +386,7 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_address(
-        self, zone: str, resource_id: str, project_id: str, use_internal_ip: bool = False
+        self, zone: str, resource_id: str, project_id: str = PROVIDE_PROJECT_ID, use_internal_ip: bool = False
     ) -> str:
         """
         Return network address associated to instance.

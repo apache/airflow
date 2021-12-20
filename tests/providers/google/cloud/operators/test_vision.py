@@ -77,7 +77,7 @@ class TestCloudVisionProductSetCreate(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.vision.CloudVisionHook')
@@ -114,7 +114,7 @@ class TestCloudVisionProductSetUpdate(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
             update_mask=None,
         )
 
@@ -137,7 +137,7 @@ class TestCloudVisionProductSetGet(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -159,7 +159,7 @@ class TestCloudVisionProductSetDelete(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -180,7 +180,7 @@ class TestCloudVisionProductCreate(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.vision.CloudVisionHook')
@@ -214,7 +214,7 @@ class TestCloudVisionProductGet(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -235,7 +235,7 @@ class TestCloudVisionProductUpdate(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
             update_mask=None,
         )
 
@@ -258,7 +258,7 @@ class TestCloudVisionProductDelete(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -287,7 +287,7 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(
@@ -315,7 +315,7 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -343,7 +343,7 @@ class TestCloudVisionReferenceImageDelete(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -368,7 +368,7 @@ class TestCloudVisionAddProductToProductSetOperator(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -393,7 +393,7 @@ class TestCloudVisionRemoveProductFromProductSetOperator(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 

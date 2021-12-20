@@ -17,14 +17,15 @@
 # under the License.
 
 import os.path
+import warnings
 from typing import Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 
-class AwsGlueJobOperator(BaseOperator):
+class GlueJobOperator(BaseOperator):
     """
     Creates an AWS Glue Job. AWS Glue is a serverless Spark
     ETL service for running Spark Jobs on the AWS cloud.
@@ -118,7 +119,7 @@ class AwsGlueJobOperator(BaseOperator):
             s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
         else:
             s3_script_location = self.script_location
-        glue_job = AwsGlueJobHook(
+        glue_job = GlueJobHook(
             job_name=self.job_name,
             desc=self.job_desc,
             concurrent_run_limit=self.concurrent_run_limit,
@@ -148,3 +149,19 @@ class AwsGlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']
+
+
+class AwsGlueJobOperator(GlueJobOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

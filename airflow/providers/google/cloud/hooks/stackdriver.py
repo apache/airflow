@@ -19,7 +19,7 @@
 """This module contains Google Cloud Stackdriver operators."""
 
 import json
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
@@ -29,7 +29,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class StackdriverHook(GoogleBaseHook):
@@ -62,14 +62,14 @@ class StackdriverHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_alert_policies(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         format_: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
         Fetches all the Alert Policies identified by the filter passed as
@@ -119,7 +119,7 @@ class StackdriverHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         if format_ == "dict":
             return [AlertPolicy.to_dict(policy) for policy in policies_]
@@ -132,11 +132,11 @@ class StackdriverHook(GoogleBaseHook):
     def _toggle_policy_status(
         self,
         new_state: bool,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ):
         client = self._get_policy_client()
         policies_ = self.list_alert_policies(project_id=project_id, filter_=filter_)
@@ -148,17 +148,17 @@ class StackdriverHook(GoogleBaseHook):
                     request={'alert_policy': policy, 'update_mask': mask},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def enable_alert_policies(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter
@@ -192,11 +192,11 @@ class StackdriverHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def disable_alert_policies(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Disables one or more enabled alerting policies identified by filter
@@ -231,10 +231,10 @@ class StackdriverHook(GoogleBaseHook):
     def upsert_alert(
         self,
         alerts: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
          Creates a new alert or updates an existing policy identified
@@ -287,7 +287,7 @@ class StackdriverHook(GoogleBaseHook):
                     request={'notification_channel': channel},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
             else:
                 old_name = channel.name
@@ -296,7 +296,7 @@ class StackdriverHook(GoogleBaseHook):
                     request={'name': f'projects/{project_id}', 'notification_channel': channel},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
                 channel_name_map[old_name] = new_channel.name
 
@@ -315,7 +315,7 @@ class StackdriverHook(GoogleBaseHook):
                         request={'alert_policy': policy},
                         retry=retry,
                         timeout=timeout,
-                        metadata=metadata or (),
+                        metadata=metadata,
                     )
                 except InvalidArgument:
                     pass
@@ -327,7 +327,7 @@ class StackdriverHook(GoogleBaseHook):
                     request={'name': f'projects/{project_id}', 'alert_policy': policy},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
 
     def delete_alert_policy(
@@ -335,7 +335,7 @@ class StackdriverHook(GoogleBaseHook):
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes an alerting policy.
@@ -364,14 +364,14 @@ class StackdriverHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_notification_channels(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         format_: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
         Fetches all the Notification Channels identified by the filter passed as
@@ -421,7 +421,7 @@ class StackdriverHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         if format_ == "dict":
             return [NotificationChannel.to_dict(channel) for channel in channels]
@@ -434,11 +434,11 @@ class StackdriverHook(GoogleBaseHook):
     def _toggle_channel_status(
         self,
         new_state: bool,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         client = self._get_channel_client()
         channels = client.list_notification_channels(
@@ -452,17 +452,17 @@ class StackdriverHook(GoogleBaseHook):
                     request={'notification_channel': channel, 'update_mask': mask},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def enable_notification_channels(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter
@@ -500,7 +500,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Disables one or more enabled notification channels identified by filter
@@ -528,7 +528,7 @@ class StackdriverHook(GoogleBaseHook):
             new_state=False,
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -538,7 +538,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
         """
         Creates a new notification or updates an existing notification channel
@@ -584,7 +584,7 @@ class StackdriverHook(GoogleBaseHook):
                     request={'notification_channel': channel},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
             else:
                 old_name = channel.name
@@ -593,7 +593,7 @@ class StackdriverHook(GoogleBaseHook):
                     request={'name': f'projects/{project_id}', 'notification_channel': channel},
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata or (),
+                    metadata=metadata,
                 )
                 channel_name_map[old_name] = new_channel.name
 
@@ -604,7 +604,7 @@ class StackdriverHook(GoogleBaseHook):
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a notification channel.
