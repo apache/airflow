@@ -368,8 +368,13 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException(f'More than one pod running with labels {label_selector}')
         elif num_pods == 1:
             pod = pod_list[0]
-            self.log.info("Found matching pod %s", pod.metadata.name)
-            self._compare_try_numbers(context, pod)
+            self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
+            if not pod.metadata.labels['try_number'] == context['ti'].try_number:
+                self.log.info(
+                    "`try_number` of current task instance is %s but pod has `try_number` %s",
+                    context['ti'].try_number,
+                    pod.metadata.labels['try_number'],
+                )
             return pod
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context):
@@ -458,14 +463,6 @@ class KubernetesPodOperator(BaseOperator):
             f'{label_id}={label}' for label_id, label in sorted(labels.items()) if label_id != 'try_number'
         ]
         return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True'
-
-    def _compare_try_numbers(self, context, pod):
-        tries_match = pod.metadata.labels['try_number'] == context['ti'].try_number
-        self.log.info(
-            "found a running pod with labels %s %s try_number.",
-            pod.metadata.labels,
-            "and the same" if tries_match else "but a different",
-        )
 
     def _set_name(self, name):
         if name is None:
