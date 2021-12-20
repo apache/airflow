@@ -18,11 +18,14 @@
 import logging
 import re
 import sys
-from typing import Any, Dict, List, Optional, Pattern, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern, Type
 
 from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 log = logging.getLogger(__name__)
 
@@ -115,7 +118,7 @@ class HdfsSensor(BaseSensorOperator):
             log.debug('HdfsSensor.poke: after ext filter result is %s', result)
         return result
 
-    def poke(self, context: Dict[Any, Any]) -> bool:
+    def poke(self, context: "Context") -> bool:
         """Get a snakebite client connection and check for file."""
         sb_client = self.hook(self.hdfs_conn_id).get_conn()
         self.log.info('Poking for file %s', self.filepath)
@@ -149,7 +152,7 @@ class HdfsRegexSensor(HdfsSensor):
         super().__init__(*args, **kwargs)
         self.regex = regex
 
-    def poke(self, context: Dict[Any, Any]) -> bool:
+    def poke(self, context: "Context") -> bool:
         """
         Poke matching files in a directory with self.regex
 
@@ -182,7 +185,7 @@ class HdfsFolderSensor(HdfsSensor):
         super().__init__(*args, **kwargs)
         self.be_empty = be_empty
 
-    def poke(self, context: Dict[str, Any]) -> bool:
+    def poke(self, context: "Context") -> bool:
         """
         Poke for a non empty directory
 

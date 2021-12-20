@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DruidOperator(BaseOperator):
@@ -57,7 +60,7 @@ class DruidOperator(BaseOperator):
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: "Context") -> None:
         hook = DruidHook(
             druid_ingest_conn_id=self.conn_id,
             timeout=self.timeout,
