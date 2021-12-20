@@ -805,6 +805,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.last_scheduling_decision = ti.last_scheduling_decision
         else:
             self.state = None
 
