@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook  # noqa
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs`.",

@@ -22,7 +22,7 @@ from typing import Dict, Optional
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class SQSHook(AwsBaseHook):
+class SqsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Queue Service.
 

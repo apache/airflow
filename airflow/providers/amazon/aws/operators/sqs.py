@@ -19,16 +19,16 @@
 from typing import Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
 
-class SQSPublishOperator(BaseOperator):
+class SqsPublishOperator(BaseOperator):
     """
     Publish message to a SQS queue.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SQSPublishOperator`
+        :ref:`howto/operator:SqsPublishOperator`
 
     :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
@@ -74,7 +74,7 @@ class SQSPublishOperator(BaseOperator):
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-        hook = SQSHook(aws_conn_id=self.aws_conn_id)
+        hook = SqsHook(aws_conn_id=self.aws_conn_id)
 
         result = hook.send_message(
             queue_url=self.sqs_queue,

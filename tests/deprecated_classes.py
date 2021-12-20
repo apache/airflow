@@ -144,8 +144,8 @@ HOOKS = [
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
-        "airflow.providers.amazon.aws.hooks.sqs.SQSHook",
-        "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
+        "airflow.providers.amazon.aws.hooks.sqs.SqsHook",
+        "airflow.contrib.hooks.aws_sqs_hook.SqsHook",
     ),
     (
         "airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook",
@@ -996,8 +996,8 @@ OPERATORS = [
         "airflow.providers.amazon.aws.operators.dms_stop_task.DmsStopTaskOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
-        "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
+        "airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator",
+        "airflow.contrib.operators.aws_sqs_publish_operator.SqsPublishOperator",
     ),
     (
         "airflow.providers.amazon.aws.operators.sns.SnsPublishOperator",
@@ -1547,8 +1547,8 @@ SENSORS = [
         "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskCompletedSensor",
     ),
     (
-        "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
-        "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
+        "airflow.providers.amazon.aws.sensors.sqs.SqsSensor",
+        "airflow.contrib.sensors.aws_sqs_sensor.SqsSensor",
     ),
     (
         'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',

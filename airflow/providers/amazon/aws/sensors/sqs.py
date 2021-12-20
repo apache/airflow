@@ -23,11 +23,11 @@ from jsonpath_ng import parse
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.sensors.base import BaseSensorOperator
 
 
-class SQSSensor(BaseSensorOperator):
+class SqsSensor(BaseSensorOperator):
     """
     Get messages from an SQS queue and then deletes  the message from the SQS queue.
     If deletion of messages fails an AirflowException is thrown otherwise, the message
@@ -95,7 +95,7 @@ class SQSSensor(BaseSensorOperator):
 
         self.message_filtering_config = message_filtering_config
 
-        self.hook: Optional[SQSHook] = None
+        self.hook: Optional[SqsHook] = None
 
     def poke(self, context):
         """
@@ -107,7 +107,7 @@ class SQSSensor(BaseSensorOperator):
         """
         sqs_conn = self.get_hook().get_conn()
 
-        self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
+        self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
 
         receive_message_kwargs = {
             'QueueUrl': self.sqs_queue,
@@ -152,12 +152,12 @@ class SQSSensor(BaseSensorOperator):
                 'Delete SQS Messages failed ' + str(response) + ' for messages ' + str(messages)
             )
 
-    def get_hook(self) -> SQSHook:
-        """Create and return an SQSHook"""
+    def get_hook(self) -> SqsHook:
+        """Create and return an SqsHook"""
         if self.hook:
             return self.hook
 
-        self.hook = SQSHook(aws_conn_id=self.aws_conn_id)
+        self.hook = SqsHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
     def filter_messages(self, messages):

@@ -2591,7 +2591,7 @@ Doc-only changes
 - [AIRFLOW-XXX] update SlackWebhookHook and SlackWebhookOperator docstring (#5074)
 - [AIRFLOW-XXX] Ignore Python files under node_modules in docs (#5063)
 - [AIRFLOW-XXX] Build a universal wheel with LICNESE files (#5052)
-- [AIRFLOW-XXX] Fix docstrings of SQSHook (#5099)
+- [AIRFLOW-XXX] Fix docstrings of SqsHook (#5099)
 - [AIRFLOW-XXX] Use Py3.7 on readthedocs
 - [AIRFLOW-4446] Fix typos (#5217)
 
