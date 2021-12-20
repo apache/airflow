@@ -55,6 +55,7 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.tasklog import LogFilename
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
@@ -720,6 +721,20 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
+@provide_session
+def synchronize_log_filename_template(*, session: Session = NEW_SESSION) -> None:
+    """Synchronize log filename template config with table.
+
+    This checks if the last row (based on timestamp) matches the current
+    config value, and insert a new row if not.
+    """
+    stored = session.query(LogFilename.template).order_by(LogFilename.id.desc()).limit(1).scalar()
+    config = conf.get("logging", "LOG_FILENAME_TEMPLATE")
+    if stored == config:
+        return
+    session.merge(LogFilename(template=config))
+
+
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table
@@ -996,6 +1011,7 @@ def upgradedb(session: Session = NEW_SESSION):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
+    synchronize_log_filename_template()
 
 
 @provide_session
