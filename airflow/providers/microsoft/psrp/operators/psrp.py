@@ -65,7 +65,7 @@ class PSRPOperator(BaseOperator):
         "powershell",
     )
     template_fields_renderers = {"command": "powershell", "powershell": "powershell"}
-    ui_color = "#901dd2"
+    ui_color = "#c2e2ff"
 
     def __init__(
         self,
