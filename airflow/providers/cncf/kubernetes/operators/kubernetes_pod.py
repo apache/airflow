@@ -369,12 +369,8 @@ class KubernetesPodOperator(BaseOperator):
         elif num_pods == 1:
             pod = pod_list[0]
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
-            if not pod.metadata.labels['try_number'] == context['ti'].try_number:
-                self.log.info(
-                    "`try_number` of current task instance is %s but pod has `try_number` %s",
-                    context['ti'].try_number,
-                    pod.metadata.labels['try_number'],
-                )
+            self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
             return pod
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context):
