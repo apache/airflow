@@ -253,7 +253,7 @@ Bug fixes
 * ``Fix 'logging.exception' redundancy (#14823)``
 * ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
 * ``Add links to new modules for deprecated modules (#15316)``
-* ``Fixes doc for SqsSensor (#15323)``
+* ``Fixes doc for SQSSensor (#15323)``
 
 1.3.0
 .....

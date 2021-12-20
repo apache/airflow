@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.sqs import SqsSensor  # noqa
+from airflow.providers.amazon.aws.sensors.sqs import SQSSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sqs`.",

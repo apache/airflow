@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator  # noqa
+from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sqs`.",
