@@ -79,9 +79,9 @@ class OpsgenieAlertHook(BaseHook):
         """
         return self.alert_api_instance
 
-    def execute(self, payload: Optional[dict] = None) -> SuccessResponse:
+    def create_alert(self, payload: Optional[dict] = None) -> SuccessResponse:
         """
-        Execute the Opsgenie Alert call
+        Create an alert on Opsgenie
 
         :param payload: Opsgenie API Create Alert payload values
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert

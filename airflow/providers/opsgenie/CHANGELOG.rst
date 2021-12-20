@@ -19,6 +19,16 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+``OpsgenieAlertHook`` constructor does not take additional arguments or keyword arguments anymore.
+Changed the return type of ``OpsgenieAlertHook.get_conn`` to return an ``opsgenie_sdk.AlertApi`` object instead of a ``requests.Session`` object.
+Removed the ``OpsegnieAlertHook.execute`` method and replaced it with ``OpsegnieAlertHook.create_alert`` it now returns an
+``opsgenie_sdk.SuccessResponse`` object instead of an ``Any`` type.
+``OpsgenieAlertHook`` now takes ``visible_to`` instead of ``visibleTo`` key in the payload.
+``OpsgenieAlertHook`` now takes ``request_id`` instead of ``requestId`` key in the payload.
+
 2.0.1
 .....
 

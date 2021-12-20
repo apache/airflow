@@ -141,4 +141,4 @@ class OpsgenieAlertOperator(BaseOperator):
     def execute(self, context) -> None:
         """Call the OpsgenieAlertHook to post message"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
-        self.hook.execute(self._build_opsgenie_payload())
+        self.hook.create_alert(self._build_opsgenie_payload())

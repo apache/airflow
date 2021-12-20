@@ -109,10 +109,10 @@ class TestOpsgenieAlertHook(unittest.TestCase):
     def test_api_key_not_set(self):
         hook = OpsgenieAlertHook()
         with pytest.raises(AuthenticationException):
-            hook.execute(payload=self._payload)
+            hook.create_alert(payload=self._payload)
 
     @mock.patch.object(AlertApi, 'create_alert')
     def test_payload(self, create_alert_mock):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        hook.execute(payload=self._payload)
+        hook.create_alert(payload=self._payload)
         create_alert_mock.assert_called_once_with(CreateAlertPayload(**self._payload))
