@@ -34,24 +34,24 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    create_object = OSSUploadObjectOperator(  # type: ignore[call-arg]
+    create_object = OSSUploadObjectOperator(
         file='your local file',
         key='your oss key',
         task_id='task1',
     )
 
-    download_object = OSSDownloadObjectOperator(  # type: ignore[call-arg]
+    download_object = OSSDownloadObjectOperator(
         file='your local file',
         key='your oss key',
         task_id='task2',
     )
 
-    delete_object = OSSDeleteObjectOperator(  # type: ignore[call-arg]
+    delete_object = OSSDeleteObjectOperator(
         key='your oss key',
         task_id='task3',
     )
 
-    delete_batch_object = OSSDeleteBatchObjectOperator(  # type: ignore[call-arg]
+    delete_batch_object = OSSDeleteBatchObjectOperator(
         keys=['obj1', 'obj2', 'obj3'],
         task_id='task4',
     )
