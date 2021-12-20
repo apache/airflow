@@ -45,7 +45,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.tasklog import LogFilename
+from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -96,13 +96,13 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
-    # Foreign key to LogFilename. DagRun rows created prior to this column's
+    # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
-    # insert to point to the latest LogFilename entry.
-    log_filename_id = Column(
+    # insert to point to the latest LogTemplate entry.
+    log_template_id = Column(
         Integer,
-        ForeignKey("log_filename.id", name="task_instance_log_filename_id_fkey", ondelete="NO ACTION"),
-        default=select([func.max(LogFilename.__table__.c.id)]),
+        ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
+        default=select([func.max(LogTemplate.__table__.c.id)]),
     )
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
@@ -939,14 +939,27 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> Optional[str]:
-        if self.log_filename_id is None:  # DagRun created before LogFilename introduction.
-            template = session.query(LogFilename.template).order_by(LogFilename.id).limit(1).scalar()
+    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
+        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
+            template = session.query(LogTemplate.filename).order_by(LogTemplate.id).limit(1).scalar()
         else:
-            template = session.query(LogFilename.template).filter_by(id=self.log_filename_id).scalar()
+            template = session.query(LogTemplate.filename).filter_by(id=self.log_template_id).scalar()
         if template is None:
             raise AirflowException(
-                f"No log_filename entry found for ID {self.log_filename_id!r}. "
+                f"No log_template entry found for ID {self.log_template_id!r}. "
+                f"Please make sure you set up the metadatabase correctly."
+            )
+        return template
+
+    @provide_session
+    def get_task_prefix_template(self, *, session: Session = NEW_SESSION) -> str:
+        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
+            template = session.query(LogTemplate.task_prefix).order_by(LogTemplate.id).limit(1).scalar()
+        else:
+            template = session.query(LogTemplate.task_prefix).filter_by(id=self.log_template_id).scalar()
+        if template is None:
+            raise AirflowException(
+                f"No log_template entry found for ID {self.log_template_id!r}. "
                 f"Please make sure you set up the metadatabase correctly."
             )
         return template

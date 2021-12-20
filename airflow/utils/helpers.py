@@ -171,7 +171,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string):
+def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional[jinja2.Template]]:
     """Parses Jinja template string."""
     if "{{" in template_string:  # jinja mode
         return None, jinja2.Template(template_string)
