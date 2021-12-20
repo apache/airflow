@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from typing import Any, Dict
 from unittest import mock
+
+from typing_extensions import TypedDict
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
@@ -49,10 +52,16 @@ EMPTY_NODEGROUP = '{"nodegroup": {}}'
 NAME_LIST = ["foo", "bar", "baz", "qux"]
 
 
+class clusterParams(TypedDict):
+    cluster_name: str
+    cluster_role_arn: str
+    resources_vpc_config: Dict[Any, Any]
+
+
 class TestEksCreateClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
         # Parameters which are needed to create a cluster.
-        self.create_cluster_params = dict(
+        self.create_cluster_params: clusterParams = dict(
             cluster_name=CLUSTER_NAME,
             cluster_role_arn=ROLE_ARN[1],
             resources_vpc_config=RESOURCES_VPC_CONFIG[1],
