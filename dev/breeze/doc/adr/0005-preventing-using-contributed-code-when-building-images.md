@@ -72,7 +72,7 @@ This requires those prerequisites:
 
 GitHub Actions provide some features that we can use for that purpose:
 
-* there isa "pull request target" workflow that uses only the code present in the protected "main" version
+* there is a "pull request target" workflow that uses only the code present in the protected "main" version
   of the code even if the code is modified in the PR. That code also has access to secrets stored in
   Airflow repository (for example in our case secret used to push documentation to S3 Bucket). Those
   secrets should not be made available to user code coming from PR.
