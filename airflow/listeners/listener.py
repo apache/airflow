@@ -17,7 +17,7 @@
 # under the License.
 
 import pluggy
-from airflow.plugins_manager import integrate_listener_plugins
+
 from airflow.listeners import spec
 
 
@@ -29,9 +29,12 @@ _listener_manager = None
 
 
 class ListenerManager:
+    """Class that manager registration of listeners and provides hook property for calling them"""
+
     def __init__(self):
         self.pm = pluggy.PluginManager("airflow")
         self.pm.add_hookspecs(spec)
+        self.listener_names = set()
 
     def has_listeners(self) -> bool:
         return len(self.pm.get_plugins()) > 0
@@ -42,11 +45,16 @@ class ListenerManager:
         return self.pm.hook
 
     def add_listener(self, listener: Listener):
+        if listener.__class__.__name__ in self.listener_names:
+            return
         if self.pm.is_registered(listener):
             return
+        self.listener_names.add(listener.__class__.__name__)
         self.pm.register(listener)
 
     def clear(self):
+        """Remove registered plugins"""
+        self.listener_names = set()
         for plugin in self.pm.get_plugins():
             self.pm.unregister(plugin)
 

@@ -25,11 +25,9 @@ from unittest import mock
 import pytest
 
 from airflow.hooks.base import BaseHook
-from airflow.listeners.listener import Listener, get_listener_manager
+from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
-from tests.listeners.test_listeners import hookimpl
-from tests.plugins.test_plugin import PluginListener
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 

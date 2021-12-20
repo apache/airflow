@@ -16,19 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+
 import pluggy
 import pytest as pytest
 
-# noqa: E402
-os.environ["AIRFLOW__CORE__EXECUTE_LISTENERS"] = "True"
+os.environ["AIRFLOW__CORE__EXECUTE_LISTENERS_ON_SCHEDULER"] = "True"
 
 from airflow import AirflowException
+from airflow.listeners.events import register_task_instance_state_events
 from airflow.listeners.listener import Listener, get_listener_manager
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
-
 
 DAG_ID = "test_listener_dag"
 TASK_ID = "test_listener_task"
@@ -63,6 +63,11 @@ class ThrowingListener(Listener):
     @hookimpl
     def on_task_instance_running(self, previous_state, task_instance, session):
         raise RuntimeError()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def register_events():
+    register_task_instance_state_events()
 
 
 @pytest.fixture(autouse=True)

@@ -71,6 +71,8 @@ class LocalTaskJob(BaseJob):
         # terminate multiple times
         self.terminating = False
 
+        self._enable_task_listeners()
+
         super().__init__(*args, **kwargs)
 
     def _execute(self):
@@ -291,3 +293,19 @@ class LocalTaskJob(BaseJob):
             if dag_run:
                 dag_run.dag = dag
                 dag_run.update_state(session=session, execute_callbacks=True)
+
+    @staticmethod
+    def _enable_task_listeners():
+        """
+        Check if we have any registered listeners, then register sqlalchemy hooks for
+        TI state change if we do.
+        """
+        from airflow.plugins_manager import integrate_listener_plugins
+
+        integrate_listener_plugins()
+        from airflow.listeners.listener import get_listener_manager
+
+        if get_listener_manager().has_listeners():
+            from airflow.listeners.events import register_task_instance_state_events
+
+            register_task_instance_state_events()

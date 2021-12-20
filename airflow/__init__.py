@@ -80,9 +80,9 @@ if not settings.LAZY_LOAD_PROVIDERS:
     manager.initialize_providers_hooks()
     manager.initialize_providers_extra_links()
 
-# TODO: Add setting to disable execution in scheduler
-if settings.EXECUTE_LISTENERS:
+if settings.EXECUTE_LISTENERS_ON_SCHEDULER:
     from airflow.plugins_manager import integrate_listener_plugins
+
     integrate_listener_plugins()
 
 

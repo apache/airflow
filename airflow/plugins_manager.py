@@ -40,8 +40,8 @@ from airflow.utils.module_loading import as_importable_string
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
-    from airflow.timetables.base import Timetable
     from airflow.listeners.listener import Listener
+    from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "operator_extra_links",
     "timetables",
     "source",
-    "listeners"
+    "listeners",
 }
 
 
