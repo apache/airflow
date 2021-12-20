@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optiona
 from sqlalchemy import (
     Boolean,
     Column,
+    ForeignKey,
     Index,
     Integer,
     PickleType,
@@ -37,13 +38,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql import expression
+from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.tasklog import LogFilename
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -94,6 +96,14 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
+    # Foreign key to LogFilename. DagRun rows created prior to this column's
+    # existence have this set to NULL. Later rows automatically populate this on
+    # insert to point to the latest LogFilename entry.
+    log_filename_id = Column(
+        Integer,
+        ForeignKey("log_filename.id", name="task_instance_log_filename_id_fkey", ondelete="NO ACTION"),
+        default=select([func.max(LogFilename.__table__.c.id)]),
+    )
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -258,14 +268,8 @@ class DagRun(Base, LoggingMixin):
         query = (
             session.query(cls)
             .filter(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
-            .join(
-                DagModel,
-                DagModel.dag_id == cls.dag_id,
-            )
-            .filter(
-                DagModel.is_paused == expression.false(),
-                DagModel.is_active == expression.true(),
-            )
+            .join(DagModel, DagModel.dag_id == cls.dag_id)
+            .filter(DagModel.is_paused == false(), DagModel.is_active == true())
         )
         if state == State.QUEUED:
             # For dag runs in the queued state, we check if they have reached the max_active_runs limit
@@ -933,3 +937,16 @@ class DagRun(Base, LoggingMixin):
             )
 
         return count
+
+    @provide_session
+    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> Optional[str]:
+        if self.log_filename_id is None:  # DagRun created before LogFilename introduction.
+            template = session.query(LogFilename.template).order_by(LogFilename.id).limit(1).scalar()
+        else:
+            template = session.query(LogFilename.template).filter_by(id=self.log_filename_id).scalar()
+        if template is None:
+            raise AirflowException(
+                f"No log_filename entry found for ID {self.log_filename_id!r}. "
+                f"Please make sure you set up the metadatabase correctly."
+            )
+        return template
