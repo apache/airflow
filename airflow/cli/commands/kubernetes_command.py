@@ -94,7 +94,6 @@ def cleanup_pods(args):
     airflow_pod_labels = [
         'dag_id',
         'task_id',
-        'execution_date',
         'try_number',
         'airflow_version',
     ]
