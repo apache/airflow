@@ -673,8 +673,7 @@ class TestSchedulerJob:
         assert len(tis) == 2
         assert all(ti.state == State.FAILED for ti in tis)
 
-    def test_max_active_task_in_a_dag_with_large_dag_does_not_affect_other_dags(self, dag_maker, session):
-
+    def test_max_active_task_in_a_dag_with_large_task_does_not_affect_other_dags(self, dag_maker, session):
         dag_id_1 = 'first_dag'
         dag_id_2 = 'second_dag'
         with dag_maker(dag_id_1, max_active_tasks=1):
@@ -689,7 +688,16 @@ class TestSchedulerJob:
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
         assert 1 == len(res)
-        session.query(TaskInstance).filter(TaskInstance.state == TaskInstanceState.QUEUED).count() == 1
+        assert session.query(TaskInstance).filter(TaskInstance.state == TaskInstanceState.QUEUED).count() == 1
+        self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+        # assert last_scheduling_decision is updated
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.__ne__(None))
+            .count()
+            == 9
+        )
         with dag_maker(dag_id_2, max_active_tasks=2):
             for i in range(20):
                 BashOperator(task_id=f"mytask{i}", bash_command='sleep 1d')
@@ -699,13 +707,54 @@ class TestSchedulerJob:
             ti.state = TaskInstanceState.SCHEDULED
             session.merge(ti)
         session.flush()
-        for i in range(2):
-            self.scheduler_job._executable_task_instances_to_queued(max_tis=8, session=session)
-            session.flush()
+        self.scheduler_job._executable_task_instances_to_queued(max_tis=8, session=session)
+        session.flush()
         queued_tis_query = session.query(TaskInstance).filter(TaskInstance.state == TaskInstanceState.QUEUED)
-
         queued_tis_query.count() == 3
+        # assert the two dags are running
         assert len({ti.dag_id for ti in queued_tis_query}) == 2
+
+    def test_scheduled_tasks_last_scheduling_decisions_are_updated_when_tasks_finish(
+        self, dag_maker, session
+    ):
+        dag_id_1 = 'first_dag'
+        with dag_maker(dag_id_1, max_active_tasks=1):
+            for i in range(10):
+                BashOperator(task_id=f"mytask{i}", bash_command='sleep 1d')
+        dr1 = dag_maker.create_dagrun(run_id=dag_id_1, state=DagRunState.RUNNING)
+        tis1 = dr1.get_task_instances()
+        for ti in tis1:
+            ti.state = TaskInstanceState.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        executor = MockExecutor(do_update=False)
+        self.scheduler_job = SchedulerJob(subdir=os.devnull, executor=executor)
+        self.scheduler_job.processor_agent = MagicMock()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 1 == len(res)
+        queued_ti_query = session.query(TaskInstance).filter(TaskInstance.state == TaskInstanceState.QUEUED)
+        assert queued_ti_query.count() == 1
+        self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+        # assert last_scheduling_decision is updated
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.__ne__(None))
+            .count()
+            == 9
+        )
+        queued_ti = queued_ti_query.one()
+        queued_ti.state = State.SUCCESS
+        session.merge(queued_ti)
+        session.flush()
+        executor.event_buffer[queued_ti.key] = State.SUCCESS, None
+        self.scheduler_job._process_executor_events(session=session)
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.is_(None))
+            .count()
+            == 9
+        )
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'

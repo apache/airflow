@@ -390,7 +390,7 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
-        Index('idx_last_scheduling_decision', last_scheduling_decision),
+        Index('idx_ti_last_scheduling_decision', last_scheduling_decision),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],

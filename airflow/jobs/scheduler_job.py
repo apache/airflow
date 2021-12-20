@@ -607,7 +607,7 @@ class SchedulerJob(BaseJob):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            # reset the last_scheduling_decision for all tasks instances in this dag
+            # reset the last_scheduling_decision for all task instances in this dag
             session.query(TI).filter(TI.dag_id == ti.dag_id, TI.state == State.SCHEDULED).update(
                 {
                     TI.last_scheduling_decision: None,
