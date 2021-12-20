@@ -189,7 +189,7 @@ class PodLauncher(LoggingMixin):
                     exc_info=True,
                 )
 
-            if container_stopped is True:
+            if container_stopped:
                 break
 
             if last_log_time:
@@ -244,7 +244,7 @@ class PodLauncher(LoggingMixin):
             return None, line
         return last_log_time, message
 
-    def container_is_running(self, pod: V1Pod, container_name) -> bool:
+    def container_is_running(self, pod: V1Pod, container_name: str) -> bool:
         """Reads pod and checks if container is running"""
         remote_pod = self.read_pod(pod)
         return container_is_running(pod=remote_pod, container_name=container_name)
@@ -299,7 +299,7 @@ class PodLauncher(LoggingMixin):
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
     def extract_xcom(self, pod: V1Pod) -> str:
-        """Retrieves xcom value using xcom value and kills xcom sidecar container"""
+        """Retrieves XCom value and kills xcom sidecar container"""
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,

@@ -448,7 +448,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def process_pod_deletion(self, pod):
         if self.is_delete_operator_pod:
-            self.log.info("deleting pod: %s", pod.metadata.name)
+            self.log.info("Deleting pod: %s", pod.metadata.name)
             self.launcher.delete_pod(pod)
         else:
             self.log.info("skipping deleting pod: %s", pod.metadata.name)
@@ -563,7 +563,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = xcom_sidecar.add_xcom_sidecar(pod)
 
         labels = self._create_labels_for_pod(context)
-        self.log.info("creating pod %s with labels: %s", pod.metadata.name, labels)
+        self.log.info("Creating pod %s with labels: %s", pod.metadata.name, labels)
 
         # Merge Pod Identifying labels with labels passed to operator
         pod.metadata.labels.update(labels)
