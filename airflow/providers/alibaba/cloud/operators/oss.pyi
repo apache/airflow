@@ -24,7 +24,7 @@ from airflow.model.baseoperator import BaseOperator
 class OSSCreateBucketOperator(BaseOperator):
     def __init__(
         self,
-        region: str = ...,
+        region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -33,7 +33,7 @@ class OSSCreateBucketOperator(BaseOperator):
 class OSSDeleteBucketOperator(BaseOperator):
     def __init__(
         self,
-        region: str = ...,
+        region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -44,7 +44,7 @@ class OSSUploadObjectOperator(BaseOperator):
         self,
         key: str = ...,
         file: str = ...,
-        region: str = ...,
+        region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -55,7 +55,7 @@ class OSSDownloadObjectOperator(BaseOperator):
         self,
         key: str = ...,
         file: str = ...,
-        region: str = ...,
+        region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -75,7 +75,7 @@ class OSSDeleteObjectOperator(BaseOperator):
     def __init__(
         self,
         key: str = ...,
-        region: str = ...,
+        region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
