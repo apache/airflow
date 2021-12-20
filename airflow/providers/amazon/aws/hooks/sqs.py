@@ -88,9 +88,9 @@ class SqsHook(AwsBaseHook):
 
 class SQSHook(SqsHook):
     """
-        This hook is deprecated.
-        Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.
-        """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.
+    """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
