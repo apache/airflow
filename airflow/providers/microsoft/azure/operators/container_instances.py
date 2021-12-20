@@ -38,7 +38,6 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
-from airflow.utils.context import Context
 
 Volume = namedtuple(
     'Volume',
@@ -196,7 +195,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.ip_address = ip_address
         self.ports = ports
 
-    def execute(self, context: Context) -> int:
+    def execute(self, context: Dict[str, Any]) -> int:
         # Check name again in case it was templated.
         self._check_name(self.name)
 

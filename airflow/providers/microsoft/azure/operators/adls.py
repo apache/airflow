@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Sequence
+from typing import Any, Dict, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
-from airflow.utils.context import Context
 
 
 class ADLSDeleteOperator(BaseOperator):
@@ -58,7 +57,7 @@ class ADLSDeleteOperator(BaseOperator):
         self.ignore_not_found = ignore_not_found
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Dict[str, Any]) -> Any:
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
         return hook.remove(path=self.path, recursive=self.recursive, ignore_not_found=self.ignore_not_found)
 
@@ -97,7 +96,7 @@ class ADLSListOperator(BaseOperator):
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: Context) -> list:
+    def execute(self, context: Dict[str, Any]) -> list:
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
         self.log.info('Getting list of ADLS files in path: %s', self.path)
         return hook.list(path=self.path)

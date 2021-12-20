@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
-from airflow.utils.context import Context
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):
@@ -55,7 +55,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         self.document = document
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         # Create the hook
         hook = AzureCosmosDBHook(azure_cosmos_conn_id=self.azure_cosmos_conn_id)
 

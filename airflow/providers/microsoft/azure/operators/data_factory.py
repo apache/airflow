@@ -24,7 +24,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.utils.context import Context
 
 
 class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
@@ -149,7 +148,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         self.log.info(f"Executing the {self.pipeline_name} pipeline.")
         response = self.hook.run_pipeline(

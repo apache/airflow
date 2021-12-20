@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any
+from typing import Any, Dict
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.utils.context import Context
 
 
 class WasbDeleteBlobOperator(BaseOperator):
@@ -65,7 +64,7 @@ class WasbDeleteBlobOperator(BaseOperator):
         self.is_prefix = is_prefix
         self.ignore_if_missing = ignore_if_missing
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         self.log.info('Deleting blob: %s\n in wasb://%s', self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
 
