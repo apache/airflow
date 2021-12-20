@@ -292,7 +292,8 @@ class SchedulerJob(BaseJob):
             .options(selectinload('dag_model'))
             .order_by(
                 -TI.priority_weight,
-                nulls_first(TI.last_scheduling_decision, ascending=False, session=session),
+                TI.last_scheduling_decision,
+                -TI.last_scheduling_decision,
                 DR.execution_date,
             )
         )
