@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
+import datetime
 import json
 import math
 import time
@@ -165,27 +166,33 @@ class PodLauncher(LoggingMixin):
         """
         Follows the logs of container and streams to airflow logging.
         Returns when container exits.
-        """
-        container_stopped = False
-        read_logs_since_sec = None
-        last_log_time = None
 
-        # `read_pod_logs` follows the logs so we shouldn't necessarily _need_ to loop
-        # but in a long-running process we might lose connectivity and this way we
-        # can resume following the logs
-        while True:
+        .. note:: ``read_pod_logs`` follows the logs, so we shouldn't necessarily *need* to loop
+            as we do here. But in a long-running process we might temporarily lose connectivity.
+            So the looping logic is there to let us resume following the logs.
+        """
+
+        def follow_logs(since_seconds: int = None) -> Optional[datetime.datetime]:
+            """
+            Tries to follow container logs until container completes.
+            For a long-running container, sometimes the log read may be interrupted
+            Such errors of this kind are suppressed.
+
+            Returns the last timestamp observed in logs.
+            """
             try:
                 logs = self.read_pod_logs(
                     pod=pod,
                     container_name=container_name,
                     timestamps=True,
-                    since_seconds=read_logs_since_sec,
+                    since_seconds=since_seconds,
                 )
+                timestamp = None
                 for line in logs:  # type: bytes
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
-                    if timestamp:
-                        last_log_time = timestamp
+                if timestamp:
+                    return timestamp
             except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
                 self.log.warning(
                     'Failed to read logs for pod %s',
@@ -193,20 +200,24 @@ class PodLauncher(LoggingMixin):
                     exc_info=True,
                 )
 
-            if container_stopped:
-                break
-
+        def get_since_seconds(last_log_time: datetime.datetime) -> int:
+            """Calculates number of seconds since ``last_log_time``"""
             if last_log_time:
                 delta = pendulum.now() - last_log_time
-                read_logs_since_sec = math.ceil(delta.total_seconds())
+                return math.ceil(delta.total_seconds())
 
-            time.sleep(1)
-
-            if self.container_is_running(pod, container_name=container_name):
-                self.log.info('Container %s is running', pod.metadata.name)
-                self.log.warning('Pod %s log read interrupted', pod.metadata.name)
+        last_log_time = None
+        while True:
+            last_log_time = follow_logs(since_seconds=get_since_seconds(last_log_time))
+            if not self.container_is_running(pod, container_name=container_name):
+                return
             else:
-                container_stopped = True  # fetch logs once more and exit
+                self.log.warning(
+                    'Pod %s log read interrupted but container %s still running',
+                    pod.metadata.name,
+                    container_name,
+                )
+                time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
         while not self.container_is_running(pod=pod, container_name=container_name):
