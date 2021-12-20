@@ -193,7 +193,7 @@ class SFTPToWasbOperator(BaseOperator):
         return uploaded_files
 
     def delete_files(self, uploaded_files: List[str]) -> None:
-        """Performs a move of a list of files at SFTP to Azure Blob Storage."""
+        """Delete files at SFTP which have been moved to Azure Blob Storage."""
         for sftp_file_path in uploaded_files:
             self.log.info("Executing delete of %s", sftp_file_path)
             self.sftp_hook.delete_file(sftp_file_path)
