@@ -1,6 +1,5 @@
 from typing import Optional
 
-
 class OSSCreateBucketOperator:
     def __init__(
         self,

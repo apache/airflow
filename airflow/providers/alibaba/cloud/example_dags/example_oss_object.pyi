@@ -1,6 +1,5 @@
 from typing import Optional
 
-
 class OSSUploadObjectOperator:
     def __init__(
         self,
@@ -10,9 +9,7 @@ class OSSUploadObjectOperator:
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
-    ) -> None:
-        ...
-
+    ) -> None: ...
 
 class OSSDownloadObjectOperator:
     def __init__(
@@ -23,9 +20,7 @@ class OSSDownloadObjectOperator:
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
-    ) -> None:
-        ...
-
+    ) -> None: ...
 
 class OSSDeleteBatchObjectOperator:
     def __init__(
@@ -35,9 +30,7 @@ class OSSDeleteBatchObjectOperator:
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
-    ) -> None:
-        ...
-
+    ) -> None: ...
 
 class OSSDeleteObjectOperator:
     def __init__(
@@ -47,5 +40,4 @@ class OSSDeleteObjectOperator:
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
-    ) -> None:
-        ...
+    ) -> None: ...
