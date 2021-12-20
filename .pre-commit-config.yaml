@@ -658,6 +658,13 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: persist-credentials-disabled
+        name: Check that workflow files have persist-credentials disabled
+        entry: ./scripts/ci/pre_commit/pre_commit_checkout_no_credentials.py
+        language: python
+        pass_filenames: true
+        files: \.github/workflows/.*\.yml$
+        additional_dependencies: ['PyYAML', 'rich']
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node

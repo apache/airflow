@@ -216,6 +216,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``mypy``                               Runs mypy                                                            *
 ------------------------------------ ---------------------------------------------------------------- ------------
+``persist-credentials-disabled``       Check that workflow files have persist-credentials disabled
+------------------------------------ ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``            Check if all pre-commits are described in docs
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``pre-commit-hook-names``              Check that hook names are not overly long

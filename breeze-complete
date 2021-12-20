@@ -119,6 +119,7 @@ mypy
 mypy-helm
 no-providers-in-core-examples
 no-relative-imports
+persist-credentials-disabled
 pre-commit-descriptions
 pre-commit-hook-names
 pretty-format-json
