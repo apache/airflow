@@ -15,32 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pluggy import HookspecMarker
 
-from airflow.settings import Session
-from airflow.utils.state import State
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+    from airflow.utils.state import State
+    from airflow.models import TaskInstance
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_task_instance_start(
-    previous_state: State,
-    state: State,
+def on_task_instance_running(
+    previous_state: "State",
     task_instance: "TaskInstance",
     session: Optional[Session]
 ):
     """
-    Called when task state changes to START
+    Called when task state changes to RUNNING
     """
 
 
 @hookspec
 def on_task_instance_success(
-    previous_state: State,
-    state: State,
+    previous_state: "State",
     task_instance: "TaskInstance",
     session: Optional[Session]
 ):
@@ -51,8 +51,7 @@ def on_task_instance_success(
 
 @hookspec
 def on_task_instance_failed(
-    previous_state: State,
-    state: State,
+    previous_state: "State",
     task_instance: "TaskInstance",
     session: Optional[Session]
 ):

@@ -86,3 +86,7 @@ def setup_event_handlers(engine):
                 stack_info,
                 statement.replace("\n", " "),
             )
+
+    if conf.getboolean('core', 'execute_listeners', fallback=False):
+        # On import, register sqlalchemy event handlers which call airflow.listeners
+        import airflow.listeners.events  # noqa

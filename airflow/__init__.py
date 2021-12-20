@@ -80,6 +80,11 @@ if not settings.LAZY_LOAD_PROVIDERS:
     manager.initialize_providers_hooks()
     manager.initialize_providers_extra_links()
 
+# TODO: Add setting to disable execution in scheduler
+if settings.EXECUTE_LISTENERS:
+    from airflow.plugins_manager import integrate_listener_plugins
+    integrate_listener_plugins()
+
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,)
 # into knowing the types of these symbols, and what

@@ -83,14 +83,13 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferred,
 )
-from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
-from airflow.plugins_manager import integrate_macros_plugins, integrate_listener_plugins
+from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -739,9 +738,7 @@ class TaskInstance(Base, LoggingMixin):
         :type session: Session
         """
         self.log.error("Recording the task instance as FAILED")
-        previous_state = self.state
         self.state = State.FAILED
-        self.notify_listener(previous_state, self.state, session)
         session.merge(self)
         session.commit()
 
@@ -855,42 +852,12 @@ class TaskInstance(Base, LoggingMixin):
         """
         current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
-        previous_state = self.state
         self.state = state
         self.start_date = self.start_date or current_time
         if self.state in State.finished or self.state == State.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
         session.merge(self)
-
-        # plugins before commit???
-        # ok for naive implementation I guess
-        self.notify_listener(previous_state, state, session)
-
-    def notify_listener(self, previous_state, state, session):
-        """
-        Notifies listeners about state change.
-        """
-        listener = get_listener_manager()
-
-        # Only notify listeners about those states
-        if state not in [State.RUNNING, State.SUCCESS, State.FAILED]:
-            return
-
-        # If we don't have any plugins, don't waste time preparing context for them
-        if not listener.has_listeners():
-            integrate_listener_plugins()
-            if not listener.has_listeners():
-                return
-
-        self.log.debug(f"Notifying task listeners of state change from {previous_state} to {state}")
-
-        if state == State.RUNNING:
-            listener.hook.on_task_instance_start(previous_state=previous_state, state=state, task_instance=self, session=session)
-        elif state == State.SUCCESS:
-            listener.hook.on_task_instance_success(previous_state=previous_state, state=state, task_instance=self, session=session)
-        elif state == State.FAILED:
-            listener.hook.on_task_instance_failed(previous_state=previous_state, state=state, task_instance=self, session=session)
 
     @property
     def is_premature(self):
@@ -1278,9 +1245,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_ti_state=ignore_ti_state,
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                previous_state = self.state
                 self.state = State.NONE
-                self.notify_listener(previous_state, self.state, session)
                 self.log.warning(hr_line_break)
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
@@ -1303,9 +1268,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(State.RUNNING, self))
-        previous_state = self.state
         self.state = State.RUNNING
-        self.notify_listener(previous_state, self.state, session)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1392,9 +1355,7 @@ class TaskInstance(Base, LoggingMixin):
                 self._execute_task_with_callbacks(context)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            previous_state = self.state
             self.state = State.SUCCESS
-            self.notify_listener(previous_state, self.state, session)
         except TaskDeferred as defer:
             # The task has signalled it wants to defer execution based on
             # a trigger.
@@ -1789,7 +1750,6 @@ class TaskInstance(Base, LoggingMixin):
             session.add(TaskFail(task, dag_run.execution_date, self.start_date, self.end_date))
 
         self.clear_next_method_args()
-        previous_state = self.state
 
         # Set state correctly and figure out how to log it and decide whether
         # to email
@@ -1805,7 +1765,6 @@ class TaskInstance(Base, LoggingMixin):
 
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
-            self.notify_listener(previous_state, self.state, session)
             email_for_state = task.email_on_failure
         else:
             if self.state == State.QUEUED:

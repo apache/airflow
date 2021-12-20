@@ -578,6 +578,9 @@ LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
 # loaded from module.
 LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
 
+# By default listeners are disabled. Set it to True if you want to execute them.
+EXECUTE_LISTENERS = conf.getboolean('core', 'execute_listeners', fallback=False)
+
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
