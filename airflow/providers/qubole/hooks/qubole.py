@@ -22,7 +22,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -134,7 +134,7 @@ class QuboleHook(BaseHook):
         self.dag_id = kwargs['dag'].dag_id
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
-        self.cmd = None
+        self.cmd: Optional[Command] = None
         self.task_instance = None
 
     @staticmethod

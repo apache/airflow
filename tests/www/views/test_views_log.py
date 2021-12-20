@@ -136,6 +136,7 @@ def tis(dags, session):
     dagrun = dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
@@ -145,6 +146,7 @@ def tis(dags, session):
     dagrun_removed = dag_removed.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,

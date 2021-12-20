@@ -17,7 +17,7 @@
 # under the License.
 
 
-from typing import Optional
+from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -133,7 +133,7 @@ class DmsDeleteTaskOperator(BaseOperator):
 
     template_fields = ('replication_task_arn',)
     template_ext = ()
-    template_fields_renderers = {}
+    template_fields_renderers: Dict[str, str] = {}
 
     def __init__(
         self,
@@ -173,7 +173,7 @@ class DmsDescribeTasksOperator(BaseOperator):
 
     template_fields = ('describe_tasks_kwargs',)
     template_ext = ()
-    template_fields_renderers = {'describe_tasks_kwargs': 'json'}
+    template_fields_renderers: Dict[str, str] = {'describe_tasks_kwargs': 'json'}
 
     def __init__(
         self,
@@ -275,7 +275,7 @@ class DmsStopTaskOperator(BaseOperator):
 
     template_fields = ('replication_task_arn',)
     template_ext = ()
-    template_fields_renderers = {}
+    template_fields_renderers: Dict[str, str] = {}
 
     def __init__(
         self,

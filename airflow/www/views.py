@@ -25,6 +25,7 @@ import re
 import socket
 import sys
 import traceback
+import warnings
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
@@ -38,12 +39,10 @@ import markupsafe
 import nvd3
 import sqlalchemy as sqla
 from flask import (
-    Markup,
     Response,
     abort,
     before_render_template,
     current_app,
-    escape,
     flash,
     g,
     jsonify,
@@ -78,6 +77,7 @@ from flask_appbuilder.security.views import (
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
+from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
@@ -1474,7 +1474,10 @@ class Airflow(AirflowBaseView):
             ti_attrs: Optional[List[Tuple[str, Any]]] = None
         else:
             ti.refresh_from_task(task)
-            all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
+            # Some fields on TI are deprecated, but we don't want those warnings here.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
             ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
 
         attr_renderers = wwwutils.get_attr_renderer()

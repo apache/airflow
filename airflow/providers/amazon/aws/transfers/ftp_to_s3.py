@@ -79,7 +79,7 @@ class FTPToS3Operator(BaseOperator):
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: str = None,
+        acl_policy: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
