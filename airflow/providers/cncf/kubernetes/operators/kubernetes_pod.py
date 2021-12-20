@@ -436,7 +436,7 @@ class KubernetesPodOperator(BaseOperator):
                 ti.xcom_push(key='pod_namespace', value=remote_pod.metadata.namespace)
             return result
 
-    def cleanup(self, pod, remote_pod):
+    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         with _suppress(Exception):
             self.process_pod_deletion(pod)
 
