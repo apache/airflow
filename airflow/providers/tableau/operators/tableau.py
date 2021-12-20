@@ -116,16 +116,16 @@ class TableauOperator(BaseOperator):
 
             response = method(resource_id)
 
-        job_id = response.id
+            job_id = response.id
 
-        if self.method == 'refresh':
-            if self.blocking_refresh:
-                if not tableau_hook.wait_for_state(
-                    job_id=job_id,
-                    check_interval=self.check_interval,
-                    target_state=TableauJobFinishCode.SUCCESS,
-                ):
-                    raise TableauJobFailedException(f'The Tableau Refresh {self.resource} Job failed!')
+            if self.method == 'refresh':
+                if self.blocking_refresh:
+                    if not tableau_hook.wait_for_state(
+                        job_id=job_id,
+                        check_interval=self.check_interval,
+                        target_state=TableauJobFinishCode.SUCCESS,
+                    ):
+                        raise TableauJobFailedException(f'The Tableau Refresh {self.resource} Job failed!')
 
         return job_id
 
