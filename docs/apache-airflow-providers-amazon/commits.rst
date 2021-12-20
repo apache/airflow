@@ -222,7 +222,7 @@ Commit                                                                          
 `71c673e427 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
 `a82de56b9d <https://github.com/apache/airflow/commit/a82de56b9d16713cbba4dee42d6797cc12b59cfe>`_  2021-04-13   ``S3Hook.load_file should accept Path object in addition to str (#15232)``
 `b4770725a3 <https://github.com/apache/airflow/commit/b4770725a3aa03bd50a0a8c8e01db667bff93862>`_  2021-04-12   ``Add links to new modules for deprecated modules (#15316)``
-`da780fc8b1 <https://github.com/apache/airflow/commit/da780fc8b1f041b927f1ed06f737113010d58a61>`_  2021-04-12   ``Fixes doc for SqsSensor (#15323)``
+`da780fc8b1 <https://github.com/apache/airflow/commit/da780fc8b1f041b927f1ed06f737113010d58a61>`_  2021-04-12   ``Fixes doc for SQSSensor (#15323)``
 =================================================================================================  ===========  ==========================================================================
 
 1.3.0

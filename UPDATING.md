@@ -2001,10 +2001,10 @@ Migrated are:
 | airflow.contrib.operators.awsbatch.BatchProtocol | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol |
 | private attrs and methods on AWSBatchOperator | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchClient |
 | n/a | airflow.providers.amazon.aws.hooks.batch_waiters.AwsBatchWaiters |
-| airflow.contrib.operators.aws_sqs_publish_operator.SqsPublishOperator | airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator |
+| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
 | airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
 | airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
-| airflow.contrib.sensors.aws_sqs_sensor.SqsSensor             | airflow.providers.amazon.aws.sensors.sqs.SqsSensor        |
+| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
 
 #### `airflow.providers.amazon.aws.hooks.emr.EmrHook`
 

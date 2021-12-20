@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _howto/operator:SqsPublishOperator:
+.. _howto/operator:operator:SQSPublishOperator:
 
 SQS Publish Operator
 ====================
@@ -34,7 +34,7 @@ Using Operator
 --------------
 
 Use the
-:class:`~airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`
+:class:`~airflow.providers.amazon.aws.operators.sqs.operator:SQSPublishOperator`
 to publish a message to Amazon Simple Queue Service (SQS).
 
 In the following example, the task "publish_to_queue" publishes a message containing
