@@ -1299,7 +1299,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: list of rows
         """
         warnings.warn("This method is deprecated. Please use `list_rows`.", DeprecationWarning)
-        rows = self.list_rows(dataset_id, table_id, max_results, selected_fields, page_token, start_index)
+        rows = self.list_rows(
+            dataset_id=dataset_id,
+            table_id=table_id,
+            max_results=max_results,
+            selected_fields=selected_fields,
+            page_token=page_token,
+            start_index=start_index,
+        )
         return [dict(r) for r in rows]
 
     @GoogleBaseHook.fallback_to_default_project_id

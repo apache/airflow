@@ -35,6 +35,7 @@ BaseOperator
 BaseView
 Beauchemin
 Behaviour
+BigQueryHook
 Bigquery
 Bigtable
 Bitshift

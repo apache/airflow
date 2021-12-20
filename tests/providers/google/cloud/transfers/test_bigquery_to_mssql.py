@@ -40,12 +40,11 @@ class TestBigQueryToMsSqlOperator(unittest.TestCase):
 
         operator.execute(None)
         # fmt: off
-        mock_hook.return_value.get_conn.return_value.cursor.return_value.get_tabledata\
-            .assert_called_once_with(
-                dataset_id=TEST_DATASET,
-                table_id=TEST_TABLE_ID,
-                max_results=1000,
-                selected_fields=None,
-                start_index=0,
-            )
+        mock_hook.return_value.list_rows.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            max_results=1000,
+            selected_fields=None,
+            start_index=0,
+        )
         # fmt: on
