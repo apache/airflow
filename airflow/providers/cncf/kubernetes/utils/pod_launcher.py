@@ -63,6 +63,10 @@ class PodStatus:
 
 
 def container_is_running(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+    If that container is present and running, returns True.  Returns False otherwise.
+    """
     container_statuses = pod.status.container_statuses if pod and pod.status else None
     if not container_statuses:
         return False
