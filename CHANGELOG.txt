@@ -1,3 +1,69 @@
+Airflow 2.2.3, 2021-12-21
+-------------------------
+
+Bug Fixes
+"""""""""
+
+- Lazy Jinja2 context (#20217)
+- Exclude ``snowflake-sqlalchemy`` v1.2.5 (#20245)
+- Move away from legacy ``importlib.resources`` API (#19091)
+- Move setgid as the first command executed in forked task runner (#20040)
+- Fix race condition when starting ``DagProcessorAgent`` (#19935)
+- Limit ``httpx`` to <0.20.0 (#20218)
+- Log provider import errors as debug warnings (#20172)
+- Bump minimum required ``alembic`` version (#20153)
+- Fix log link in gantt view (#20121)
+- fixing #19028 by moving chown to use sudo (#20114)
+- Lift off upper bound for ``MarkupSafe`` (#20113)
+- Fix infinite recursion on redact log (#20039)
+- Fix db downgrades (#19994)
+- Context class handles deprecation (#19886)
+- Fix possible reference to undeclared variable (#19933)
+- Validate ``DagRun`` state is valid on assignment (#19898)
+- Workaround occasional deadlocks with MSSQL (#19856)
+- Enable task run setting to be able reinitialise (#19845)
+- Fix log endpoint for same task (#19672)
+- Cast macro datetime string inputs explicitly (#19592)
+- Do not crash with stacktrace when task instance is missing (#19478)
+- Fix log timezone in task log view (#19342) (#19401)
+- Fix: Add taskgroup tooltip to graph view (#19083)
+- Rename execution date in forms and tables (#19063)
+- Simplify "invalid TI state" message (#19029)
+- Handle case of nonexistent file when preparing file path queue (#18998)
+- Do not create dagruns for DAGs with import errors  (#19367)
+- Fix field relabeling when switching between conn types (#19411)
+- ``KubernetesExecutor`` should default to template image if used (#19484)
+- Fix task instance api cannot list task instances with ``None`` state (#19487)
+- Fix IntegrityError in ``DagFileProcessor.manage_slas`` (#19553)
+- Declare data interval fields as serializable (#19616)
+- Relax timetable class validation (#19878)
+- Fix labels used to find queued ``KubernetesExecutor`` pods (#19904)
+- Fix moved data migration check for MySQL when replcation is used (#19999)
+
+Doc only changes
+""""""""""""""""
+
+- Warn without tracebacks when example_dags are missing deps (#20295)
+- Deferrable operators doc clarification (#20150)
+- Ensure the example DAGs are all working (#19355)
+- Updating core example DAGs to use TaskFlow API where applicable (#18562)
+- Add xcom clearing behaviour on task retries (#19968)
+- Add a short chapter focusing on adapting secret format for connections (#19859)
+- Add information about supported OS-es for Apache Airflow (#19855)
+- Update docs to reflect that changes to the ``base_log_folder`` require updating other configs (#19793)
+- Disclaimer in ``KubernetesExecutor`` pod template docs (#19686)
+- Add upgrade note on ``execution_date`` -> ``run_id`` (#19593)
+- Expanding ``.output`` operator property information in TaskFlow tutorial doc (#19214)
+- Add example SLA DAG (#19563)
+- Add a proper example to patch DAG (#19465)
+- Add DAG file processing description to Scheduler Concepts (#18954)
+- Updating explicit arg example in TaskFlow API tutorial doc (#18907)
+- Adds back documentation about context usage in Python/@task (#18868)
+- Add release date for when an endpoint/field is added in the REST API (#19203)
+- Better ``pod_template_file`` examples (#19691)
+- Add decription on how you can customize image entrypoint (#18915)
+- Dags-in-image pod template example should not have dag mounts (#19337)
+
 Airflow 2.2.2, 2021-11-15
 -------------------------
 
