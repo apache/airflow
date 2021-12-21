@@ -17,6 +17,7 @@
 # under the License.
 #
 import sys
+import warnings
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -26,16 +27,16 @@ else:
     from cached_property import cached_property
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 
 
-class AWSAthenaOperator(BaseOperator):
+class AthenaOperator(BaseOperator):
     """
     An operator that submits a presto query to athena.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AWSAthenaOperator`
+        :ref:`howto/operator:AthenaOperator`
 
     :param query: Presto to be run on athena. (templated)
     :type query: str
@@ -93,9 +94,9 @@ class AWSAthenaOperator(BaseOperator):
         self.query_execution_id = None  # type: Optional[str]
 
     @cached_property
-    def hook(self) -> AWSAthenaHook:
-        """Create and return an AWSAthenaHook."""
-        return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
+    def hook(self) -> AthenaHook:
+        """Create and return an AthenaHook."""
+        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
     def execute(self, context: dict) -> Optional[str]:
         """Run Presto Query on Athena"""
@@ -110,13 +111,13 @@ class AWSAthenaOperator(BaseOperator):
         )
         query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
 
-        if query_status in AWSAthenaHook.FAILURE_STATES:
+        if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
                 f'Final state of Athena job is {query_status}, query_execution_id is '
                 f'{self.query_execution_id}. Error: {error_message}'
             )
-        elif not query_status or query_status in AWSAthenaHook.INTERMEDIATE_STATES:
+        elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
             raise Exception(
                 f'Final state of Athena job is {query_status}. Max tries of poll status exceeded, '
                 f'query_execution_id is {self.query_execution_id}.'
@@ -143,3 +144,19 @@ class AWSAthenaOperator(BaseOperator):
                         'Polling Athena for query with id %s to reach final state', self.query_execution_id
                     )
                     self.hook.poll_query_status(self.query_execution_id)
+
+
+class AWSAthenaOperator(AthenaOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. Please use "
+            "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

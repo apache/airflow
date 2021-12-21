@@ -104,7 +104,7 @@ class SimpleHttpOperator(BaseOperator):
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: Dict[str, Any]) -> Any:
-        from airflow.utils.operator_helpers import make_kwargs_callable
+        from airflow.utils.operator_helpers import determine_kwargs
 
         http = HttpHook(self.method, http_conn_id=self.http_conn_id, auth_type=self.auth_type)
 
@@ -114,10 +114,10 @@ class SimpleHttpOperator(BaseOperator):
         if self.log_response:
             self.log.info(response.text)
         if self.response_check:
-            kwargs_callable = make_kwargs_callable(self.response_check)
-            if not kwargs_callable(response, **context):
+            kwargs = determine_kwargs(self.response_check, [response], context)
+            if not self.response_check(response, **kwargs):
                 raise AirflowException("Response check returned False.")
         if self.response_filter:
-            kwargs_callable = make_kwargs_callable(self.response_filter)
-            return kwargs_callable(response, **context)
+            kwargs = determine_kwargs(self.response_filter, [response], context)
+            return self.response_filter(response, **kwargs)
         return response.text

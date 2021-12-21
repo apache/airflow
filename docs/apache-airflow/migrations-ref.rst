@@ -23,7 +23,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
 | Revision ID                    | Revises ID       | Airflow Version | Description                                                                           |
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
-| ``786e3737b18f`` (head)        | ``5e3ec427fdd3`` | ``2.3.0``       | Add ``timetable_description`` column to DagModel for UI.                              |
+| ``f9da662e7089`` (head)        | ``786e3737b18f`` | ``2.3.0``       | Add ``LogTemplate`` table to track changes to config values ``log_filename_template`` |
+|                                |                  |                 | and ``task_log_prefix_template``.                                                     |
++--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
+| ``786e3737b18f``               | ``5e3ec427fdd3`` | ``2.3.0``       | Add ``timetable_description`` column to DagModel for UI.                              |
 +--------------------------------+------------------+-----------------+---------------------------------------------------------------------------------------+
 | ``5e3ec427fdd3``               | ``be2bfac3da23`` | ``2.3.0``       | Increase length of email and username in ``ab_user`` and ``ab_register_user`` table   |
 |                                |                  |                 | to ``256`` characters                                                                 |

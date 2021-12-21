@@ -85,6 +85,7 @@ def create_dag_run(dag):
         return dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=execution_date,
+            data_interval=(execution_date, execution_date),
             run_type=DagRunType.MANUAL,
             session=session,
         )

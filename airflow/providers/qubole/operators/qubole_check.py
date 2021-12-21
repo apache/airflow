@@ -27,11 +27,14 @@ from airflow.providers.qubole.operators.qubole import QuboleOperator
 class _QuboleCheckOperatorMixin:
     """This is a Mixin for Qubole related check operators"""
 
+    kwargs: dict
+    results_parser_callable: Optional[Callable]
+
     def execute(self, context=None) -> None:
         """Execute a check operation against Qubole"""
         try:
             self._hook_context = context
-            super().execute(context=context)
+            super().execute(context=context)  # type: ignore[misc]
         except AirflowException as e:
             handle_airflow_exception(e, self.get_hook())
 
@@ -39,9 +42,11 @@ class _QuboleCheckOperatorMixin:
         """Get QuboleCheckHook"""
         return self.get_hook()
 
-    # this overwrite the original QuboleOperator.get_hook() which returns a QuboleHook.
     def get_hook(self) -> QuboleCheckHook:
-        """Reinitialising the hook, as some template fields might have changed"""
+        """
+        Reinitialising the hook, as some template fields might have changed
+        This method overwrites the original QuboleOperator.get_hook() which returns a QuboleHook.
+        """
         return QuboleCheckHook(
             context=self._hook_context, results_parser_callable=self.results_parser_callable, **self.kwargs
         )
@@ -107,7 +112,11 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
     ui_fgcolor = '#000'
 
     def __init__(
-        self, *, qubole_conn_id: str = "qubole_default", results_parser_callable: Callable = None, **kwargs
+        self,
+        *,
+        qubole_conn_id: str = "qubole_default",
+        results_parser_callable: Optional[Callable] = None,
+        **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
         kwargs.pop('sql', None)
@@ -168,7 +177,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
         *,
         pass_value: Union[str, int, float],
         tolerance: Optional[Union[int, float]] = None,
-        results_parser_callable: Callable = None,
+        results_parser_callable: Optional[Callable] = None,
         qubole_conn_id: str = "qubole_default",
         **kwargs,
     ) -> None:

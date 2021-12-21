@@ -179,11 +179,13 @@ class GoogleApiToS3Operator(BaseOperator):
         )
 
     def _update_google_api_endpoint_params_via_xcom(self, task_instance: TaskInstance) -> None:
-        google_api_endpoint_params = task_instance.xcom_pull(
-            task_ids=self.google_api_endpoint_params_via_xcom_task_ids,
-            key=self.google_api_endpoint_params_via_xcom,
-        )
-        self.google_api_endpoint_params.update(google_api_endpoint_params)
+
+        if self.google_api_endpoint_params_via_xcom:
+            google_api_endpoint_params = task_instance.xcom_pull(
+                task_ids=self.google_api_endpoint_params_via_xcom_task_ids,
+                key=self.google_api_endpoint_params_via_xcom,
+            )
+            self.google_api_endpoint_params.update(google_api_endpoint_params)
 
     def _expose_google_api_response_via_xcom(self, task_instance: TaskInstance, data: dict) -> None:
         if sys.getsizeof(data) < MAX_XCOM_SIZE:

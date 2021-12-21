@@ -56,18 +56,21 @@ def init_dagruns(app, reset_dagruns):
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_xcom").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -259,6 +262,7 @@ def test_dag_details_trigger_origin_tree_view(app, admin_client):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -274,6 +278,7 @@ def test_dag_details_trigger_origin_graph_view(app, admin_client):
     app.dag_bag.get_dag('test_graph_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )

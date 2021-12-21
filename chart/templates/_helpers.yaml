@@ -37,56 +37,75 @@ If release name contains chart name it will be used as a full name.
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__FERNET_KEY }}
   - name: AIRFLOW__CORE__FERNET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
+  {{- end }}
   {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
+  # (Airflow 1.10.* variant)
   - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
+    {{- end }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
+    {{- end }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
         name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
         key: connection
+    {{- end }}
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}
   # The elasticsearch variables were updated to the shorter names in v1.10.4
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
+    {{- end }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST }}
   # This is the older format for these variable names, kept here for backward compatibility
   - name: AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
+    {{- end }}
   {{- end }}
 {{- end }}
 

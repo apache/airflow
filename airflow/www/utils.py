@@ -23,11 +23,12 @@ from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
-from flask import Markup, Response, request, url_for
+from flask import Response, request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter

@@ -104,7 +104,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         *,
         jenkins_connection_id: str,
         job_name: str,
-        parameters: ParamType = "",
+        parameters: ParamType = None,
         sleep_time: int = 10,
         max_try_before_job_appears: int = 10,
         allowed_jenkins_states: Optional[Iterable[str]] = None,
@@ -118,7 +118,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.max_try_before_job_appears = max_try_before_job_appears
         self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ['SUCCESS']
 
-    def build_job(self, jenkins_server: Jenkins, params: ParamType = "") -> Optional[JenkinsRequest]:
+    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -134,10 +134,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # check type and pass to build_job_url
         if params and isinstance(params, str):
             params = ast.literal_eval(params)
-
-        # We need a None to call the non-parametrized jenkins api end point
-        if not params:
-            params = None
 
         request = Request(method='POST', url=jenkins_server.build_job_url(self.job_name, params, None))
         return jenkins_request_with_headers(jenkins_server, request)
@@ -183,20 +179,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context: Mapping[Any, Any]) -> Optional[str]:
-        if not self.jenkins_connection_id:
-            self.log.error(
-                'Please specify the jenkins connection id to use.'
-                'You must create a Jenkins connection before'
-                ' being able to use this operator'
-            )
-            raise AirflowException(
-                'The jenkins_connection_id parameter is missing, impossible to trigger the job'
-            )
-
-        if not self.job_name:
-            self.log.error("Please specify the job name to use in the job_name parameter")
-            raise AirflowException('The job_name parameter is missing,impossible to trigger the job')
-
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',
             self.job_name,

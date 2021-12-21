@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
+import warnings
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -23,10 +24,10 @@ else:
     from cached_property import cached_property
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
+from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
 
-class AwsGlueCrawlerOperator(BaseOperator):
+class GlueCrawlerOperator(BaseOperator):
     """
     Creates, updates and triggers an AWS Glue Crawler. AWS Glue Crawler is a serverless
     service that manages a catalog of metadata tables that contain the inferred
@@ -55,9 +56,9 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.config = config
 
     @cached_property
-    def hook(self) -> AwsGlueCrawlerHook:
-        """Create and return an AwsGlueCrawlerHook."""
-        return AwsGlueCrawlerHook(self.aws_conn_id)
+    def hook(self) -> GlueCrawlerHook:
+        """Create and return an GlueCrawlerHook."""
+        return GlueCrawlerHook(self.aws_conn_id)
 
     def execute(self, context):
         """
@@ -77,3 +78,19 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
 
         return crawler_name
+
+
+class AwsGlueCrawlerOperator(GlueCrawlerOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
