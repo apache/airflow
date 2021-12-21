@@ -18,7 +18,7 @@
 
 import logging
 from base64 import b64encode
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -26,6 +26,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),
@@ -79,7 +83,7 @@ class WinRMOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.timeout = timeout
 
-    def execute(self, context: Dict[str, Any]) -> Union[list, str]:
+    def execute(self, context: Context) -> Union[list, str]:
         if self.ssh_conn_id and not self.winrm_hook:
             self.log.info("Hook not found, creating...")
             self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
