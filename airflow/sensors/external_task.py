@@ -47,7 +47,7 @@ class ExternalTaskSensorLink(BaseOperatorLink):
 class ExternalTaskSensor(BaseSensorOperator):
     """
     Waits for a different DAG or a task in a different DAG to complete for a
-    specific execution_date
+    specific logical date.
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
@@ -65,14 +65,14 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
     :type failed_states: Iterable
     :param execution_delta: time difference with the previous execution to
-        look at, the default is the same execution_date as the current task or DAG.
+        look at, the default is the same logical date as the current task or DAG.
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
         execution_delta or execution_date_fn can be passed to
         ExternalTaskSensor, but not both.
     :type execution_delta: Optional[datetime.timedelta]
-    :param execution_date_fn: function that receives the current execution date as the first
+    :param execution_date_fn: function that receives the current execution's logical date as the first
         positional argument and optionally any number of keyword arguments available in the
-        context dictionary, and returns the desired execution dates to query.
+        context dictionary, and returns the desired logical dates to query.
         Either execution_delta or execution_date_fn can be passed to ExternalTaskSensor,
         but not both.
     :type execution_date_fn: Optional[Callable]
@@ -156,11 +156,11 @@ class ExternalTaskSensor(BaseSensorOperator):
     @provide_session
     def poke(self, context, session=None):
         if self.execution_delta:
-            dttm = context['execution_date'] - self.execution_delta
+            dttm = context['logical_date'] - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
         else:
-            dttm = context['execution_date']
+            dttm = context['logical_date']
 
         dttm_filter = dttm if isinstance(dttm, list) else [dttm]
         serialized_dttm_filter = ','.join(dt.isoformat() for dt in dttm_filter)
@@ -259,16 +259,16 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         from airflow.utils.operator_helpers import make_kwargs_callable
 
-        # Remove "execution_date" because it is already a mandatory positional argument
-        execution_date = context["execution_date"]
-        kwargs = {k: v for k, v in context.items() if k != "execution_date"}
+        # Remove "logical_date" because it is already a mandatory positional argument
+        logical_date = context["logical_date"]
+        kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)
         kwargs["context"] = context
         if TYPE_CHECKING:
             assert self.execution_date_fn is not None
         kwargs_callable = make_kwargs_callable(self.execution_date_fn)
-        return kwargs_callable(execution_date, **kwargs)
+        return kwargs_callable(logical_date, **kwargs)
 
 
 class ExternalTaskMarker(DummyOperator):
@@ -282,7 +282,7 @@ class ExternalTaskMarker(DummyOperator):
     :type external_dag_id: str
     :param external_task_id: The task_id of the dependent task that needs to be cleared.
     :type external_task_id: str
-    :param execution_date: The execution_date of the dependent task that needs to be cleared.
+    :param execution_date: The logical date of the dependent task execution that needs to be cleared.
     :type execution_date: str or datetime.datetime
     :param recursion_depth: The maximum level of transitive dependencies allowed. Default is 10.
         This is mostly used for preventing cyclic dependencies. It is fine to increase
@@ -301,7 +301,7 @@ class ExternalTaskMarker(DummyOperator):
         *,
         external_dag_id: str,
         external_task_id: str,
-        execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",
+        execution_date: Optional[Union[str, datetime.datetime]] = "{{ logical_date.isoformat() }}",
         recursion_depth: int = 10,
         **kwargs,
     ):

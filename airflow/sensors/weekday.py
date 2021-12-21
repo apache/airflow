@@ -84,6 +84,6 @@ class DayOfWeekSensor(BaseSensorOperator):
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
         if self.use_task_execution_day:
-            return context['execution_date'].isoweekday() in self._week_day_num
+            return context['logical_date'].isoweekday() in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

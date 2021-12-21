@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Union
 
 import dill
 
@@ -33,7 +33,7 @@ from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils.context import Context, context_copy_partial
-from airflow.utils.operator_helpers import determine_kwargs
+from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
@@ -147,8 +147,8 @@ class PythonOperator(BaseOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
         show_return_value_in_logs: bool = True,
@@ -165,7 +165,7 @@ class PythonOperator(BaseOperator):
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
-        self.op_args = op_args or []
+        self.op_args = op_args or ()
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
         if templates_exts:
@@ -176,7 +176,7 @@ class PythonOperator(BaseOperator):
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
 
-        self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
+        self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -185,6 +185,9 @@ class PythonOperator(BaseOperator):
             self.log.info("Done. Returned value not shown")
 
         return return_value
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
     def execute_callable(self):
         """
@@ -252,11 +255,11 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.log.info('Skipping downstream tasks...')
 
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
+            self.skip(context["dag_run"], context["logical_date"], downstream_tasks)
 
         self.log.info("Done.")
 
@@ -356,8 +359,8 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
@@ -402,6 +405,9 @@ class PythonVirtualenvOperator(PythonOperator):
         serializable_keys = set(self._iter_serializable_context_keys())
         serializable_context = context_copy_partial(context, serializable_keys)
         return super().execute(context=serializable_context)
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:

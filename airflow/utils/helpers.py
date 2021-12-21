@@ -193,7 +193,7 @@ def render_log_filename(ti: "TaskInstance", try_number, filename_template) -> st
     if filename_jinja_template:
         jinja_context = ti.get_template_context()
         jinja_context['try_number'] = try_number
-        return filename_jinja_template.render(**jinja_context)
+        return render_template_to_string(filename_jinja_template, jinja_context)
 
     return filename_template.format(
         dag_id=ti.dag_id,
