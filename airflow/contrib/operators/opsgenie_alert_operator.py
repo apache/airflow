@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.opsgenie.operators.opsgenie_alert import OpsgenieAlertOperator  # noqa
+from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie_alert`.",

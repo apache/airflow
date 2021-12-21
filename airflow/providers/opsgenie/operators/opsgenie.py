@@ -19,7 +19,7 @@
 from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
+from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 
 
 class OpsgenieAlertOperator(BaseOperator):

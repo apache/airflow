@@ -24,7 +24,7 @@ from opsgenie_sdk import AlertApi, CreateAlertPayload
 from opsgenie_sdk.exceptions import AuthenticationException
 
 from airflow.models import Connection
-from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
+from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.utils import db
 
 

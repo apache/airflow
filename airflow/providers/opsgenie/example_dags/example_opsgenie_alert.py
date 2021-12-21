@@ -17,7 +17,7 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.opsgenie.operators.opsgenie_alert import OpsgenieAlertOperator
+from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator
 
 with DAG(
     dag_id="opsgenie_alert_operator_dag",
