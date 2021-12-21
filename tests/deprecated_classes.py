@@ -344,7 +344,7 @@ HOOKS = [
         'airflow.contrib.hooks.jira_hook.JiraHook',
     ),
     (
-        'airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook',
+        'airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook',
         'airflow.contrib.hooks.opsgenie_alert_hook.OpsgenieAlertHook',
     ),
     (
@@ -1304,7 +1304,7 @@ OPERATORS = [
         'airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator',
     ),
     (
-        'airflow.providers.opsgenie.operators.opsgenie_alert.OpsgenieAlertOperator',
+        'airflow.providers.opsgenie.operators.opsgenie.OpsgenieAlertOperator',
         'airflow.contrib.operators.opsgenie_alert_operator.OpsgenieAlertOperator',
     ),
     (

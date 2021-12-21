@@ -29,16 +29,6 @@ Removed the ``OpsegnieAlertHook.execute`` method and replaced it with ``Opsegnie
 ``OpsgenieAlertHook`` now takes ``visible_to`` instead of ``visibleTo`` key in the payload.
 ``OpsgenieAlertHook`` now takes ``request_id`` instead of ``requestId`` key in the payload.
 
-Changes were made to classes paths:
-
-+-----------------------+-----------------------------------------------------+-----------------------------------------------+
-| Class                 | Old Path                                            | New Path                                      |
-+-----------------------+-----------------------------------------------------+-----------------------------------------------+
-| OpsgenieAlertHook     | airflow.providers.opsgenie.hooks.opsgenie_alert     | airflow.providers.opsgenie.hooks.opsgenie     |
-+-----------------------+-----------------------------------------------------+-----------------------------------------------+
-| OpsgenieAlertOperator | airflow.providers.opsgenie.operators.opsgenie_alert | airflow.providers.opsgenie.operators.opsgenie |
-+-----------------------+-----------------------------------------------------+-----------------------------------------------+
-
 2.0.1
 .....
 

@@ -20,7 +20,7 @@
 OpsgenieAlertOperator
 ==========================
 
-Use the :class:`~airflow.providers.opsgenie.operators.opsgenie_alert.OpsgenieAlertOperator` to send an alert to opsgenie.
+Use the :class:`~airflow.providers.opsgenie.operators.opsgenie.OpsgenieAlertOperator` to send an alert to opsgenie.
 
 
 Using the Operator
