@@ -402,7 +402,7 @@ class SchedulerJob(BaseJob):
                         dag_id,
                         max_active_tasks_per_dag_limit,
                     )
-                    # Set the last_scheduling_decision for all task instances in this dag
+                    # update the last_scheduling_decision for all task instances in this dag
                     session.query(TI).filter(
                         TI.dag_id == task_instance.dag_id, TI.state == State.SCHEDULED
                     ).update(
