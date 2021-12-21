@@ -1325,7 +1325,7 @@ class Airflow(AirflowBaseView):
                 return jsonify(message=message, metadata=metadata)
 
             metadata['download_logs'] = True
-            attachment_filename = task_log_reader.render_log_filename(ti, try_number)
+            attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,
