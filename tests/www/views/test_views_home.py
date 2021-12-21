@@ -19,6 +19,7 @@ import os
 from unittest import mock
 
 import flask
+import markupsafe
 import pytest
 
 from airflow.dag_processing.processor import DagFileProcessor
@@ -225,7 +226,7 @@ def test_dashboard_flash_messages_many(user_client):
 
 def test_dashboard_flash_messages_markup(user_client):
     link = '<a href="http://example.com">hello world</a>'
-    user_input = flask.Markup("Hello <em>%s</em>") % ("foo&bar",)
+    user_input = markupsafe.Markup("Hello <em>%s</em>") % ("foo&bar",)
     messages = [
         UIAlert(link, html=True),
         UIAlert(user_input),

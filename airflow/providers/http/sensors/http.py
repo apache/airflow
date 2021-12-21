@@ -96,7 +96,7 @@ class HttpSensor(BaseSensorOperator):
         self.hook = HttpHook(method=method, http_conn_id=http_conn_id)
 
     def poke(self, context: Dict[Any, Any]) -> bool:
-        from airflow.utils.operator_helpers import make_kwargs_callable
+        from airflow.utils.operator_helpers import determine_kwargs
 
         self.log.info('Poking: %s', self.endpoint)
         try:
@@ -107,9 +107,8 @@ class HttpSensor(BaseSensorOperator):
                 extra_options=self.extra_options,
             )
             if self.response_check:
-                kwargs_callable = make_kwargs_callable(self.response_check)
-                return kwargs_callable(response, **context)
-
+                kwargs = determine_kwargs(self.response_check, [response], context)
+                return self.response_check(response, **kwargs)
         except AirflowException as exc:
             if str(exc).startswith("404"):
                 return False

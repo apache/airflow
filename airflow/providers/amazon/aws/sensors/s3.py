@@ -19,13 +19,14 @@
 
 import os
 import re
+import sys
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
@@ -191,7 +192,7 @@ class S3KeySizeSensor(S3KeySensor):
         response = paginator.paginate(
             Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
-        keys = []
+        keys: List = []
         for page in response:
             if 'Contents' in page:
                 _temp = [k for k in page['Contents'] if isinstance(k.get('Size', None), (int, float))]

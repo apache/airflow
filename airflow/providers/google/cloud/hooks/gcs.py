@@ -33,7 +33,9 @@ from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Unio
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
-from google.cloud import storage
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
@@ -112,6 +114,13 @@ def _fallback_object_url_to_object_name_and_bucket_name(
         return cast(T, _inner_wrapper)
 
     return _wrapper
+
+
+# A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
+# This allows the 'bucket' argument to be of type str instead of Optional[str],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+PROVIDE_BUCKET: str = cast(str, None)
 
 
 class GCSHook(GoogleBaseHook):
@@ -299,7 +308,7 @@ class GCSHook(GoogleBaseHook):
 
         num_file_attempts = 0
 
-        while num_file_attempts < num_max_attempts:
+        while True:
             try:
                 num_file_attempts += 1
                 client = self.get_conn()
@@ -329,11 +338,50 @@ class GCSHook(GoogleBaseHook):
                 time.sleep(timeout_seconds)
                 continue
 
+    def download_as_byte_array(
+        self,
+        bucket_name: str,
+        object_name: str,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        num_max_attempts: Optional[int] = 1,
+    ) -> bytes:
+        """
+        Downloads a file from Google Cloud Storage.
+
+        When no filename is supplied, the operator loads the file into memory and returns its
+        content. When a filename is supplied, it writes the file to the specified location and
+        returns the location. For file sizes that exceed the available memory it is recommended
+        to write to a file.
+
+        :param bucket_name: The bucket to fetch from.
+        :type bucket_name: str
+        :param object_name: The object to fetch.
+        :type object_name: str
+        :param chunk_size: Blob chunk size.
+        :type chunk_size: int
+        :param timeout: Request timeout in seconds.
+        :type timeout: int
+        :param num_max_attempts: Number of attempts to download the file.
+        :type num_max_attempts: int
+        """
+        # We do not pass filename, so will never receive string as response
+        return cast(
+            bytes,
+            self.download(
+                bucket_name=bucket_name,
+                object_name=object_name,
+                chunk_size=chunk_size,
+                timeout=timeout,
+                num_max_attempts=num_max_attempts,
+            ),
+        )
+
     @_fallback_object_url_to_object_name_and_bucket_name()
     @contextmanager
     def provide_file(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
     ):
@@ -363,7 +411,7 @@ class GCSHook(GoogleBaseHook):
     @contextmanager
     def provide_file_and_upload(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
     ):
@@ -716,11 +764,11 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str,
         timespan_start: datetime,
         timespan_end: datetime,
-        versions: bool = None,
-        max_results: int = None,
-        prefix: str = None,
-        delimiter: str = None,
-    ) -> list:
+        versions: Optional[bool] = None,
+        max_results: Optional[int] = None,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+    ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
         updated in the time between ``timespan_start`` and ``timespan_end``.

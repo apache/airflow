@@ -72,7 +72,7 @@ class BranchDateTimeOperator(BaseBranchOperator):
 
     def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
         if self.use_task_execution_date is True:
-            now = timezone.make_naive(context["execution_date"], self.dag.timezone)
+            now = timezone.make_naive(context["logical_date"], self.dag.timezone)
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 

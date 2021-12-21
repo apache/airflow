@@ -102,7 +102,7 @@ class MongoToS3Operator(BaseOperator):
         self.allow_disk_use = allow_disk_use
         self.compression = compression
 
-    def execute(self, context) -> bool:
+    def execute(self, context):
         """Is written to depend on transform method"""
         s3_conn = S3Hook(self.aws_conn_id)
 

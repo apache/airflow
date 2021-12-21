@@ -52,7 +52,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EKSHook
+from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 from ..utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -126,11 +126,11 @@ def cluster_builder():
 
     def _execute(
         count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EKSHook, ClusterTestDataFactory]:
+    ) -> Tuple[EksHook, ClusterTestDataFactory]:
         return eks_hook, ClusterTestDataFactory(count=count, minimal=minimal)
 
     mock_eks().start()
-    eks_hook = EKSHook(
+    eks_hook = EksHook(
         aws_conn_id=DEFAULT_CONN_ID,
         region_name=REGION,
     )
@@ -175,7 +175,7 @@ def fargate_profile_builder(cluster_builder):
 
     def _execute(
         count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EKSHook, FargateProfileTestDataFactory]:
+    ) -> Tuple[EksHook, FargateProfileTestDataFactory]:
         return eks_hook, FargateProfileTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -219,7 +219,7 @@ def nodegroup_builder(cluster_builder):
 
     def _execute(
         count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EKSHook, NodegroupTestDataFactory]:
+    ) -> Tuple[EksHook, NodegroupTestDataFactory]:
         return eks_hook, NodegroupTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -227,7 +227,7 @@ def nodegroup_builder(cluster_builder):
 
 
 @pytest.mark.skipif(mock_eks is None, reason=PACKAGE_NOT_PRESENT_MSG)
-class TestEKSHooks:
+class TestEksHooks:
     def test_hook(self, cluster_builder) -> None:
         eks_hook, _ = cluster_builder()
         assert eks_hook.get_conn() is not None
@@ -242,7 +242,7 @@ class TestEKSHooks:
     ###
     @mock_eks
     def test_list_clusters_returns_empty_by_default(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
 
         result: List = eks_hook.list_clusters()
 
@@ -429,7 +429,7 @@ class TestEKSHooks:
 
     @mock_eks
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
         non_existent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
         expected_exception: Type[AWSError] = ResourceNotFoundException
@@ -803,7 +803,7 @@ class TestEKSHooks:
 
     @mock_eks
     def test_create_fargate_profile_throws_exception_when_cluster_not_found(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
         non_existent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
         expected_exception: Type[AWSError] = ResourceNotFoundException
@@ -1167,7 +1167,7 @@ class TestEKSHooks:
             )
 
 
-class TestEKSHook:
+class TestEksHook:
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
     @pytest.mark.parametrize(
         "aws_conn_id, region_name, expected_args",
@@ -1209,7 +1209,7 @@ class TestEKSHook:
         mock_conn.describe_cluster.return_value = {
             'cluster': {'certificateAuthority': {'data': 'test-cert'}, 'endpoint': 'test-endpoint'}
         }
-        hook = EKSHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        hook = EksHook(aws_conn_id=aws_conn_id, region_name=region_name)
         with hook.generate_config_file(
             eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
         ) as config_file:
@@ -1253,7 +1253,7 @@ class TestEKSHook:
     def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
         mock_signer.return_value.generate_presigned_url.return_value = 'http://example.com'
         mock_get_session.return_value.region_name = 'us-east-1'
-        hook = EKSHook()
+        hook = EksHook()
         token = hook.fetch_access_token_for_cluster(eks_cluster_name='test-cluster')
         mock_signer.assert_called_once_with(
             service_id=mock_conn.meta.service_model.service_id,

@@ -89,6 +89,12 @@ Smart sensors, an "early access" feature added in Airflow 2, are now deprecated 
 
 See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.3.0/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
+### Task log templates are now read from the metadatabase instead of `airflow.cfg`
+
+Previously, a task’s log is dynamically rendered from the `[core] log_filename_template` and `[core] task_log_prefix_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
+
+A new `log_template` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field `log_template_id` is added to every DAG run to point to the format used by tasks (`NULL` indicates the first ever entry for compatibility).
+
 ## Airflow 2.2.2
 
 No breaking changes.

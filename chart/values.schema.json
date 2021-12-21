@@ -725,6 +725,59 @@
                 }
             ]
         },
+        "enableBuiltInSecretEnvVars": {
+            "description": "Uses built-in secret values set as environment variables passed to Airflow. You should supply corresponding environment variables as ``extraEnv`` variables if you disable them here.",
+            "type": "object",
+            "additionalProperties": false,
+            "x-docsSection": "Airflow",
+            "properties": {
+                "AIRFLOW__CORE__FERNET_KEY": {
+                    "description": "Enable ``AIRFLOW__CORE__FERNET_KEY`` variable to be read from the Fernet key Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__CORE__SQL_ALCHEMY_CONN": {
+                    "description": "Enable ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW_CONN_AIRFLOW_DB": {
+                    "description": "Enable ``AIRFLOW_CONN_AIRFLOW_DB`` variable to be read from the Metadata Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__WEBSERVER__SECRET_KEY": {
+                    "description": "Enable ``AIRFLOW__WEBSERVER__SECRET_KEY`` variable to be read from the Webserver Secret Key Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__CELERY__CELERY_RESULT_BACKEND": {
+                    "description": "Enable ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret - Airflow 1.10.* variant",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__CELERY__RESULT_BACKEND": {
+                    "description": "Enable ``AIRFLOW__CELERY__RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__CELERY__BROKER_URL": {
+                    "description": "Enable ``AIRFLOW__CELERY__BROKER_URL`` variable to be read from the Celery Broker URL Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__ELASTICSEARCH__HOST": {
+                    "description": "Enable ``AIRFLOW__ELASTICSEARCH__HOST`` variable to be read from the Elasticsearch Host Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": {
+                    "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
+                    "type": "boolean",
+                    "default": true
+                }
+            }
+        },
         "extraEnv": {
             "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
             "type": [

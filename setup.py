@@ -526,6 +526,7 @@ mypy_dependencies = [
     'types-boto',
     'types-certifi',
     'types-croniter',
+    'types-Deprecated',
     'types-docutils',
     'types-freezegun',
     'types-paramiko',

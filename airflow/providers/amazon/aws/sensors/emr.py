@@ -15,17 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import sys
 from typing import Any, Dict, Iterable, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -178,9 +177,9 @@ class EmrContainerSensor(BaseSensorOperator):
         return True
 
     @cached_property
-    def hook(self) -> EMRContainerHook:
-        """Create and return an EMRContainerHook"""
-        return EMRContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
+    def hook(self) -> EmrContainerHook:
+        """Create and return an EmrContainerHook"""
+        return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
 
 class EmrJobFlowSensor(EmrBaseSensor):

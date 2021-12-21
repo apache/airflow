@@ -88,7 +88,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeEntitiesResponse:
         """
         Finds named entities in the text along with entity types,
@@ -122,7 +122,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeEntitySentimentResponse:
         """
         Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
@@ -156,7 +156,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeSentimentResponse:
         """
         Analyzes the sentiment of the provided text.
@@ -189,7 +189,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeSyntaxResponse:
         """
         Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
@@ -224,7 +224,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         encoding_type: enums.EncodingType = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnnotateTextResponse:
         """
         A convenience method that provides all the features that analyzeSentiment,
@@ -265,7 +265,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         document: Union[dict, Document],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ClassifyTextResponse:
         """
         Classifies a document into categories.

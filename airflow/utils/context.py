@@ -20,6 +20,7 @@
 
 import contextlib
 import copy
+import functools
 import warnings
 from typing import (
     AbstractSet,
@@ -29,11 +30,14 @@ from typing import (
     ItemsView,
     Iterator,
     List,
+    Mapping,
     MutableMapping,
     Optional,
     Tuple,
     ValuesView,
 )
+
+import lazy_object_proxy
 
 from airflow.utils.types import NOTSET
 
@@ -198,7 +202,38 @@ def context_copy_partial(source: Context, keys: Container[str]) -> "Context":
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
     functions.
+
+    :meta private:
     """
     new = Context({k: v for k, v in source._context.items() if k in keys})
     new._deprecation_replacements = source._deprecation_replacements.copy()
     return new
+
+
+def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
+    """Create a mapping that wraps deprecated entries in a lazy object proxy.
+
+    This further delays deprecation warning to until when the entry is actually
+    used, instead of when it's accessed in the context. The result is useful for
+    passing into a callable with ``**kwargs``, which would unpack the mapping
+    too eagerly otherwise.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+
+    def _deprecated_proxy_factory(k: str, v: Any) -> Any:
+        replacements = source._deprecation_replacements[k]
+        warnings.warn(_create_deprecation_warning(k, replacements))
+        return v
+
+    def _create_value(k: str, v: Any) -> Any:
+        if k not in source._deprecation_replacements:
+            return v
+        factory = functools.partial(_deprecated_proxy_factory, k, v)
+        return lazy_object_proxy.Proxy(factory)
+
+    return {k: _create_value(k, v) for k, v in source._context.items()}

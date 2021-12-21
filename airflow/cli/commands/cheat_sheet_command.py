@@ -35,8 +35,6 @@ def display_commands_index():
         commands: Iterable[Union[GroupCommand, ActionCommand]],
         help_msg: Optional[str] = None,
     ):
-        actions: List[ActionCommand]
-        groups: List[GroupCommand]
         actions: List[ActionCommand] = []
         groups: List[GroupCommand] = []
         for command in commands:

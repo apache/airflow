@@ -76,21 +76,21 @@ VERSION: Tuple[str, str] = ("version", "1")
 class ResponseAttributes:
     """Key names for the dictionaries returned by API calls."""
 
-    CLUSTER: slice = "cluster"
-    CLUSTERS: slice = "clusters"
-    FARGATE_PROFILE_NAMES: slice = "fargateProfileNames"
-    FARGATE_PROFILE: slice = "fargateProfile"
-    NEXT_TOKEN: slice = "nextToken"
-    NODEGROUP: slice = "nodegroup"
-    NODEGROUPS: slice = "nodegroups"
+    CLUSTER = "cluster"
+    CLUSTERS = "clusters"
+    FARGATE_PROFILE_NAMES = "fargateProfileNames"
+    FARGATE_PROFILE = "fargateProfile"
+    NEXT_TOKEN = "nextToken"
+    NODEGROUP = "nodegroup"
+    NODEGROUPS = "nodegroups"
 
 
 class ErrorAttributes:
     """Key names for the dictionaries representing error messages."""
 
-    CODE: slice = "Code"
-    ERROR: slice = "Error"
-    MESSAGE: slice = "Message"
+    CODE = "Code"
+    ERROR = "Error"
+    MESSAGE = "Message"
 
 
 class ClusterInputs:
@@ -137,37 +137,37 @@ class PossibleTestResults(Enum):
 class ClusterAttributes:
     """Key names for the dictionaries representing EKS Clusters."""
 
-    ARN: slice = "arn"
-    CLUSTER_NAME: slice = "clusterName"
-    CREATED_AT: slice = "createdAt"
-    ENDPOINT: slice = "endpoint"
-    IDENTITY: slice = "identity"
-    ISSUER: slice = "issuer"
-    NAME: slice = "name"
-    OIDC: slice = "oidc"
+    ARN = "arn"
+    CLUSTER_NAME = "clusterName"
+    CREATED_AT = "createdAt"
+    ENDPOINT = "endpoint"
+    IDENTITY = "identity"
+    ISSUER = "issuer"
+    NAME = "name"
+    OIDC = "oidc"
 
 
 class FargateProfileAttributes:
-    ARN: slice = "fargateProfileArn"
-    CREATED_AT: slice = "createdAt"
-    FARGATE_PROFILE_NAME: slice = "fargateProfileName"
-    LABELS: slice = "labels"
-    NAMESPACE: slice = "namespace"
-    SELECTORS: slice = "selectors"
+    ARN = "fargateProfileArn"
+    CREATED_AT = "createdAt"
+    FARGATE_PROFILE_NAME = "fargateProfileName"
+    LABELS = "labels"
+    NAMESPACE = "namespace"
+    SELECTORS = "selectors"
 
 
 class NodegroupAttributes:
     """Key names for the dictionaries representing EKS Managed Nodegroups."""
 
-    ARN: slice = "nodegroupArn"
-    AUTOSCALING_GROUPS: slice = "autoScalingGroups"
-    CREATED_AT: slice = "createdAt"
-    MODIFIED_AT: slice = "modifiedAt"
-    NAME: slice = "name"
-    NODEGROUP_NAME: slice = "nodegroupName"
-    REMOTE_ACCESS_SG: slice = "remoteAccessSecurityGroup"
-    RESOURCES: slice = "resources"
-    TAGS: slice = "tags"
+    ARN = "nodegroupArn"
+    AUTOSCALING_GROUPS = "autoScalingGroups"
+    CREATED_AT = "createdAt"
+    MODIFIED_AT = "modifiedAt"
+    NAME = "name"
+    NODEGROUP_NAME = "nodegroupName"
+    REMOTE_ACCESS_SG = "remoteAccessSecurityGroup"
+    RESOURCES = "resources"
+    TAGS = "tags"
 
 
 class BatchCountSize:

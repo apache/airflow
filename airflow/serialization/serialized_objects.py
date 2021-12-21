@@ -118,7 +118,7 @@ def encode_timezone(var: Timezone) -> Union[str, int]:
 
 def decode_timezone(var: Union[str, int]) -> Timezone:
     """Decode a previously serialized Pendulum Timezone."""
-    return pendulum.timezone(var)
+    return pendulum.tz.timezone(var)
 
 
 def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable]]:
@@ -127,7 +127,10 @@ def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable
     if importable_string.startswith("airflow.timetables."):
         return import_string(importable_string)
     plugins_manager.initialize_timetables_plugins()
-    return plugins_manager.timetable_classes.get(importable_string)
+    if plugins_manager.timetable_classes:
+        return plugins_manager.timetable_classes.get(importable_string)
+    else:
+        return None
 
 
 class _TimetableNotRegistered(ValueError):
@@ -439,7 +442,7 @@ class BaseSerialization:
         return class_(**kwargs)
 
     @classmethod
-    def _serialize_params_dict(cls, params: ParamsDict):
+    def _serialize_params_dict(cls, params: Union[ParamsDict, dict]):
         """Serialize Params dict for a DAG/Task"""
         serialized_params = {}
         for k, v in params.items():
@@ -994,7 +997,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
         group.children = {
-            label: task_dict[val]
+            label: task_dict[val]  # type: ignore
             if _type == DAT.OP  # type: ignore
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
             for label, (_type, val) in encoded_group["children"].items()

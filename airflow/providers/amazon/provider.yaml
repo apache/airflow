@@ -231,6 +231,7 @@ operators:
       - airflow.providers.amazon.aws.operators.s3
   - integration-name: Amazon SageMaker
     python-modules:
+      - airflow.providers.amazon.aws.operators.sagemaker
       - airflow.providers.amazon.aws.operators.sagemaker_base
       - airflow.providers.amazon.aws.operators.sagemaker_endpoint
       - airflow.providers.amazon.aws.operators.sagemaker_endpoint_config
@@ -307,6 +308,7 @@ sensors:
       - airflow.providers.amazon.aws.sensors.s3
   - integration-name: Amazon SageMaker
     python-modules:
+      - airflow.providers.amazon.aws.sensors.sagemaker
       - airflow.providers.amazon.aws.sensors.sagemaker_base
       - airflow.providers.amazon.aws.sensors.sagemaker_endpoint
       - airflow.providers.amazon.aws.sensors.sagemaker_training

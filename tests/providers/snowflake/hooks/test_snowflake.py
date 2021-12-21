@@ -129,13 +129,15 @@ class TestPytestSnowflakeHook:
             (
                 {
                     **BASE_CONNECTION_KWARGS,
-                    'extra': {
-                        'extra__snowflake__database': 'db',
-                        'extra__snowflake__account': 'airflow',
-                        'extra__snowflake__warehouse': 'af_wh',
-                        'extra__snowflake__region': 'af_region',
-                        'extra__snowflake__role': 'af_role',
-                        'extra__snowflake__insecure_mode': 'True',
+                    **{
+                        'extra': {
+                            'extra__snowflake__database': 'db',
+                            'extra__snowflake__account': 'airflow',
+                            'extra__snowflake__warehouse': 'af_wh',
+                            'extra__snowflake__region': 'af_region',
+                            'extra__snowflake__role': 'af_role',
+                            'extra__snowflake__insecure_mode': 'True',
+                        },
                     },
                 },
                 (
@@ -160,13 +162,15 @@ class TestPytestSnowflakeHook:
             (
                 {
                     **BASE_CONNECTION_KWARGS,
-                    'extra': {
-                        'extra__snowflake__database': 'db',
-                        'extra__snowflake__account': 'airflow',
-                        'extra__snowflake__warehouse': 'af_wh',
-                        'extra__snowflake__region': 'af_region',
-                        'extra__snowflake__role': 'af_role',
-                        'extra__snowflake__insecure_mode': 'False',
+                    **{
+                        'extra': {
+                            'extra__snowflake__database': 'db',
+                            'extra__snowflake__account': 'airflow',
+                            'extra__snowflake__warehouse': 'af_wh',
+                            'extra__snowflake__region': 'af_region',
+                            'extra__snowflake__role': 'af_role',
+                            'extra__snowflake__insecure_mode': 'False',
+                        }
                     },
                 },
                 (
