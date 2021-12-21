@@ -28,7 +28,7 @@ import pytest
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagBag, DagRun
-from airflow.models.tasklog import LogFilename
+from airflow.models.tasklog import LogTemplate
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
@@ -263,15 +263,15 @@ def test_get_logs_for_changed_filename_format_config(log_admin_client):
 def dag_run_with_log_filename():
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
-        log_filename = session.merge(LogFilename(template=DIFFERENT_LOG_FILENAME))
-        session.flush()  # To populate 'log_filename.id'.
+        log_template = session.merge(LogTemplate(filename=DIFFERENT_LOG_FILENAME, task_prefix="irrelevant"))
+        session.flush()  # To populate 'log_template.id'.
         run_query = session.query(DagRun).filter(*run_filters)
-        run_query.update({"log_filename_id": log_filename.id})
+        run_query.update({"log_template_id": log_template.id})
         dag_run = run_query.one()
     yield dag_run
     with create_session() as session:
-        session.query(DagRun).filter(*run_filters).update({"log_filename_id": None})
-        session.query(LogFilename).filter(LogFilename.id == log_filename.id).delete()
+        session.query(DagRun).filter(*run_filters).update({"log_template_id": None})
+        session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
 
 
 def test_get_logs_for_changed_filename_format_db(log_admin_client, dag_run_with_log_filename):

@@ -25,7 +25,7 @@ import re
 import uuid
 import warnings
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union, cast
 
 import attr
 from google.api_core.exceptions import Conflict
@@ -91,7 +91,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 
 class _BigQueryDbHookMixin:
-    def get_db_hook(self) -> BigQueryHook:
+    def get_db_hook(self: 'BigQueryCheckOperator') -> BigQueryHook:  # type:ignore[misc]
         """Get BigQuery DB Hook"""
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -948,7 +948,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object).decode("utf-8"))
+            schema_fields_string = gcs_hook.download_as_byte_array(gcs_bucket, gcs_object).decode("utf-8")
+            schema_fields = json.loads(schema_fields_string)
         else:
             schema_fields = self.schema_fields
 
@@ -1090,8 +1091,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self,
         *,
         bucket: Optional[str] = None,
-        source_objects: Optional[List] = None,
-        destination_project_dataset_table: str = None,
+        source_objects: Optional[List[str]] = None,
+        destination_project_dataset_table: Optional[str] = None,
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
         schema_object: Optional[str] = None,
@@ -1114,11 +1115,6 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        # GCS config
-        self.bucket = bucket
-        self.source_objects = source_objects
-        self.schema_object = schema_object
 
         # BQ config
         kwargs_passed = any(
@@ -1158,22 +1154,30 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 skip_leading_rows = 0
             if not field_delimiter:
                 field_delimiter = ","
+            if not destination_project_dataset_table:
+                raise ValueError(
+                    "`destination_project_dataset_table` is required when not using `table_resource`."
+                )
+            self.bucket = bucket
+            self.source_objects = source_objects
+            self.schema_object = schema_object
+            self.destination_project_dataset_table = destination_project_dataset_table
+            self.schema_fields = schema_fields
+            self.source_format = source_format
+            self.compression = compression
+            self.skip_leading_rows = skip_leading_rows
+            self.field_delimiter = field_delimiter
+            self.table_resource = None
+        else:
+            self.table_resource = table_resource
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
 
-        self.table_resource = table_resource
-        self.destination_project_dataset_table = destination_project_dataset_table
-        self.schema_fields = schema_fields
-        self.source_format = source_format
-        self.compression = compression
-        self.skip_leading_rows = skip_leading_rows
-        self.field_delimiter = field_delimiter
         self.max_bad_records = max_bad_records
         self.quote_character = quote_character
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
-
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
@@ -1203,7 +1207,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
+            schema_fields_bytes_or_string = gcs_hook.download(self.bucket, self.schema_object)
+            if hasattr(schema_fields_bytes_or_string, 'decode'):
+                schema_fields_bytes_or_string = cast(bytes, schema_fields_bytes_or_string).decode("utf-8")
+            schema_fields = json.loads(schema_fields_bytes_or_string)
         else:
             schema_fields = self.schema_fields
 

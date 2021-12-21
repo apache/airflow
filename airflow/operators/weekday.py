@@ -67,7 +67,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
 
     def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
         if self.use_task_execution_day:
-            now = context["execution_date"]
+            now = context["logical_date"]
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 

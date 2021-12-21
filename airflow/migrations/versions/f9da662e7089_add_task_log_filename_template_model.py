@@ -36,17 +36,18 @@ depends_on = None
 
 
 def upgrade():
-    """Add model for task log filename template and establish fk on task instance."""
+    """Add model for task log template and establish fk on task instance."""
     op.create_table(
-        "log_filename",
+        "log_template",
         Column("id", Integer, primary_key=True, autoincrement=True),
-        Column("template", Text, nullable=False),
+        Column("filename", Text, nullable=False),
+        Column("task_prefix", Text, nullable=False),
         Column("created_at", UtcDateTime, nullable=False),
     )
     dag_run_log_filename_id = Column(
-        "log_filename_id",
+        "log_template_id",
         Integer,
-        ForeignKey("log_filename.id", name="task_instance_log_filename_id_fkey", ondelete="NO ACTION"),
+        ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
     )
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.add_column(dag_run_log_filename_id)
@@ -55,5 +56,5 @@ def upgrade():
 def downgrade():
     """Remove fk on task instance and model for task log filename template."""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.drop_column("log_filename_id")
-    op.drop_table("log_filename")
+        batch_op.drop_column("log_template_id")
+    op.drop_table("log_template")

@@ -41,9 +41,13 @@ FARGATE_PROFILE_NAME = 'test_profile'
 NODEGROUP_NAME = 'test_nodegroup'
 TASK_ID = 'test_eks_sensor'
 
-CLUSTER_PENDING_STATES = frozenset({state.value for state in ClusterStates} - CLUSTER_TERMINAL_STATES)
-FARGATE_PENDING_STATES = frozenset({state.value for state in FargateProfileStates} - FARGATE_TERMINAL_STATES)
-NODEGROUP_PENDING_STATES = frozenset({state.value for state in NodegroupStates} - NODEGROUP_TERMINAL_STATES)
+CLUSTER_PENDING_STATES = frozenset(frozenset({state for state in ClusterStates}) - CLUSTER_TERMINAL_STATES)
+FARGATE_PENDING_STATES = frozenset(
+    frozenset({state for state in FargateProfileStates}) - FARGATE_TERMINAL_STATES
+)
+NODEGROUP_PENDING_STATES = frozenset(
+    frozenset({state for state in NodegroupStates}) - NODEGROUP_TERMINAL_STATES
+)
 
 
 class TestEksClusterStateSensor:
