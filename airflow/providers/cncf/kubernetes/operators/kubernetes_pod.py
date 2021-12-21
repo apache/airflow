@@ -425,11 +425,10 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=remote_pod,
             )
+        ti = context['ti']
+        ti.xcom_push(key='pod_name', value=self.pod.metadata.name)
+        ti.xcom_push(key='pod_namespace', value=self.pod.metadata.namespace)
         if self.do_xcom_push:
-            ti = context['ti']
-            if remote_pod:
-                ti.xcom_push(key='pod_name', value=remote_pod.metadata.name)
-                ti.xcom_push(key='pod_namespace', value=remote_pod.metadata.namespace)
             return result
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
