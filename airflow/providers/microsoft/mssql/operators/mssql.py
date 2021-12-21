@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, MutableMapping, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -24,6 +24,8 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 if TYPE_CHECKING:
     from airflow.hooks.dbapi import DbApiHook
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class MsSqlOperator(BaseOperator):

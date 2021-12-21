@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, MutableMapping, Optional
 
 from azure.batch import models as batch_models
 
@@ -26,6 +26,8 @@ from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class AzureBatchOperator(BaseOperator):

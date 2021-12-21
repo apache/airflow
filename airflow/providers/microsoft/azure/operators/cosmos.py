@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, MutableMapping
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):

@@ -15,13 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, MutableMapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class ADLSDeleteOperator(BaseOperator):

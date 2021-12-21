@@ -16,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, MutableMapping, Optional
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class WasbBlobSensor(BaseSensorOperator):

@@ -18,7 +18,7 @@
 #
 
 """This module contains Azure Data Explorer operators"""
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -28,6 +28,8 @@ from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):

@@ -18,7 +18,7 @@
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -29,7 +29,8 @@ from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
+else:
+    Context = MutableMapping[str, Any]
 
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),

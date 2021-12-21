@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, MutableMapping, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -23,6 +23,8 @@ from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class LocalFilesystemToADLSOperator(BaseOperator):

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, MutableMapping, Optional
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
@@ -27,6 +27,8 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+else:
+    Context = MutableMapping[str, Any]
 
 
 class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
