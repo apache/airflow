@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from dateutil.parser import parse
 import os
 import tempfile
 import unittest
@@ -177,6 +178,28 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             namespace='awesome-namespace', limit=500, label_selector=self.label_selector
         )
         delete_pod.assert_called_with('dummy4', 'awesome-namespace')
+        load_incluster_config.assert_called_once()
+
+    @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
+    def test_cleanup_pending_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy5'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
+        pod1.status.phase = 'Pending'
+        pod1.status.reason = 'Unschedulable'
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
+        delete_pod.assert_called_with('dummy5', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
     @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')

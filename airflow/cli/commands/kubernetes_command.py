@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Kubernetes sub-commands"""
+from datetime import datetime, timedelta
 import os
 import sys
 
@@ -76,6 +77,10 @@ def cleanup_pods(args):
     # All Containers in the Pod have terminated in success, and will not be restarted.
     pod_succeeded = 'succeeded'
 
+    # The Pod has been accepted by the Kubernetes cluster,
+    # but one or more of the containers has not been set up and made ready to run.
+    pod_pending = 'pending'
+
     # All Containers in the Pod have terminated, and at least one Container has terminated in failure.
     # That is, the Container either exited with non-zero status or was terminated by the system.
     pod_failed = 'failed'
@@ -108,11 +113,15 @@ def cleanup_pods(args):
             pod_phase = pod.status.phase.lower()
             pod_reason = pod.status.reason.lower() if pod.status.reason else ''
             pod_restart_policy = pod.spec.restart_policy.lower()
+            current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
+            # set time limit to 30m for pending pods
+            max_pending_time = timedelta(minutes=30)
 
             if (
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
+                or (pod_phase == pod_pending and current_time - pod.metadata.creation_timestamp > max_pending_time)
             ):
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
