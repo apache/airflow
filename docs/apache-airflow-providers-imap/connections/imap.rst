@@ -60,4 +60,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_IMAP_DEFAULT='imap://username:password@myimap.com:143'
+   export AIRFLOW_CONN_IMAP_DEFAULT='imap://username:password@myimap.com:993'
