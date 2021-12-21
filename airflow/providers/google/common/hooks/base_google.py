@@ -536,7 +536,7 @@ class GoogleBaseHook(BaseHook):
                             creds_content["refresh_token"],
                         ]
                     )
-                    
+
             if project_id:
                 # Don't display stdout/stderr for security reason
                 check_output(["gcloud", "config", "set", "core/project", project_id])
