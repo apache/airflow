@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+import uuid
 from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import MagicMock
@@ -26,6 +26,7 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
 from airflow.utils import timezone
 
@@ -34,8 +35,8 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 
 def create_context(task):
     dag = DAG(dag_id="dag")
-    task_instance = TaskInstance(task=task, run_id="kub_pod_test")
-    task_instance.dag_run = DagRun(run_id="kub_pod_test", execution_date=DEFAULT_DATE)
+    task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
+    task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
     return {
         "dag": dag,
         "ts": DEFAULT_DATE.isoformat(),
@@ -45,32 +46,35 @@ def create_context(task):
     }
 
 
-class TestKubernetesPodOperator(unittest.TestCase):
-    def setUp(self):
-        self.create_pod_patch = mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod"
-        )
-        self.await_pod_patch = mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_start"
-        )
-        self.await_pod_completion_patch = mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion"
-        )
+POD_LAUNCHER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher"
+POD_GENERATOR_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_generator.PodGenerator"
+
+
+class TestKubernetesPodOperator:
+    def setup_method(self):
+        self.create_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.create_pod")
+        self.await_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_start")
+        self.await_pod_completion_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_completion")
+        self.unique_pod_id_patch = mock.patch(f"{POD_GENERATOR_CLASS}.make_unique_pod_id")
+        self.unique_pod_id_patch.return_value = str(uuid.uuid4())
         self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self.client_mock = self.client_patch.start()
-        self.addCleanup(self.create_pod_patch.stop)
-        self.addCleanup(self.await_pod_patch.stop)
-        self.addCleanup(self.await_pod_completion_patch.stop)
-        self.addCleanup(self.client_patch.stop)
+
+    def teardown_method(self):
+        self.create_pod_patch.stop()
+        self.await_pod_patch.stop()
+        self.await_pod_completion_patch.stop()
+        self.client_patch.stop()
+        self.unique_pod_id_patch.stop()
 
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
         task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
-        task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID, execution_date=DEFAULT_DATE)
+        task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
         return {
             "dag": dag,
             "ts": DEFAULT_DATE.isoformat(),
@@ -81,11 +85,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     def run_pod(self, operator) -> k8s.V1Pod:
         context = create_context(operator)
-        pod_request_obj = operator.build_pod_request_obj(context)
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
-        remote_pod_mock.metadata.name = pod_request_obj.metadata.name
-        remote_pod_mock.metadata.namespace = pod_request_obj.metadata.namespace
         self.await_pod_mock.return_value = remote_pod_mock
         operator.execute(context=context)
         return self.await_start_mock.call_args[1]['pod']
@@ -701,11 +702,11 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert isinstance(pod.spec.node_selector, dict)
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
 
-    @mock.patch('airflow.kubernetes.pod_generator.PodGenerator.make_unique_pod_id')
-    @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.extract_xcom')
-    def test_push_xcom_pod_info(self, extract_xcom_mock, make_unique_pod_id):
-        extract_xcom_mock.return_value = '{}'
-        make_unique_pod_id.return_value = 'test-pod-a1b2c3'
+    @pytest.mark.parametrize('do_xcom_push', [True, False])
+    @mock.patch(f"{POD_LAUNCHER_CLASS}.extract_xcom")
+    def test_push_xcom_pod_info(self, extract_xcom, do_xcom_push):
+        """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
+        extract_xcom.return_value = '{}'
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -713,11 +714,12 @@ class TestKubernetesPodOperator(unittest.TestCase):
             name="test",
             task_id="task",
             in_cluster=False,
-            do_xcom_push=True,
+            do_xcom_push=do_xcom_push,
         )
         pod = self.run_pod(k)
-        ti = TaskInstance(task=k, run_id=IN_MEMORY_DAGRUN_ID)
-        ti.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID, execution_date=DEFAULT_DATE)
+        other_task = DummyOperator(task_id='task_to_pull_xcom')
+        ti = TaskInstance(task=other_task, run_id=IN_MEMORY_DAGRUN_ID)
+        ti.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
         pod_name = ti.xcom_pull(task_ids=k.task_id, key='pod_name')
         pod_namespace = ti.xcom_pull(task_ids=k.task_id, key='pod_namespace')
         assert pod_name and pod_name == pod.metadata.name
