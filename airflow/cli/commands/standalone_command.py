@@ -72,7 +72,7 @@ class StandaloneCommand:
         self.subcommands["webserver"] = SubCommand(
             self,
             name="webserver",
-            command=["webserver", "--port", "8080"],
+            command=["webserver"],
             env=env,
         )
         self.subcommands["triggerer"] = SubCommand(
