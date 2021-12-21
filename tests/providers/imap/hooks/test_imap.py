@@ -63,8 +63,19 @@ class TestImapHook(unittest.TestCase):
                 conn_type='imap',
                 host='imap_server_address',
                 login='imap_user',
-                port=1993,
                 password='imap_password',
+                port=1993,
+                extra='{"use_ssl":"true"}',
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id='imap_nonssl',
+                conn_type='imap',
+                host='imap_server_address',
+                login='imap_user',
+                password='imap_password',
+                port=1143,
             )
         )
 
@@ -76,6 +87,17 @@ class TestImapHook(unittest.TestCase):
             pass
 
         mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address', 1993)
+        mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    def test_connect_and_disconnect_via_nonssl(self, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+
+        with ImapHook(imap_conn_id='imap_nonssl'):
+            pass
+
+        mock_imaplib.IMAP4.assert_called_once_with('imap_server_address', 1143)
         mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
         assert mock_conn.logout.call_count == 1
 

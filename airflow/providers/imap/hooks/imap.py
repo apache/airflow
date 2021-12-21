@@ -71,10 +71,11 @@ class ImapHook(BaseHook):
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            if conn.port:
-                self.mail_client = imaplib.IMAP4_SSL(conn.host, conn.port)
-            else:
-                self.mail_client = imaplib.IMAP4_SSL(conn.host)
+
+            if conn.extra_dejson.get('use_ssl', True):
+                self.mail_client = imaplib.IMAP4_SSL(conn.host, conn.port or imaplib.IMAP4_SSL_PORT)
+            else: # fallback to standard imap connection
+                self.mail_client = imaplib.IMAP4(conn.host, conn.port or imaplib.IMAP4_PORT)
             self.mail_client.login(conn.login, conn.password)
 
         return self

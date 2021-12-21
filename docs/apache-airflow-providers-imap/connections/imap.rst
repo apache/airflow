@@ -51,6 +51,11 @@ Host
 Port
     Specify the IMAP port to connect to.
 
+Extras (optional)
+    Specify the extra parameters (as json dictionary) 
+
+    * ``use_ssl``: If set to False, then a non-ssl connection is being used. Default is True.
+
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
@@ -60,4 +65,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_IMAP_DEFAULT='imap://username:password@myimap.com:993'
+   export AIRFLOW_CONN_IMAP_DEFAULT='imap://username:password@myimap.com:993?use_ssl=false'
