@@ -1325,7 +1325,7 @@ class Airflow(AirflowBaseView):
                 return jsonify(message=message, metadata=metadata)
 
             metadata['download_logs'] = True
-            attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
+            attachment_filename = task_log_reader.render_log_filename(ti, try_number)
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,
@@ -4003,6 +4003,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
+        'action_set_skipped': 'edit',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4101,6 +4102,12 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     def action_set_running(self, drs: List[DagRun]):
         """Set state to running."""
         return self._set_dag_runs_to_active_state(drs, State.RUNNING)
+
+    @action('set_skipped', "Set state to 'skipped'", '', single=False)
+    @action_has_dag_edit_access
+    def action_set_skipped(self, drs: List[DagRun]):
+        """Set state to skipped."""
+        return self._set_dag_runs_to_active_state(drs, State.SKIPPED)
 
     @provide_session
     def _set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
@@ -4350,6 +4357,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
         'action_set_retry': 'edit',
+        'action_set_skipped': 'edit',
     }
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
@@ -4533,6 +4541,12 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
         self.update_redirect()
         return redirect(self.get_redirect())
+
+    @action('set_skipped', "Set state to 'skipped'", '', single=False)
+    @action_has_dag_edit_access
+    def action_set_skipped(self, drs: List[DagRun]):
+        """Set state to skipped."""
+        return self._set_dag_runs_to_active_state(drs, State.SKIPPED)
 
 
 class AutocompleteView(AirflowBaseView):
