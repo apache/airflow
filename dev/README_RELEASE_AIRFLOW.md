@@ -295,7 +295,7 @@ protected_branches:
    export BRANCH_PREFIX=2-1
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
-   git push origin constraints-${BRANCH_PREFIX}
+   git push origin tag constraints-${BRANCH_PREFIX}
    ```
 
 ## Prepare PyPI convenience "snapshot" packages
@@ -352,7 +352,7 @@ is not supposed to be used by and advertised to the end-users who do not read th
     (both airflow and latest provider packages).
 
     ```shell script
-    git push origin ${VERSION}
+    git push origin tag ${VERSION}
     ```
 
 ## Prepare production Docker Image
@@ -721,8 +721,8 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 
 ```shell script
 # GO to Airflow Sources first
-cd <YOUR_AIRFLOW_SOURCES>
-export AIRFLOW_SOURCES=$(pwd)
+cd <YOUR_AIRFLOW_REPO_ROOT>
+export AIRFLOW_REPO_ROOT=$(pwd)
 
 # GO to Checked out DEV repo. Should be checked out before via:
 # svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
@@ -761,8 +761,7 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 
 ## Prepare PyPI "release" packages
 
-At this point we release an official package (they should be copied and renamed from the
-previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
+At this point we release an official package:
 
 - Verify the artifacts that would be uploaded:
 
@@ -794,7 +793,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout constraints-${RC}
     git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
-    git push origin "constraints-${VERSION}"
+    git push origin tag "constraints-${VERSION}"
     ```
 
 - Push Tag for the final version
@@ -806,7 +805,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     ```shell script
     git checkout ${RC}
     git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
-    git push origin ${VERSION}
+    git push origin tag ${VERSION}
     ```
 
 ## Manually prepare production Docker Image
@@ -891,8 +890,7 @@ We also made this version available on PyPI for convenience:
 \`pip install apache-airflow\`
 https://pypi.org/project/apache-airflow/${VERSION}/
 
-The documentation is available on:
-https://airflow.apache.org/
+The documentation is available at:
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
@@ -967,6 +965,8 @@ This includes:
 Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in the helm chart so the next helm chart release
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
+
+Also add a note to `UPDATING.rst` that the default version of Airflow has changed.
 
 ## Update airflow/config_templates/config.yml file
 
