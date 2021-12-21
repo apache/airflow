@@ -203,6 +203,11 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
+RUN if [[ -f /docker-context-files/pip.conf ]]; then \
+        mkdir -p /root/.config/pip; \
+        cp /docker-context-files/pip.conf /root/.config/pip/pip.conf; \
+    fi
+
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
