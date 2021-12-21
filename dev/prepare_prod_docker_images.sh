@@ -18,6 +18,8 @@
 AIRFLOW_SOURCES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 export AIRFLOW_SOURCES_DIR
 
+set -e
+
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=("3.7" "3.8" "3.9" "3.6")
 
 usage() {
