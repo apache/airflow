@@ -209,8 +209,6 @@ EXTRA_PYTEST_ARGS=(
     "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
     "--color=yes"
     "--maxfail=50"
-    "--pythonwarnings=ignore::DeprecationWarning"
-    "--pythonwarnings=ignore::PendingDeprecationWarning"
     "--junitxml=${RESULT_LOG_FILE}"
     # timeouts in seconds for individual tests
     "--timeouts-order"

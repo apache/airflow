@@ -20,7 +20,7 @@ import logging
 from logging import StreamHandler
 
 from airflow.configuration import conf
-from airflow.utils.helpers import parse_template_string
+from airflow.utils.helpers import parse_template_string, render_template_to_string
 
 
 class TaskHandlerWithCustomFormatter(StreamHandler):
@@ -52,6 +52,6 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
     def _render_prefix(self, ti):
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
-            return self.prefix_jinja_template.render(**jinja_context)
+            return render_template_to_string(self.prefix_jinja_template, jinja_context)
         logging.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
         return ""

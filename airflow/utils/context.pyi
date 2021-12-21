@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from pendulum import DateTime
 
@@ -80,3 +80,7 @@ class Context(TypedDict, total=False):
     var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str
+
+class AirflowContextDeprecationWarning(DeprecationWarning): ...
+
+def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...
