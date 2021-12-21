@@ -462,7 +462,7 @@ class BaseXCom(Base, LoggingMixin):
         return query.delete()
 
     @staticmethod
-    def serialize_value(value: Any):
+    def serialize_value(value: Any) -> bytes:
         """Serialize Xcom value to str or pickled object"""
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)

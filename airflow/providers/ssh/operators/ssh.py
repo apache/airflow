@@ -17,7 +17,6 @@
 # under the License.
 
 import warnings
-from base64 import b64encode
 from select import select
 from typing import Optional, Tuple, Union
 
@@ -205,8 +204,7 @@ class SSHOperator(BaseOperator):
         self.raise_for_status(exit_status, agg_stderr)
         return agg_stdout
 
-    def execute(self, context=None) -> Union[bytes, str]:
-        result: Union[bytes, str]
+    def execute(self, context=None) -> str:
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 
@@ -218,10 +216,7 @@ class SSHOperator(BaseOperator):
                 result = self.run_ssh_client_command(ssh_client, self.command)
         except Exception as e:
             raise AirflowException(f"SSH operator error: {str(e)}")
-        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
-        if not enable_pickling:
-            result = b64encode(result).decode('utf-8')
-        return result
+        return result.decode('utf-8')
 
     def tunnel(self) -> None:
         """Get ssh tunnel"""
