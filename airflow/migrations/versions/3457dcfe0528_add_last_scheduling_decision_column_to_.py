@@ -26,6 +26,7 @@ Create Date: 2021-12-20 21:35:33.133670
 
 import sqlalchemy as sa
 from alembic import op
+
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
@@ -47,4 +48,3 @@ def downgrade():
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         batch_op.drop_index('idx_ti_last_scheduling_decision')
         batch_op.drop_column('last_scheduling_decision')
-

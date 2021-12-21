@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
 
-from sqlalchemy import and_, func, not_, or_, text, tuple_
+from sqlalchemy import and_, case, desc, func, not_, or_, text, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
@@ -292,7 +292,7 @@ class SchedulerJob(BaseJob):
             .options(selectinload('dag_model'))
             .order_by(
                 -TI.priority_weight,
-                TI.last_scheduling_decision.is_(None).desc(),
+                desc(case([(TI.last_scheduling_decision.is_(None), 1)], else_=0)),
                 TI.last_scheduling_decision.desc(),
                 DR.execution_date,
             )
