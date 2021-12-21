@@ -15,12 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
-import datetime
 import json
 import math
 import time
 from contextlib import closing
-from datetime import datetime as dt
+from datetime import datetime
 from typing import Iterable, Optional, Tuple, Union
 
 import pendulum
@@ -147,13 +146,13 @@ class PodLauncher(LoggingMixin):
             (if pod is pending for too long, fails task)
         :return:
         """
-        curr_time = dt.now()
+        curr_time = datetime.now()
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase != PodStatus.PENDING:
                 break
             self.log.warning("Pod not yet started: %s", pod.metadata.name)
-            delta = dt.now() - curr_time
+            delta = datetime.now() - curr_time
             if delta.total_seconds() >= startup_timeout:
                 msg = (
                     f"Pod took longer than {startup_timeout} seconds to start. "
@@ -172,7 +171,13 @@ class PodLauncher(LoggingMixin):
             So the looping logic is there to let us resume following the logs.
         """
 
-        def follow_logs(since_seconds: int = None) -> Optional[datetime.datetime]:
+        def get_since_seconds(since_time: datetime) -> int:
+            """Calculates number of seconds since ``last_log_time``"""
+            if since_time:
+                delta = pendulum.now() - since_time
+                return math.ceil(delta.total_seconds())
+
+        def follow_logs(since_time: Optional[datetime] = None) -> Optional[datetime]:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -180,35 +185,28 @@ class PodLauncher(LoggingMixin):
 
             Returns the last timestamp observed in logs.
             """
+            timestamp = None
             try:
                 logs = self.read_pod_logs(
                     pod=pod,
                     container_name=container_name,
                     timestamps=True,
-                    since_seconds=since_seconds,
+                    since_seconds=get_since_seconds(since_time),
                 )
-                timestamp = None
                 for line in logs:  # type: bytes
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
-                if timestamp:
-                    return timestamp
             except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
                 self.log.warning(
                     'Failed to read logs for pod %s',
                     pod.metadata.name,
                     exc_info=True,
                 )
-
-        def get_since_seconds(last_log_time: datetime.datetime) -> int:
-            """Calculates number of seconds since ``last_log_time``"""
-            if last_log_time:
-                delta = pendulum.now() - last_log_time
-                return math.ceil(delta.total_seconds())
+            return timestamp or since_time
 
         last_log_time = None
         while True:
-            last_log_time = follow_logs(since_seconds=get_since_seconds(last_log_time))
+            last_log_time = follow_logs(since_time=last_log_time)
             if not self.container_is_running(pod, container_name=container_name):
                 return
             else:
