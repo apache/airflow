@@ -23,19 +23,19 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class LogFilename(Base):
-    """Model to store ``[core] log_filename_template`` config changes.
+class LogTemplate(Base):
+    """Changes to ``log_filename_template`` and ``task_log_prefix_template``.
 
     This table is automatically populated when Airflow starts up, to store the
     config's value if it does not match the last row in the table.
     """
 
-    __tablename__ = "log_filename"
+    __tablename__ = "log_template"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    template = Column(Text, nullable=False)
+    filename = Column(Text, nullable=False)
+    task_prefix = Column(Text, nullable=False)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
-        created_at = self.created_at.isoformat()
-        return f"LogFilename(id={self.id!r}, template={self.template!r}, created_at={created_at!r})"
+        return f"LogTemplate(filename={self.filename!r}, task_prefix={self.task_prefix!r})"

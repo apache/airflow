@@ -16,93 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
-import sys
-from typing import Iterable
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.sagemaker`."""
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+import warnings
 
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator  # noqa
 
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-
-
-class SageMakerBaseOperator(BaseOperator):
-    """
-    This is the base operator for all SageMaker operators.
-
-    :param config: The configuration necessary to start a training job (templated)
-    :type config: dict
-    :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
-    """
-
-    template_fields = ['config']
-    template_ext = ()
-    template_fields_renderers = {"config": "json"}
-    ui_color = '#ededed'
-
-    integer_fields = []  # type: Iterable[Iterable[str]]
-
-    def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
-        super().__init__(**kwargs)
-
-        self.aws_conn_id = aws_conn_id
-        self.config = config
-
-    def parse_integer(self, config, field):
-        """Recursive method for parsing string fields holding integer values to integers."""
-        if len(field) == 1:
-            if isinstance(config, list):
-                for sub_config in config:
-                    self.parse_integer(sub_config, field)
-                return
-            head = field[0]
-            if head in config:
-                config[head] = int(config[head])
-            return
-
-        if isinstance(config, list):
-            for sub_config in config:
-                self.parse_integer(sub_config, field)
-            return
-
-        head, tail = field[0], field[1:]
-        if head in config:
-            self.parse_integer(config[head], tail)
-        return
-
-    def parse_config_integers(self):
-        """
-        Parse the integer fields of training config to integers in case the config is rendered by Jinja and
-        all fields are str.
-        """
-        for field in self.integer_fields:
-            self.parse_integer(self.config, field)
-
-    def expand_role(self):
-        """Placeholder for calling boto3's `expand_role`, which expands an IAM role name into an ARN."""
-
-    def preprocess_config(self):
-        """Process the config into a usable form."""
-        self.log.info('Preprocessing the config and doing required s3_operations')
-
-        self.hook.configure_s3_resources(self.config)
-        self.parse_config_integers()
-        self.expand_role()
-
-        self.log.info(
-            "After preprocessing the config is:\n %s",
-            json.dumps(self.config, sort_keys=True, indent=4, separators=(",", ": ")),
-        )
-
-    def execute(self, context):
-        raise NotImplementedError('Please implement execute() in sub class!')
-
-    @cached_property
-    def hook(self):
-        """Return SageMakerHook"""
-        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

@@ -177,7 +177,7 @@ class TestDagRunOperator(TestCase):
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_str_execution_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date="{{ execution_date }}",
+            execution_date="{{ logical_date }}",
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

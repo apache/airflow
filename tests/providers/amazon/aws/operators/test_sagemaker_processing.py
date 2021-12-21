@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.operators.sagemaker_processing import SageMakerProcessingOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerProcessingOperator
 
 job_name = 'test-job-name'
 

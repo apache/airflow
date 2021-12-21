@@ -23,7 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.operators.sagemaker_transform import SageMakerTransformOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 
 role = 'arn:aws:iam:role/test-role'
 

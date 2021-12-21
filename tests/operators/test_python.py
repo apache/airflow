@@ -19,6 +19,7 @@ import copy
 import logging
 import sys
 import unittest.mock
+import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
@@ -39,6 +40,7 @@ from airflow.operators.python import (
     get_current_context,
 )
 from airflow.utils import timezone
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -917,6 +919,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_airflow_context(self):
         def f(
             # basic
@@ -957,6 +960,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_pendulum_context(self):
         def f(
             # basic
@@ -990,6 +994,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=['pendulum'])
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_base_context(self):
         def f(
             # basic
@@ -1093,7 +1098,9 @@ class MyContextAssertOperator(BaseOperator):
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context._context
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
+        assert context == current_context._context
 
 
 @pytest.fixture()
