@@ -694,7 +694,7 @@ class TestSchedulerJob:
         # assert last_scheduling_decision is updated
         assert (
             session.query(TaskInstance)
-            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.__ne__(None))
+            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.isnot(None))
             .count()
             == 9
         )
@@ -739,7 +739,7 @@ class TestSchedulerJob:
         # assert last_scheduling_decision is updated
         assert (
             session.query(TaskInstance)
-            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.__ne__(None))
+            .filter(TaskInstance.state == State.SCHEDULED, TaskInstance.last_scheduling_decision.isnot(None))
             .count()
             == 9
         )
