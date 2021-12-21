@@ -82,6 +82,9 @@ spec:
         {{- if .Values.workers.podAnnotations }}
         {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.istio.enabled }}
+        sidecar.istio.io/inject: "false"
+        {{- end }} 
     spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}

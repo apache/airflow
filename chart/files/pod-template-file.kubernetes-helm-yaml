@@ -30,9 +30,12 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
-  {{- if .Values.airflowPodAnnotations }}
+  {{- if or (.Values.airflowPodAnnotations .Values.istio.enabled) }}
   annotations:
   {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+  {{- if .Values.istio.enabled }}
+  sidecar.istio.io/inject: "false"
+  {{- end }}
   {{- end }}
 spec:
   {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}

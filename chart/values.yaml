@@ -1534,3 +1534,6 @@ logs:
     storageClassName:
     ## the name of an existing PVC to use
     existingClaim:
+
+istio:
+  enabled: false

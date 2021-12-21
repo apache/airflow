@@ -41,6 +41,9 @@ metadata:
     {{- $_ := set $annotations "helm.sh/hook-weight" "1" }}
     {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
   {{- end }}
+  {{- if .Values.istio.enabled }}
+    {{- $_ := set $annotations "sidecar.istio.io/inject "false" }}
+  {{- end }}
   {{- with $annotations := merge $annotations .Values.migrateDatabaseJob.jobAnnotations }}
   annotations:
     {{- $annotations | toYaml | nindent 4 }}
