@@ -540,7 +540,7 @@ class GoogleBaseHook(BaseHook):
             if project_id:
                 # Don't display stdout/stderr for security reason
                 check_output(["gcloud", "config", "set", "core/project", project_id])
-                
+
             yield
 
     @staticmethod
