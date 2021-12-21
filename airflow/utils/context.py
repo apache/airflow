@@ -196,7 +196,12 @@ class Context(MutableMapping[str, Any]):
         return ValuesView(self._context)
 
 
-def context_copy_partial(source: Context, keys: Container[str]) -> "Context":
+def context_merge(context: "Context", context_additions: Mapping[str, Any]) -> None:
+    """Merges dictionary parameters into existing context"""
+    return context.update(**context_additions)
+
+
+def context_copy_partial(source: "Context", keys: Container[str]) -> "Context":
     """Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is
