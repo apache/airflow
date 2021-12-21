@@ -24,6 +24,7 @@ from pypsrp.serializer import TaggedValue
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
+from airflow.settings import json
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
@@ -39,6 +40,9 @@ class PSRPOperator(BaseOperator):
     serialization into a `System.Security.SecureString` (applicable only
     for DAGs which have `render_template_as_native_obj=True`).
 
+    The command output is converted to JSON by PowerShell such that the operator
+    return value is serializable to an XCom value.
+
     :param psrp_conn_id: connection id
     :param command: command to execute on remote host. (templated)
     :param powershell: powershell to execute on remote host. (templated)
@@ -50,11 +54,11 @@ class PSRPOperator(BaseOperator):
         the `cmdlet` parameter is also given.
     :param logging: whether to log command output and streams during execution
     :param runspace_options:
-        Optional dictionary which is passed when creating the runspace pool. See
+        optional dictionary which is passed when creating the runspace pool. See
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
         available options.
     :param wsman_options:
-        Optional dictionary which is passed when creating the `WSMan` client. See
+        optional dictionary which is passed when creating the `WSMan` client. See
         :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
     """
 
@@ -97,25 +101,26 @@ class PSRPOperator(BaseOperator):
         self.runspace_options = runspace_options
         self.wsman_options = wsman_options
 
-    def execute(self, context: "Context") -> List[str]:
+    def execute(self, context: "Context") -> List[Any]:
         with PSRPHook(
             self.conn_id,
             logging=self.logging,
             runspace_options=self.runspace_options,
             wsman_options=self.wsman_options,
-        ) as hook:
-            ps = (
-                hook.invoke_cmdlet(self.cmdlet, **self.parameters)
-                if self.cmdlet
-                else (
-                    hook.invoke_powershell(
-                        f"cmd.exe /c @'\n{self.command}\n'@" if self.command else self.powershell
-                    )
-                )
-            )
+        ) as hook, hook.invoke() as ps:
+            if self.cmdlet:
+                ps.add_cmdlet(self.cmdlet)
+                ps.add_parameters(self.parameters)
+            elif self.command:
+                ps.add_script(f"cmd.exe /c @'\n{self.command}\n'@")
+            else:
+                ps.add_script(self.powershell)
+            ps.add_cmdlet("ConvertTo-Json")
+
         if ps.had_errors:
             raise AirflowException("Process failed")
-        return ps.output
+
+        return [json.loads(output) for output in ps.output]
 
     def get_template_env(self):
         # Create a template environment overlay in order to leave the underlying

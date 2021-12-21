@@ -17,6 +17,7 @@
 # under the License.
 
 from itertools import product
+from typing import Any, Dict, NamedTuple, Optional
 from unittest import TestCase
 from unittest.mock import call, patch
 
@@ -27,8 +28,15 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.microsoft.psrp.operators.psrp import PSRPOperator
+from airflow.settings import json
 
 CONNECTION_ID = "conn_id"
+
+
+class ExecuteParameter(NamedTuple):
+    name: str
+    expected_method: str
+    expected_parameters: Optional[Dict[str, Any]]
 
 
 class TestPSRPOperator(TestCase):
@@ -47,9 +55,9 @@ class TestPSRPOperator(TestCase):
                 [
                     # These tuples map the command parameter to an execution method
                     # and parameter set.
-                    ("command", "powershell", None),
-                    ("powershell", "powershell", None),
-                    ("cmdlet", "cmdlet", {"bar": "baz"}),
+                    ExecuteParameter("command", "add_script", None),
+                    ExecuteParameter("powershell", "add_Script", None),
+                    ExecuteParameter("cmdlet", "add_cmdlet", {"bar": "baz"}),
                 ],
                 [False, True],
             )
@@ -57,14 +65,13 @@ class TestPSRPOperator(TestCase):
     )
     @patch(f"{PSRPOperator.__module__}.PSRPHook")
     def test_execute(self, parameter, had_errors, hook):
-        kwargs = {parameter[0]: "foo"}
+        kwargs = {parameter.name: "foo"}
         if parameter[2]:
-            kwargs["parameters"] = parameter[2]
+            kwargs["parameters"] = parameter.expected_parameters
         op = PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID, **kwargs)
         hook = hook.return_value.__enter__.return_value
-        method = getattr(hook, f"invoke_{parameter[1]}")
-        ps = method.return_value
-        ps.output = ["<output>"]
+        ps = hook.invoke().__enter__.return_value
+        ps.output = [json.dumps("<output>")]
         ps.had_errors = had_errors
         if had_errors:
             exception_msg = "Process failed"
@@ -72,9 +79,13 @@ class TestPSRPOperator(TestCase):
                 op.execute(None)
         else:
             output = op.execute(None)
-            assert output == ps.output
-        if parameter[2]:
-            assert method.mock_calls == [call('foo', bar='baz')]
+            assert output == [json.loads(output) for output in ps.output]
+        if parameter.expected_parameters:
+            assert ps.mock_calls == [
+                call.add_cmdlet('foo'),
+                call.add_parameters({'bar': 'baz'}),
+                call.add_cmdlet('ConvertTo-Json'),
+            ]
 
     def test_securestring_sandboxed(self):
         op = PSRPOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
