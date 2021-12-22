@@ -17,7 +17,7 @@
 # under the License.
 
 """This module contains Snowflake to AWS S3 operator."""
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -38,7 +38,7 @@ class SnowflakeToS3Operator(BaseOperator):
     :type prefix: str
     :param file_format: reference to a specific file format
     :type file_format: str
-    :param on_error: action to be taken in case of any error, possible options are { CONTINUE | SKIP_FILE | 
+    :param on_error: action to be taken in case of any error, possible options are { CONTINUE | SKIP_FILE |
         SKIP_FILE_<num> | SKIP_FILE_<num>% | ABORT_STATEMENT }
     :type on_error: str
     :param unload_sql: sql that would be used for unloading data
@@ -75,9 +75,9 @@ class SnowflakeToS3Operator(BaseOperator):
         file_format: str,
         on_error: Optional[str] = None,
         unload_sql: str,
-        header: bool = None,
-        single: bool = None,
-        overwrite: bool = None,
+        header: Optional[bool] = False,
+        single: Optional[bool] = False,
+        overwrite: Optional[bool] = False,
         schema: Optional[str] = None,
         warehouse: Optional[str] = None,
         database: Optional[str] = None,
@@ -105,7 +105,7 @@ class SnowflakeToS3Operator(BaseOperator):
         self.role = role
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def execute(self, context: Any) -> None:
         snowflake_hook = SnowflakeHook(
@@ -133,7 +133,7 @@ class SnowflakeToS3Operator(BaseOperator):
 
         if self.overwrite:
             sql_parts.append(f"overwrite={self.overwrite}")
-        
+
         if self.single:
             sql_parts.append(f"single={self.single}")
 

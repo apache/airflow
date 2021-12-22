@@ -17,7 +17,6 @@
 # under the License.
 
 from unittest import mock
-from airflow.providers.snowflake.transfers.snowflake_to_s3 import SnowflakeToS3Operator
 
 import pytest
 
@@ -66,7 +65,7 @@ class TestSnowflakeToS3Transfer:
 
         if overwrite:
             sql_parts.append(f"overwrite={overwrite}")
-        
+
         if single:
             sql_parts.append(f"single={single}")
 

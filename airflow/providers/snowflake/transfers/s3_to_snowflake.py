@@ -17,7 +17,7 @@
 # under the License.
 
 """This module contains AWS S3 to Snowflake operator."""
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -45,7 +45,7 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type prefix: str
     :param file_format: reference to a specific file format
     :type file_format: str
-    :param on_error: action to be taken in case of any error, possible options are { CONTINUE | SKIP_FILE | 
+    :param on_error: action to be taken in case of any error, possible options are { CONTINUE | SKIP_FILE |
         SKIP_FILE_<num> | SKIP_FILE_<num>% | ABORT_STATEMENT }
     :type on_error: str
     :param warehouse: name of warehouse (will overwrite any warehouse
@@ -113,7 +113,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.role = role
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def execute(self, context: Any) -> None:
         snowflake_hook = SnowflakeHook(
