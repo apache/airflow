@@ -1297,6 +1297,7 @@ storedInfoType
 str
 stringified
 subchart
+subclassed
 subclasses
 subclassing
 subcluster

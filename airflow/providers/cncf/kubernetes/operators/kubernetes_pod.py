@@ -316,13 +316,16 @@ class KubernetesPodOperator(BaseOperator):
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     @staticmethod
-    def _create_labels_for_pod(context) -> dict:
+    def _create_labels_for_pod(context=None) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
 
         :param context: task context provided by airflow DAG
         :return: dict
         """
+        if not context:
+            return {}
+
         labels = {
             'dag_id': context['dag'].dag_id,
             'task_id': context['task'].task_id,
@@ -485,7 +488,7 @@ class KubernetesPodOperator(BaseOperator):
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.client.delete_namespaced_pod(**kwargs)
 
-    def build_pod_request_obj(self, context):
+    def build_pod_request_obj(self, context=None):
         """
         Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
         will supersede all other values.
