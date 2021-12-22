@@ -18,6 +18,7 @@
 import textwrap
 import unittest
 from base64 import b64encode
+from unittest import mock
 
 import yaml
 
@@ -108,3 +109,23 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             configmap_obj = k8s_objects_by_key[expected_key]
             assert configmap_obj["data"] == expected_data
             assert configmap_obj["stringData"] == expected_string_data
+
+    def test_extra_configmaps_secrets_labels(self):
+        k8s_objects = render_chart(
+            name=RELEASE_NAME,
+            values={
+                "labels": {"label1": "value1", "label2": "value2"},
+                "extraSecrets": {"{{ .Release.Name }}-extra-secret-1": {"stringData": "data: secretData"}},
+                "extraConfigMaps": {"{{ .Release.Name }}-extra-configmap-1": {"data": "data: configData"}},
+            },
+            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+        )
+        expected_labels = {
+            "label1": "value1",
+            "label2": "value2",
+            "release": RELEASE_NAME,
+            "heritage": "Helm",
+            "chart": mock.ANY,
+        }
+        for k8s_object in k8s_objects:
+            assert k8s_object['metadata']['labels'] == expected_labels
