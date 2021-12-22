@@ -238,7 +238,6 @@ cloudant = [
 ]
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
-    'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
     'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
@@ -872,7 +871,7 @@ EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
 def sort_extras_requirements() -> Dict[str, List[str]]:
     """
-    For Python 3.6+ the dictionary order remains when keys() are retrieved.
+    The dictionary order remains when keys() are retrieved.
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
