@@ -191,6 +191,50 @@ class TestServiceAccountAnnotations:
                     "example": "triggerer",
                 },
             ),
+            (
+                {
+                    "istio": {
+                        "enabled": "true"
+                    },
+                },
+                "templates/webserver/webserver-deployment.yaml",
+                {
+                    "sidecar.istio.io/inject" : "true"
+                },
+            ),
+            (
+                {
+                    "istio": {
+                        "enabled": "true"
+                    },
+                },
+                "files/pod-template-file.kubernetes-helm-yaml",
+                {
+                    "sidecar.istio.io/inject" : "false"
+                },
+            ),
+            (
+                {
+                    "istio": {
+                        "enabled": "true"
+                    },
+                },
+                "templates/jobs/create-user-job.yaml",
+                {
+                    "sidecar.istio.io/inject" : "false"
+                },
+            ),
+            (
+                {
+                    "istio": {
+                        "enabled": "true"
+                    },
+                },
+                "templates/jobs/migrate-database-job.yaml",
+                {
+                    "sidecar.istio.io/inject" : "false"
+                },
+            ),
         ],
     )
     def test_annotations_are_added(self, values, show_only, expected_annotations):
