@@ -20,14 +20,14 @@
 This module provides helper code to make type annotation within Airflow
 codebase easier.
 """
-import sys
 
-if sys.version_info >= (3, 8):
+try:
     # Literal, Protocol and TypedDict are only added to typing module starting from
     # python 3.8 we can safely remove this shim import after Airflow drops
     # support for <3.8
     from typing import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore
-else:
+except ImportError:
+    print("Import error")
     from typing_extensions import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore # noqa
 
 
