@@ -1787,7 +1787,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure_with_callback(
         self,
-        error: Union[str, Exception],
+        error: Optional[Union[str, Exception]] = None,
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         session=NEW_SESSION,

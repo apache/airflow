@@ -24,7 +24,7 @@ import threading
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Iterator, List, Optional, Set, Tuple
+from typing import Iterator, List, Optional, Sequence, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import func, or_
@@ -149,8 +149,8 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         try:
             # redirect stdout/stderr to log
-            with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                StreamLogWriter(log, logging.WARN)
+            with redirect_stdout(StreamLogWriter(log, logging.INFO)), (  # type: ignore[type-var]
+                redirect_stderr(StreamLogWriter(log, logging.WARN))  # type: ignore[type-var]
             ), Stats.timer() as timer:
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
@@ -444,7 +444,7 @@ class DagFileProcessor(LoggingMixin):
                 session.add_all(sla_misses)
         session.commit()
 
-        slas: List[SlaMiss] = (
+        slas: Sequence[SlaMiss] = (
             session.query(SlaMiss)
             .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
             .all()
@@ -574,7 +574,7 @@ class DagFileProcessor(LoggingMixin):
                 if isinstance(request, TaskCallbackRequest):
                     self._execute_task_callbacks(dagbag, request)
                 elif isinstance(request, SlaCallbackRequest):
-                    self.manage_slas(dagbag.dags.get(request.dag_id))
+                    self.manage_slas(dagbag.dags[request.dag_id])
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
             except Exception:
