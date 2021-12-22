@@ -406,10 +406,7 @@ class AwsBaseHook(BaseHook):
         if not (self.client_type or self.resource_type):
             raise AirflowException('Either client_type or resource_type must be provided.')
 
-    def _get_credentials(
-        self,
-        region_name: Optional[str] = None,
-    ) -> Tuple[boto3.session.Session, Optional[str]]:
+    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
 
         if not self.aws_conn_id:
             session = boto3.session.Session(region_name=region_name)
@@ -456,7 +453,7 @@ class AwsBaseHook(BaseHook):
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name)
+        session, endpoint_url = self._get_credentials(region_name=region_name)
 
         if client_type:
             warnings.warn(
@@ -481,7 +478,7 @@ class AwsBaseHook(BaseHook):
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name)
+        session, endpoint_url = self._get_credentials(region_name=region_name)
 
         if resource_type:
             warnings.warn(
@@ -530,7 +527,7 @@ class AwsBaseHook(BaseHook):
 
     def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
         """Get the underlying boto3.session."""
-        session, _ = self._get_credentials(region_name)
+        session, _ = self._get_credentials(region_name=region_name)
         return session
 
     def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
@@ -539,24 +536,25 @@ class AwsBaseHook(BaseHook):
 
         This contains the following authentication attributes: access_key, secret_key and token.
         """
-        session, _ = self._get_credentials(region_name)
+        session, _ = self._get_credentials(region_name=region_name)
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
         return session.get_credentials().get_frozen_credentials()
 
-    def expand_role(self, role: str) -> str:
+    def expand_role(self, role: str, region_name: Optional[str] = None) -> str:
         """
         If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
         If IAM role is already an IAM role ARN, no change is made.
 
         :param role: IAM role name or ARN
+        :param region_name: Optional region name to get credentials for
         :return: IAM role ARN
         """
         if "/" in role:
             return role
         else:
-            session, endpoint_url = self._get_credentials()
+            session, endpoint_url = self._get_credentials(region_name=region_name)
             _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
