@@ -27,7 +27,6 @@ try:
     # support for <3.8
     from typing import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore
 except ImportError:
-    print("Import error")
     from typing_extensions import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore # noqa
 
 
