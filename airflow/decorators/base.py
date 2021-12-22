@@ -19,7 +19,7 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Dict, List, Optional, Sequence, Type, TypeVar, cast
+from typing import Any, Callable, Dict, Optional, Sequence, Type, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

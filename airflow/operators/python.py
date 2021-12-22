@@ -147,7 +147,7 @@ class PythonOperator(BaseOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[Sequence] = None,
+        op_args: Optional[Collection[Any]] = None,
         op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict[str, Any]] = None,
         templates_exts: Optional[Sequence[str]] = None,
