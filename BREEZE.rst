@@ -2193,9 +2193,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
-                 base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
-                 build build-providers-dependencies chart-schema-lint capitalized-breeze
-                 changelog-duplicates check-apache-license check-builtin-literals
+                 autoflake base-operator bats-tests bats-in-container-tests black blacken-docs
+                 boring-cyborg build build-providers-dependencies chart-schema-lint
+                 capitalized-breeze changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
