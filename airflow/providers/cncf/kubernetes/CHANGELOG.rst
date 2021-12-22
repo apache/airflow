@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Simplify KubernetesPodOperator (#19572)``
+
+.. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodLauncher` have been renamed.
+    If you have subclassed :class:`~.KubernetesPodOperator` will need to update your subclass to reflect
+    the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
+
+
 2.2.0
 .....
 
