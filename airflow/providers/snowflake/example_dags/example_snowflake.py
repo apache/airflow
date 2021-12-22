@@ -24,6 +24,7 @@ from airflow import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
 from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
+from airflow.providers.snowflake.transfers.snowflake_to_s3 import SnowflakeToS3Operator
 
 SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
 SLACK_CONN_ID = 'my_slack_conn'
@@ -47,6 +48,7 @@ SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
 SNOWFLAKE_SLACK_MESSAGE = (
     "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
 )
+UNLOAD_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
 
 # [START howto_operator_snowflake]
 
@@ -122,6 +124,19 @@ slack_report = SnowflakeToSlackOperator(
 
 # [END howto_operator_snowflake_to_slack]
 
+# [START howto_operator_snowflake_to_s3]
+
+unload_to_s3 = SnowflakeToS3Operator(
+    task_id='unload_to_s3',
+    schema=SNOWFLAKE_SCHEMA,
+    stage=SNOWFLAKE_STAGE,
+    unload_sql=UNLOAD_SQL,
+    file_format="(type = 'CSV',field_delimiter = ';')",
+    dag=dag,
+)
+
+# [END howto_operator_snowflake_to_s3]
+
 (
     snowflake_op_sql_str
     >> [
@@ -132,4 +147,5 @@ slack_report = SnowflakeToSlackOperator(
         snowflake_op_sql_multiple_stmts,
     ]
     >> slack_report
+    >> unload_to_s3
 )
