@@ -4103,12 +4103,6 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         """Set state to running."""
         return self._set_dag_runs_to_active_state(drs, State.RUNNING)
 
-    @action('set_skipped', "Set state to 'skipped'", '', single=False)
-    @action_has_dag_edit_access
-    def action_set_skipped(self, drs: List[DagRun]):
-        """Set state to skipped."""
-        return self._set_dag_runs_to_active_state(drs, State.SKIPPED)
-
     @provide_session
     def _set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
         """This routine only supports Running and Queued state."""
@@ -4544,9 +4538,11 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_skipped', "Set state to 'skipped'", '', single=False)
     @action_has_dag_edit_access
-    def action_set_skipped(self, drs: List[DagRun]):
+    def action_set_skipped(self, tis):
         """Set state to skipped."""
-        return self._set_dag_runs_to_active_state(drs, State.SKIPPED)
+        self.set_task_instance_state(tis, State.SKIPPED)
+        self.update_redirect()
+        return redirect(self.get_redirect())
 
 
 class AutocompleteView(AirflowBaseView):
