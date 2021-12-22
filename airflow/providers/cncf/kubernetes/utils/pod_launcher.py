@@ -164,21 +164,15 @@ class PodLauncher(LoggingMixin):
                 raise PodLaunchFailedException(msg)
             time.sleep(1)
 
-    def follow_container_logs(self, pod: V1Pod, container_name: str):
+    def follow_container_logs(self, pod: V1Pod, container_name: str) -> None:
         """
         Follows the logs of container and streams to airflow logging.
         Returns when container exits.
 
-        .. note:: ``read_pod_logs`` follows the logs, so we shouldn't necessarily *need* to loop
-            as we do here. But in a long-running process we might temporarily lose connectivity.
+        .. note:: :meth:`read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
+            loop as we do here. But in a long-running process we might temporarily lose connectivity.
             So the looping logic is there to let us resume following the logs.
         """
-
-        def get_since_seconds(since_time: datetime) -> int:
-            """Calculates number of seconds since ``last_log_time``"""
-            if since_time:
-                delta = pendulum.now() - since_time
-                return math.ceil(delta.total_seconds())
 
         def follow_logs(since_time: Optional[datetime] = None) -> Optional[datetime]:
             """
@@ -194,7 +188,9 @@ class PodLauncher(LoggingMixin):
                     pod=pod,
                     container_name=container_name,
                     timestamps=True,
-                    since_seconds=get_since_seconds(since_time),
+                    since_seconds=(
+                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+                    ),
                 )
                 for line in logs:  # type: bytes
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
