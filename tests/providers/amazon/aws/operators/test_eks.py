@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
