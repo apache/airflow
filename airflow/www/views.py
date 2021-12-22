@@ -4003,7 +4003,6 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
-        'action_set_skipped': 'edit',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
