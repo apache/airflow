@@ -291,7 +291,7 @@ class SchedulerJob(BaseJob):
             .filter(TI.state == TaskInstanceState.SCHEDULED)
             .options(selectinload('dag_model'))
             .order_by(
-                -TI.priority_weight,
+                TI.priority_weight.desc(),
                 desc(case([(TI.last_scheduling_decision.is_(None), 1)], else_=0)),
                 TI.last_scheduling_decision.desc(),
                 DR.execution_date,
