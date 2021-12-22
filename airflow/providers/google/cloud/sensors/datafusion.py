@@ -122,12 +122,12 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
             pipeline_status = pipeline_workflow["status"]
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
-
-        if self.failure_statuses and pipeline_status in self.failure_statuses:
-            raise AirflowException(
-                f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
-                f"Terminating sensor..."
-            )
+        if pipeline_status is not None:
+            if self.failure_statuses and pipeline_status in self.failure_statuses:
+                raise AirflowException(
+                    f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
+                    f"Terminating sensor..."
+                )
 
         self.log.debug(
             "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status

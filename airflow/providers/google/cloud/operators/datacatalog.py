@@ -375,9 +375,12 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
             )
         except AlreadyExists:
             self.log.info("Tag already exists. Skipping create operation.")
+            project_id = self.project_id or hook.project_id
+            if project_id is None:
+                raise RuntimeError("The project id must be set here")
             if self.template_id:
                 template_name = DataCatalogClient.tag_template_path(
-                    self.project_id or hook.project_id, self.location, self.template_id
+                    project_id, self.location, self.template_id
                 )
             else:
                 if isinstance(self.tag, Tag):
@@ -390,7 +393,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
                 entry_group=self.entry_group,
                 template_name=template_name,
                 entry=self.entry,
-                project_id=self.project_id,
+                project_id=project_id,
                 retry=self.retry,
                 timeout=self.timeout,
                 metadata=self.metadata,
@@ -1265,7 +1268,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         *,
         location: str,
         entry_group: str,
-        read_mask: Union[Dict, FieldMask],
+        read_mask: FieldMask,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

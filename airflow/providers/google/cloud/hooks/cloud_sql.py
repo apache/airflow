@@ -505,7 +505,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         if "follow_redirects" in signature(httpx.get).parameters.keys():
             response = httpx.get(download_url, follow_redirects=True)
         else:
-            response = httpx.get(download_url, allow_redirects=True)
+            response = httpx.get(download_url, allow_redirects=True)  # type: ignore[call-arg]
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, 'wb') as file:
@@ -513,7 +513,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         if response.status_code != 200:
             raise AirflowException(
                 "The cloud-sql-proxy could not be downloaded. "
-                f"Status code = {response.status_code}. Reason = {response.reason}"
+                f"Status code = {response.status_code}. Reason = {response.reason_phrase}"
             )
 
         self.log.info("Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path)

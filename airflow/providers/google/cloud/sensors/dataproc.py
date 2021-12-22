@@ -19,7 +19,7 @@
 # pylint: disable=C0302
 import time
 import warnings
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
@@ -27,6 +27,9 @@ from google.cloud.dataproc_v1.types import JobStatus
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataprocJobSensor(BaseSensorOperator):
@@ -81,14 +84,14 @@ class DataprocJobSensor(BaseSensorOperator):
         self.wait_timeout = wait_timeout
         self.start_sensor_time: Optional[float] = None
 
-    def execute(self, context: Dict):
+    def execute(self, context: "Context") -> None:
         self.start_sensor_time = time.monotonic()
         super().execute(context)
 
     def _duration(self):
         return time.monotonic() - self.start_sensor_time
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         if self.wait_timeout:
             try:

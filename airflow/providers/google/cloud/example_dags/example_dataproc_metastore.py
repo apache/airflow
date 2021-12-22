@@ -23,6 +23,9 @@ operators to manage a service.
 import datetime
 import os
 
+from google.cloud.metastore_v1 import MetadataImport
+from google.protobuf.field_mask_pb2 import FieldMask
+
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.dataproc_metastore import (
@@ -66,7 +69,7 @@ SERVICE_TO_UPDATE = {
         "systemtest": "systemtest",
     }
 }
-UPDATE_MASK = {"paths": ["labels"]}
+UPDATE_MASK = FieldMask(paths=["labels"])
 # [END how_to_cloud_dataproc_metastore_update_service]
 
 # Backup definition
@@ -78,13 +81,15 @@ BACKUP = {
 
 # Metadata import definition
 # [START how_to_cloud_dataproc_metastore_create_metadata_import]
-METADATA_IMPORT = {
-    "name": "test-metadata-import",
-    "database_dump": {
-        "gcs_uri": GCS_URI,
-        "database_type": DB_TYPE,
-    },
-}
+METADATA_IMPORT = MetadataImport(
+    {
+        "name": "test-metadata-import",
+        "database_dump": {
+            "gcs_uri": GCS_URI,
+            "database_type": DB_TYPE,
+        },
+    }
+)
 # [END how_to_cloud_dataproc_metastore_create_metadata_import]
 
 
