@@ -19,7 +19,7 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Dict, Optional, Sequence, Type, TypeVar, cast
+from typing import Any, Callable, Collection, Dict, Mapping, Optional, Sequence, Type, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -114,8 +114,8 @@ class DecoratedOperator(BaseOperator):
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Optional[Sequence] = None,
-        op_kwargs: Optional[Dict[str, Any]] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         multiple_outputs: bool = False,
         kwargs_to_upstream: Optional[Dict[str, Any]] = None,
         **kwargs,
