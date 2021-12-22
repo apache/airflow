@@ -108,7 +108,6 @@ class SnowflakeToS3Operator(BaseOperator):
         self.query_ids = []
 
     def execute(self, context: Any) -> None:
-
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,
@@ -137,7 +136,6 @@ class SnowflakeToS3Operator(BaseOperator):
         
         if self.single:
             sql_parts.append(f"single={self.single}")
-
 
         copy_query = "\n".join(sql_parts)
 

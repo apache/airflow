@@ -116,7 +116,6 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.query_ids = []
 
     def execute(self, context: Any) -> None:
-
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,
@@ -145,7 +144,6 @@ class S3ToSnowflakeOperator(BaseOperator):
 
         if self.on_error:
             sql_parts.append(f"on_error={self.on_error}")
-
 
         copy_query = "\n".join(sql_parts)
 
