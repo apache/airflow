@@ -20,6 +20,7 @@ import datetime
 from unittest.mock import Mock, patch
 
 import pendulum
+import pytest
 
 from airflow import settings
 from airflow.models.skipmixin import SkipMixin
@@ -118,7 +119,8 @@ class TestSkipMixin:
         assert get_state(ti2) == State.NONE
         assert get_state(ti3) == State.SKIPPED
 
-    def test_skip_all_except_none(self, dag_maker):
+    @pytest.mark.parametrize("branch_task_ids", [None, []])
+    def test_skip_all_except_none(self, dag_maker, branch_task_ids):
         with dag_maker(
             'dag_test_skip_none_except',
         ):
@@ -133,31 +135,7 @@ class TestSkipMixin:
         ti2 = TI(task2, execution_date=DEFAULT_DATE)
         ti3 = TI(task3, execution_date=DEFAULT_DATE)
 
-        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=None)
-
-        def get_state(ti):
-            ti.refresh_from_db()
-            return ti.state
-
-        assert get_state(ti2) == State.SKIPPED
-        assert get_state(ti3) == State.SKIPPED
-
-    def test_skip_all_except_empty(self, dag_maker):
-        with dag_maker(
-            'dag_test_skip_none_except',
-        ):
-            task1 = DummyOperator(task_id='task1')
-            task2 = DummyOperator(task_id='task2')
-            task3 = DummyOperator(task_id='task3')
-
-            task1 >> [task2, task3]
-        dag_maker.create_dagrun()
-
-        ti1 = TI(task1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task2, execution_date=DEFAULT_DATE)
-        ti3 = TI(task3, execution_date=DEFAULT_DATE)
-
-        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=[])
+        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
         def get_state(ti):
             ti.refresh_from_db()

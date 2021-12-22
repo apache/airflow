@@ -574,7 +574,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
         with pytest.raises(AirflowException) as ctx:
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        assert 'Branch callable must return either None or a task ID or a list of IDs' == str(ctx.value)
+        assert 'Branch callable must return either None, a task ID, or a list of IDs' == str(ctx.value)
 
     def test_raise_exception_on_invalid_task_id(self):
         branch_op = BranchPythonOperator(
