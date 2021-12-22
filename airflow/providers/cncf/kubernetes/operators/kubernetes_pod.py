@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 from kubernetes.client import CoreV1Api, models as k8s
 
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLaunchFailedException, PodStatus
+from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLaunchFailedException, PodPhase
 
 try:
     import airflow.utils.yaml as yaml
@@ -436,7 +436,7 @@ class KubernetesPodOperator(BaseOperator):
             self.process_pod_deletion(pod)
 
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
-        if pod_phase != PodStatus.SUCCEEDED:
+        if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
                     for event in self.launcher.read_pod_events(pod).items:

@@ -23,7 +23,7 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher, PodStatus, container_is_running
+from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher, PodPhase, container_is_running
 
 
 class TestPodLauncher:
@@ -177,7 +177,7 @@ class TestPodLauncher:
         running_status = mock.MagicMock()
         running_status.configure_mock(**{'name': 'base', 'state.running': True})
         pod_info_running = mock.MagicMock(**{'status.container_statuses': [running_status]})
-        pod_info_succeeded = mock.MagicMock(**{'status.phase': PodStatus.SUCCEEDED})
+        pod_info_succeeded = mock.MagicMock(**{'status.phase': PodPhase.SUCCEEDED})
 
         def pod_state_gen():
             yield pod_info_running
@@ -193,7 +193,7 @@ class TestPodLauncher:
         running_status = mock.MagicMock()
         running_status.configure_mock(**{'name': 'base', 'state.running': True})
         pod_info_running = mock.MagicMock(**{'status.container_statuses': [running_status]})
-        pod_info_succeeded = mock.MagicMock(**{'status.phase': PodStatus.SUCCEEDED})
+        pod_info_succeeded = mock.MagicMock(**{'status.phase': PodPhase.SUCCEEDED})
 
         def pod_state_gen():
             yield pod_info_running

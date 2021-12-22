@@ -51,8 +51,11 @@ def should_retry_start_pod(exception: Exception) -> bool:
     return False
 
 
-class PodStatus:
-    """Status of the PODs"""
+class PodPhase:
+    """
+    Possible pod phases
+    See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
+    """
 
     PENDING = 'Pending'
     RUNNING = 'Running'
@@ -149,7 +152,7 @@ class PodLauncher(LoggingMixin):
         curr_time = datetime.now()
         while True:
             remote_pod = self.read_pod(pod)
-            if remote_pod.status.phase != PodStatus.PENDING:
+            if remote_pod.status.phase != PodPhase.PENDING:
                 break
             self.log.warning("Pod not yet started: %s", pod.metadata.name)
             delta = datetime.now() - curr_time
@@ -230,7 +233,7 @@ class PodLauncher(LoggingMixin):
         """
         while True:
             remote_pod = self.read_pod(pod)
-            if remote_pod.status.phase in PodStatus.terminal_states:
+            if remote_pod.status.phase in PodPhase.terminal_states:
                 break
             self.log.info('Pod %s has phase %s', pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
