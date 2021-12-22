@@ -45,6 +45,9 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type prefix: str
     :param file_format: reference to a specific file format
     :type file_format: str
+    :param on_error: action to be taken in case of any error, possible options are { CONTINUE | SKIP_FILE | 
+        SKIP_FILE_<num> | SKIP_FILE_<num>% | ABORT_STATEMENT }
+    :type on_error: str
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
     :type warehouse: str
@@ -82,6 +85,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         stage: str,
         prefix: Optional[str] = None,
         file_format: str,
+        on_error: Optional[str] = None,
         schema: Optional[str] = None,
         columns_array: Optional[list] = None,
         warehouse: Optional[str] = None,
@@ -101,6 +105,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.stage = stage
         self.prefix = prefix
         self.file_format = file_format
+        self.on_error = on_error
         self.schema = schema
         self.columns_array = columns_array
         self.autocommit = autocommit
@@ -108,8 +113,10 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.role = role
         self.authenticator = authenticator
         self.session_parameters = session_parameters
+        self.query_ids = []
 
     def execute(self, context: Any) -> None:
+
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,
@@ -136,8 +143,15 @@ class S3ToSnowflakeOperator(BaseOperator):
             sql_parts.append(f"files=({files})")
         sql_parts.append(f"file_format={self.file_format}")
 
+        if self.on_error:
+            sql_parts.append(f"on_error={self.on_error}")
+
+
         copy_query = "\n".join(sql_parts)
 
         self.log.info('Executing COPY command...')
-        snowflake_hook.run(copy_query, self.autocommit)
+        execution_info = snowflake_hook.run(copy_query, self.autocommit)
+        self.query_ids = snowflake_hook.query_ids
         self.log.info("COPY command completed")
+
+        return execution_info
