@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import uuid
 from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import MagicMock
@@ -47,7 +46,6 @@ def create_context(task):
 
 
 POD_LAUNCHER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher"
-POD_GENERATOR_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_generator.PodGenerator"
 
 
 class TestKubernetesPodOperator:
@@ -55,8 +53,6 @@ class TestKubernetesPodOperator:
         self.create_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.create_pod")
         self.await_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_start")
         self.await_pod_completion_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_completion")
-        self.unique_pod_id_patch = mock.patch(f"{POD_GENERATOR_CLASS}.make_unique_pod_id")
-        self.unique_pod_id_patch.return_value = str(uuid.uuid4())
         self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
@@ -68,7 +64,6 @@ class TestKubernetesPodOperator:
         self.await_pod_patch.stop()
         self.await_pod_completion_patch.stop()
         self.client_patch.stop()
-        self.unique_pod_id_patch.stop()
 
     @staticmethod
     def create_context(task):
@@ -238,23 +233,24 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         assert delete_pod_mock.called
 
-    @parameterized.expand([[True], [False]])
-    def test_provided_pod_name(self, randomize_name):
+    @pytest.mark.parametrize('randomize', [True, False])
+    def test_provided_pod_name(self, randomize):
         name_base = "test"
 
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
             name=name_base,
-            random_name_suffix=randomize_name,
+            random_name_suffix=randomize,
             task_id="task",
             in_cluster=False,
             do_xcom_push=False,
             cluster_context="default",
         )
-        pod = k.build_pod_request_obj(create_context(k))
+        context = create_context(k)
+        pod = k.build_pod_request_obj(context)
 
-        if randomize_name:
+        if randomize:
             assert pod.metadata.name.startswith(name_base)
             assert pod.metadata.name != name_base
         else:
