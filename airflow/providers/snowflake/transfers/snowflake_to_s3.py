@@ -25,7 +25,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 class SnowflakeToS3Operator(BaseOperator):
     """
-    Executes an COPY command to unload files Snowflake to s3
+    Executes COPY command to unload data from Snowflake to s3
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -41,6 +41,13 @@ class SnowflakeToS3Operator(BaseOperator):
     :param on_error: action to be taken in case of any error, possible options are { CONTINUE | SKIP_FILE |
         SKIP_FILE_<num> | SKIP_FILE_<num>% | ABORT_STATEMENT }
     :type on_error: str
+    :param header: whether header (column names) needed or not in the unloaded data
+    :type header: bool
+    :param overwrite: whether unloaded data should be overwritten or not in case of same prefix
+    :type overwrite: bool
+    :param single: whether unloaded data should be in a single file or multiple files,
+        default snowflake behaviour is multiple
+    :type single: bool
     :param unload_sql: sql that would be used for unloading data
     :type unload_sql: str
     :param warehouse: name of warehouse (will overwrite any warehouse
