@@ -141,18 +141,6 @@ class TestTaskInstance:
             set_error_file(error_fd.name, error=error_message)
             assert load_error_file(error_fd) == error_message
 
-    def _failure():
-        raise AirflowException
-
-    def _reschedule():
-        raise AirflowRescheduleException(timezone.utcnow())
-
-    def _skip():
-        raise AirflowSkipException
-
-    def _success():
-        return None
-
     def test_set_task_dates(self, dag_maker):
         """
         Test that tasks properly take start/end dates from DAGs
@@ -495,7 +483,6 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-<<<<<<< HEAD
         "state, exception_type, retries",
         [
             (State.FAILED, AirflowException, 0),
@@ -506,61 +493,20 @@ class TestTaskInstance:
         ],
     )
     def test_task_wipes_next_fields(self, session, dag_maker, state, exception_type, retries):
-=======
-        "state, func, retries",
-        [
-            (State.FAILED, _failure, 0),
-            (State.SKIPPED, _skip, 0),
-            (State.SUCCESS, _success, 0),
-            (State.UP_FOR_RESCHEDULE, _reschedule, 0),
-            (State.UP_FOR_RETRY, _failure, 1),
-        ],
-    )
-    def test_task_wipes_next_fields(self, session, dag_maker, state, func, retries):
->>>>>>> 3ff2b4336 (Refactored tests with further parametrization.)
         """
         Test that ensures that tasks wipe their next_method and next_kwargs for the configured states.
         """
 
-<<<<<<< HEAD
-<<<<<<< HEAD
         def _raise_af_exception(exception_type):
             if exception_type:
                 raise exception_type
-=======
-        def run(state):
-            if state in [State.FAILED, State.UP_FOR_RETRY]:
-                raise AirflowException
-            if state == State.SKIPPED:
-                raise AirflowSkipException
-            if state == State.UP_FOR_RESCHEDULE:
-                raise AirflowRescheduleException(timezone.utcnow())
-            return None  # State.SUCCESS
-
-        _retries = 0
-        if state == State.UP_FOR_RETRY:
-            _retries = 1
->>>>>>> 473345a70 (Refactored tests. Ensured State.FAILED considered in one case.)
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-<<<<<<< HEAD
                 python_callable=_raise_af_exception,
                 op_args=[exception_type],
                 retries=retries,
-=======
-                python_callable=run,
-                op_args=[state],
-                retries=_retries,
->>>>>>> 473345a70 (Refactored tests. Ensured State.FAILED considered in one case.)
-=======
-        with dag_maker("test_deferred_method_clear"):
-            task = PythonOperator(
-                task_id="test_deferred_method_clear_task",
-                python_callable=func,
-                retries=retries,
->>>>>>> 3ff2b4336 (Refactored tests with further parametrization.)
                 retry_delay=datetime.timedelta(seconds=2),
             )
 
@@ -572,11 +518,7 @@ class TestTaskInstance:
         session.commit()
 
         ti.task = task
-<<<<<<< HEAD
         if exception_type == AirflowException:
-=======
-        if func.__name__ == "_failure":
->>>>>>> 3ff2b4336 (Refactored tests with further parametrization.)
             with pytest.raises(AirflowException):
                 ti.run()
         else:
