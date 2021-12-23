@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 
-
 class AzureCosmosInsertDocumentOperator(BaseOperator):
     """
     A stub file to suppress MyPy issues due to not supplying

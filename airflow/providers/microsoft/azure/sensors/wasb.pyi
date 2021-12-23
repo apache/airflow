@@ -20,13 +20,11 @@ from typing import Optional
 
 from airflow.sensors.base import BaseSensorOperator
 
-
 class WasbBlobSensor(BaseSensorOperator):
     """
     A stub file to suppress MyPy issues due to not supplying
     mandatory parameters to the operator
     """
-
 
     def __init__(
         self,
