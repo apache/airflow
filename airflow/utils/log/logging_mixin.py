@@ -21,7 +21,7 @@ import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
-from typing import IO, AnyStr, List, Optional
+from typing import IO, Optional
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -73,22 +73,16 @@ class ExternalLoggingMixin:
         """Return whether handler is able to support external links."""
 
 
-class StreamLogWriter(IO[str], IOBase):
+# We have to ignore typing errors here because Python I/O classes are a mess, and they do not
+# have the same type hierarchy defined as the `typing.IO` - they violate Liskov Substitution Principle
+# While it is ok to make your class derive from IOBase (and its good thing to do as they provide
+# base implementation for IO-implementing classes, it's impossible to make them work with
+# IO generics (and apparently it has not even been intended)
+# See more: https://giters.com/python/typeshed/issues/6077
+class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     """Allows to redirect stdout and stderr to logger"""
 
     encoding: None = None
-
-    def fileno(self) -> int:
-        return -1
-
-    def writable(self):
-        return True
-
-    def readable(self):
-        return False
-
-    def seekable(self):
-        return False
 
     def __init__(self, logger, level):
         """
@@ -145,39 +139,6 @@ class StreamLogWriter(IO[str], IOBase):
         For compatibility reasons.
         """
         return False
-
-    def writelines(self, lines):
-        raise NotImplementedError()
-
-    def __iter__(self):
-        raise NotImplementedError()
-
-    def __next__(self):
-        raise NotImplementedError()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        pass
-
-    def read(self):
-        raise NotImplementedError()
-
-    def truncate(self, size: Optional[int] = ...) -> int:
-        raise NotImplementedError()
-
-    def readline(self, limit: Optional[int] = ...) -> AnyStr:
-        raise NotImplementedError()
-
-    def readlines(self, hint: int = ...) -> List[AnyStr]:
-        raise NotImplementedError()
-
-    def seek(self, offset: int, whence: int = ...) -> int:
-        raise NotImplementedError()
-
-    def tell(self) -> int:
-        raise NotImplementedError()
 
 
 class RedirectStdHandler(StreamHandler):
