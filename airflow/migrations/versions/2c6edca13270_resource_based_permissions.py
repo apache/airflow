@@ -317,4 +317,3 @@ def upgrade():
 
 def downgrade():
     """Unapply Resource based permissions."""
-    pass

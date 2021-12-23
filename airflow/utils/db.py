@@ -663,7 +663,6 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
     if dups:
         yield (
             'Seems you have non unique conn_id in connection table.\n'
@@ -686,7 +685,6 @@ def check_conn_type_null(session=None) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
 
     if n_nulls:
         yield (

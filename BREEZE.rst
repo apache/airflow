@@ -115,6 +115,12 @@ Docker in WSL 2
     E.g. Run ``cd ~`` and create a development folder in your Linux distro home
     and git pull the Airflow repo there.
 
+- **WSL 2 Docker mount errors**:
+    Another reason to use Linux filesystem, is that sometimes - depending on the length of
+    your path, you might get strange errors when you try start ``Breeze``, such us
+    ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
+    Airflow in Windows-mounted Filesystem is strongly discouraged.
+
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
     development you can:
@@ -125,7 +131,7 @@ Docker in WSL 2
       * If no longer using WSL you can shut it down on the Windows Host
         with the following command: ``wsl --shutdown``
 
-- **Developing in WSL 2** :
+- **Developing in WSL 2**:
     You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
@@ -146,7 +152,7 @@ If you use bash, run this command and re-login:
 
 .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
+    echo 'export PATH="$(brew --prefix)/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
     . ~/.bash_profile
 
 
@@ -154,7 +160,7 @@ If you use zsh, run this command and re-login:
 
 .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+    echo 'export PATH="$(brew --prefix)/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
 
@@ -387,11 +393,10 @@ you can also start integrations (separate Docker images) if specified as extra `
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with four panes:
+tmux session with three panes:
 
    - one to monitor the scheduler,
    - one for the webserver,
-   - one monitors and compiles JavaScript files,
    - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
@@ -1275,7 +1280,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2188,8 +2193,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
-                 base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
-                 build build-providers-dependencies check-apache-license check-builtin-literals
+                 autoflake base-operator bats-tests bats-in-container-tests black blacken-docs
+                 boring-cyborg build build-providers-dependencies check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
@@ -2448,7 +2453,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')

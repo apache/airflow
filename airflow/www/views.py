@@ -4726,22 +4726,14 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
 
-    pass
-
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
-
-    pass
 
 
 class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
     """Customize permission names for FAB's builtin UserOIDModelView."""
 
-    pass
-
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
-
-    pass

@@ -262,6 +262,11 @@ repos:
           ^airflow/_vendor/
   - repo: local
     hooks:
+      - id: autoflake
+        name: Remove all unused code
+        entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
+        language: python
+        additional_dependencies: ['autoflake']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image

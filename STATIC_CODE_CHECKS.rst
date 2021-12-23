@@ -132,6 +132,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``airflow-provider-yaml-files-ok``     Checks that providers YAML files are valid
 ------------------------------------ ---------------------------------------------------------------- ------------
+``autoflake``                          Remove unused imports and unnecessary code
+------------------------------------ ---------------------------------------------------------------- ------------
 ``base-operator``                      Checks that BaseOperator is imported properly
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``bats-tests``                         Runs BATS bash unit tests
