@@ -141,18 +141,6 @@ class TestTaskInstance:
             set_error_file(error_fd.name, error=error_message)
             assert load_error_file(error_fd) == error_message
 
-    def _failure():
-        raise AirflowException
-
-    def _reschedule():
-        raise AirflowRescheduleException(timezone.utcnow())
-
-    def _skip():
-        raise AirflowSkipException
-
-    def _success():
-        return None
-
     def test_set_task_dates(self, dag_maker):
         """
         Test that tasks properly take start/end dates from DAGs
@@ -495,24 +483,29 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-        "state, func, retries",
+        "state, exception_type, retries",
         [
-            (State.FAILED, _failure, 0),
-            (State.SKIPPED, _skip, 0),
-            (State.SUCCESS, _success, 0),
-            (State.UP_FOR_RESCHEDULE, _reschedule, 0),
-            (State.UP_FOR_RETRY, _failure, 1),
+            (State.FAILED, AirflowException, 0),
+            (State.SKIPPED, AirflowSkipException, 0),
+            (State.SUCCESS, None, 0),
+            (State.UP_FOR_RESCHEDULE, AirflowRescheduleException(timezone.utcnow()), 0),
+            (State.UP_FOR_RETRY, AirflowException, 1),
         ],
     )
-    def test_task_wipes_next_fields(self, session, dag_maker, state, func, retries):
+    def test_task_wipes_next_fields(self, session, dag_maker, state, exception_type, retries):
         """
         Test that ensures that tasks wipe their next_method and next_kwargs for the configured states.
         """
 
+        def _raise_af_exception(exception_type):
+            if exception_type:
+                raise exception_type
+
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-                python_callable=func,
+                python_callable=_raise_af_exception,
+                op_args=[exception_type],
                 retries=retries,
                 retry_delay=datetime.timedelta(seconds=2),
             )
@@ -525,7 +518,7 @@ class TestTaskInstance:
         session.commit()
 
         ti.task = task
-        if func is type(self)._failure:
+        if exception_type == AirflowException:
             with pytest.raises(AirflowException):
                 ti.run()
         else:
