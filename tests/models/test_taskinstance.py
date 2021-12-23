@@ -494,7 +494,8 @@ class TestTaskInstance:
     )
     def test_task_wipes_next_fields(self, session, dag_maker, state, exception_type, retries):
         """
-        Test that ensures that tasks wipe their next_method and next_kwargs for the configured states.
+        Test that ensures that tasks wipe their next_method and next_kwargs for the configured states:
+        FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, UP_FOR_RETRY.
         """
 
         def _raise_af_exception(exception_type):
