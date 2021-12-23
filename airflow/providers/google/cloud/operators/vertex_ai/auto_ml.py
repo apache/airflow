@@ -24,7 +24,6 @@ from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.aiplatform import datasets
 from google.cloud.aiplatform.models import Model
-from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -93,6 +92,7 @@ class _AutoMLTrainingJobBaseOperator(BaseOperator):
         model_labels: Optional[Dict[str, str]] = None,
         sync: bool = True,
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -111,8 +111,11 @@ class _AutoMLTrainingJobBaseOperator(BaseOperator):
         self.sync = sync
         # END Run param
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = AutoMLHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        self.hook = AutoMLHook(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
+        )
 
     def on_kill(self) -> None:
         """
@@ -160,7 +163,7 @@ class CreateAutoMLForecastingTrainingJobOperator(_AutoMLTrainingJobBaseOperator)
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.TimeSeriesDataset(dataset_name=dataset_id) if dataset_id else None
+        self.dataset = datasets.TimeSeriesDataset(dataset_name=dataset_id)
         self.target_column = target_column
         self.time_column = time_column
         self.time_series_identifier_column = time_series_identifier_column
@@ -216,8 +219,12 @@ class CreateAutoMLForecastingTrainingJobOperator(_AutoMLTrainingJobBaseOperator)
             time_series_attribute_columns=self.time_series_attribute_columns,
             context_window=self.context_window,
             export_evaluated_data_items=self.export_evaluated_data_items,
-            export_evaluated_data_items_bigquery_destination_uri=self.export_evaluated_data_items_bigquery_destination_uri,
-            export_evaluated_data_items_override_destination=self.export_evaluated_data_items_override_destination,
+            export_evaluated_data_items_bigquery_destination_uri=(
+                self.export_evaluated_data_items_bigquery_destination_uri
+            ),
+            export_evaluated_data_items_override_destination=(
+                self.export_evaluated_data_items_override_destination
+            ),
             quantiles=self.quantiles,
             validation_options=self.validation_options,
             budget_milli_node_hours=self.budget_milli_node_hours,
@@ -266,7 +273,7 @@ class CreateAutoMLImageTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.ImageDataset(dataset_name=dataset_id) if dataset_id else None
+        self.dataset = datasets.ImageDataset(dataset_name=dataset_id)
         self.prediction_type = prediction_type
         self.multi_label = multi_label
         self.model_type = model_type
@@ -330,6 +337,7 @@ class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
     def __init__(
         self,
         *,
+        dataset_id: str,
         target_column: str,
         optimization_prediction_type: str,
         optimization_objective: Optional[str] = None,
@@ -349,6 +357,7 @@ class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.dataset = datasets.TabularDataset(dataset_name=dataset_id)
         self.target_column = target_column
         self.optimization_prediction_type = optimization_prediction_type
         self.optimization_objective = optimization_objective
@@ -371,7 +380,40 @@ class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         )
 
     def execute(self, context):
-        model = self.hook.create_auto_ml_tabular_training_job()
+        model = self.hook.create_auto_ml_tabular_training_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            dataset=self.dataset,
+            target_column=self.target_column,
+            optimization_prediction_type=self.optimization_prediction_type,
+            optimization_objective=self.optimization_objective,
+            column_specs=self.column_specs,
+            column_transformations=self.column_transformations,
+            optimization_objective_recall_value=self.optimization_objective_recall_value,
+            optimization_objective_precision_value=self.optimization_objective_precision_value,
+            labels=self.labels,
+            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+            training_fraction_split=self.training_fraction_split,
+            validation_fraction_split=self.validation_fraction_split,
+            test_fraction_split=self.test_fraction_split,
+            predefined_split_column_name=self.predefined_split_column_name,
+            timestamp_split_column_name=self.timestamp_split_column_name,
+            weight_column=self.weight_column,
+            budget_milli_node_hours=self.budget_milli_node_hours,
+            model_display_name=self.model_display_name,
+            model_labels=self.model_labels,
+            disable_early_stopping=self.disable_early_stopping,
+            export_evaluated_data_items=self.export_evaluated_data_items,
+            export_evaluated_data_items_bigquery_destination_uri=(
+                self.export_evaluated_data_items_bigquery_destination_uri
+            ),
+            export_evaluated_data_items_override_destination=(
+                self.export_evaluated_data_items_override_destination
+            ),
+            sync=self.sync,
+        )
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
@@ -399,6 +441,7 @@ class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
     def __init__(
         self,
         *,
+        dataset_id: str,
         prediction_type: str,
         multi_label: bool = False,
         sentiment_max: int = 10,
@@ -409,6 +452,7 @@ class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.dataset = datasets.TextDataset(dataset_name=dataset_id)
         self.prediction_type = prediction_type
         self.multi_label = multi_label
         self.sentiment_max = sentiment_max
@@ -418,7 +462,27 @@ class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.test_filter_split = test_filter_split
 
     def execute(self, context):
-        model = self.hook.create_auto_ml_text_training_job()
+        model = self.hook.create_auto_ml_text_training_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            dataset=self.dataset,
+            prediction_type=self.prediction_type,
+            multi_label=self.multi_label,
+            sentiment_max=self.sentiment_max,
+            labels=self.labels,
+            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+            training_fraction_split=self.training_fraction_split,
+            validation_fraction_split=self.validation_fraction_split,
+            test_fraction_split=self.test_fraction_split,
+            training_filter_split=self.training_filter_split,
+            validation_filter_split=self.validation_filter_split,
+            test_filter_split=self.test_filter_split,
+            model_display_name=self.model_display_name,
+            model_labels=self.model_labels,
+            sync=self.sync,
+        )
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
@@ -446,6 +510,7 @@ class CreateAutoMLVideoTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
     def __init__(
         self,
         *,
+        dataset_id: str,
         prediction_type: str = "classification",
         model_type: str = "CLOUD",
         training_filter_split: Optional[str] = None,
@@ -453,13 +518,31 @@ class CreateAutoMLVideoTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.dataset = datasets.VideoDataset(dataset_name=dataset_id)
         self.prediction_type = prediction_type
         self.model_type = model_type
         self.training_filter_split = training_filter_split
         self.test_filter_split = test_filter_split
 
     def execute(self, context):
-        model = self.hook.create_auto_ml_video_training_job()
+        model = self.hook.create_auto_ml_video_training_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            dataset=self.dataset,
+            prediction_type=self.prediction_type,
+            model_type=self.model_type,
+            labels=self.labels,
+            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+            training_fraction_split=self.training_fraction_split,
+            test_fraction_split=self.test_fraction_split,
+            training_filter_split=self.training_filter_split,
+            test_filter_split=self.test_filter_split,
+            model_display_name=self.model_display_name,
+            model_labels=self.model_labels,
+            sync=self.sync,
+        )
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
@@ -475,8 +558,10 @@ class CreateAutoMLVideoTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         return result
 
 
-class DeleteCustomTrainingJobOperator(BaseOperator):
-    """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob."""
+class DeleteAutoMLTrainingJobOperator(BaseOperator):
+    """Deletes an AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
+    AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
+    """
 
     template_fields = ("region", "project_id", "impersonation_chain")
 
@@ -484,31 +569,35 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self,
         *,
         training_pipeline_id: str,
-        custom_job_id: str,
         region: str,
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.training_pipeline = training_pipeline_id
-        self.custom_job = custom_job_id
         self.region = region
         self.project_id = project_id
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CustomJobHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
-            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline)
+            self.log.info("Deleting Auto ML training pipeline: %s", self.training_pipeline)
             training_pipeline_operation = hook.delete_training_pipeline(
                 training_pipeline=self.training_pipeline,
                 region=self.region,
@@ -521,24 +610,12 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
             self.log.info("Training pipeline was deleted.")
         except NotFound:
             self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
-        try:
-            self.log.info("Deleting custom job: %s", self.custom_job)
-            custom_job_operation = hook.delete_custom_job(
-                custom_job=self.custom_job,
-                region=self.region,
-                project_id=self.project_id,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-            hook.wait_for_operation(timeout=self.timeout, operation=custom_job_operation)
-            self.log.info("Custom job was deleted.")
-        except NotFound:
-            self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
 
 
-class ListCustomTrainingJobOperator(BaseOperator):
-    """Lists CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob in a Location."""
+class ListAutoMLTrainingJobOperator(BaseOperator):
+    """Lists AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
+    AutoMLTextTrainingJob, or AutoMLVideoTrainingJob in a Location.
+    """
 
     template_fields = [
         "region",
@@ -562,6 +639,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = "",
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -576,10 +654,15 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CustomJobHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         results = hook.list_training_pipelines(
             region=self.region,
             project_id=self.project_id,

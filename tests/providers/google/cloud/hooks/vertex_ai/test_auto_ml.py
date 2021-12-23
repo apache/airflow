@@ -45,66 +45,6 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
             self.hook = AutoMLHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_cancel_pipeline_job(self, mock_client) -> None:
-        self.hook.cancel_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_cancel_training_pipeline(self, mock_client) -> None:
-        self.hook.cancel_training_pipeline(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            training_pipeline=TEST_TRAINING_PIPELINE_NAME,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_training_pipeline.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.training_pipeline_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.training_pipeline_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_delete_pipeline_job(self, mock_client) -> None:
-        self.hook.delete_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.delete_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
     def test_delete_training_pipeline(self, mock_client) -> None:
         self.hook.delete_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -122,26 +62,6 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_get_pipeline_job(self, mock_client) -> None:
-        self.hook.get_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.get_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
     @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
@@ -163,27 +83,6 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_list_pipeline_jobs(self, mock_client) -> None:
-        self.hook.list_pipeline_jobs(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.list_pipeline_jobs.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                page_size=None,
-                page_token=None,
-                filter=None,
-                order_by=None,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
     @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
     def test_list_training_pipelines(self, mock_client) -> None:
@@ -215,66 +114,6 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
             self.hook = AutoMLHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_cancel_pipeline_job(self, mock_client) -> None:
-        self.hook.cancel_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_cancel_training_pipeline(self, mock_client) -> None:
-        self.hook.cancel_training_pipeline(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            training_pipeline=TEST_TRAINING_PIPELINE_NAME,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_training_pipeline.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.training_pipeline_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.training_pipeline_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_delete_pipeline_job(self, mock_client) -> None:
-        self.hook.delete_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.delete_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
     def test_delete_training_pipeline(self, mock_client) -> None:
         self.hook.delete_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -292,26 +131,6 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_get_pipeline_job(self, mock_client) -> None:
-        self.hook.get_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.get_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
     @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
@@ -333,27 +152,6 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
-    def test_list_pipeline_jobs(self, mock_client) -> None:
-        self.hook.list_pipeline_jobs(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.list_pipeline_jobs.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                page_size=None,
-                page_token=None,
-                filter=None,
-                order_by=None,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
     @mock.patch(CUSTOM_JOB_STRING.format("AutoMLHook.get_pipeline_service_client"))
     def test_list_training_pipelines(self, mock_client) -> None:

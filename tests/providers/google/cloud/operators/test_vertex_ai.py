@@ -15,13 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from os import name
 from unittest import mock
 
 from google.api_core.retry import Retry
-from google.cloud.aiplatform import datasets
-from google.cloud.aiplatform_v1.types import dataset
-from google.cloud.aiplatform_v1.types.dataset import Dataset
 
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
@@ -29,6 +25,8 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLTabularTrainingJobOperator,
     CreateAutoMLTextTrainingJobOperator,
     CreateAutoMLVideoTrainingJobOperator,
+    DeleteAutoMLTrainingJobOperator,
+    ListAutoMLTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
@@ -634,14 +632,16 @@ class TestVertexAIUpdateDatasetOperator:
 
 
 class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
+    @mock.patch("google.cloud.aiplatform.datasets.TimeSeriesDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         op = CreateAutoMLForecastingTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             display_name=DISPLAY_NAME,
-            dataset_id=None,
+            dataset_id=TEST_DATASET_ID,
             target_column=TEST_TRAINING_TARGET_COLUMN,
             time_column=TEST_TRAINING_TIME_COLUMN,
             time_series_identifier_column=TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN,
@@ -655,12 +655,15 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             project_id=GCP_PROJECT,
         )
         op.execute(context={'ti': mock.MagicMock()})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
         mock_hook.return_value.create_auto_ml_forecasting_training_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
-            dataset=None,
+            dataset=mock_dataset.return_value,
             target_column=TEST_TRAINING_TARGET_COLUMN,
             time_column=TEST_TRAINING_TIME_COLUMN,
             time_series_identifier_column=TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN,
@@ -695,14 +698,16 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
 
 
 class TestVertexAICreateAutoMLImageTrainingJobOperator:
+    @mock.patch("google.cloud.aiplatform.datasets.ImageDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         op = CreateAutoMLImageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             display_name=DISPLAY_NAME,
-            dataset_id=None,
+            dataset_id=TEST_DATASET_ID,
             prediction_type="classification",
             multi_label=False,
             model_type="CLOUD",
@@ -711,12 +716,15 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             project_id=GCP_PROJECT,
         )
         op.execute(context={'ti': mock.MagicMock()})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
         mock_hook.return_value.create_auto_ml_image_training_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
-            dataset=None,
+            dataset=mock_dataset.return_value,
             prediction_type="classification",
             multi_label=False,
             model_type="CLOUD",
@@ -735,4 +743,215 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             model_labels=None,
             disable_early_stopping=False,
             sync=True,
+        )
+
+
+class TestVertexAICreateAutoMLTabularTrainingJobOperator:
+    @mock.patch("google.cloud.aiplatform.datasets.TabularDataset")
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook, mock_dataset):
+        op = CreateAutoMLTabularTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            display_name=DISPLAY_NAME,
+            dataset_id=TEST_DATASET_ID,
+            target_column=None,
+            optimization_prediction_type=None,
+            sync=True,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
+        mock_hook.return_value.create_auto_ml_tabular_training_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            dataset=mock_dataset.return_value,
+            target_column=None,
+            optimization_prediction_type=None,
+            optimization_objective=None,
+            column_specs=None,
+            column_transformations=None,
+            optimization_objective_recall_value=None,
+            optimization_objective_precision_value=None,
+            labels=None,
+            training_encryption_spec_key_name=None,
+            model_encryption_spec_key_name=None,
+            training_fraction_split=None,
+            validation_fraction_split=None,
+            test_fraction_split=None,
+            predefined_split_column_name=None,
+            timestamp_split_column_name=None,
+            weight_column=None,
+            budget_milli_node_hours=1000,
+            model_display_name=None,
+            model_labels=None,
+            disable_early_stopping=False,
+            export_evaluated_data_items=False,
+            export_evaluated_data_items_bigquery_destination_uri=None,
+            export_evaluated_data_items_override_destination=False,
+            sync=True,
+        )
+
+
+class TestVertexAICreateAutoMLTextTrainingJobOperator:
+    @mock.patch("google.cloud.aiplatform.datasets.TextDataset")
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook, mock_dataset):
+        op = CreateAutoMLTextTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            display_name=DISPLAY_NAME,
+            dataset_id=TEST_DATASET_ID,
+            prediction_type=None,
+            multi_label=False,
+            sentiment_max=10,
+            sync=True,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
+        mock_hook.return_value.create_auto_ml_text_training_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            dataset=mock_dataset.return_value,
+            prediction_type=None,
+            multi_label=False,
+            sentiment_max=10,
+            labels=None,
+            training_encryption_spec_key_name=None,
+            model_encryption_spec_key_name=None,
+            training_fraction_split=None,
+            validation_fraction_split=None,
+            test_fraction_split=None,
+            training_filter_split=None,
+            validation_filter_split=None,
+            test_filter_split=None,
+            model_display_name=None,
+            model_labels=None,
+            sync=True,
+        )
+
+
+class TestVertexAICreateAutoMLVideoTrainingJobOperator:
+    @mock.patch("google.cloud.aiplatform.datasets.VideoDataset")
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook, mock_dataset):
+        op = CreateAutoMLVideoTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            display_name=DISPLAY_NAME,
+            dataset_id=TEST_DATASET_ID,
+            prediction_type="classification",
+            model_type="CLOUD",
+            sync=True,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
+        mock_hook.return_value.create_auto_ml_video_training_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            dataset=mock_dataset.return_value,
+            prediction_type="classification",
+            model_type="CLOUD",
+            labels=None,
+            training_encryption_spec_key_name=None,
+            model_encryption_spec_key_name=None,
+            training_fraction_split=None,
+            test_fraction_split=None,
+            training_filter_split=None,
+            test_filter_split=None,
+            model_display_name=None,
+            model_labels=None,
+            sync=True,
+        )
+
+
+class TestVertexAIDeleteAutoMLTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook):
+        op = DeleteAutoMLTrainingJobOperator(
+            task_id=TASK_ID,
+            training_pipeline_id=TRAINING_PIPELINE_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.delete_training_pipeline.assert_called_once_with(
+            training_pipeline=TRAINING_PIPELINE_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIListAutoMLTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
+    def test_execute(self, mock_hook):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        read_mask = "read_mask"
+
+        op = ListAutoMLTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.list_training_pipelines.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
         )

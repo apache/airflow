@@ -42,6 +42,8 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLTabularTrainingJobOperator,
     CreateAutoMLTextTrainingJobOperator,
     CreateAutoMLVideoTrainingJobOperator,
+    DeleteAutoMLTrainingJobOperator,
+    ListAutoMLTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
@@ -139,6 +141,21 @@ COLUMN_SPECS = {
     "zip_code": "categorical",
     "county": "categorical",
 }
+
+COLUMN_TRANSFORMATIONS = [
+    {"categorical": {"column_name": "Type"}},
+    {"numeric": {"column_name": "Age"}},
+    {"categorical": {"column_name": "Breed1"}},
+    {"categorical": {"column_name": "Color1"}},
+    {"categorical": {"column_name": "Color2"}},
+    {"categorical": {"column_name": "MaturitySize"}},
+    {"categorical": {"column_name": "FurLength"}},
+    {"categorical": {"column_name": "Vaccinated"}},
+    {"categorical": {"column_name": "Sterilized"}},
+    {"categorical": {"column_name": "Health"}},
+    {"numeric": {"column_name": "Fee"}},
+    {"numeric": {"column_name": "PhotoAmt"}},
+]
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
@@ -346,7 +363,7 @@ with models.DAG(
         optimization_objective="minimize-rmse",
         column_specs=COLUMN_SPECS,
         # run params
-        dataset_id="534512184680513536",
+        dataset_id=DATASET_ID,
         target_column=TEST_TARGET_COLUMN,
         time_column=TEST_TIME_COLUMN,
         time_series_identifier_column=TEST_TIME_SERIES_IDENTIFIER_COLUMN,
@@ -361,7 +378,7 @@ with models.DAG(
         budget_milli_node_hours=1000,
         model_display_name=f"auto-ml-forecasting-model-{DISPLAY_NAME}",
         predefined_split_column_name=None,
-        region="us-central1",
+        region=REGION,
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
@@ -370,7 +387,7 @@ with models.DAG(
     create_auto_ml_image_training_job = CreateAutoMLImageTrainingJobOperator(
         task_id="auto_ml_image_task",
         display_name=f"auto-ml-image-{DISPLAY_NAME}",
-        dataset_id="5722658955411324928",
+        dataset_id=DATASET_ID,
         prediction_type="classification",
         multi_label=False,
         model_type="CLOUD",
@@ -380,7 +397,72 @@ with models.DAG(
         budget_milli_node_hours=8000,
         model_display_name=f"auto-ml-image-model-{DISPLAY_NAME}",
         disable_early_stopping=False,
-        region="us-central1",
+        region=REGION,
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
+    create_auto_ml_tabular_training_job = CreateAutoMLTabularTrainingJobOperator(
+        task_id="auto_ml_tabular_task",
+        display_name=f"auto-ml-tabular-{DISPLAY_NAME}",
+        optimization_prediction_type="classification",
+        column_transformations=COLUMN_TRANSFORMATIONS,
+        dataset_id=DATASET_ID,
+        target_column="Adopted",
+        training_fraction_split=0.8,
+        validation_fraction_split=0.1,
+        test_fraction_split=0.1,
+        model_display_name="adopted-prediction-model",
+        disable_early_stopping=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
+    create_auto_ml_text_training_job = CreateAutoMLTextTrainingJobOperator(
+        task_id="auto_ml_text_task",
+        display_name=f"auto-ml-text-{DISPLAY_NAME}",
+        prediction_type="classification",
+        multi_label=False,
+        dataset_id=DATASET_ID,
+        model_display_name=f"auto-ml-text-model-{DISPLAY_NAME}",
+        training_fraction_split=0.7,
+        validation_fraction_split=0.2,
+        test_fraction_split=0.1,
+        sync=True,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
+    create_auto_ml_video_training_job = CreateAutoMLVideoTrainingJobOperator(
+        task_id="auto_ml_video_task",
+        display_name=f"auto-ml-video-{DISPLAY_NAME}",
+        prediction_type="classification",
+        model_type="CLOUD",
+        dataset_id=DATASET_ID,
+        model_display_name=f"auto-ml-video-model-{DISPLAY_NAME}",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
+    delete_auto_ml_training_job = DeleteAutoMLTrainingJobOperator(
+        task_id="delete_auto_ml_training_job",
+        training_pipeline_id=TRAINING_PIPELINE_ID,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]
+    list_auto_ml_training_job = ListAutoMLTrainingJobOperator(
+        task_id="list_auto_ml_training_job",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]

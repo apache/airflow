@@ -32,12 +32,8 @@ from google.cloud.aiplatform import (
     models,
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
-from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
-from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
-    ListPipelineJobsPager,
-    ListTrainingPipelinesPager,
-)
-from google.cloud.aiplatform_v1.types import CustomJob, Model, PipelineJob, TrainingPipeline
+from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
+from google.cloud.aiplatform_v1.types import Model, TrainingPipeline
 
 from airflow import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -237,141 +233,6 @@ class AutoMLHook(GoogleBaseHook):
     def cancel_auto_ml_job(self) -> None:
         """Cancel Auto ML Job for training pipeline"""
         self._job.cancel()
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def cancel_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> None:
-        """
-        Cancels a PipelineJob. Starts asynchronous cancellation on the PipelineJob. The server makes a best
-        effort to cancel the pipeline, but success is not guaranteed. Clients can use
-        [PipelineService.GetPipelineJob][google.cloud.aiplatform.v1.PipelineService.GetPipelineJob] or other
-        methods to check whether the cancellation succeeded or whether the pipeline completed despite
-        cancellation. On successful cancellation, the PipelineJob is not deleted; instead it becomes a
-        pipeline with a [PipelineJob.error][google.cloud.aiplatform.v1.PipelineJob.error] value with a
-        [google.rpc.Status.code][google.rpc.Status.code] of 1, corresponding to ``Code.CANCELLED``, and
-        [PipelineJob.state][google.cloud.aiplatform.v1.PipelineJob.state] is set to ``CANCELLED``.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param pipeline_job: The name of the PipelineJob to cancel.
-        :type pipeline_job: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.pipeline_job_path(project_id, region, pipeline_job)
-
-        client.cancel_pipeline_job(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def cancel_training_pipeline(
-        self,
-        project_id: str,
-        region: str,
-        training_pipeline: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> None:
-        """
-        Cancels a TrainingPipeline. Starts asynchronous cancellation on the TrainingPipeline. The server makes
-        a best effort to cancel the pipeline, but success is not guaranteed. Clients can use
-        [PipelineService.GetTrainingPipeline][google.cloud.aiplatform.v1.PipelineService.GetTrainingPipeline]
-        or other methods to check whether the cancellation succeeded or whether the pipeline completed despite
-        cancellation. On successful cancellation, the TrainingPipeline is not deleted; instead it becomes a
-        pipeline with a [TrainingPipeline.error][google.cloud.aiplatform.v1.TrainingPipeline.error] value with
-        a [google.rpc.Status.code][google.rpc.Status.code] of 1, corresponding to ``Code.CANCELLED``, and
-        [TrainingPipeline.state][google.cloud.aiplatform.v1.TrainingPipeline.state] is set to ``CANCELLED``.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param training_pipeline: Required. The name of the TrainingPipeline to cancel.
-        :type training_pipeline: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.training_pipeline_path(project_id, region, training_pipeline)
-
-        client.cancel_training_pipeline(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def cancel_custom_job(
-        self,
-        project_id: str,
-        region: str,
-        custom_job: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> None:
-        """
-        Cancels a CustomJob. Starts asynchronous cancellation on the CustomJob. The server makes a best effort
-        to cancel the job, but success is not guaranteed. Clients can use
-        [JobService.GetCustomJob][google.cloud.aiplatform.v1.JobService.GetCustomJob] or other methods to
-        check whether the cancellation succeeded or whether the job completed despite cancellation. On
-        successful cancellation, the CustomJob is not deleted; instead it becomes a job with a
-        [CustomJob.error][google.cloud.aiplatform.v1.CustomJob.error] value with a
-        [google.rpc.Status.code][google.rpc.Status.code] of 1, corresponding to ``Code.CANCELLED``, and
-        [CustomJob.state][google.cloud.aiplatform.v1.CustomJob.state] is set to ``CANCELLED``.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param custom_job: Required. The name of the CustomJob to cancel.
-        :type custom_job: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_job_service_client(region)
-        name = JobServiceClient.custom_job_path(project_id, region, custom_job)
-
-        client.cancel_custom_job(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_tabular_training_job(
@@ -601,7 +462,9 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             disable_early_stopping=disable_early_stopping,
             export_evaluated_data_items=export_evaluated_data_items,
-            export_evaluated_data_items_bigquery_destination_uri=export_evaluated_data_items_bigquery_destination_uri,
+            export_evaluated_data_items_bigquery_destination_uri=(
+                export_evaluated_data_items_bigquery_destination_uri
+            ),
             export_evaluated_data_items_override_destination=export_evaluated_data_items_override_destination,
             sync=sync,
         )
@@ -845,7 +708,9 @@ class AutoMLHook(GoogleBaseHook):
             time_series_attribute_columns=time_series_attribute_columns,
             context_window=context_window,
             export_evaluated_data_items=export_evaluated_data_items,
-            export_evaluated_data_items_bigquery_destination_uri=export_evaluated_data_items_bigquery_destination_uri,
+            export_evaluated_data_items_bigquery_destination_uri=(
+                export_evaluated_data_items_bigquery_destination_uri
+            ),
             export_evaluated_data_items_override_destination=export_evaluated_data_items_override_destination,
             quantiles=quantiles,
             validation_options=validation_options,
@@ -1346,45 +1211,6 @@ class AutoMLHook(GoogleBaseHook):
         return model
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Operation:
-        """
-        Deletes a PipelineJob.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param pipeline_job: Required. The name of the PipelineJob resource to be deleted.
-        :type pipeline_job: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.pipeline_job_path(project_id, region, pipeline_job)
-
-        result = client.delete_pipeline_job(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
     def delete_training_pipeline(
         self,
         project_id: str,
@@ -1414,84 +1240,6 @@ class AutoMLHook(GoogleBaseHook):
         name = client.training_pipeline_path(project_id, region, training_pipeline)
 
         result = client.delete_training_pipeline(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def delete_custom_job(
-        self,
-        project_id: str,
-        region: str,
-        custom_job: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Operation:
-        """
-        Deletes a CustomJob.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param custom_job: Required. The name of the CustomJob to delete.
-        :type custom_job: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_job_service_client(region)
-        name = client.custom_job_path(project_id, region, custom_job)
-
-        result = client.delete_custom_job(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def get_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> PipelineJob:
-        """
-        Gets a PipelineJob.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param pipeline_job: Required. The name of the PipelineJob resource.
-        :type pipeline_job: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.pipeline_job_path(project_id, region, pipeline_job)
-
-        result = client.get_pipeline_job(
             request={
                 'name': name,
             },
@@ -1533,142 +1281,6 @@ class AutoMLHook(GoogleBaseHook):
         result = client.get_training_pipeline(
             request={
                 'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def get_custom_job(
-        self,
-        project_id: str,
-        region: str,
-        custom_job: str,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> CustomJob:
-        """
-        Gets a CustomJob.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param custom_job: Required. The name of the CustomJob to get.
-        :type custom_job: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_job_service_client(region)
-        name = JobServiceClient.custom_job_path(project_id, region, custom_job)
-
-        result = client.get_custom_job(
-            request={
-                'name': name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def list_pipeline_jobs(
-        self,
-        project_id: str,
-        region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> ListPipelineJobsPager:
-        """
-        Lists PipelineJobs in a Location.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param filter: Optional. Lists the PipelineJobs that match the filter expression. The
-            following fields are supported:
-
-            -  ``pipeline_name``: Supports ``=`` and ``!=`` comparisons.
-            -  ``display_name``: Supports ``=``, ``!=`` comparisons, and
-               ``:`` wildcard.
-            -  ``pipeline_job_user_id``: Supports ``=``, ``!=``
-               comparisons, and ``:`` wildcard. for example, can check
-               if pipeline's display_name contains *step* by doing
-               display_name:"*step*"
-            -  ``create_time``: Supports ``=``, ``!=``, ``<``, ``>``,
-               ``<=``, and ``>=`` comparisons. Values must be in RFC
-               3339 format.
-            -  ``update_time``: Supports ``=``, ``!=``, ``<``, ``>``,
-               ``<=``, and ``>=`` comparisons. Values must be in RFC
-               3339 format.
-            -  ``end_time``: Supports ``=``, ``!=``, ``<``, ``>``,
-               ``<=``, and ``>=`` comparisons. Values must be in RFC
-               3339 format.
-            -  ``labels``: Supports key-value equality and key presence.
-
-            Filter expressions can be combined together using logical
-            operators (``AND`` & ``OR``). For example:
-            ``pipeline_name="test" AND create_time>"2020-05-18T13:30:00Z"``.
-
-            The syntax to define filter expression is based on
-            https://google.aip.dev/160.
-        :type filter: str
-        :param page_size: Optional. The standard list page size.
-        :type page_size: int
-        :param page_token: Optional. The standard list page token. Typically obtained via
-            [ListPipelineJobsResponse.next_page_token][google.cloud.aiplatform.v1.ListPipelineJobsResponse.next_page_token]
-            of the previous
-            [PipelineService.ListPipelineJobs][google.cloud.aiplatform.v1.PipelineService.ListPipelineJobs]
-            call.
-        :type page_token: str
-        :param order_by: Optional. A comma-separated list of fields to order by. The default
-            sort order is in ascending order. Use "desc" after a field
-            name for descending. You can have multiple order_by fields
-            provided e.g. "create_time desc, end_time", "end_time,
-            start_time, update_time" For example, using "create_time
-            desc, end_time" will order results by create time in
-            descending order, and if there are multiple jobs having the
-            same create time, order them by the end time in ascending
-            order. if order_by is not specified, it will order by
-            default order is create time in descending order. Supported
-            fields:
-
-            -  ``create_time``
-            -  ``update_time``
-            -  ``end_time``
-            -  ``start_time``
-        :type order_by: str
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_pipeline_service_client(region)
-        parent = client.common_location_path(project_id, region)
-
-        result = client.list_pipeline_jobs(
-            request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'order_by': order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -1733,76 +1345,6 @@ class AutoMLHook(GoogleBaseHook):
         parent = client.common_location_path(project_id, region)
 
         result = client.list_training_pipelines(
-            request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def list_custom_jobs(
-        self,
-        project_id: str,
-        region: str,
-        page_size: Optional[int],
-        page_token: Optional[str],
-        filter: Optional[str],
-        read_mask: Optional[str],
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> ListCustomJobsPager:
-        """
-        Lists CustomJobs in a Location.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
-        :param filter: Optional. The standard list filter. Supported fields:
-
-            -  ``display_name`` supports = and !=.
-
-            -  ``state`` supports = and !=.
-
-            Some examples of using the filter are:
-
-            -  ``state="PIPELINE_STATE_SUCCEEDED" AND display_name="my_pipeline"``
-
-            -  ``state="PIPELINE_STATE_RUNNING" OR display_name="my_pipeline"``
-
-            -  ``NOT display_name="my_pipeline"``
-
-            -  ``state="PIPELINE_STATE_FAILED"``
-        :type filter: str
-        :param page_size: Optional. The standard list page size.
-        :type page_size: int
-        :param page_token: Optional. The standard list page token. Typically obtained via
-            [ListTrainingPipelinesResponse.next_page_token][google.cloud.aiplatform.v1.ListTrainingPipelinesResponse.next_page_token]
-            of the previous
-            [PipelineService.ListTrainingPipelines][google.cloud.aiplatform.v1.PipelineService.ListTrainingPipelines]
-            call.
-        :type page_token: str
-        :param read_mask: Optional. Mask specifying which fields to read.
-        :type read_mask: google.protobuf.field_mask_pb2.FieldMask
-        :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
-        :param timeout: The timeout for this request.
-        :type timeout: float
-        :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
-        """
-        client = self.get_job_service_client(region)
-        parent = JobServiceClient.common_location_path(project_id, region)
-
-        result = client.list_custom_jobs(
             request={
                 'parent': parent,
                 'page_size': page_size,
