@@ -17,7 +17,7 @@
 # under the License.
 #
 import datetime as dt
-from typing import TYPE_CHECKING, Any, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Optional, Union, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
@@ -136,15 +136,16 @@ def make_aware(
         # instance of the same clock time rather than the first one.
         # Fold parameter has no impact in other cases so we can safely set it to 1 here
         value = value.replace(fold=1)
-    if hasattr(timezone, 'localize'):
-        # This method is available for pytz time zones.
-        return cast(Any, timezone).localize(value)
-    elif hasattr(timezone, 'convert'):
+    localized = getattr(timezone, 'localize', None)
+    if localized is not None:
+        # This method is available for pytz time zones
+        return localized(value)
+    convert = getattr(timezone, 'convert', None)
+    if convert is not None:
         # For pendulum
-        return cast(Any, timezone).convert(value)
-    else:
-        # This may be wrong around DST changes!
-        return value.replace(tzinfo=timezone)
+        return convert(value)
+    # This may be wrong around DST changes!
+    return value.replace(tzinfo=timezone)
 
 
 def make_naive(value, timezone=None):

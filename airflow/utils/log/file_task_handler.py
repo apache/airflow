@@ -46,7 +46,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str):
         super().__init__()
-        self.handler = None  # type: Optional[logging.FileHandler]
+        self.handler: Optional[logging.FileHandler] = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
@@ -90,7 +90,7 @@ class FileTaskHandler(logging.Handler):
                 try_number=try_number,
             )
         else:
-            return ""  # mypy
+            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _read_grouped_logs(self):
         return False
