@@ -18,7 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import unicodecsv as csv
 
@@ -28,8 +28,6 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-else:
-    Context = MutableMapping[str, Any]
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):
@@ -106,7 +104,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: "Context") -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 

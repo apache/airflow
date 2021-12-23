@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, MutableMapping, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -23,8 +23,6 @@ from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-else:
-    Context = MutableMapping[str, Any]
 
 
 class LocalFilesystemToADLSOperator(BaseOperator):
@@ -89,7 +87,7 @@ class LocalFilesystemToADLSOperator(BaseOperator):
         self.extra_upload_options = extra_upload_options
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: "Context") -> None:
         if '**' in self.local_path:
             raise AirflowException("Recursive glob patterns using `**` are not supported")
         if not self.extra_upload_options:

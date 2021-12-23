@@ -17,7 +17,7 @@
 # under the License.
 #
 import tempfile
-from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -25,8 +25,6 @@ from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-else:
-    Context = MutableMapping[str, Any]
 
 
 class AzureBlobStorageToGCSOperator(BaseOperator):
@@ -108,7 +106,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         "filename",
     )
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: "Context") -> str:
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

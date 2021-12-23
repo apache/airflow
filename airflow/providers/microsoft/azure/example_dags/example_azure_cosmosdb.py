@@ -41,13 +41,13 @@ with DAG(
     tags=['example'],
 ) as dag:
 
-    t1 = AzureCosmosDocumentSensor(  # type: ignore
+    t1 = AzureCosmosDocumentSensor(
         task_id='check_cosmos_file',
         collection_name='airflow_example_coll',
         document_id='airflow_checkid',
     )
 
-    t2 = AzureCosmosInsertDocumentOperator(  # type: ignore
+    t2 = AzureCosmosInsertDocumentOperator(
         task_id='insert_cosmos_file',
         collection_name='new-collection',
         document={"id": "someuniqueid", "param1": "value1", "param2": "value2"},

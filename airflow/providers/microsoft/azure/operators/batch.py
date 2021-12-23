@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, List, MutableMapping, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from azure.batch import models as batch_models
 
@@ -26,8 +26,6 @@ from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-else:
-    Context = MutableMapping[str, Any]
 
 
 class AzureBatchOperator(BaseOperator):
@@ -271,7 +269,7 @@ class AzureBatchOperator(BaseOperator):
                 "Some required parameters are missing.Please you must set all the required parameters. "
             )
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: "Context") -> None:
         self._check_inputs()
         self.hook.connection.config.retry_policy = self.batch_max_retries
 

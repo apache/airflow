@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, List, MutableMapping, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -24,8 +24,6 @@ from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-else:
-    Context = MutableMapping[str, Any]
 
 
 class PSRPOperator(BaseOperator):
@@ -61,7 +59,7 @@ class PSRPOperator(BaseOperator):
         self.command = command
         self.powershell = powershell
 
-    def execute(self, context: Context) -> List[str]:
+    def execute(self, context: "Context") -> List[str]:
         with PSRPHook(self.conn_id) as hook:
             ps = hook.invoke_powershell(
                 f"cmd.exe /c @'\n{self.command}\n'@" if self.command else self.powershell
