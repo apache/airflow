@@ -20,13 +20,11 @@ from typing import Optional, Union, Sequence
 
 from airflow.models import BaseOperator
 
-
 class AzureBlobStorageToGCSOperator(BaseOperator):
     """
     A stub file to suppress MyPy issues due to not supplying
     mandatory parameters to the operator
     """
-
 
     def __init__(
         self,

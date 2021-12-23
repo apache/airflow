@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.sensors.base import BaseSensorOperator
 
-
 class AzureCosmosDocumentSensor(BaseSensorOperator):
     """
     A stub file to suppress MyPy issues due to not supplying

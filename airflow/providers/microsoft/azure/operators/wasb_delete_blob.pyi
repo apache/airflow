@@ -20,7 +20,6 @@ from typing import Optional, Any
 
 from airflow.models import BaseOperator
 
-
 class WasbDeleteBlobOperator(BaseOperator):
     """
     A stub file to suppress MyPy issues due to not supplying
