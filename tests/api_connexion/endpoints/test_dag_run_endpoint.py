@@ -307,6 +307,42 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "total_entries": 2,
         }
 
+    def test_filter_by_state(self, session):
+        self._create_test_dag_run()
+        result = session.query(DagRun).all()
+        assert len(result) == 2
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
+                    'logical_date': self.default_time,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
+        
     def test_invalid_order_by_raises_400(self):
         self._create_test_dag_run()
 
@@ -612,6 +648,42 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "total_entries": 2,
         }
 
+    def test_filter_by_state(self):
+        self._create_test_dag_run()
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list",
+            json={"dag_ids": ["TEST_DAG_ID"], "states": ["running"]},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
+                    'logical_date': self.default_time,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
+        
     def test_order_by_descending_works(self):
         self._create_test_dag_run()
         response = self.client.post(
