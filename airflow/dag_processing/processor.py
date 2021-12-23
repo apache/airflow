@@ -149,8 +149,8 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         try:
             # redirect stdout/stderr to log
-            with redirect_stdout(StreamLogWriter(log, logging.INFO)), (  # type: ignore[type-var]
-                redirect_stderr(StreamLogWriter(log, logging.WARN))  # type: ignore[type-var]
+            with redirect_stdout(StreamLogWriter(log, logging.INFO)), (
+                redirect_stderr(StreamLogWriter(log, logging.WARN))
             ), Stats.timer() as timer:
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
