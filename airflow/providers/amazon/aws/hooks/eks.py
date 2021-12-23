@@ -366,8 +366,7 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
-            else:
-                raise
+            raise
 
     def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
@@ -394,8 +393,7 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return FargateProfileStates.NONEXISTENT
-            else:
-                raise
+            raise
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
@@ -420,8 +418,7 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return NodegroupStates.NONEXISTENT
-            else:
-                raise
+            raise
 
     def list_clusters(
         self,
