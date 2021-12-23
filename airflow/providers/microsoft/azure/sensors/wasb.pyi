@@ -18,34 +18,22 @@
 #
 from typing import Optional
 
-class AzureCosmosDocumentSensor:
+from airflow.sensors.base import BaseSensorOperator
+
+
+class WasbBlobSensor(BaseSensorOperator):
     """
     A stub file to suppress MyPy issues due to not supplying
     mandatory parameters to the operator
     """
 
-    def __init__(
-        self,
-        *,
-        database_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
-        document_id: Optional[str] = None,
-        azure_cosmos_conn_id: str = "azure_cosmos_default",
-        **kwargs,
-    ) -> None: ...
-
-class AzureCosmosInsertDocumentOperator:
-    """
-    A stub file to suppress MyPy issues due to not supplying
-    mandatory parameters to the operator
-    """
 
     def __init__(
         self,
         *,
-        database_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
-        document: Optional[str] = None,
-        azure_cosmos_conn_id: str = 'azure_cosmos_default',
+        container_name: Optional[str] = None,
+        blob_name: Optional[str] = None,
+        wasb_conn_id: str = 'wasb_default',
+        check_options: Optional[dict] = None,
         **kwargs,
     ) -> None: ...

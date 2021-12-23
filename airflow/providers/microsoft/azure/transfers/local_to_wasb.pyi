@@ -16,13 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional, Any
+from typing import Optional
 
-class LocalFilesystemToWasbOperator:
+from airflow.models import BaseOperator
+
+
+class LocalFilesystemToWasbOperator(BaseOperator):
     """
     A stub file to suppress MyPy issues due to not supplying
     mandatory parameters to the operator
     """
+
 
     def __init__(
         self,
@@ -32,23 +36,5 @@ class LocalFilesystemToWasbOperator:
         blob_name: Optional[str] = None,
         wasb_conn_id: str = 'wasb_default',
         load_options: Optional[dict] = None,
-        **kwargs,
-    ) -> None: ...
-
-class WasbDeleteBlobOperator:
-    """
-    A stub file to suppress MyPy issues due to not supplying
-    mandatory parameters to the operator
-    """
-
-    def __init__(
-        self,
-        *,
-        container_name: Optional[str] = None,
-        blob_name: Optional[str] = None,
-        wasb_conn_id: str = 'wasb_default',
-        check_options: Any = None,
-        is_prefix: bool = False,
-        ignore_if_missing: bool = False,
         **kwargs,
     ) -> None: ...

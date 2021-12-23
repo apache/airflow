@@ -18,27 +18,15 @@
 #
 from typing import Optional, Union, Sequence
 
-class WasbBlobSensor:
+from airflow.models import BaseOperator
+
+
+class AzureBlobStorageToGCSOperator(BaseOperator):
     """
     A stub file to suppress MyPy issues due to not supplying
     mandatory parameters to the operator
     """
 
-    def __init__(
-        self,
-        *,
-        container_name: Optional[str] = None,
-        blob_name: Optional[str] = None,
-        wasb_conn_id: str = 'wasb_default',
-        check_options: Optional[dict] = None,
-        **kwargs,
-    ) -> None: ...
-
-class AzureBlobStorageToGCSOperator:
-    """
-    A stub file to suppress MyPy issues due to not supplying
-    mandatory parameters to the operator
-    """
 
     def __init__(
         self,
