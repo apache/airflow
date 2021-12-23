@@ -142,6 +142,11 @@ looks like:
         # A list of timetable classes to register so they can be used in DAGs.
         timetables = []
 
+        # A list of Listeners that plugin provides. Listeners can register to
+        # listen to particular events that happen in Airflow, like
+        # TaskInstance state changes
+        listeners = []
+
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
@@ -167,8 +172,13 @@ definitions in Airflow.
 
     # Importing base classes that we need to derive
     from airflow.hooks.base import BaseHook
+    from airflow.listeners.listener import Listener
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
+
+    from pluggy import HookimplMarker
+
+    hookimpl = HookimplMarker("airflow")
 
     # Will show up in Connections screen in a future version
     class PluginHook(BaseHook):
@@ -254,6 +264,13 @@ definitions in Airflow.
             )
 
 
+    # Listener that prints task instance when it changes state to running.
+    class PrintingRunningListener(Listener):
+        @hookimpl
+        def on_task_instance_running(self, previous_state, task_instance, session):
+            print("%s %s", str(task_instance), State.RUNNING)
+
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -268,6 +285,7 @@ definitions in Airflow.
         operator_extra_links = [
             S3LogLink(),
         ]
+        listeners = [PrintingRunningListener]
 
 
 Note on role based views

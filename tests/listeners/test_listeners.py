@@ -72,6 +72,8 @@ def register_events():
 
 @pytest.fixture(autouse=True)
 def clean_listener_manager():
+    lm = get_listener_manager()
+    lm.clear()
     yield
     lm = get_listener_manager()
     lm.clear()
@@ -86,6 +88,7 @@ def test_listener_gets_calls(create_task_instance, session=None):
     ti = create_task_instance(session=session, state=State.QUEUED)
     ti.run()
 
+    assert len(listener.states) == 2
     assert listener.states == [State.RUNNING, State.SUCCESS]
 
 
@@ -98,6 +101,7 @@ def test_listener_gets_only_subscribed_calls(create_task_instance, session=None)
     ti = create_task_instance(session=session, state=State.QUEUED)
     ti.run()
 
+    assert len(listener.states) == 1
     assert listener.states == [State.RUNNING]
 
 
@@ -112,6 +116,18 @@ def test_listener_throws_exceptions(create_task_instance, session=None):
         ti.run()
 
 
+def test_listener_needs_to_subclass_listener():
+    lm = get_listener_manager()
+
+    class Dummy:
+        @hookimpl
+        def on_task_instance_running(self, previous_state, task_instance, session):
+            pass
+
+    lm.add_listener(Dummy())
+    assert not lm.has_listeners()
+
+
 @provide_session
 def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session=None):
     lm = get_listener_manager()
@@ -124,4 +140,5 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
         )
         ti.run()
 
+    assert len(listener.states) == 2
     assert listener.states == [State.RUNNING, State.FAILED]

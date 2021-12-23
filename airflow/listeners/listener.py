@@ -15,10 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import inspect
+import logging
+from typing import TYPE_CHECKING, Set
 
 import pluggy
 
+if TYPE_CHECKING:
+    from pluggy._hooks import _HookRelay
+
 from airflow.listeners import spec
+
+log = logging.getLogger(__name__)
 
 
 class Listener:
@@ -29,18 +37,18 @@ _listener_manager = None
 
 
 class ListenerManager:
-    """Class that manager registration of listeners and provides hook property for calling them"""
+    """Class that manages registration of listeners and provides hook property for calling them"""
 
     def __init__(self):
         self.pm = pluggy.PluginManager("airflow")
         self.pm.add_hookspecs(spec)
-        self.listener_names = set()
+        self.listener_names: Set[str] = set()
 
     def has_listeners(self) -> bool:
         return len(self.pm.get_plugins()) > 0
 
     @property
-    def hook(self):
+    def hook(self) -> "_HookRelay":
         """Returns hook, on which plugin methods specified in spec can be called."""
         return self.pm.hook
 
@@ -49,6 +57,16 @@ class ListenerManager:
             return
         if self.pm.is_registered(listener):
             return
+
+        listener_type = type(listener)
+        if not (
+            inspect.isclass(listener_type)
+            and issubclass(listener_type, Listener)
+            and (listener_type is not Listener)
+        ):
+            log.warning("Can't register listener: %s - is not a Listener subclass", listener_type)
+            return
+
         self.listener_names.add(listener.__class__.__name__)
         self.pm.register(listener)
 

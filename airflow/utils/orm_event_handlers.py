@@ -87,7 +87,9 @@ def setup_event_handlers(engine):
                 statement.replace("\n", " "),
             )
 
-    if conf.getboolean('core', 'execute_listeners_on_scheduler', fallback=False):
+    from airflow import settings
+
+    if settings.EXECUTE_LISTENERS_ON_SCHEDULER:
         # Register sqlalchemy event handlers which call airflow.listeners
         from airflow.listeners.events import register_task_instance_state_events
 

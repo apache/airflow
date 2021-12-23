@@ -23,11 +23,13 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import TaskInstance
 from airflow.utils.state import State
 
+_is_listening = False
+
 
 def register_task_instance_state_events():
     logger = logging.getLogger()
+    global _is_listening
 
-    @event.listens_for(Session, 'after_flush', propagate=True)
     def on_task_instance_state_session_flush(session, flush_context):
         """
         Listens for session.flush() events that modify TaskInstance's state, and notify listeners that listen
@@ -39,7 +41,13 @@ def register_task_instance_state_events():
             ):
                 added, unchanged, deleted = flush_context.get_attribute_history(state, 'state')
 
-                logger.debug(f"session flush listener: added {added} unchanged {unchanged} deleted {deleted}")
+                logger.warning(
+                    "session flush listener: added %s unchanged %s deleted %s - %s",
+                    added,
+                    unchanged,
+                    deleted,
+                    state.object,
+                )
                 if not added:
                     continue
 
@@ -57,3 +65,7 @@ def register_task_instance_state_events():
                     get_listener_manager().hook.on_task_instance_success(
                         previous_state=previous_state, task_instance=state.object, session=session
                     )
+
+    if not _is_listening:
+        event.listen(Session, 'after_flush', on_task_instance_state_session_flush)
+        _is_listening = True
