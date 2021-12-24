@@ -44,6 +44,7 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 
 # This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
 log = logging.getLogger("flask_appbuilder.base")
@@ -524,12 +525,7 @@ class AirflowAppBuilder:
         return baseview
 
     def add_api(self, baseview):
-        """
-            Add a BaseApi class or child to AppBuilder
-        :param baseview: A BaseApi type class
-        :return: The instantiated base view
-        """
-        return self.add_view_no_menu(baseview)
+        raise AirflowException("Airflow doesn't support the Flask AppBuilder REST API")
 
     def security_cleanup(self):
         """
