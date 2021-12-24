@@ -44,7 +44,6 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 
 # This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
 log = logging.getLogger("flask_appbuilder.base")
@@ -523,9 +522,6 @@ class AirflowAppBuilder:
         else:
             log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))
         return baseview
-
-    def add_api(self, baseview):
-        raise AirflowException("Airflow doesn't support the Flask AppBuilder REST API")
 
     def security_cleanup(self):
         """
