@@ -309,10 +309,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
     def test_filter_by_state(self, session):
         self._create_test_dag_run()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
+        assert session.query(DagRun).count() == 2        
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running", environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,failed", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         assert response.json == {
@@ -652,7 +651,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         self._create_test_dag_run()
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
-            json={"dag_ids": ["TEST_DAG_ID"], "states": ["running"]},
+            json={"dag_ids": ["TEST_DAG_ID"], "states": ["running", "failed"]},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200

@@ -166,7 +166,7 @@ def get_dag_runs(
         query = query.filter(DagRun.dag_id == dag_id)
 
     if state:
-        query = query.filter(DagRun.state == state)
+        query = query.filter(DagRun.state.in_(state))
         
     dag_run, total_entries = _fetch_dag_runs(
         query,
