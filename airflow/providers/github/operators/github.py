@@ -18,22 +18,22 @@
 from typing import Dict
 
 from airflow.models import BaseOperator
-from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
+from airflow.providers.github.hooks.github import GithubHook
 
 
-class InfluxDBOperator(BaseOperator):
+class GithubOperator(BaseOperator):
     """
-    Executes sql code in a specific InfluxDB database
+    Executes sql code in a specific Github database
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:InfluxDBOperator`
+        :ref:`howto/operator:GithubOperator`
 
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement
     :type sql: str
-    :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
-    :type influxdb_conn_id: str
+    :param github_conn_id: Reference to :ref:`Github connection id <howto/connection:github>`.
+    :type github_conn_id: str
     """
 
     template_fields = ['sql']
@@ -42,14 +42,14 @@ class InfluxDBOperator(BaseOperator):
         self,
         *,
         sql: str,
-        influxdb_conn_id: str = 'influxdb_default',
+        github_conn_id: str = 'github_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.influxdb_conn_id = influxdb_conn_id
+        self.github_conn_id = github_conn_id
         self.sql = sql
 
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
-        self.hook = InfluxDBHook(conn_id=self.influxdb_conn_id)
+        self.hook = GithubHook(conn_id=self.github_conn_id)
         self.hook.query(self.sql)
