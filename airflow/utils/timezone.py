@@ -29,7 +29,7 @@ from airflow.settings import TIMEZONE
 utc = pendulum.tz.timezone('UTC')
 
 if TYPE_CHECKING:
-    from pendulum.tz.timezone import Timezone
+    pass
 
 
 def is_localized(value):
@@ -102,18 +102,16 @@ def convert_to_utc(value):
 
 
 @overload
-def make_aware(value: None, timezone: Optional[Union["Timezone", dt.tzinfo]] = None) -> None:
+def make_aware(value: None, timezone: Optional[dt.tzinfo] = None) -> None:
     ...
 
 
 @overload
-def make_aware(value: dt.datetime, timezone: Optional[Union["Timezone", dt.tzinfo]] = None) -> dt.datetime:
+def make_aware(value: dt.datetime, timezone: Optional[dt.tzinfo] = None) -> dt.datetime:
     ...
 
 
-def make_aware(
-    value: Optional[dt.datetime], timezone: Optional[Union["Timezone", dt.tzinfo]] = None
-) -> Optional[dt.datetime]:
+def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = None) -> Optional[dt.datetime]:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
