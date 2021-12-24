@@ -125,13 +125,6 @@ class TestSkipMixin:
             ti.refresh_from_db()
             return ti.state
 
-        task_instances = {
-            "task2": ti2,
-            "task3": ti3
-        }
-        executed_states = {
-            task_id: get_state(task_instances[task_id])
-            for task_id in task_instances
-        }
+        executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
 
         assert executed_states == expected_states
