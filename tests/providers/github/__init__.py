@@ -14,29 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-github
-name: Github
-description: |
-    `Github <https://www.github.com/>`__
-versions:
-  - 1.0.0
-integrations:
-  - integration-name: Github
-    external-doc-url: https://www.github.com/
-    tags: [software]
-
-hooks:
-  - integration-name: Github
-    python-modules:
-      - airflow.providers.github.hooks.github
-
-operators:
-  - integration-name: Github
-    python-modules:
-      - airflow.providers.github.operators.github
-
-connection-types:
-  - hook-class-name: airflow.providers.github.hooks.github.GithubHook
-    connection-type: github

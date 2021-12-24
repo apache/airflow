@@ -15,28 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-github
-name: Github
-description: |
-    `Github <https://www.github.com/>`__
-versions:
-  - 1.0.0
-integrations:
-  - integration-name: Github
-    external-doc-url: https://www.github.com/
-    tags: [software]
+import unittest
+from unittest import mock
 
-hooks:
-  - integration-name: Github
-    python-modules:
-      - airflow.providers.github.hooks.github
+from airflow.providers.influxdb.operators.influxdb import InfluxDBOperator
 
-operators:
-  - integration-name: Github
-    python-modules:
-      - airflow.providers.github.operators.github
 
-connection-types:
-  - hook-class-name: airflow.providers.github.hooks.github.GithubHook
-    connection-type: github
+class TestInfluxDBOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.influxdb.operators.influxdb.InfluxDBHook')
+    def test_influxdb_operator_test(self, mock_hook):
+
+        sql = """from(bucket:"test") |> range(start: -10m)"""
+        op = InfluxDBOperator(task_id='basic_influxdb', sql=sql, influxdb_conn_id='influxdb_default')
+        op.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(conn_id='influxdb_default')
+        mock_hook.return_value.query.assert_called_once_with(sql)

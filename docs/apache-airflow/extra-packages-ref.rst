@@ -222,6 +222,8 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
+| github              | ``pip install 'apache-airflow[github]'``            | Github operators and hook                 |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 | influxdb            | ``pip install 'apache-airflow[influxdb]'``          | Influxdb operators and hook               |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | jenkins             | ``pip install 'apache-airflow[jenkins]'``           | Jenkins hooks and operators               |
