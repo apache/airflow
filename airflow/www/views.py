@@ -4539,7 +4539,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_has_dag_edit_access
     def action_set_skipped(self, tis):
         """Set state to skipped."""
-        self.set_task_instance_state(tis, State.SKIPPED)
+        self.set_task_instance_state(tis, TaskInstanceState.SKIPPED)
         self.update_redirect()
         return redirect(self.get_redirect())
 
