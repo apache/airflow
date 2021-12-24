@@ -26,7 +26,6 @@ from typing import Dict, List, Union
 
 from flask import Blueprint, current_app, url_for
 from flask_appbuilder import BaseView, __version__
-from flask_appbuilder.api.manager import OpenApiManager
 from flask_appbuilder.babel.manager import BabelManager
 from flask_appbuilder.const import (
     LOGMSG_ERR_FAB_ADD_PERMISSION_MENU,
@@ -102,8 +101,6 @@ class AirflowAppBuilder:
     sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
-    # OpenAPI Manager Class
-    openapi_manager = None
     # dict with addon name has key and intantiated class has value
     addon_managers = None
     # temporary list that hold addon_managers config key
@@ -210,7 +207,6 @@ class AirflowAppBuilder:
         self.session = session
         self.sm = self.security_manager_class(self)
         self.bm = BabelManager(self)
-        self.openapi_manager = OpenApiManager(self)
         self._add_global_static()
         self._add_global_filters()
         app.before_request(self.sm.before_request)
@@ -314,7 +310,6 @@ class AirflowAppBuilder:
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
         self.sm.register_views()
-        self.openapi_manager.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
