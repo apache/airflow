@@ -95,34 +95,18 @@ class TestSkipMixin:
         assert not session.query.called
         assert not session.commit.called
 
-    def test_skip_all_except(self, dag_maker):
+    @pytest.mark.parametrize(
+        "branch_task_ids, expected_states",
+        [
+            (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
+            ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
+            (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
+            ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
+        ],
+    )
+    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
         with dag_maker(
             'dag_test_skip_all_except',
-        ):
-            task1 = DummyOperator(task_id='task1')
-            task2 = DummyOperator(task_id='task2')
-            task3 = DummyOperator(task_id='task3')
-
-            task1 >> [task2, task3]
-        dag_maker.create_dagrun()
-
-        ti1 = TI(task1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task2, execution_date=DEFAULT_DATE)
-        ti3 = TI(task3, execution_date=DEFAULT_DATE)
-
-        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=['task2'])
-
-        def get_state(ti):
-            ti.refresh_from_db()
-            return ti.state
-
-        assert get_state(ti2) == State.NONE
-        assert get_state(ti3) == State.SKIPPED
-
-    @pytest.mark.parametrize("branch_task_ids", [None, []])
-    def test_skip_all_except_none(self, dag_maker, branch_task_ids):
-        with dag_maker(
-            'dag_test_skip_none_except',
         ):
             task1 = DummyOperator(task_id='task1')
             task2 = DummyOperator(task_id='task2')
@@ -141,5 +125,13 @@ class TestSkipMixin:
             ti.refresh_from_db()
             return ti.state
 
-        assert get_state(ti2) == State.SKIPPED
-        assert get_state(ti3) == State.SKIPPED
+        task_instances = {
+            "task2": ti2,
+            "task3": ti3
+        }
+        executed_states = {
+            task_id: get_state(task_instances[task_id])
+            for task_id in task_instances
+        }
+
+        assert executed_states == expected_states
