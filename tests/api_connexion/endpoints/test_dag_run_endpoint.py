@@ -343,7 +343,6 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,queued", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        print(response.json)
         assert response.json == {
             "dag_runs": [
                 {
