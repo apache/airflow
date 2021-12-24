@@ -163,6 +163,35 @@ class TestDagRunEndpoint:
                 session.add_all(dags)
         return dag_runs
 
+    def _create_test_dag_run_with_queued(self, commit=True):
+        dag_runs = []
+        dags = [DagModel(dag_id="TEST_DAG_ID")]
+        dagrun_model_1 = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID_1",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state='running',
+        )
+        dag_runs.append(dagrun_model_1)
+        dagrun_model_2 = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID_2",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time_2),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state='queued',
+        )
+        dag_runs.append(dagrun_model_2)
+        if commit:
+            with create_session() as session:
+                session.add_all(dag_runs)
+                session.add_all(dags)
+        return dag_runs
+
 
 class TestDeleteDagRun(TestDagRunEndpoint):
     def test_should_respond_204(self, session):
@@ -308,12 +337,13 @@ class TestGetDagRuns(TestDagRunEndpoint):
         }
 
     def test_filter_by_state(self, session):
-        self._create_test_dag_run()
-        assert session.query(DagRun).count() == 2        
+        self._create_test_dag_run_with_queued()
+        assert session.query(DagRun).count() == 2
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,failed", environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,queued", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
+        print(response.json)
         assert response.json == {
             "dag_runs": [
                 {
@@ -331,7 +361,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     'dag_id': 'TEST_DAG_ID',
                     'dag_run_id': 'TEST_DAG_RUN_ID_2',
                     'end_date': None,
-                    'state': 'running',
+                    'state': 'queued',
                     'execution_date': self.default_time_2,
                     'logical_date': self.default_time_2,
                     'external_trigger': True,
@@ -341,7 +371,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             ],
             "total_entries": 2,
         }
-        
+
     def test_invalid_order_by_raises_400(self):
         self._create_test_dag_run()
 
@@ -648,10 +678,10 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         }
 
     def test_filter_by_state(self):
-        self._create_test_dag_run()
+        self._create_test_dag_run_with_queued()
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
-            json={"dag_ids": ["TEST_DAG_ID"], "states": ["running", "failed"]},
+            json={"dag_ids": ["TEST_DAG_ID"], "states": ["running", "queued"]},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
@@ -672,7 +702,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'dag_id': 'TEST_DAG_ID',
                     'dag_run_id': 'TEST_DAG_RUN_ID_2',
                     'end_date': None,
-                    'state': 'running',
+                    'state': 'queued',
                     'execution_date': self.default_time_2,
                     'logical_date': self.default_time_2,
                     'external_trigger': True,
@@ -682,7 +712,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             ],
             "total_entries": 2,
         }
-        
+
     def test_order_by_descending_works(self):
         self._create_test_dag_run()
         response = self.client.post(
