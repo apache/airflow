@@ -31,3 +31,20 @@ Send an alert to Opsgenie with a specific message.
     :language: python
     :start-after: [START howto_opsgenie_alert_operator]
     :end-before: [END howto_opsgenie_alert_operator]
+
+.. _howto/operator:OpsgenieCloseAlertOperator:
+
+OpsgenieCloseAlertOperator
+==========================
+
+Use the :class:`~airflow.providers.opsgenie.operators.opsgenie.OpsgenieCloseAlertOperator` to close alert in opsgenie.
+
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+Close alert in Opsgenie.
+
+.. exampleinclude:: /../../airflow/providers/opsgenie/example_dags/example_opsgenie_alert.py
+    :language: python
+    :start-after: [START howto_opsgenie_close_alert_operator]
+    :end-before: [END howto_opsgenie_close_alert_operator]

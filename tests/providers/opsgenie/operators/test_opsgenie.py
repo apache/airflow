@@ -20,7 +20,7 @@
 import unittest
 
 from airflow.models.dag import DAG
-from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator
+from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator, OpsgenieCloseAlertOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -104,3 +104,37 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
         assert self._config['priority'] == operator.priority
         assert self._config['user'] == operator.user
         assert self._config['note'] == operator.note
+
+
+class TestOpsgenieCloseAlertOperator(unittest.TestCase):
+    _config = {'user': 'example_user', 'note': 'my_closing_note', 'source': 'some_source'}
+    expected_payload_dict = {
+        'user': _config['user'],
+        'note': _config['note'],
+        'source': _config['source'],
+    }
+
+    def setUp(self):
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.dag = DAG('test_dag_id', default_args=args)
+
+    def test_build_opsgenie_payload(self):
+        # Given / When
+        operator = OpsgenieCloseAlertOperator(
+            task_id='opsgenie_close_alert_job', dag=self.dag, **self._config
+        )
+
+        payload = operator._build_opsgenie_close_alert_payload()
+
+        # Then
+        assert self.expected_payload_dict == payload
+
+    def test_properties(self):
+        operator = OpsgenieCloseAlertOperator(
+            task_id='opsgenie_test_properties_job', dag=self.dag, **self._config
+        )
+
+        assert 'opsgenie_default' == operator.opsgenie_conn_id
+        assert self._config['user'] == operator.user
+        assert self._config['note'] == operator.note
+        assert self._config['source'] == operator.source

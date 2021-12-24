@@ -20,7 +20,7 @@ import unittest
 from unittest import mock
 
 import pytest
-from opsgenie_sdk import AlertApi, CreateAlertPayload
+from opsgenie_sdk import AlertApi, CloseAlertPayload, CreateAlertPayload
 from opsgenie_sdk.exceptions import AuthenticationException
 
 from airflow.models import Connection
@@ -31,7 +31,7 @@ from airflow.utils import db
 class TestOpsgenieAlertHook(unittest.TestCase):
     conn_id = 'opsgenie_conn_id_test'
     opsgenie_alert_endpoint = 'https://api.opsgenie.com/v2/alerts'
-    _payload = {
+    _create_alert_payload = {
         'message': 'An example alert message',
         'alias': 'Life is too short for no alias',
         'description': 'Every alert needs a description',
@@ -106,13 +106,35 @@ class TestOpsgenieAlertHook(unittest.TestCase):
             == 'eb243592-faa2-4ba2-a551q-1afdf565c889'
         )
 
-    def test_api_key_not_set(self):
+    def test_create_alert_api_key_not_set(self):
         hook = OpsgenieAlertHook()
         with pytest.raises(AuthenticationException):
-            hook.create_alert(payload=self._payload)
+            hook.create_alert(payload=self._create_alert_payload)
 
     @mock.patch.object(AlertApi, 'create_alert')
-    def test_payload(self, create_alert_mock):
+    def test_create_alert_create_alert_payload(self, create_alert_mock):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        hook.create_alert(payload=self._payload)
-        create_alert_mock.assert_called_once_with(CreateAlertPayload(**self._payload))
+        hook.create_alert(payload=self._create_alert_payload)
+        create_alert_mock.assert_called_once_with(CreateAlertPayload(**self._create_alert_payload))
+
+    @mock.patch.object(AlertApi, 'close_alert')
+    def test_close_alert(self, close_alert_mock):
+        # Given
+        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
+
+        # When
+        pay_load = {'user': 'str', 'note': 'str', 'source': 'str'}
+        identifier = 'identifier_example'
+        identifier_type = 'id'
+        kwargs = {'async_req': True}
+
+        # Then
+        hook.close_alert(
+            identifier=identifier, identifier_type=identifier_type, payload=pay_load, kwargs=kwargs
+        )
+        close_alert_mock.assert_called_once_with(
+            identifier=identifier,
+            identifier_type=identifier_type,
+            close_alert_payload=CloseAlertPayload(**pay_load),
+            kwargs=kwargs,
+        )

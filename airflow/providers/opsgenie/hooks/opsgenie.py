@@ -22,6 +22,7 @@ from typing import Optional
 from opsgenie_sdk import (
     AlertApi,
     ApiClient,
+    CloseAlertPayload,
     Configuration,
     CreateAlertPayload,
     OpenApiException,
@@ -97,4 +98,43 @@ class OpsgenieAlertHook(BaseHook):
             return api_response
         except OpenApiException as e:
             self.log.exception('Exception when sending alert to opsgenie with payload: %s', payload)
+            raise e
+
+    def close_alert(
+        self,
+        identifier: str,
+        identifier_type: Optional[str] = 'id',
+        payload: Optional[dict] = None,
+        kwargs: Optional[dict] = None,
+    ) -> SuccessResponse:
+        """
+        Close an alert in Opsgenie
+
+        :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
+        :type identifier: str
+        :param identifier_type: Type of the identifier that is provided as an in-line parameter.
+            Possible values are 'id', 'alias' or 'tiny'
+        :type identifier_type: str
+        :param payload: Request payload of closing alert action.
+            see https://github.com/opsgenie/opsgenie-python-sdk/blob/master/docs/AlertApi.md#close_alert
+        :type payload: dict
+        :param kwargs: params to pass to the function
+        :type kwargs: dict
+        :return: SuccessResponse
+                 If the method is called asynchronously,
+                 returns the request thread.
+        :rtype: opsgenie_sdk.SuccessResponse
+        """
+        payload = payload or {}
+        try:
+            close_alert_payload = CloseAlertPayload(**payload)
+            api_response = self.alert_api_instance.close_alert(
+                identifier=identifier,
+                identifier_type=identifier_type,
+                close_alert_payload=close_alert_payload,
+                kwargs=kwargs,
+            )
+            return api_response
+        except OpenApiException as e:
+            self.log.exception('Exception when closing alert in opsgenie with payload: %s', payload)
             raise e
