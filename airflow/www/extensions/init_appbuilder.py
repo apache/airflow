@@ -38,7 +38,7 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_FAB_VIEW_EXISTS,
 )
 from flask_appbuilder.filters import TemplateFilters
-from flask_appbuilder.menu import Menu, MenuApiManager
+from flask_appbuilder.menu import Menu
 from flask_appbuilder.security.manager import BaseSecurityManager
 from flask_appbuilder.views import IndexView, UtilView
 from sqlalchemy.orm import Session
@@ -211,7 +211,6 @@ class AirflowAppBuilder:
         self.sm = self.security_manager_class(self)
         self.bm = BabelManager(self)
         self.openapi_manager = OpenApiManager(self)
-        self.menuapi_manager = MenuApiManager(self)
         self._add_global_static()
         self._add_global_filters()
         app.before_request(self.sm.before_request)
@@ -316,7 +315,6 @@ class AirflowAppBuilder:
         self.bm.register_views()
         self.sm.register_views()
         self.openapi_manager.register_views()
-        self.menuapi_manager.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
