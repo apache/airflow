@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest.mock
-from base64 import b64encode
 
 import pytest
 
@@ -93,7 +92,7 @@ class TestSSHOperator:
         )
         ti.run()
         assert ti.duration is not None
-        assert ti.xcom_pull(task_ids='test', key='return_value') == b64encode(b'airflow').decode('utf-8')
+        assert ti.xcom_pull(task_ids='test', key='return_value') == 'airflow'
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_command_execution(self, create_task_instance_of_operator):
@@ -107,7 +106,7 @@ class TestSSHOperator:
         )
         ti.run()
         assert ti.duration is not None
-        assert ti.xcom_pull(task_ids='test', key='return_value') == b'airflow'
+        assert ti.xcom_pull(task_ids='test', key='return_value') == 'airflow'
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_command_execution_with_env(self, create_task_instance_of_operator):
@@ -122,7 +121,7 @@ class TestSSHOperator:
         )
         ti.run()
         assert ti.duration is not None
-        assert ti.xcom_pull(task_ids='test', key='return_value') == b'airflow'
+        assert ti.xcom_pull(task_ids='test', key='return_value') == 'airflow'
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_no_output_command(self, create_task_instance_of_operator):
@@ -136,7 +135,7 @@ class TestSSHOperator:
         )
         ti.run()
         assert ti.duration is not None
-        assert ti.xcom_pull(task_ids='test', key='return_value') == b''
+        assert ti.xcom_pull(task_ids='test', key='return_value') == ''
 
     @unittest.mock.patch('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):

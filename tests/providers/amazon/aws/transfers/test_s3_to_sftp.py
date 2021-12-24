@@ -117,7 +117,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         )
         assert check_file_task is not None
         result = check_file_task.execute(None)
-        assert result.strip() == test_remote_file_content.encode('utf-8')
+        assert result.strip() == test_remote_file_content
 
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)

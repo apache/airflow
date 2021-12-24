@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from base64 import b64encode
 from unittest import mock
 
 import pytest
@@ -97,7 +96,7 @@ class TestSFTPOperator:
         tis["check_file_task"].run()
 
         pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
-        assert pulled.strip() == test_local_file_content
+        assert pulled.strip() == test_local_file_content.decode('utf-8')
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_no_intermediate_dir_error_put(self, create_task_instance_of_operator):
@@ -158,7 +157,7 @@ class TestSFTPOperator:
         tis["test_check_file"].run()
 
         pulled = tis["test_check_file"].xcom_pull(task_ids='test_check_file', key='return_value')
-        assert pulled.strip() == test_local_file_content
+        assert pulled.strip() == test_local_file_content.decode('utf-8')
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_file_transfer_put(self, dag_maker):
@@ -191,7 +190,7 @@ class TestSFTPOperator:
         tis["check_file_task"].run()
 
         pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
-        assert pulled.strip() == b64encode(test_local_file_content).decode('utf-8')
+        assert pulled.strip() == test_local_file_content.decode('utf-8')
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_file_transfer_get(self, dag_maker):

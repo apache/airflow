@@ -18,11 +18,10 @@
 
 import warnings
 from select import select
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from paramiko.client import SSHClient
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
