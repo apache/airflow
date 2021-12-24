@@ -684,7 +684,7 @@ class SchedulerJob(BaseJob):
 
             settings.Session.remove()  # type: ignore
         except Exception:
-            self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
+            self.log.error("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
             try:
