@@ -31,6 +31,9 @@ class DruidOperator(BaseOperator):
     :param druid_ingest_conn_id: The connection id of the Druid overlord which
         accepts index jobs
     :type druid_ingest_conn_id: str
+    :param timeout: The interval (in seconds) between polling the Druid job for the status
+        of the ingestion job. Must be greater than or equal to 1
+    :type timeout: int
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :type max_ingestion_time: int
     """
@@ -44,15 +47,21 @@ class DruidOperator(BaseOperator):
         *,
         json_index_file: str,
         druid_ingest_conn_id: str = 'druid_ingest_default',
+        timeout: int = 1,
         max_ingestion_time: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.json_index_file = json_index_file
         self.conn_id = druid_ingest_conn_id
+        self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
 
     def execute(self, context: Dict[Any, Any]) -> None:
-        hook = DruidHook(druid_ingest_conn_id=self.conn_id, max_ingestion_time=self.max_ingestion_time)
+        hook = DruidHook(
+            druid_ingest_conn_id=self.conn_id,
+            timeout=self.timeout,
+            max_ingestion_time=self.max_ingestion_time,
+        )
         self.log.info("Submitting %s", self.json_index_file)
         hook.submit_indexing_job(self.json_index_file)

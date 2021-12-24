@@ -909,8 +909,6 @@ class BuildProcessor:
     """
 
     def __init__(self, build: Union[Dict, Build]) -> None:
-        if isinstance(build, Build):
-            self.build = Build(build)
         self.build = deepcopy(build)
 
     def _verify_source(self) -> None:
@@ -1012,7 +1010,7 @@ class BuildProcessor:
                 "gs://bucket-name/object-name.tar.gz#24565443"
             )
 
-        source_dict = {
+        source_dict: Dict[str, Any] = {
             "bucket": url_parts.hostname,
             "object_": url_parts.path[1:],
         }

@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context, context_copy_partial
+from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -173,9 +173,8 @@ class PythonOperator(BaseOperator):
         self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Context) -> Any:
-        context.update(self.op_kwargs)
-        context['templates_dict'] = self.templates_dict
-
+        context_merge(context, self.op_kwargs)
+        context_merge(context, {'templates_dict': self.templates_dict})
         self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()

@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Container, Mapping, Optional, Union
+from typing import Any, Container, Mapping, Optional, Union, Mapping
 
 from pendulum import DateTime
 
@@ -79,6 +79,7 @@ class Context(TypedDict, total=False):
     task_instance: TaskInstance
     task_instance_key_str: str
     test_mode: bool
+    templates_dict: Optional[Mapping[str, Any]]
     ti: TaskInstance
     tomorrow_ds: str
     tomorrow_ds_nodash: str
@@ -91,5 +92,6 @@ class Context(TypedDict, total=False):
 
 class AirflowContextDeprecationWarning(DeprecationWarning): ...
 
+def context_merge(source: Context, context_additions: Mapping[str, Any]) -> Context: ...
 def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...

@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Iterable, Union
+from typing import Iterable, Union
 
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.weekday import WeekDay
 
 
@@ -65,7 +66,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
         self.use_task_execution_day = use_task_execution_day
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         if self.use_task_execution_day:
             now = context["logical_date"]
         else:

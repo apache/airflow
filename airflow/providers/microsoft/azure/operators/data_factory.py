@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
@@ -24,6 +24,9 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
@@ -148,7 +151,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: "Context") -> None:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         self.log.info(f"Executing the {self.pipeline_name} pipeline.")
         response = self.hook.run_pipeline(

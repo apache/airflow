@@ -120,7 +120,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
-from airflow.utils.timezone import td_format
+from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -787,6 +787,29 @@ class Airflow(AirflowBaseView):
                     continue
                 # Second segment is a version marker that we don't need to show.
                 yield segments[2], table_name
+
+        if (
+            permissions.ACTION_CAN_ACCESS_MENU,
+            permissions.RESOURCE_ADMIN_MENU,
+        ) in user_permissions and conf.getboolean("webserver", "warn_deployment_exposure"):
+            robots_file_access_count = (
+                session.query(Log)
+                .filter(Log.event == "robots")
+                .filter(Log.dttm > (utcnow() - timedelta(days=7)))
+                .count()
+            )
+            if robots_file_access_count > 0:
+                flash(
+                    Markup(
+                        'Recent requests have been made to /robots.txt. '
+                        'This indicates that this deployment may be accessible to the public internet. '
+                        'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
+                        'airflow.cfg. Read more about web deployment security <a href='
+                        f'"{get_docs_url("security/webserver.html")}">'
+                        'here</a>'
+                    ),
+                    "warning",
+                )
 
         return self.render_template(
             'airflow/dags.html',
@@ -4877,22 +4900,14 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
 
-    pass
-
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
-
-    pass
 
 
 class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
     """Customize permission names for FAB's builtin UserOIDModelView."""
 
-    pass
-
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
-
-    pass

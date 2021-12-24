@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import json
 import unittest
+from unittest import mock
 
 import pytest
-import requests_mock
+from opsgenie_sdk import AlertApi, CreateAlertPayload
+from opsgenie_sdk.exceptions import AuthenticationException
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
+from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.utils import db
 
 
@@ -45,7 +45,7 @@ class TestOpsgenieAlertHook(unittest.TestCase):
             {'id': '80564037-1984-4f38-b98e-8a1f662df552', 'type': 'schedule'},
             {'name': 'First Responders Schedule', 'type': 'schedule'},
         ],
-        'visibleTo': [
+        'visible_to': [
             {'id': '4513b7ea-3b91-438f-b7e4-e3e54af9147c', 'type': 'team'},
             {'name': 'rocket_team', 'type': 'team'},
             {'id': 'bb4d9938-c3c2-455d-aaab-727aa701c0d8', 'type': 'user'},
@@ -63,7 +63,7 @@ class TestOpsgenieAlertHook(unittest.TestCase):
     _mock_success_response_body = {
         "result": "Request will be processed",
         "took": 0.302,
-        "requestId": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
+        "request_id": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
     }
 
     def setUp(self):
@@ -83,34 +83,36 @@ class TestOpsgenieAlertHook(unittest.TestCase):
 
     def test_get_conn_defaults_host(self):
         hook = OpsgenieAlertHook()
-        hook.get_conn()
-        assert 'https://api.opsgenie.com' == hook.base_url
+        assert 'https://api.opsgenie.com' == hook.get_conn().api_client.configuration.host
 
-    @requests_mock.mock()
-    def test_call_with_success(self, m):
+    def test_get_conn_custom_host(self):
+        conn_id = 'custom_host_opsgenie_test'
+        db.merge_conn(
+            Connection(
+                conn_id=conn_id,
+                conn_type='opsgenie',
+                host='https://app.eu.opsgenie.com',
+                password='eb243592-faa2-4ba2-a551q-1afdf565c889',
+            )
+        )
+
+        hook = OpsgenieAlertHook(conn_id)
+        assert 'https://app.eu.opsgenie.com' == hook.get_conn().api_client.configuration.host
+
+    def test_verify_api_key_set(self):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
-        resp = hook.execute(payload=self._payload)
-        assert resp.status_code == 202
-        assert resp.json() == self._mock_success_response_body
+        assert (
+            hook.alert_api_instance.api_client.configuration.api_key.get('Authorization', None)
+            == 'eb243592-faa2-4ba2-a551q-1afdf565c889'
+        )
 
-    @requests_mock.mock()
-    def test_api_key_set(self, m):
-        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
-        resp = hook.execute(payload=self._payload)
-        assert resp.request.headers.get('Authorization') == 'GenieKey eb243592-faa2-4ba2-a551q-1afdf565c889'
-
-    @requests_mock.mock()
-    def test_api_key_not_set(self, m):
+    def test_api_key_not_set(self):
         hook = OpsgenieAlertHook()
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
-        with pytest.raises(AirflowException):
-            hook.execute(payload=self._payload)
+        with pytest.raises(AuthenticationException):
+            hook.create_alert(payload=self._payload)
 
-    @requests_mock.mock()
-    def test_payload_set(self, m):
+    @mock.patch.object(AlertApi, 'create_alert')
+    def test_payload(self, create_alert_mock):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
-        resp = hook.execute(payload=self._payload)
-        assert json.loads(resp.request.body) == self._payload
+        hook.create_alert(payload=self._payload)
+        create_alert_mock.assert_called_once_with(CreateAlertPayload(**self._payload))

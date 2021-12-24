@@ -199,8 +199,9 @@ ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
 
-RUN if [[ -f /docker-context-files/.pypirc ]]; then \
-        cp /docker-context-files/.pypirc /root/.pypirc; \
+RUN if [[ -f /docker-context-files/pip.conf ]]; then \
+        mkdir -p /root/.config/pip; \
+        cp /docker-context-files/pip.conf /root/.config/pip/pip.conf; \
     fi
 
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \

@@ -101,7 +101,7 @@ class GlueJobHook(AwsBaseHook):
 
     def get_iam_execution_role(self) -> Dict:
         """:return: iam role for job execution"""
-        session, endpoint_url = self._get_credentials(self.region_name)
+        session, endpoint_url = self._get_credentials(region_name=self.region_name)
         iam_client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
 
         try:

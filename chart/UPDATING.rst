@@ -38,10 +38,10 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 Airflow Helm Chart 1.4.0 (dev)
 ------------------------------
 
-Default Airflow image is updated to ``2.2.2``
+Default Airflow image is updated to ``2.2.3``
 """""""""""""""""""""""""""""""""""""""""""""
 
-The default Airflow image that is used with the Chart is now ``2.2.2``, previously it was ``2.2.1``.
+The default Airflow image that is used with the Chart is now ``2.2.3``, previously it was ``2.2.1``.
 
 ``ingress.web.hosts`` and ``ingress.flower.hosts`` parameters data type has changed and ``ingress.web.tls`` and ``ingress.flower.tls`` have moved
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

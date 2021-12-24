@@ -117,7 +117,8 @@ class GKEHook(GoogleBaseHook):
         :return: The new, updated operation from Google Cloud
         """
         return self.get_conn().get_operation(
-            project_id=project_id or self.project_id, zone=self.location, operation_id=operation_name
+            name=f'projects/{project_id or self.project_id}'
+            + f'/locations/{self.location}/operations/{operation_name}'
         )
 
     @staticmethod
@@ -170,11 +171,13 @@ class GKEHook(GoogleBaseHook):
         :type timeout: float
         :return: The full url to the delete operation if successful, else None
         """
-        self.log.info("Deleting (project_id=%s, zone=%s, cluster_id=%s)", project_id, self.location, name)
+        self.log.info("Deleting (project_id=%s, location=%s, cluster_id=%s)", project_id, self.location, name)
 
         try:
             resource = self.get_conn().delete_cluster(
-                project_id=project_id, zone=self.location, cluster_id=name, retry=retry, timeout=timeout
+                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                retry=retry,
+                timeout=timeout,
             )
             resource = self.wait_for_operation(resource)
             # Returns server-defined url for the resource
@@ -223,11 +226,14 @@ class GKEHook(GoogleBaseHook):
         self._append_label(cluster, 'airflow-version', 'v' + version.version)
 
         self.log.info(
-            "Creating (project_id=%s, zone=%s, cluster_name=%s)", project_id, self.location, cluster.name
+            "Creating (project_id=%s, location=%s, cluster_name=%s)", project_id, self.location, cluster.name
         )
         try:
             resource = self.get_conn().create_cluster(
-                project_id=project_id, zone=self.location, cluster=cluster, retry=retry, timeout=timeout
+                parent=f'projects/{project_id}/locations/{self.location}',
+                cluster=cluster,
+                retry=retry,
+                timeout=timeout,
             )
             resource = self.wait_for_operation(resource)
 
@@ -261,7 +267,7 @@ class GKEHook(GoogleBaseHook):
         :return: google.cloud.container_v1.types.Cluster
         """
         self.log.info(
-            "Fetching cluster (project_id=%s, zone=%s, cluster_name=%s)",
+            "Fetching cluster (project_id=%s, location=%s, cluster_name=%s)",
             project_id or self.project_id,
             self.location,
             name,
@@ -270,7 +276,9 @@ class GKEHook(GoogleBaseHook):
         return (
             self.get_conn()
             .get_cluster(
-                project_id=project_id, zone=self.location, cluster_id=name, retry=retry, timeout=timeout
+                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                retry=retry,
+                timeout=timeout,
             )
             .self_link
         )

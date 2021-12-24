@@ -683,9 +683,8 @@ dingding                   http
 discord                    http
 google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh,trino
 hashicorp                  google
-microsoft.azure            google,oracle
+microsoft.azure            google,oracle,sftp
 mysql                      amazon,presto,trino,vertica
-opsgenie                   http
 postgres                   amazon
 salesforce                 tableau
 sftp                       ssh

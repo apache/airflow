@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from azure.batch import models as batch_models
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AzureBatchOperator(BaseOperator):
@@ -266,7 +269,7 @@ class AzureBatchOperator(BaseOperator):
                 "Some required parameters are missing.Please you must set all the required parameters. "
             )
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> None:
         self._check_inputs()
         self.hook.connection.config.retry_policy = self.batch_max_retries
 

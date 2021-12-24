@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from typing import Any, Dict, List
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
@@ -28,6 +29,7 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteNodegroupOperator,
     EksPodOperator,
 )
+from airflow.typing_compat import TypedDict
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
     POD_EXECUTION_ROLE_ARN,
@@ -49,10 +51,41 @@ EMPTY_NODEGROUP = '{"nodegroup": {}}'
 NAME_LIST = ["foo", "bar", "baz", "qux"]
 
 
+class ClusterParams(TypedDict):
+    cluster_name: str
+    cluster_role_arn: str
+    resources_vpc_config: Dict[Any, Any]
+
+
+class NodeGroupParams(TypedDict):
+    nodegroup_name: str
+    nodegroup_role_arn: str
+
+
+class BaseFargateProfileParams(TypedDict):
+    fargate_profile_name: str
+    fargate_pod_execution_role_arn: str
+    fargate_selectors: List[Any]
+
+
+class CreateFargateProfileParams(TypedDict):
+    cluster_name: str
+    pod_execution_role_arn: str
+    selectors: List[Any]
+    fargate_profile_name: str
+
+
+class CreateNodegroupParams(TypedDict):
+    cluster_name: str
+    nodegroup_name: str
+    nodegroup_subnets: List[str]
+    nodegroup_role_arn: str
+
+
 class TestEksCreateClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
         # Parameters which are needed to create a cluster.
-        self.create_cluster_params = dict(
+        self.create_cluster_params: ClusterParams = dict(
             cluster_name=CLUSTER_NAME,
             cluster_role_arn=ROLE_ARN[1],
             resources_vpc_config=RESOURCES_VPC_CONFIG[1],
@@ -68,7 +101,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
     def nodegroup_setUp(self) -> None:
         # Parameters which are added to the cluster parameters
         # when creating both the cluster and nodegroup together.
-        self.base_nodegroup_params = dict(
+        self.base_nodegroup_params: NodeGroupParams = dict(
             nodegroup_name=NODEGROUP_NAME,
             nodegroup_role_arn=NODEROLE_ARN[1],
         )
@@ -89,7 +122,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
     def fargate_profile_setUp(self) -> None:
         # Parameters which are added to the cluster parameters
         # when creating both the cluster and Fargate profile together.
-        self.base_fargate_profile_params = dict(
+        self.base_fargate_profile_params: BaseFargateProfileParams = dict(
             fargate_profile_name=FARGATE_PROFILE_NAME,
             fargate_pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             fargate_selectors=SELECTORS[1],
@@ -147,7 +180,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
 
 class TestEksCreateFargateProfileOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.create_fargate_profile_params = dict(
+        self.create_fargate_profile_params: CreateFargateProfileParams = dict(
             cluster_name=CLUSTER_NAME,
             pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             selectors=SELECTORS[1],
@@ -169,7 +202,7 @@ class TestEksCreateFargateProfileOperator(unittest.TestCase):
 
 class TestEksCreateNodegroupOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.create_nodegroup_params = dict(
+        self.create_nodegroup_params: CreateNodegroupParams = dict(
             cluster_name=CLUSTER_NAME,
             nodegroup_name=NODEGROUP_NAME,
             nodegroup_subnets=SUBNET_IDS,

@@ -22,6 +22,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
+from airflow.utils.context import Context
 
 
 def parse_boolean(val: str) -> Union[str, bool]:
@@ -136,7 +137,7 @@ class SQLCheckOperator(BaseSQLOperator):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
 
-    def execute(self, context=None):
+    def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
         records = self.get_db_hook().get_first(self.sql)
 
@@ -526,7 +527,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         self.log.info(
             "Executing: %s (with parameters %s) with connection: %s",
             self.sql,

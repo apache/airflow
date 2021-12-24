@@ -41,7 +41,6 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_SEC_NO_USER,
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
 )
-from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -169,10 +168,6 @@ class BaseSecurityManager:
     """ Override if you want your own reset password view """
     userinfoeditview = UserInfoEditView
     """ Override if you want your own User information edit view """
-
-    # API
-    security_api = SecurityApi
-    """ Override if you want your own Security API login endpoint """
 
     rolemodelview = RoleModelView
     actionmodelview = PermissionModelView
@@ -654,8 +649,6 @@ class BaseSecurityManager:
     def register_views(self):
         if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
-        # Security APIs
-        self.appbuilder.add_api(self.security_api)
 
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
