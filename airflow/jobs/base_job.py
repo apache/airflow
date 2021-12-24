@@ -254,7 +254,6 @@ class BaseJob(Base, LoggingMixin):
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
-                session.commit()
 
         Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 
