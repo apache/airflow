@@ -180,8 +180,8 @@ def get_dag_runs(
         offset=offset,
         order_by=order_by,
     )
-
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
+
 
 @security.requires_access(
     [
