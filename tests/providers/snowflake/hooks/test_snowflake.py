@@ -356,11 +356,12 @@ class TestPytestSnowflakeHook:
             conn.cursor.return_value = cur
             type(cur).sfqid = mock.PropertyMock(side_effect=query_ids)
             mock_params = {"mock_param": "mock_param"}
-            hook.run(sql, parameters=mock_params)
-
+            _,queries = hook.run(sql, parameters=mock_params)
+        
             sql_list = sql if isinstance(sql, list) else re.findall(".*?[;]", sql)
-            cur.execute.assert_has_calls([mock.call(query, mock_params) for query in sql_list])
-            assert hook.query_ids == query_ids[::2]
+            cur.execute.assert_has_calls([
+                mock.call(query, mock_params) for query in sql_list]) 
+            assert queries == query_ids[::2]
             cur.close.assert_called()
 
     @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run')

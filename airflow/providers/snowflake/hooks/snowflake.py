@@ -144,7 +144,6 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.query_ids: List[str] = []
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
@@ -281,7 +280,7 @@ class SnowflakeHook(DbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :type handler: callable
         """
-        self.query_ids = []
+        query_ids = []
 
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
@@ -310,14 +309,14 @@ class SnowflakeHook(DbApiHook):
 
                     self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", cur.sfqid)
-                    self.query_ids.append(cur.sfqid)
+                    query_ids.append(cur.sfqid)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
 
-        return execution_info
+        return execution_info, query_ids
 
     def test_connection(self):
         """Test the Snowflake connection by running a simple query."""
