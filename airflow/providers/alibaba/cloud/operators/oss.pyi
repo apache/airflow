@@ -19,12 +19,12 @@
 # validating how required arguments can be passed to operators/sensors via `default_args`.
 
 from typing import Optional
-from airflow.model.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 
 class OSSCreateBucketOperator(BaseOperator):
     def __init__(
         self,
-        region: Optional[str] = None,
+        region: Optional[str] = ...,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -33,7 +33,7 @@ class OSSCreateBucketOperator(BaseOperator):
 class OSSDeleteBucketOperator(BaseOperator):
     def __init__(
         self,
-        region: Optional[str] = None,
+        region: Optional[str] = ...,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -42,8 +42,8 @@ class OSSDeleteBucketOperator(BaseOperator):
 class OSSUploadObjectOperator(BaseOperator):
     def __init__(
         self,
-        key: str = ...,
-        file: str = ...,
+        key: Optional[str] = ...,
+        file: Optional[str] = ...,
         region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
@@ -53,8 +53,8 @@ class OSSUploadObjectOperator(BaseOperator):
 class OSSDownloadObjectOperator(BaseOperator):
     def __init__(
         self,
-        key: str = ...,
-        file: str = ...,
+        key: Optional[str] = ...,
+        file: Optional[str] = ...,
         region: Optional[str] = None,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
@@ -64,8 +64,8 @@ class OSSDownloadObjectOperator(BaseOperator):
 class OSSDeleteBatchObjectOperator(BaseOperator):
     def __init__(
         self,
-        keys: list = ...,
-        region: Optional[str] = None,
+        keys: Optional[list] = ...,
+        region: Optional[str] = ...,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
@@ -74,8 +74,8 @@ class OSSDeleteBatchObjectOperator(BaseOperator):
 class OSSDeleteObjectOperator(BaseOperator):
     def __init__(
         self,
-        key: str = ...,
-        region: Optional[str] = None,
+        key: Optional[str] = ...,
+        region: Optional[str] = ...,
         bucket_name: Optional[str] = None,
         oss_conn_id: str = 'oss_default',
         **kwargs,
