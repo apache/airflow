@@ -64,44 +64,55 @@ class SFTPBatchOperator(BaseOperator):
     :param force: if the file already exists, it will be overwritten
     :type force: bool
         copying from remote to local and vice-versa. Default is False.
-        Example: The following task would copy ``file.txt`` to the remote host
-        at ``/tmp/tmp1/tmp2/`` while creating ``tmp``,``tmp1`` and ``tmp2`` if they
-        don't exist. If the parameter is not passed it would error as the directory
-        does not exist. ::
+    Summary, support arguments:
+        Possible options for PUT:
+            1.optional(regexp_mask:str) + local_folder:str + remote_folder:str
+            2.local_files_path:list + remote_folder:str
+        Possible options for GET:
+            1.local_folder:str + remote_folder:str + optional(regexp_mask:str)
+            2.local_folder:str + remote_files_path:list
+    Example:
+    Move all txt files
+        from local `/tmp/dir_for_local_transfer/` to remote folder `/tmp/dir_for_remote_transfer/`
             put_dir_txt_files = SFTPOperator(
                 task_id="put_dir_txt_files",
                 ssh_conn_id="ssh_default",
-                local_folder="/tmp/dir_for_remote_transfer/",
-                remote_folder="/tmp/dir_for_remote_transfer/txt",
+                local_folder="/tmp/dir_for_local_transfer/",
+                remote_folder="/tmp/dir_for_remote_transfer/",
                 regexp_mask=".*[.]txt",
                 operation=SFTPOperation.PUT,
                 create_intermediate_dirs=True
             )
+    Move `/tmp/file1.txt` file
+        from local to remote folder `/tmp/dir_for_remote_transfer/`
             put_files = SFTPOperator(
                 task_id="put_dir_txt_files",
                 ssh_conn_id="ssh_default",
                 local_files_path=["/tmp/file1.txt",],
-                remote_folder="/tmp/dir_for_remote_transfer/txt",
+                remote_folder="/tmp/dir_for_remote_transfer/",
                 operation=SFTPOperation.PUT,
                 create_intermediate_dirs=True
             )
+    Move all files
+        from remote folder `/tmp/dir_for_remote_transfer/` to local folder `/tmp/dir_for_local_transfer/`
             get_dir = SFTPOperator(
                 task_id="put_dir_txt_files",
                 ssh_conn_id="ssh_default",
-                local_folder="/tmp/dir_for_remote_transfer/",
-                remote_folder="/tmp/dir_for_remote_transfer/txt",
+                local_folder="/tmp/dir_for_local_transfer/",
+                remote_folder="/tmp/dir_for_remote_transfer/",
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True
             )
+    Move `/tmp/file1.txt` file
+        from remote to local folder `/tmp/dir_for_local_transfer/`
             get_files = SFTPOperator(
                 task_id="put_dir_txt_files",
                 ssh_conn_id="ssh_default",
-                local_folder="/tmp/",
+                local_folder="/tmp/dir_for_local_transfer/",
                 remote_files_path=["/tmp/file1.txt",],
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True
             )
-
     """
 
     template_fields = (

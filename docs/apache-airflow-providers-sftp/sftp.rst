@@ -134,6 +134,13 @@ You can use the operator for the following tasks:
 
 
 
+Possible options for PUT:
+    1.optional(regexp_mask:str) + local_folder:str + remote_folder:str
+    2.local_files_path:list + remote_folder:str
+Possible options for GET:
+    1.local_folder:str + remote_folder:str + optional(regexp_mask:str)
+    2.local_folder:str + remote_files_path:list
+
 Parameter ``create_intermediate_dirs`` is needed to create missing intermediate directories when
 copying from remote to local and vice-versa. Default is False.
 
