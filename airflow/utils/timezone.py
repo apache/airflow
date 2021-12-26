@@ -17,7 +17,7 @@
 # under the License.
 #
 import datetime as dt
-from typing import TYPE_CHECKING, Optional, Union, overload
+from typing import TYPE_CHECKING, Optional, Union
 
 import pendulum
 from dateutil.relativedelta import relativedelta
@@ -101,17 +101,7 @@ def convert_to_utc(value):
     return value.astimezone(utc)
 
 
-@overload
-def make_aware(v: None, timezone: Optional["Timezone"] = None) -> None:
-    ...
-
-
-@overload
-def make_aware(v: dt.datetime, timezone: Optional["Timezone"] = None) -> dt.datetime:
-    ...
-
-
-def make_aware(value: Optional[dt.datetime], timezone: Optional["Timezone"] = None) -> Optional[dt.datetime]:
+def make_aware(value: dt.datetime, timezone: Optional["Timezone"] = None) -> Optional[dt.datetime]:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -133,7 +123,7 @@ def make_aware(value: Optional[dt.datetime], timezone: Optional["Timezone"] = No
         value = value.replace(fold=1)
     if hasattr(timezone, 'localize'):
         # This method is available for pytz time zones.
-        return timezone.localize(value)
+        return timezone.localize(value)  # type: ignore[attr-defined]
     elif hasattr(timezone, 'convert'):
         # For pendulum
         return timezone.convert(value)
@@ -189,24 +179,14 @@ def parse(string: str, timezone=None) -> DateTime:
     return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
 
 
-@overload
-def coerce_datetime(v: None) -> None:
-    ...
-
-
-@overload
-def coerce_datetime(v: dt.datetime) -> DateTime:
-    ...
-
-
-def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
-    """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
+def coerce_datetime(v: Optional[dt.datetime]) -> Optional[dt.datetime]:
+    """Convert whatever is passed in to a timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
     if isinstance(v, DateTime):
         return v if v.tzinfo else make_aware(v)
     # Only dt.datetime is left here
-    return pendulum.instance(v if v.tzinfo else make_aware(v))
+    return pendulum.instance(v if v.tzinfo else make_aware(v))  # type: ignore
 
 
 def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
@@ -220,7 +200,7 @@ def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]
     if isinstance(td_object, dt.timedelta):
         delta = relativedelta() + td_object
     else:
-        delta = relativedelta(seconds=td_object)
+        delta = relativedelta(seconds=td_object)  # type: ignore
     # relativedelta for timedelta cannot convert days to months
     # so calculate months by assuming 30 day months and normalize
     months, delta.days = divmod(delta.days, 30)

@@ -20,7 +20,7 @@
 import os
 import sys
 from collections import deque
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import jinja2
 
@@ -117,6 +117,7 @@ def write_python_script(
     :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
         to a native Python object
     """
+    template_env: Union[jinja2.Environment, jinja2.nativetypes.NativeEnvironment]
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
     if render_template_as_native_obj:
         template_env = jinja2.nativetypes.NativeEnvironment(

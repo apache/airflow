@@ -26,6 +26,15 @@ from tests.models import TEST_DAGS_FOLDER
 
 class TestCorrectMaybeZipped(unittest.TestCase):
     @mock.patch("zipfile.is_zipfile")
+    def test_correct_maybe_zipped_empty(self, mocked_is_zipfile):
+        path = ''
+        mocked_is_zipfile.return_value = False
+
+        dag_folder = correct_maybe_zipped(path)
+
+        assert dag_folder == path
+
+    @mock.patch("zipfile.is_zipfile")
     def test_correct_maybe_zipped_normal_file(self, mocked_is_zipfile):
         path = '/path/to/some/file.txt'
         mocked_is_zipfile.return_value = False

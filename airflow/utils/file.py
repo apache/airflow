@@ -83,9 +83,10 @@ def correct_maybe_zipped(fileloc: Union[None, str, Path]) -> Union[None, str, Pa
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
-    if not fileloc:
-        return fileloc
-    _, archive, _ = ZIP_REGEX.search(fileloc).groups()
+    archive = None
+    matched = ZIP_REGEX.search(str(fileloc))
+    if matched:
+        _, archive, _ = matched.groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
     else:
