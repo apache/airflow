@@ -132,7 +132,7 @@ class BigQueryToGCSOperator(BaseOperator):
             self.destination_cloud_storage_uris,
         )
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
