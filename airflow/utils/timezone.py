@@ -123,7 +123,7 @@ def make_aware(value: dt.datetime, timezone: Optional["Timezone"] = None) -> Opt
         value = value.replace(fold=1)
     if hasattr(timezone, 'localize'):
         # This method is available for pytz time zones.
-        return timezone.localize(value)  # type: ignore[attr-defined]
+        return getattr(timezone, "localize")(value)
     elif hasattr(timezone, 'convert'):
         # For pendulum
         return timezone.convert(value)
