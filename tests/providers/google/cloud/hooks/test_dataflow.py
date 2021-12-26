@@ -1107,9 +1107,8 @@ class TestDataflowTemplateHook(unittest.TestCase):
                 '--bigquery-dataset=test-dataset',
                 '--bigquery-table=beam_output',
                 '--bigquery-write-disposition=write-truncate',
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            ], 
+            capture_output=True,
         )
         mock_controller.assert_called_once_with(
             dataflow=mock_get_conn.return_value,
