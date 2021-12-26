@@ -178,7 +178,9 @@ class MySQLToS3Operator(BaseOperator):
                 data_df.to_csv(tmp_file.name, **self.pd_kwargs)
             else:
                 data_df.to_parquet(tmp_file.name, **self.pd_kwargs)
-            s3_conn.load_file(filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace)
+            s3_conn.load_file(
+                filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
+            )
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)
