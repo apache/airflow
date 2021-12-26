@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
+from typing import Optional, List, Dict, Union
 
 from airflow.models import BaseOperator
 
@@ -27,5 +27,62 @@ class S3CreateBucketOperator(BaseOperator):
         bucket_name: Optional[str] = None,
         aws_conn_id: Optional[str] = "aws_default",
         region_name: Optional[str] = None,
+        **kwargs,
+    ) -> None: ...
+
+class S3DeleteBucketOperator(BaseOperator):
+    def __init__(
+        self,
+        bucket_name: Optional[str] = None,
+        force_delete: bool = False,
+        aws_conn_id: Optional[str] = "aws_default",
+        **kwargs,
+    ) -> None: ...
+
+class S3GetBucketTaggingOperator(BaseOperator):
+    def __init__(
+        self, bucket_name: Optional[str] = None, aws_conn_id: Optional[str] = "aws_default", **kwargs
+    ) -> None: ...
+
+class S3PutBucketTaggingOperator(BaseOperator):
+    def __init__(
+        self,
+        bucket_name: Optional[str] = None,
+        key: Optional[str] = None,
+        value: Optional[str] = None,
+        tag_set: Optional[List[Dict[str, str]]] = None,
+        aws_conn_id: Optional[str] = "aws_default",
+        **kwargs,
+    ) -> None: ...
+
+class S3DeleteBucketTaggingOperator(BaseOperator):
+    def __init__(
+        self, bucket_name: Optional[str] = None, aws_conn_id: Optional[str] = "aws_default", **kwargs
+    ) -> None: ...
+
+class S3CopyObjectOperator(BaseOperator):
+    def __init__(
+        self,
+        *,
+        source_bucket_key: str,
+        dest_bucket_key: str,
+        source_bucket_name: Optional[str] = None,
+        dest_bucket_name: Optional[str] = None,
+        source_version_id: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
+        acl_policy: Optional[str] = None,
+        **kwargs,
+    ) -> None: ...
+
+class S3DeleteObjectsOperator(BaseOperator):
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        keys: Optional[Union[str, list]] = None,
+        prefix: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
         **kwargs,
     ) -> None: ...
