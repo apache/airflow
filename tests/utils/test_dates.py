@@ -29,8 +29,10 @@ from airflow.utils import dates, timezone
 
 class TestDates(unittest.TestCase):
     def test_days_ago(self):
+        from airflow.settings import TIMEZONE
+
         today = pendulum.today()
-        today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()))
+        today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()), tz=TIMEZONE)
 
         assert dates.days_ago(0) == today_midnight
         assert dates.days_ago(100) == today_midnight + timedelta(days=-100)
