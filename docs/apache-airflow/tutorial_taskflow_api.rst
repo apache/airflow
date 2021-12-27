@@ -208,6 +208,51 @@ Python version to run your function.
 These two options should allow for far greater flexibility for users who wish to keep their workflows more simple
 and Pythonic.
 
+Using the TaskFlow API for Sensor operators
+-------------------------------------------
+You can apply the @task.sensor decorator to convert a regular Python function to an instance of the BaseSensorOperator
+class. The Python function implements the poke logic and returns a Boolean value just as the poke() method in the
+BaseSensorOperator does.
+
+.. code-block:: python
+
+  # Using a sensor operator to wait for the upstream data to be ready.
+  @task.sensor(poke_interval=60, timeout=3600, mode="reschedule")
+  def wait_for_upstream() -> bool:
+      upstream_data_available = ...  # custom logic to check the upstream data
+      return upstream_data_available
+
+
+  @task
+  def custom_operator() -> None:
+      # do something
+      do_some_thing()
+
+
+  wait = wait_for_upstream()
+  op = custom_operator()
+  wait >> op
+
+
+.. code-block:: python
+
+  # Using a sensor operator to wait for the upstream Spark job to be done.
+  @task
+  def start_spark_job() -> str:
+      # start a Spark job and return the job Id
+      job_id = submit_spark_job()
+      return job_id
+
+
+  @task.sensor(poke_interval=60, timeout=3600, mode="reschedule")
+  def wait_for_job(job_id: str) -> bool:
+      # check if the upstream Spark job is done
+      return check_spark_job_done(job_id)
+
+
+  wait_for_job(start_spark_job())
+
+
 Multiple outputs inference
 --------------------------
 Tasks can also infer multiple outputs by using dict Python typing.

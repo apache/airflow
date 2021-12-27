@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from airflow.decorators.python import PythonDecoratorMixin, python_task  # noqa
 from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
+from airflow.decorators.sensor import sensor
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
 from airflow.providers_manager import ProvidersManager
@@ -29,9 +30,11 @@ class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
         if name.startswith("__"):
             raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
         decorators = ProvidersManager().taskflow_decorators
-        if name not in decorators:
-            raise AttributeError(f"task decorator {name!r} not found")
-        return decorators[name]
+        if name in decorators:
+            return decorators[name]
+        if name == "sensor":
+            return sensor
+        raise AttributeError(f"task decorator {name!r} not found")
 
 
 # [START mixin_for_autocomplete]
