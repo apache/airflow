@@ -19,16 +19,14 @@
 import contextlib
 import os
 
-from airflow import settings
-from airflow.configuration import conf
-
 
 @contextlib.contextmanager
 def conf_vars(overrides):
+    from airflow.configuration import conf
+
     original = {}
     original_env_vars = {}
     for (section, key), value in overrides.items():
-
         env = conf._env_var_name(section, key)
         if env in os.environ:
             original_env_vars[env] = os.environ.pop(env)
@@ -43,6 +41,8 @@ def conf_vars(overrides):
             conf.set(section, key, value)
         else:
             conf.remove_option(section, key)
+    from airflow import settings
+
     settings.configure_vars()
     try:
         yield
@@ -62,11 +62,12 @@ def env_vars(overrides):
     orig_vars = {}
     new_vars = []
     for (section, key), value in overrides.items():
-        env = conf._env_var_name(section, key)
+        env = f"AIRFLOW__{section}__{key}".upper()
         if env in os.environ:
             orig_vars[env] = os.environ.pop(env, '')
         else:
             new_vars.append(env)
+        print(f"setting {env}={value}")
         os.environ[env] = value
     try:
         yield
