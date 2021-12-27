@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:OpsgenieAlertOperator:
+.. _howto/operator:OpsgenieCreateAlertOperator:
 
-OpsgenieAlertOperator
-==========================
+OpsgenieCreateAlertOperator
+===========================
 
-Use the :class:`~airflow.providers.opsgenie.operators.opsgenie.OpsgenieAlertOperator` to send an alert to opsgenie.
+Use the :class:`~airflow.providers.opsgenie.operators.opsgenie.OpsgenieCreateAlertOperator` to send an alert to opsgenie.
 
 
 Using the Operator
@@ -29,8 +29,8 @@ Send an alert to Opsgenie with a specific message.
 
 .. exampleinclude:: /../../airflow/providers/opsgenie/example_dags/example_opsgenie_alert.py
     :language: python
-    :start-after: [START howto_opsgenie_alert_operator]
-    :end-before: [END howto_opsgenie_alert_operator]
+    :start-after: [START howto_opsgenie_create_alert_operator]
+    :end-before: [END howto_opsgenie_create_alert_operator]
 
 .. _howto/operator:OpsgenieCloseAlertOperator:
 

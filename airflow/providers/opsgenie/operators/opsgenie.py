@@ -22,7 +22,7 @@ from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 
 
-class OpsgenieAlertOperator(BaseOperator):
+class OpsgenieCreateAlertOperator(BaseOperator):
     """
     This operator allows you to post alerts to Opsgenie.
     Accepts a connection that has an Opsgenie API key as the connection's password.
@@ -34,7 +34,7 @@ class OpsgenieAlertOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:OpsgenieAlertOperator`
+        :ref:`howto/operator:OpsgenieCreateAlertOperator`
 
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
     :type opsgenie_conn_id: str
