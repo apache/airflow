@@ -392,6 +392,7 @@ ldap = [
 leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<3.0.0',
+    # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
     'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
