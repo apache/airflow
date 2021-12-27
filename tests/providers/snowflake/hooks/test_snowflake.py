@@ -388,3 +388,38 @@ class TestPytestSnowflakeHook:
             assert status is False
             assert msg == 'Connection Errors'
             mock_run.assert_called_once_with(sql='select 1')
+
+    @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run')
+    def test_connection_without_region(self, mock_run):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs['extra']['region'] = ''
+        with unittest.mock.patch.dict(
+            'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(
+                snowflake_conn_id='test_conn',
+                account="TEST_ACCOUNT",
+                warehouse="TEST_WAREHOUSE",
+                database="TEST_DATABASE",
+                role="TEST_ROLE",
+                region="",
+                schema="TEST_SCHEMA",
+                authenticator='TEST_AUTH',
+                session_parameters={"AA": "AAA"},
+            )
+            assert {
+                'account': 'TEST_ACCOUNT',
+                'application': 'AIRFLOW',
+                'authenticator': 'TEST_AUTH',
+                'database': 'TEST_DATABASE',
+                'password': 'pw',
+                'role': 'TEST_ROLE',
+                'schema': 'TEST_SCHEMA',
+                'region': '',
+                'session_parameters': {'AA': 'AAA'},
+                'user': 'user',
+                'warehouse': 'TEST_WAREHOUSE',
+            } == hook._get_conn_params()
+            assert ("snowflake://user:pw@TEST_ACCOUNT/TEST_DATABASE/TEST_SCHEMA"
+                "?warehouse=TEST_WAREHOUSE&role=TEST_ROLE&authenticator=TEST_AUTH"
+            ) == hook.get_uri()

@@ -222,10 +222,17 @@ class SnowflakeHook(DbApiHook):
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: Dict) -> str:
-        uri = (
-            'snowflake://{user}:{password}@{account}.{region}/{database}/{schema}'
+        if conn_params['region'] == '':
+            del conn_params['region']
+            uri = (
+            'snowflake://{user}:{password}@{account}/{database}/{schema}'
             '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
-        )
+            )
+        else:    
+            uri = (
+                'snowflake://{user}:{password}@{account}.{region}/{database}/{schema}'
+                '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
+            )
         return uri.format(**conn_params)
 
     def get_conn(self) -> SnowflakeConnection:
