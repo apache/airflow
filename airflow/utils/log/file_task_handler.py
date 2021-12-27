@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Optional
 import httpx
 from itsdangerous import TimedJSONWebSignatureSerializer
 
-from airflow import AirflowException
 from airflow.configuration import AirflowConfigException, conf
+from airflow.exceptions import AirflowException
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
