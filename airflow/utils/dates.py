@@ -258,7 +258,9 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     set to midnight.
     """
     today = datetime.utcnow()
-    today = timezone.make_aware(today).replace(hour=hour, minute=minute, second=second, microsecond=microsecond)
+    today = timezone.make_aware(today).replace(
+        hour=hour, minute=minute, second=second, microsecond=microsecond
+    )
     return today - timedelta(days=n)
 
 
