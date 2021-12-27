@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'wait_for_termination' argument for Databricks Operators (#20536)``
+* ``Update connection object to ''cached_property'' in ''DatabricksHook'' (#20526)``
+* ``Remove 'host' as an instance attr in 'DatabricksHook' (#20540)``
+* ``Databricks: fix verification of Managed Identity (#20550)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Databricks provider. (#20265)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix mypy databricks operator (#20598)``
+
 2.1.0
 .....
 
@@ -44,7 +62,7 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare documentation for October Provider's release (#19321)``
    * ``Refactor DatabricksHook (#19835)``
-   * ``Update documentation for November 2021 provider&#39;s release (#19882)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
    * ``Unhide changelog entry for databricks (#20128)``
    * ``Update documentation for RC2 release of November Databricks Provider (#20086)``
 

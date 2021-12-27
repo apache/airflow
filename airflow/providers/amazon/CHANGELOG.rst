@@ -19,6 +19,64 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add aws_conn_id to DynamoDBToS3Operator (#20363)``
+* ``Add RedshiftResumeClusterOperator and RedshiftPauseClusterOperator (#19665)``
+* ``Added function in AWSAthenaHook to get s3 output query results file URI  (#20124)``
+* ``Add sensor for AWS Batch (#19850) (#19885)``
+* ``Add state details to EMR container failure reason (#19579)``
+* ``Add support to replace S3 file on MySqlToS3Operator (#20506)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix backwards compatibility issue in AWS provider's _get_credentials (#20463)``
+* ``Fix deprecation messages after splitting redshift modules (#20366)``
+* ``ECSOperator: fix KeyError on missing exitCode (#20264)``
+* ``Bug fix in AWS glue operator when specifying the WorkerType & NumberOfWorkers (#19787)``
+
+Misc
+~~~~
+
+* ``Organize Sagemaker classes in Amazon provider (#20370)``
+* ``move emr_container hook (#20375)``
+* ``Standardize AWS Athena naming (#20305)``
+* ``Standardize AWS EKS naming (#20354)``
+* ``Standardize AWS Glue naming (#20372)``
+* ``Standardize Amazon SES naming (#20367)``
+* ``Standardize AWS CloudFormation naming (#20357)``
+* ``Standardize AWS Lambda naming (#20365)``
+* ``Standardize AWS Kinesis/Firehose naming (#20362)``
+* ``Standardize Amazon SNS naming (#20368)``
+* ``Split redshift sql and cluster objects (#20276)``
+* ``Organize EMR classes in Amazon provider (#20160)``
+* ``Rename DataSync Hook and Operator (#20328)``
+* ``Deprecate passing execution_date to XCom methods (#19825)``
+* ``Organize Dms classes in Amazon provider (#20156)``
+* ``Organize S3 Classes in Amazon Provider (#20167)``
+* ``Organize Step Function classes in Amazon provider (#20158)``
+* ``Organize EC2 classes in Amazon provider (#20157)``
+* ``Move to watchtower 2.0.1 (#19907)``
+* ``Fix mypy aws example dags (#20497)``
+* ``Delete pods by default in KubernetesPodOperator (#20575)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy errors in aws/transfers (#20403)``
+   * ``Fix mypy errors in aws/sensors (#20402)``
+   * ``Fix mypy errors in providers/amazon/aws/operators (#20401)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix static checks on few other not sorted stub files (#20572)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Fix mypy errors in amazon aws transfer (#20590)``
+
 2.5.0
 .....
 

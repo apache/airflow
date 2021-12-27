@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+   * ``Un-ignore DeprecationWarning (#20322)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for HTTP provider. (#20246)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+
 2.0.1
 .....
 

@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support insecure mode in SnowflakeHook (#20106)``
+* ``Remove unused code in SnowflakeHook (#20107)``
+* ``Improvements for 'SnowflakeHook.get_sqlalchemy_engine'  (#20509)``
+* ``Exclude snowflake-sqlalchemy v1.2.5 (#20245)``
+* ``Limit Snowflake connector to <2.7.2 (#20395)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Snowflake provider. (#20212)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+
 2.3.1
 .....
 

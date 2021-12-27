@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-12-30
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`36aa695ea <https://github.com/apache/airflow/commit/36aa695ea817ea6f7e446558ef108d2c450ebb0c>`_  2021-12-11   ``Fix mypy neo4j and influxdb (#20189)``
+`93a6e20f4 <https://github.com/apache/airflow/commit/93a6e20f43ffa4f1918974f9d394256525ec1a4b>`_  2021-12-07   ``Add template fields to neo4j operator (#20043)``
+================================================================================================  ===========  =========================================================================
+
 2.0.2
 .....
 
-Latest change: 2021-09-29
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `5d2b056f5 <https://github.com/apache/airflow/commit/5d2b056f558f3802499eb6d98643433c31d8534c>`_  2021-09-07   ``Fix Neo4jHook to get the query response (#18007)``
 ================================================================================================  ===========  ======================================================================================

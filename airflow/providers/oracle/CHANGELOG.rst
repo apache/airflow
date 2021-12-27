@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add method 'callproc' on Oracle hook (#20072)``
+* ``Add ''autocommit'' to ''OracleHook''  (#20085)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy for providers: elasticsearch, oracle, yandex (#20344)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+
 2.0.1
 .....
 

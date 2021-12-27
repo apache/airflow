@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Providers facebook hook multiple account (#19377)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix MyPy errors for google.cloud.transfers (#20229)``
+   * ``Fix mypy facebook ads hooks (#20589)``
+
 2.1.0
 .....
 

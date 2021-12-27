@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.3
+.....
+
+Latest change: 2021-12-30
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`636ae0a33 <https://github.com/apache/airflow/commit/636ae0a33dff63f899bc554e6585104776398bef>`_  2021-12-22   ``Ensure Tableau connection is active to access wait_for_state (#20433)``
+`6174198a3 <https://github.com/apache/airflow/commit/6174198a3fa3ab7cffa7394afad48e5082210283>`_  2021-12-13   ``Fix MyPy Errors for Tableau provider (#20240)``
+================================================================================================  ===========  =========================================================================
+
 2.1.2
 .....
 
-Latest change: 2021-10-21
+Latest change: 2021-10-29
 
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `e4888a061 <https://github.com/apache/airflow/commit/e4888a061f2f657a3329786a68beca9f824b2f8e>`_  2021-10-21   ``Remove distutils usages for Python 3.10 (#19064)``
 `840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``

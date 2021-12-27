@@ -1333,9 +1333,14 @@ def get_all_changes_for_package(
                         )
                         # Returns 66 in case of doc-only changes
                         sys.exit(66)
+                    if len(changes) > len(changes_since_last_doc_only_check):
+                        # if doc-only was released after previous release - use it as starting point
+                        # but if before - stay with the releases from last tag.
+                        changes = changes_since_last_doc_only_check
                 except subprocess.CalledProcessError:
                     # ignore when the commit mentioned as last doc-only change is obsolete
                     pass
+
             console.print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             console.print()
             console.print(

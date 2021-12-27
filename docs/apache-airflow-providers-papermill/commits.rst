@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.2.0
+.....
+
+Latest change: 2021-12-30
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`d3f445636 <https://github.com/apache/airflow/commit/d3f445636394743b9298cae99c174cb4ac1fc30c>`_  2021-12-04   ``Add support to specify kernel name in PapermillOperator (#20035)``
+================================================================================================  ===========  =========================================================================
+
 2.1.0
 .....
 
-Latest change: 2021-09-29
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
 `f382a79ad <https://github.com/apache/airflow/commit/f382a79adabb2372a1ca5d9e43ed34afd9dec33d>`_  2021-09-20   ``Add support for templated fields in PapermillOperator (#18357)``

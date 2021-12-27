@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure Spark driver response is valid before setting UNKNOWN status (#19978)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+    * ``Fix mypy providers (#20190)``
+    * ``Fix mypy spark hooks (#20290)``
+    * ``Fix MyPy errors in Apache Providers (#20422)``
+    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+    * ``Even more typing in operators (template_fields/ext) (#20608)``
+
 2.0.2
 .....
 

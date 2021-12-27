@@ -26,13 +26,13 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Simplify KubernetesPodOperator (#19572)``
-* Class ``pod_launcher.PodLauncher`` renamed to ``pod_manager.PodManager``
-* :func:`airflow.settings.pod_mutation_hook` is no longer called in :meth:`~cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async``. For ``KubernetesPodOperator``, mutation now occurs in ``build_pod_request_obj``.
-* Parameter ``is_delete_operator_pod`` default is changed to ``True`` so that pods are deleted after task completion and not left to accumulate. In practice it seems more common to disable pod deletion only on a temporary basis for debugging purposes and therefore pod deletion is the more sensible default.
+* ``Delete pods by default in KubernetesPodOperator (#20575)``
+* ``Move pod_mutation_hook call from PodManager to KubernetesPodOperator (#20596)``
+* ``Rename ''PodLauncher'' to ''PodManager'' (#20576)``
 
-.. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodManager` (formerly named ``PodLauncher``)
-    have been renamed. If you have subclassed :class:`~.KubernetesPodOperator` you will need to update your subclass to
-    reflect the new structure. Additionally, class ``PodStatus`` has been renamed to ``PodPhase``.
+.. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodLauncher` have been renamed.
+    If you have subclassed :class:`~.KubernetesPodOperator` will need to update your subclass to reflect
+    the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
 
 Notes on changes KubernetesPodOperator and PodLauncher
 ``````````````````````````````````````````````````````
@@ -104,7 +104,29 @@ In class ``PodManager`` (formerly ``PodLauncher``):
 
 Other changes in ``pod_manager.py`` (formerly ``pod_launcher.py``):
 
+* Class ``pod_launcher.PodLauncher`` renamed to ``pod_manager.PodManager``
 * Enum-like class ``PodStatus`` is renamed ``PodPhase``, and the values are no longer lower-cased.
+* :func:`airflow.settings.pod_mutation_hook` is no longer called in :meth:`~cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async``. For ``KubernetesPodOperator``, mutation now occurs in ``build_pod_request_obj``.
+* Parameter ``is_delete_operator_pod`` default is changed to ``True`` so that pods are deleted after task completion and not left to accumulate. In practice it seems more common to disable pod deletion only on a temporary basis for debugging purposes and therefore pod deletion is the more sensible default.
+
+Features
+~~~~~~~~
+
+* ``Add params config, in_cluster, and cluster_context to KubernetesHook (#19695)``
+* ``Implement dry_run for KubernetesPodOperator (#20573)``
+* ``Clarify docstring for ''build_pod_request_obj'' in K8s providers (#20574)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Volume/VolumeMount KPO DeprecationWarning (#19726)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+     * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+     * ``Use typed Context EVERYWHERE (#20565)``
+     * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+     * ``Even more typing in operators (template_fields/ext) (#20608)``
 
 2.2.0
 .....

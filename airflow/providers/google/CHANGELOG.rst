@@ -18,6 +18,70 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add optional location to bigquery data transfer service (#15088) (#20221)``
+* ``Add Google Cloud Tasks how-to documentation (#20145)``
+* ``Added example DAG for MSSQL to Google Cloud Storage (GCS) (#19873)``
+* ``Support regional GKE cluster (#18966)``
+* ``Delete pods by default in KubernetesPodOperator (#20575)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes docstring for PubSubCreateSubscriptionOperator (#20237)``
+* ``Fix missing get_backup method for Dataproc Metastore (#20326)``
+* ``BigQueryHook fix typo in run_load doc string (#19924)``
+* ``Fix passing the gzip compression parameter on sftp_to_gcs. (#20553)``
+* ``switch to follow_redirects on httpx.get call in CloudSQL provider (#20239)``
+* ``avoid deprecation warnings in BigQuery transfer operators (#20502)``
+* ``Change download_video parameter to resourceName (#20528)``
+* ``Fix big query to mssql/mysql transfer issues (#20001)``
+* ``Fix setting of project ID in ''provide_authorized_gcloud'' (#20428)``
+
+Misc
+~~~~
+
+* ``Move source_objects datatype check out of GCSToBigQueryOperator.__init__ (#20347)``
+* ``Organize S3 Classes in Amazon Provider (#20167)``
+* ``Providers facebook hook multiple account (#19377)``
+* ``Remove deprecated method call (blob.download_as_string) (#20091)``
+* ``Remove deprecated template_fields from GoogleDriveToGCSOperator (#19991)``
+
+Note! optional features of the ``apache-airflow-providers-facebook`` and ``apache-airflow-providers-amazon``
+require newer versions of the providers (as specified in the dependencies)
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy errors for google.cloud_build (#20234)``
+   * ``Fix MyPy for Google Bigquery (#20329)``
+   * ``Fix remaining MyPy errors in Google Provider (#20358)``
+   * ``Fix MyPy Errors for dataproc package (#20327)``
+   * ``Fix MyPy errors for google.cloud.tasks (#20233)``
+   * ``Fix MyPy Errors for Apache Beam (and Dataflow) provider. (#20301)``
+   * ``Fix MyPy errors in leveldb (#20222)``
+   * ``Fix MyPy errors for google.cloud.transfers (#20229)``
+   * ``Fix MyPY errors for google.cloud.example_dags (#20232)``
+   * ``Fix MyPy errors for google/marketing_platform and suite (#20227)``
+   * ``Fix MyPy errors in google.cloud.sensors (#20228)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Finalised Datastore documentation (#20138)``
+   * ``Update Sphinx and Sphinx-AutoAPI (#20079)``
+   * ``Update doc reference links (#19909)``
+   * ``Use Python3.7+ syntax in pyupgrade (#20501)``
+   * ``Fix MyPy errors in Google Cloud (again) (#20469)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix Google mlengine MyPy errors (#20569)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix Google Mypy Dataproc errors (#20570)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Fix mypy errors in google/cloud/operators/stackdriver (#20601)``
+
 6.2.0
 .....
 

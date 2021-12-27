@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure Tableau connection is active to access wait_for_state (#20433)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Tableau provider (#20240)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+
 2.1.2
 .....
 

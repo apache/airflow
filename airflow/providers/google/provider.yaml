@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 6.3.0
   - 6.2.0
   - 6.1.0
   - 6.0.0
@@ -801,6 +802,8 @@ extra-links:
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
+  facebook: apache-airlfow-providers-facebook>=2.2.0
+  amazon: apache-airlfow-providers-facebook>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

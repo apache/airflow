@@ -27,15 +27,15 @@ This is detailed commit list of changes for versions provider package: ``postgre
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
-
 2.4.0
 .....
 
-Latest change: 2021-11-26
+Latest change: 2021-11-30
 
 =================================================================================================  ===========  =============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================
+`853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `c97a2e8ab8 <https://github.com/apache/airflow/commit/c97a2e8ab84991bb08e811b9d5b6d5f95de150b2>`_  2021-11-26   ``19489 - Pass client_encoding for postgres connections (#19827)``
 `83b51e5306 <https://github.com/apache/airflow/commit/83b51e53062dc596a630edd4bd01407a556f1aa6>`_  2021-11-26   ``Amazon provider remove deprecation, second try (#19815)``
 `d58df468c8 <https://github.com/apache/airflow/commit/d58df468c8d77c5d45e80f2333eb074bb7771a95>`_  2021-11-24   ``Revert "Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)" (#19791)``

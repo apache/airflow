@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Misc
+~~~~
+
+* ``Fix: pin pymongo < 4.0.0 (#20511)``
+* ``add mongo_db param to function doc string (#19280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix duplicate changelog entries (#19759)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+
 2.2.0
 .....
 

@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2021-12-30
+
+================================================================================================  ===========  =======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =======================================================================================
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`a63753764 <https://github.com/apache/airflow/commit/a63753764bce26fd2d13c79fc60df7387b98d424>`_  2021-12-28   ``Rename 'OpsgenieAlertOperator' to 'OpsgenieCreateAlertOperator' (#20514)``
+`1728e35e0 <https://github.com/apache/airflow/commit/1728e35e00fa19a329af8d5d45a764b334020450>`_  2021-12-27   ``Add 'OpsgenieCloseAlertOperator' (#20488)``
+`d57ebb7ae <https://github.com/apache/airflow/commit/d57ebb7aed3b09101d46d1c169851cfd22be69a5>`_  2021-12-22   ``Organize Opsgenie provider classes (#20454)``
+`46a6088e1 <https://github.com/apache/airflow/commit/46a6088e1121893e4d449ee757937af520ce771f>`_  2021-12-21   ``rewrite opsgenie alert hook with official python sdk, related issue #18641 (#20263)``
+================================================================================================  ===========  =======================================================================================
+
 2.0.1
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-30
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
@@ -118,7 +135,7 @@ Commit                                                                          
 `720912f67 <https://github.com/apache/airflow/commit/720912f67b3af0bdcbac64d6b8bf6d51c6247e26>`_  2020-10-02   ``Strict type check for multiple providers (#11229)``
 `fdd9b6f65 <https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3>`_  2020-08-25   ``Enable Black on Providers Packages (#10543)``
 `3696c34c2 <https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34>`_  2020-08-24   ``Fix typo in the word "release" (#10528)``
-`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
+`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown refernces in Providers README (#10483)``
 `cdec30125 <https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a>`_  2020-08-07   ``Add correct signature to all operators and sensors (#10205)``
 `aeea71274 <https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f>`_  2020-08-02   ``Remove 'args' parameter from provider operator constructors (#10097)``
 `d0e7db402 <https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec>`_  2020-06-19   ``Fixed release number for fresh release (#9408)``

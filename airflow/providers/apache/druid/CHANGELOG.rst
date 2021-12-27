@@ -19,6 +19,21 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout parameter to DruidOperator (#19984)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Apache Druid provider. (#20270)``
+   * ``Fix MyPy errors in Apache Providers (#20422)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+
 2.1.0
 .....
 

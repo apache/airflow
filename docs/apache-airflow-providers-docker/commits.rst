@@ -28,6 +28,24 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.4.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`59e4b78da <https://github.com/apache/airflow/commit/59e4b78daa3496cb0358ce34aeb5ebf6f5565ce0>`_  2021-12-29   ``Fix MyPy errors for Airflow decorators (#20034)``
+`b20e6d3f0 <https://github.com/apache/airflow/commit/b20e6d3f060bc385e350433070d5707ae6d6d0b0>`_  2021-12-14   ``Fix mypy docker provider (#20235)``
+`1924e29fa <https://github.com/apache/airflow/commit/1924e29fa2ca5bdf61daec81639b9b247f1bd004>`_  2021-12-03   ``Allow DockerOperator's image to be templated (#19997)``
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`aa2cb5545 <https://github.com/apache/airflow/commit/aa2cb5545f09d694b9143b323efcd4f6b6c66e60>`_  2021-11-12   ``Remove remaining 'pylint: disable' comments (#19541)``
+================================================================================================  ===========  =========================================================================
+
 2.3.0
 .....
 
@@ -36,6 +54,7 @@ Latest change: 2021-10-29
 ================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `45c70f397 <https://github.com/apache/airflow/commit/45c70f397afc54a931bf40ceb843c7b9a9cd75e3>`_  2021-10-29   ``Add support of placement in the DockerSwarmOperator (#18990)``
 `f5ad26dcd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
 `315493513 <https://github.com/apache/airflow/commit/3154935138748a8ac89aa4c8fde848e31610941b>`_  2021-10-12   ``Remove the docker timeout workaround (#18872)``

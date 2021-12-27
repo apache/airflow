@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Azure: New sftp to wasb operator (#18877)``
+* ``Removes InputRequired validation with azure extra (#20084)``
+* ``Add operator link to monitor Azure Data Factory pipeline runs (#20207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixing MyPy issues inside providers/microsoft (#20409)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix mypy errors in Microsoft Azure provider (#19923)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Use isort on pyi files (#20556)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+
 3.4.0
 .....
 
