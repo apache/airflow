@@ -628,7 +628,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PACKAGE_FORMAT: "sdist"
 
   tests-helm:
-    timeout-minutes: 40
+    timeout-minutes: 80
     name: "Python unit tests for helm chart"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
