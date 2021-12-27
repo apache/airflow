@@ -47,4 +47,4 @@ class TestGoogleSheetsCreateSpreadsheet:
             mock.call(context, "spreadsheet_id", SPREADSHEET_ID),
             mock.call(context, "spreadsheet_url", SPREADSHEET_URL),
         ]
-        mock_xcom.has_calls(calls)
+        mock_xcom.assert_has_calls(calls)

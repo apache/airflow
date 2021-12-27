@@ -684,7 +684,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             assert os.environ[CREDENTIALS] == key_path
 
-        mock_check_output.has_calls(
+        mock_check_output.assert_has_calls(
             mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
             mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path']),
         )
@@ -708,7 +708,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             assert os.environ[CREDENTIALS] == file_name
 
-        mock_check_output.has_calls(
+        mock_check_output.assert_has_calls(
             [
                 mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
                 mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']),
@@ -742,7 +742,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
                 # Do nothing
                 pass
 
-        mock_check_output.has_calls(
+        mock_check_output.assert_has_calls(
             [
                 mock.call(['gcloud', 'config', 'set', 'auth/client_id', 'CLIENT_ID']),
                 mock.call(['gcloud', 'config', 'set', 'auth/client_secret', 'CLIENT_SECRET']),
