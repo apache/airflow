@@ -574,8 +574,11 @@ class KubernetesPodOperator(BaseOperator):
 
 class _suppress(AbstractContextManager):
     """
-    This behaves the same as contextlib.suppress but logs the suppressed
+    This behaves the same as ``contextlib.suppress`` but logs the suppressed
     exceptions as errors with traceback.
+
+    The caught exception is also stored on the context manager instance under
+    attribute ``exception``.
     """
 
     def __init__(self, *exceptions):
