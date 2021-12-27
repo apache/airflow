@@ -1107,7 +1107,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
                 '--bigquery-dataset=test-dataset',
                 '--bigquery-table=beam_output',
                 '--bigquery-write-disposition=write-truncate',
-            ], 
+            ],
             capture_output=True,
         )
         mock_controller.assert_called_once_with(
