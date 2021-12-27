@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Optional
 import httpx
 from itsdangerous import TimedJSONWebSignatureSerializer
 
+from airflow import AirflowException
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -82,13 +83,15 @@ class FileTaskHandler(logging.Handler):
                 context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
             context["try_number"] = try_number
             return render_template_to_string(self.filename_jinja_template, context)
-
-        return self.filename_template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            execution_date=ti.get_dagrun().logical_date.isoformat(),
-            try_number=try_number,
-        )
+        elif self.filename_template:
+            return self.filename_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                execution_date=ti.get_dagrun().logical_date.isoformat(),
+                try_number=try_number,
+            )
+        else:
+            raise AirflowException("self.filename_jinja_template or self.filename_template not defined")
 
     def _read_grouped_logs(self):
         return False

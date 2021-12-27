@@ -17,6 +17,7 @@
 # under the License.
 #
 import datetime as dt
+from datetime import tzinfo
 from typing import TYPE_CHECKING, Optional, Union
 
 import pendulum
@@ -101,7 +102,7 @@ def convert_to_utc(value):
     return value.astimezone(utc)
 
 
-def make_aware(value: dt.datetime, timezone: Optional["Timezone"] = None) -> Optional[dt.datetime]:
+def make_aware(value: dt.datetime, timezone: Optional[Union["Timezone", "tzinfo"]] = None) -> dt.datetime:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -126,7 +127,7 @@ def make_aware(value: dt.datetime, timezone: Optional["Timezone"] = None) -> Opt
         return getattr(timezone, "localize")(value)
     elif hasattr(timezone, 'convert'):
         # For pendulum
-        return timezone.convert(value)
+        return getattr(timezone, 'convert')(value)
     else:
         # This may be wrong around DST changes!
         return value.replace(tzinfo=timezone)

@@ -105,7 +105,7 @@ def date_range(
     else:
         raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
 
-    dates = []
+    dates: List[datetime] = []
     if end_date:
         if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
             end_date = timezone.make_naive(end_date, time_zone)
