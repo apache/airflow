@@ -22,6 +22,5 @@ Opsgenie Operators
 
 .. toctree::
     :maxdepth: 1
-    :glob:
 
     opsgenie_alert

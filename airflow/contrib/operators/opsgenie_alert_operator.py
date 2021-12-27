@@ -22,7 +22,7 @@ import warnings
 from airflow.providers.opsgenie.operators.opsgenie import OpsgenieCreateAlertOperator
 
 warnings.warn(
-    "This module is deprecated. Please use :mod:`airflow.providers.opsgenie.operators.opsgenie`.",
+    "This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie`.",
     DeprecationWarning,
     stacklevel=2,
 )
