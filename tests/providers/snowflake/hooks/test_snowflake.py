@@ -79,7 +79,7 @@ class TestPytestSnowflakeHook:
                 BASE_CONNECTION_KWARGS,
                 (
                     'snowflake://user:pw@airflow.af_region/db/public?'
-                    'warehouse=af_wh&role=af_role&authenticator=snowflake'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
                 ),
                 {
                     'account': 'airflow',
@@ -98,19 +98,17 @@ class TestPytestSnowflakeHook:
             (
                 {
                     **BASE_CONNECTION_KWARGS,
-                    **{
-                        'extra': {
-                            'extra__snowflake__database': 'db',
-                            'extra__snowflake__account': 'airflow',
-                            'extra__snowflake__warehouse': 'af_wh',
-                            'extra__snowflake__region': 'af_region',
-                            'extra__snowflake__role': 'af_role',
-                        },
+                    'extra': {
+                        'extra__snowflake__database': 'db',
+                        'extra__snowflake__account': 'airflow',
+                        'extra__snowflake__warehouse': 'af_wh',
+                        'extra__snowflake__region': 'af_region',
+                        'extra__snowflake__role': 'af_role',
                     },
                 },
                 (
                     'snowflake://user:pw@airflow.af_region/db/public?'
-                    'warehouse=af_wh&role=af_role&authenticator=snowflake'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
                 ),
                 {
                     'account': 'airflow',
@@ -129,20 +127,18 @@ class TestPytestSnowflakeHook:
             (
                 {
                     **BASE_CONNECTION_KWARGS,
-                    **{
-                        'extra': {
-                            'extra__snowflake__database': 'db',
-                            'extra__snowflake__account': 'airflow',
-                            'extra__snowflake__warehouse': 'af_wh',
-                            'extra__snowflake__region': 'af_region',
-                            'extra__snowflake__role': 'af_role',
-                            'extra__snowflake__insecure_mode': 'True',
-                        },
+                    'extra': {
+                        'extra__snowflake__database': 'db',
+                        'extra__snowflake__account': 'airflow',
+                        'extra__snowflake__warehouse': 'af_wh',
+                        'extra__snowflake__region': 'af_region',
+                        'extra__snowflake__role': 'af_role',
+                        'extra__snowflake__insecure_mode': 'True',
                     },
                 },
                 (
                     'snowflake://user:pw@airflow.af_region/db/public?'
-                    'warehouse=af_wh&role=af_role&authenticator=snowflake'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
                 ),
                 {
                     'account': 'airflow',
@@ -162,20 +158,18 @@ class TestPytestSnowflakeHook:
             (
                 {
                     **BASE_CONNECTION_KWARGS,
-                    **{
-                        'extra': {
-                            'extra__snowflake__database': 'db',
-                            'extra__snowflake__account': 'airflow',
-                            'extra__snowflake__warehouse': 'af_wh',
-                            'extra__snowflake__region': 'af_region',
-                            'extra__snowflake__role': 'af_role',
-                            'extra__snowflake__insecure_mode': 'False',
-                        }
+                    'extra': {
+                        'extra__snowflake__database': 'db',
+                        'extra__snowflake__account': 'airflow',
+                        'extra__snowflake__warehouse': 'af_wh',
+                        'extra__snowflake__region': 'af_region',
+                        'extra__snowflake__role': 'af_role',
+                        'extra__snowflake__insecure_mode': 'False',
                     },
                 },
                 (
                     'snowflake://user:pw@airflow.af_region/db/public?'
-                    'warehouse=af_wh&role=af_role&authenticator=snowflake'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
                 ),
                 {
                     'account': 'airflow',
@@ -183,6 +177,55 @@ class TestPytestSnowflakeHook:
                     'authenticator': 'snowflake',
                     'database': 'db',
                     'password': 'pw',
+                    'region': 'af_region',
+                    'role': 'af_role',
+                    'schema': 'public',
+                    'session_parameters': None,
+                    'user': 'user',
+                    'warehouse': 'af_wh',
+                },
+            ),
+            (
+                {
+                    **BASE_CONNECTION_KWARGS,
+                    'extra': {
+                        **BASE_CONNECTION_KWARGS['extra'],
+                        'region': '',
+                    },
+                },
+                (
+                    'snowflake://user:pw@airflow/db/public?'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
+                ),
+                {
+                    'account': 'airflow',
+                    'application': 'AIRFLOW',
+                    'authenticator': 'snowflake',
+                    'database': 'db',
+                    'password': 'pw',
+                    'region': '',
+                    'role': 'af_role',
+                    'schema': 'public',
+                    'session_parameters': None,
+                    'user': 'user',
+                    'warehouse': 'af_wh',
+                },
+            ),
+            (
+                {
+                    **BASE_CONNECTION_KWARGS,
+                    'password': ';/?:@&=+$, ',
+                },
+                (
+                    'snowflake://user:;%2F?%3A%40&=+$, @airflow.af_region/db/public?'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
+                ),
+                {
+                    'account': 'airflow',
+                    'application': 'AIRFLOW',
+                    'authenticator': 'snowflake',
+                    'database': 'db',
+                    'password': ';/?:@&=+$, ',
                     'region': 'af_region',
                     'role': 'af_role',
                     'schema': 'public',
@@ -282,7 +325,7 @@ class TestPytestSnowflakeHook:
             conn = hook.get_sqlalchemy_engine()
             mock_create_engine.assert_called_once_with(
                 'snowflake://user:pw@airflow.af_region/db/public'
-                '?warehouse=af_wh&role=af_role&authenticator=snowflake'
+                '?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
             )
             assert mock_create_engine.return_value == conn
 
@@ -299,7 +342,7 @@ class TestPytestSnowflakeHook:
             conn = hook.get_sqlalchemy_engine()
             mock_create_engine.assert_called_once_with(
                 'snowflake://user:pw@airflow.af_region/db/public'
-                '?warehouse=af_wh&role=af_role&authenticator=snowflake',
+                '?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh',
                 connect_args={'insecure_mode': True},
             )
             assert mock_create_engine.return_value == conn
@@ -334,7 +377,7 @@ class TestPytestSnowflakeHook:
             } == hook._get_conn_params()
             assert (
                 "snowflake://user:pw@TEST_ACCOUNT.TEST_REGION/TEST_DATABASE/TEST_SCHEMA"
-                "?warehouse=TEST_WAREHOUSE&role=TEST_ROLE&authenticator=TEST_AUTH"
+                "?application=AIRFLOW&authenticator=TEST_AUTH&role=TEST_ROLE&warehouse=TEST_WAREHOUSE"
             ) == hook.get_uri()
 
     @pytest.mark.parametrize(
@@ -388,38 +431,3 @@ class TestPytestSnowflakeHook:
             assert status is False
             assert msg == 'Connection Errors'
             mock_run.assert_called_once_with(sql='select 1')
-
-    @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run')
-    def test_connection_without_region(self, mock_run):
-        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
-        connection_kwargs['extra']['region'] = ''
-        with unittest.mock.patch.dict(
-            'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
-            hook = SnowflakeHook(
-                snowflake_conn_id='test_conn',
-                account="TEST_ACCOUNT",
-                warehouse="TEST_WAREHOUSE",
-                database="TEST_DATABASE",
-                role="TEST_ROLE",
-                region="",
-                schema="TEST_SCHEMA",
-                authenticator='TEST_AUTH',
-                session_parameters={"AA": "AAA"},
-            )
-            assert {
-                'account': 'TEST_ACCOUNT',
-                'application': 'AIRFLOW',
-                'authenticator': 'TEST_AUTH',
-                'database': 'TEST_DATABASE',
-                'password': 'pw',
-                'role': 'TEST_ROLE',
-                'schema': 'TEST_SCHEMA',
-                'region': '',
-                'session_parameters': {'AA': 'AAA'},
-                'user': 'user',
-                'warehouse': 'TEST_WAREHOUSE',
-            } == hook._get_conn_params()
-            assert ("snowflake://user:pw@TEST_ACCOUNT/TEST_DATABASE/TEST_SCHEMA"
-                "?warehouse=TEST_WAREHOUSE&role=TEST_ROLE&authenticator=TEST_AUTH"
-            ) == hook.get_uri()
