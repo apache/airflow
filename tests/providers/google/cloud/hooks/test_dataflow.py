@@ -19,7 +19,6 @@
 
 import copy
 import shlex
-import subprocess
 import unittest
 from typing import Any, Dict
 from unittest import mock
