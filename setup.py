@@ -392,7 +392,7 @@ ldap = [
 leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<3.0.0',
-    'pymongo>=3.6.0',
+    'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
     'pymssql~=2.1,>=2.1.5',
