@@ -176,6 +176,25 @@ class TestKubernetesPodOperator:
             "execution_date": mock.ANY,
         }
 
+    def test_find_pod_labels(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        self.run_pod(k)
+        self.client_mock.return_value.list_namespaced_pod.assert_called_once()
+        _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
+        assert (
+            kwargs['label_selector']
+            == 'dag_id=dag,execution_date=2016-01-01T0100000000-26816529d,task_id=task,already_checked!=True'
+        )
+
     def test_image_pull_secrets_correctly_set(self):
         fake_pull_secrets = "fakeSecret"
         k = KubernetesPodOperator(

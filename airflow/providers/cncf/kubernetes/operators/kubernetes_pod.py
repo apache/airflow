@@ -316,7 +316,7 @@ class KubernetesPodOperator(BaseOperator):
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     @staticmethod
-    def _create_labels_for_pod(context=None) -> dict:
+    def _get_ti_pod_labels(context: Optional[dict] = None, include_try_number: bool = True) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
 
@@ -330,8 +330,9 @@ class KubernetesPodOperator(BaseOperator):
             'dag_id': context['dag'].dag_id,
             'task_id': context['task'].task_id,
             'execution_date': context['ts'],
-            'try_number': context['ti'].try_number,
         }
+        if include_try_number:
+            labels.update(try_number=context['ti'].try_number)
         # In the case of sub dags this is just useful
         if context['dag'].is_subdag:
             labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
@@ -359,8 +360,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def find_pod(self, namespace, context) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
-        labels = self._create_labels_for_pod(context)
-        label_selector = self._get_pod_identifying_label_string(labels)
+        label_selector = self._build_find_pod_label_selector(context)
         pod_list = self.client.list_namespaced_pod(
             namespace=namespace,
             label_selector=label_selector,
@@ -456,10 +456,9 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    def _get_pod_identifying_label_string(self, labels) -> str:
-        label_strings = [
-            f'{label_id}={label}' for label_id, label in sorted(labels.items()) if label_id != 'try_number'
-        ]
+    def _build_find_pod_label_selector(self, context: Optional[dict] = None) -> str:
+        labels = self._get_ti_pod_labels(context, include_try_number=False)
+        label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
         return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True'
 
     def _set_name(self, name):
@@ -557,7 +556,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
             pod = xcom_sidecar.add_xcom_sidecar(pod)
 
-        labels = self._create_labels_for_pod(context)
+        labels = self._get_ti_pod_labels(context)
         self.log.info("Creating pod %s with labels: %s", pod.metadata.name, labels)
 
         # Merge Pod Identifying labels with labels passed to operator
