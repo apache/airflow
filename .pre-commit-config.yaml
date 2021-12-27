@@ -94,7 +94,7 @@ repos:
       - id: insert-license
         name: Add license for all Python files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        types: [python]
+        files: \.py$|\.pyi$
         args:
           - --comment-style
           - "|#|"
