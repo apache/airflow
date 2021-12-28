@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import re
 from copy import deepcopy
 from typing import Dict, List, Optional, Pattern, Tuple, Type, Union
@@ -58,7 +59,7 @@ def attributes_to_test(
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
     :rtype: List[Tuple]
     """
-    result: List[Tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])
+    result: List[Tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
     if inputs == ClusterInputs:
         result += [(ClusterAttributes.NAME, cluster_name)]
     elif inputs == FargateProfileInputs:
@@ -195,13 +196,13 @@ def _input_builder(options: InputTypes, minimal: bool) -> Dict:
     :type options: InputTypes
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :type minimal: bool
-    :return: Returns a list of tuples containing the keys and values to be validated in testing.
-    :rtype: List[Tuple]
+    :return: Returns a dict containing the keys and values to be validated in testing.
+    :rtype: Dict
     """
-    values: List[Tuple] = deepcopy(options.REQUIRED)
+    values: List[Tuple] = deepcopy(options.REQUIRED)  # type: ignore
     if not minimal:
         values.extend(deepcopy(options.OPTIONAL))
-    return dict(values)
+    return dict(values)  # type: ignore
 
 
 def string_to_regex(value: str) -> Pattern[str]:
@@ -259,8 +260,8 @@ def convert_keys(original: Dict) -> Dict:
     return {conversion_map[k]: v for (k, v) in deepcopy(original).items()}
 
 
-def iso_date(datetime: str) -> str:
-    return datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+def iso_date(input_datetime: datetime.datetime) -> str:
+    return input_datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
 
 def generate_dict(prefix, count) -> Dict:
