@@ -43,9 +43,13 @@ then you don't need to worry about this change.  If however you have subclassed 
 One of the principal goals of the refactor is to clearly separate the "get or create pod" and
 "wait for pod completion" phases.  Previously the "wait for pod completion" logic would be invoked
 differently depending on whether the operator were to  "attach to an existing pod" (e.g. after a
-worker failure) or "create a new pod".  With this refactor we encapsulate  the "get or create" step
-into method :meth:`~.KubernetesPodOperator.get_or_create_pod`. This method tries first to find an
-existing pod using labels specific to the task instance (see :meth:`~.KubernetesPodOperator.find_pod`).
+worker failure) or "create a new pod" and this resulted in some code duplication and a bit more
+nesting of logic.  With this refactor we encapsulate  the "get or create" step
+into method :meth:`~.KubernetesPodOperator.get_or_create_pod`, and pull the monitoring and XCom logic up
+into the top level of ``execute`` because it can be the same for "attached" pods and "new" pods.
+
+:meth:`~.KubernetesPodOperator.get_or_create_pod` tries first to find an existing pod using labels
+specific to the task instance (see :meth:`~.KubernetesPodOperator.find_pod`).
 If one does not exist it :meth:`creates a pod <~.PodLauncher.create_pod>`.
 
 The "waiting" part of execution has three components.  The first step is to wait for the pod to leave the
