@@ -38,7 +38,8 @@ Overview
 ''''''''
 
 Generally speaking if you did not subclass ``KubernetesPodOperator`` and you didn't use the ``PodLauncher`` class directly,
-then you don't need to worry about this change.  If however you have subclassed ``KubernetesPodOperator, what follows are some notes on the changes in this release.
+then you don't need to worry about this change.  If however you have subclassed ``KubernetesPodOperator``, what
+follows are some notes on the changes in this release.
 
 One of the principal goals of the refactor is to clearly separate the "get or create pod" and
 "wait for pod completion" phases.  Previously the "wait for pod completion" logic would be invoked
