@@ -33,7 +33,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 _PASSWORD = 'snowflake42'
 
-BASE_CONNECTION_KWARGS: Dict[str, Union[str, Dict[str, str]]] = {
+BASE_CONNECTION_KWARGS: Dict[str, Union[str, Dict[str, Union[str, Dict[str, str]]]]] = {
     'login': 'user',
     'password': 'pw',
     'schema': 'public',
@@ -345,6 +345,39 @@ class TestPytestSnowflakeHook:
                 '?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh',
                 connect_args={'insecure_mode': True},
             )
+            assert mock_create_engine.return_value == conn
+
+    def test_get_sqlalchemy_engine_should_support_session_parameters(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs['extra']['session_parameters'] = {"TEST_PARAM": "AA", "TEST_PARAM_B": 123}
+
+        with unittest.mock.patch.dict(
+            'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ), unittest.mock.patch(
+            'airflow.providers.snowflake.hooks.snowflake.create_engine'
+        ) as mock_create_engine:
+            hook = SnowflakeHook(snowflake_conn_id='test_conn')
+            conn = hook.get_sqlalchemy_engine()
+            mock_create_engine.assert_called_once_with(
+                'snowflake://user:pw@airflow.af_region/db/public'
+                '?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh',
+                connect_args={'session_parameters': {"TEST_PARAM": "AA", "TEST_PARAM_B": 123}},
+            )
+            assert mock_create_engine.return_value == conn
+
+    def test_get_sqlalchemy_engine_should_support_private_key_auth(self, non_encrypted_temporary_private_key):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs['password'] = ''
+        connection_kwargs['extra']['private_key_file'] = str(non_encrypted_temporary_private_key)
+
+        with unittest.mock.patch.dict(
+            'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ), unittest.mock.patch(
+            'airflow.providers.snowflake.hooks.snowflake.create_engine'
+        ) as mock_create_engine:
+            hook = SnowflakeHook(snowflake_conn_id='test_conn')
+            conn = hook.get_sqlalchemy_engine()
+            assert 'private_key' in mock_create_engine.call_args[1]['connect_args']
             assert mock_create_engine.return_value == conn
 
     def test_hook_parameters_should_take_precedence(self):
