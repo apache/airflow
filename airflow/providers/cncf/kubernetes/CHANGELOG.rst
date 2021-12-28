@@ -35,7 +35,7 @@ Notes on changes KubernetesPodOperator and PodLauncher
 ``````````````````````````````````````````````````````
 
 Overview
-========
+''''''''
 
 Generally speaking if you did not subclass ``KubernetesPodOperator`` and you didn't use the ``PodLauncher`` class directly,
 then you don't need to worry about this change.  If however you have subclassed ``KubernetesPodOperator, what follows are some notes on the changes in this release.
@@ -75,7 +75,9 @@ If the pod terminates successfully, we :meth:`delete the pod <~.KubernetesPodOpe
 (if configured to delete the pod) and push XCom (if configured to push XCom).
 
 Details on method renames, refactors, and deletions
-===================================================
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+In ``KubernetesPodOperator``:
 
 * Method ``create_pod_launcher`` is converted to cached property ``launcher``
 * Construction of k8s ``CoreV1Api`` client is now encapsulated within cached property ``client``
@@ -86,6 +88,19 @@ Details on method renames, refactors, and deletions
 * Method ``_get_pod_identifying_label_string`` is renamed ``_build_find_pod_label_selector``
 * Method ``_try_numbers_match`` is removed.
 * Method ``create_new_pod_for_operator`` is removed. Previously it would mutate the labels on ``self.pod``, launch the pod, monitor the pod to completion etc.  Now this logic is in part handled by ``get_or_create_pod``, where a new pod will be created if necessary. The monitoring etc is now orchestrated directly from ``execute``.  Again, see the calls to methods ``await_pod_start``, ``follow_container_logs``, ``await_container_completion`` and ``await_pod_completion``.
+
+In ``pod_launcher.py``, in class ``PodLauncher``:
+
+* Method ``start_pod`` is removed and split into two methods: ``create_pod`` and ``await_pod_start``.
+* Method ``monitor_pod`` is removed and split into methods ``follow_container_logs``, ``await_container_completion``, ``await_pod_completion``
+* Methods ``pod_not_started``, ``pod_is_running``, ``process_status``, and ``_task_status`` are removed.  These were needed due to the way in which pod ``phase`` was mapped to task instance states; but we no longer do such a mapping and instead deal with pod phases directly and untransformed.
+* Method ``_extract_xcom`` is renamed  ``extract_xcom``.
+* Method ``read_pod_logs`` now takes kwarg ``container_name``
+
+
+Other changes in ``pod_launcher.py``:
+
+* Enum-like class ``PodStatus`` is renamed ``PodPhase``, and the values are no longer lower-cased.
 
 2.2.0
 .....
