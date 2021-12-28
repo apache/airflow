@@ -1099,12 +1099,12 @@ Here is the typical session that you need to do to run system tests:
 
 .. code-block:: bash
 
-   ./breeze --python 3.6 --db-reset --forward-credentials restart
+   ./breeze --python 3.7 --db-reset --forward-credentials restart
 
 This will:
 
 * restarts the whole environment (i.e. recreates metadata database from the scratch)
-* run Breeze with python 3.6 version
+* run Breeze with python 3.7 version
 * reset the Airflow database
 * forward your local credentials to Breeze
 
@@ -1154,7 +1154,7 @@ Breeze session. They are usually expensive to run.
 
 .. code-block:: bash
 
-   ./breeze --python 3.6 --db-reset --forward-credentials restart
+   ./breeze --python 3.7 --db-reset --forward-credentials restart
 
 2. Run create action in helper (to create slowly created resources):
 

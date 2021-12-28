@@ -410,7 +410,7 @@ Building from PyPI packages
 
 This is the basic way of building the custom images from sources.
 
-The following example builds the production image in version ``3.6`` with latest PyPI-released Airflow,
+The following example builds the production image in version ``3.7`` with latest PyPI-released Airflow,
 with default set of Airflow extras and dependencies. The ``2.0.2`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
@@ -453,7 +453,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example the production image in version ``3.6`` with additional airflow extras from ``2.0.2``
+The following example the production image in version ``3.7`` with additional airflow extras from ``2.0.2``
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling

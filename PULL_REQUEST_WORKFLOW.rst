@@ -58,12 +58,12 @@ We approached the problem by:
 3) Even more optimisation came from limiting the scope of tests to only "default" matrix parameters. So far
    in Airflow we always run all tests for all matrix combinations. The primary matrix components are:
 
-   * Python versions (currently 3.6, 3.7, 3.8, 3.9)
+   * Python versions (currently 3.7, 3.8, 3.9)
    * Backend types (currently MySQL/Postgres)
    * Backed version (currently MySQL 5.7, MySQL 8, Postgres 13
 
    We've decided that instead of running all the combinations of parameters for all matrix component we will
-   only run default values (Python 3.6, Mysql 5.7, Postgres 13) for all PRs which are not approved yet by
+   only run default values (Python 3.7, Mysql 5.7, Postgres 13) for all PRs which are not approved yet by
    the committers. This has a nice effect, that full set of tests (though with limited combinations of
    the matrix) are still run in the CI for every Pull Request that needs tests at all - allowing the
    contributors to make sure that their PR is "good enough" to be reviewed.

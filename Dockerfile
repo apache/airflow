@@ -41,7 +41,7 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
+ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
 
 ARG AIRFLOW_PIP_VERSION=21.2.4
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"

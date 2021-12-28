@@ -317,19 +317,19 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI.
 
-For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
+For example, you can choose to run Python 3.7 tests with MySQL as backend and in the Docker environment as
 follows:
 
 .. code-block:: bash
 
-    ./breeze --python 3.6 --backend mysql
+    ./breeze --python 3.7 --backend mysql
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
 default settings.
 
-The defaults when you run the Breeze environment are Python 3.6 version and SQLite database.
+The defaults when you run the Breeze environment are Python 3.7 version and SQLite database.
 
 .. raw:: html
 
@@ -834,7 +834,7 @@ To use your host IDE with Breeze:
    `pyenv <https://github.com/pyenv/pyenv>`_, `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv>`_,
    or `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_.
 
-   Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.5, 3.6, 3.7)
+   Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.7)
 
 2. Use the right command to activate the virtualenv (``workon`` if you use virtualenvwrapper or
    ``pyenv activate`` if you use pyenv.

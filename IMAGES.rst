@@ -139,7 +139,7 @@ This will build the image using command similar to:
 
     pip install \
       apache-airflow[async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 
 .. note::
 
@@ -162,7 +162,7 @@ HEAD of development for constraints):
 .. code-block:: bash
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 You can also skip installing airflow and install it from locally provided files by using
 ``--install-from-docker-context-files`` parameter and ``--disable-pypi-when-building`` to Breeze:
@@ -288,12 +288,12 @@ to refresh them.
 This can be done with ``Breeze`` command line which has easy-to-use tool to manage those images. For
 example:
 
-Force building Python 3.6 CI image using local cache and pushing it container registry:
+Force building Python 3.7 CI image using local cache and pushing it container registry:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.6 --force-build-images --check-if-base-python-image-updated --build-cache-local
-  ./breeze push-image --python 3.6
+  ./breeze build-image --python 3.7 --force-build-images --check-if-base-python-image-updated --build-cache-local
+  ./breeze push-image --python 3.7
 
 Building Python 3.8 CI image using cache pulled from GitHub Container Registry and pushing it back:
 
@@ -388,9 +388,9 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base Python image                        |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-buster``               | Base Python image                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.6``                                  | major/minor version of Python (should    |
+| ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.7``                                  | major/minor version of Python (should    |
 |                                          |                                          | match base image)                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``DEPENDENCIES_EPOCH_NUMBER``            | ``2``                                    | increasing this number will reinstall    |
@@ -506,7 +506,7 @@ This builds the CI image in version 3.7 with default extras ("all").
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" --tag my-image:0.0.1
 
 
-This builds the CI image in version 3.6 with "gcp" extra only.
+This builds the CI image in version 3.7 with "gcp" extra only.
 
 .. code-block:: bash
 
@@ -514,28 +514,28 @@ This builds the CI image in version 3.6 with "gcp" extra only.
     --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 
 
-This builds the CI image in version 3.6 with "apache-beam" extra added.
+This builds the CI image in version 3.7 with "apache-beam" extra added.
 
 .. code-block:: bash
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "mssql" additional package added.
+This builds the CI image in version 3.7 with "mssql" additional package added.
 
 .. code-block:: bash
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev dependencies added.
+This builds the CI image in version 3.7 with "gcc" and "g++" additional apt dev dependencies added.
 
 .. code-block::
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
+This builds the CI image in version 3.7 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
 
 .. code-block::
 
@@ -554,8 +554,8 @@ way of querying image details via API. You really need to download the image to 
 We workaround it in the way that always when we build the image we build a very small image manifest
 containing randomly generated UUID and push it to registry together with the main CI image.
 The tag for the manifest image reflects the image it refers to with added ``-manifest`` suffix.
-The manifest image for ``ghcr.io/apache/airflow/main/ci/python3.6`` is named
-``ghcr.io/apache/airflow/main/ci-manifest/python3.6``.
+The manifest image for ``ghcr.io/apache/airflow/main/ci/python3.7`` is named
+``ghcr.io/apache/airflow/main/ci-manifest/python3.7``.
 
 The image is quickly pulled (it is really, really small) when important files change and the content
 of the randomly generated UUID is compared with the one in our image. If the contents are different

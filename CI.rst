@@ -57,7 +57,7 @@ Container Registry used as cache
 We are using GitHub Container Registry to store the results of the ``Build Images``
 workflow which is used in the ``Tests`` workflow.
 
-Currently in main version of Airflow we run tests in 4 different versions of Python (3.6, 3.7, 3.8, 3.9)
+Currently in main version of Airflow we run tests in 4 different versions of Python (3.7, 3.8, 3.9)
 which means that we have to build 8 images (4 CI ones and 4 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
 we are utilising ``pull_request_target`` feature of GitHub Actions.
@@ -726,7 +726,7 @@ Scheduled build flow
 Adding new Python versions to CI
 --------------------------------
 
-In 2.0 line we currently support Python 3.6, 3.7, 3.8, 3.9.
+In 2.0 line we currently support Python 3.7, 3.8, 3.9.
 
 In order to add a new version the following operations should be done (example uses Python 3.10)
 

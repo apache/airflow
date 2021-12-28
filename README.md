@@ -84,7 +84,7 @@ Apache Airflow is tested with:
 
 |                      | Main version (dev)   | Stable version (2.2.3)   |
 | -------------------- | -------------------- | ------------------------ |
-| Python               | 3.7, 3.8, 3.9        | 3.6, 3.7, 3.8, 3.9       |
+| Python               | 3.7, 3.8, 3.9        | 3.7, 3.7, 3.8, 3.9       |
 | Kubernetes           | 1.20, 1.21           | 1.20, 1.21               |
 | PostgreSQL           | 10, 11, 12, 13       | 10, 11, 12, 13           |
 | MySQL                | 5.7, 8               | 5.7, 8                   |
@@ -284,14 +284,14 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
    EOL versions in main right after EOL date, and it is effectively removed when we release the
    first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example, for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
+   For example, for Python 3.7 it means that we drop support in main right after 23.12.2021, and the first
    MAJOR or MINOR version of Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
    and `apache/airflow:2.2.3` images are Python 3.7 images as we are preparing for 23.12.2021 when will
-   Python 3.6 reaches end of life.
+   Python 3.7 reaches end of life.
 
 3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
