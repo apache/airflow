@@ -223,14 +223,13 @@ class SnowflakeHook(DbApiHook):
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: Dict) -> str:
-        uri = URL(
+        return URL(
             **{
                 k: v
                 for k, v in conn_params.items()
                 if v and k not in ['session_parameters', 'insecure_mode', 'private_key']
             }
         )
-        return uri.format(**conn_params)
 
     def get_conn(self) -> SnowflakeConnection:
         """Returns a snowflake.connection object"""
