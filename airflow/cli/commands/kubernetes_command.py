@@ -70,8 +70,13 @@ def generate_pod_yaml(args):
 
 @cli_utils.action_cli
 def cleanup_pods(args):
-    """Clean up k8s pods in evicted/failed/succeeded states"""
+    """Clean up k8s pods in evicted/failed/succeeded/pending states"""
     namespace = args.namespace
+
+    min_pending_minutes = args.min_pending_minutes
+    # protect newly created pods from deletion
+    if min_pending_minutes < 5:
+        min_pending_minutes = 5
 
     # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
     # All Containers in the Pod have terminated in success, and will not be restarted.
@@ -114,14 +119,12 @@ def cleanup_pods(args):
             pod_reason = pod.status.reason.lower() if pod.status.reason else ''
             pod_restart_policy = pod.spec.restart_policy.lower()
             current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
-            # set time limit to 30m for pending pods
-            max_pending_time = timedelta(minutes=30)
 
             if (
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
-                or (pod_phase == pod_pending and current_time - pod.metadata.creation_timestamp > max_pending_time)
+                or (pod_phase == pod_pending and current_time - pod.metadata.creation_timestamp > timedelta(minutes=min_pending_minutes))
             ):
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
