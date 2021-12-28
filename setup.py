@@ -328,7 +328,7 @@ google = [
     'google-cloud-vision>=0.35.2,<2.0.0',
     'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
-    'httpx~=0.21.1',
+    'httpx',
     'json-merge-patch~=0.2',
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
