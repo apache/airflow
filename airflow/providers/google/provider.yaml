@@ -258,6 +258,10 @@ integrations:
     external-doc-url: https://github.com/googleapis/google-api-python-client/
     logo: /integration-logos/gcp/Google-API-Python-Client.png
     tags: [google]
+  - integration-name: Google Calendar
+    external-doc-url: https://calendar.google.com/
+    logo: /integration-logos/gcp/Google-Calendar.png
+    tags: [google]
   - integration-name: Google Campaign Manager
     external-doc-url: https://developers.google.com/doubleclick-advertisers
     how-to-guide:
@@ -641,6 +645,9 @@ hooks:
   - integration-name: Google Search Ads 360
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.search_ads
+  - integration-name: Google Calendar
+    python-modules:
+      - airflow.providers.google.suite.hooks.calendar
   - integration-name: Google Drive
     python-modules:
       - airflow.providers.google.suite.hooks.drive
