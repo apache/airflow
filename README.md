@@ -284,7 +284,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
    EOL versions in main right after EOL date, and it is effectively removed when we release the
    first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example, for Python 3.7 it means that we drop support in main right after 23.12.2021, and the first
+   For example, for Python 3.7 it means that we drop support in main right after 27.06.2023, and the first
    MAJOR or MINOR version of Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
