@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar, overlo
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.dag import DAG
 
 F = TypeVar("F", bound=Callable[..., Any])
 

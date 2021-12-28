@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Callable, Collection, Dict, Iterable, Mapping, Optional, Tuple, Union
 
 import dill
 
@@ -131,14 +131,14 @@ class PythonOperator(BaseOperator):
     :type show_return_value_in_logs: bool
     """
 
-    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
-    template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
+    template_fields: Iterable[str] = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields_renderers: Dict[str, str] = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     BLUE = '#ffefeb'
     ui_color = BLUE
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs = (
+    shallow_copy_attrs: Tuple[str, ...] = (
         'python_callable',
         'op_kwargs',
     )
@@ -150,7 +150,7 @@ class PythonOperator(BaseOperator):
         op_args: Optional[Collection[Any]] = None,
         op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        templates_exts: Iterable[str] = (),
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
@@ -362,7 +362,7 @@ class PythonVirtualenvOperator(PythonOperator):
         op_kwargs: Optional[Mapping[str, Any]] = None,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        templates_exts: Iterable[str] = (),
         **kwargs,
     ):
         if (
