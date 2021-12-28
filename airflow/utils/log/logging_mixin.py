@@ -117,15 +117,15 @@ class StreamLogWriter(IOBase):
         if not message.endswith("\n"):
             self._buffer += message
         else:
-            self._buffer += message
-            self._propagate_log(self._buffer.rstrip())
-            self._buffer = ''
+            self._buffer += message.rstrip()
+            self.flush()
 
     def flush(self):
         """Ensure all logging output has been flushed"""
-        if len(self._buffer) > 0:
-            self._propagate_log(self._buffer)
+        buf = self._buffer
+        if len(buf) > 0:
             self._buffer = ''
+            self._propagate_log(buf)
 
     def isatty(self):
         """
