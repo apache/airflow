@@ -435,9 +435,6 @@ class KubernetesPodOperator(BaseOperator):
             return result
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        with _suppress(Exception):
-            self.process_pod_deletion(pod)
-
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
@@ -447,7 +444,12 @@ class KubernetesPodOperator(BaseOperator):
             if not self.is_delete_operator_pod:
                 with _suppress(Exception):
                     self.patch_already_checked(pod)
+            with _suppress(Exception):
+                self.process_pod_deletion(pod)
             raise AirflowException(f'Pod {pod and pod.metadata.name} returned a failure: {remote_pod}')
+        else:
+            with _suppress(Exception):
+                self.process_pod_deletion(pod)
 
     def process_pod_deletion(self, pod):
         if self.is_delete_operator_pod:
