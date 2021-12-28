@@ -312,11 +312,11 @@ class DatabricksHook(BaseHook):
         method, endpoint = endpoint_info
 
         if 'host' in self.databricks_conn.extra_dejson:
-            self.host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
         else:
-            self.host = self._parse_host(self.databricks_conn.host)
+            host = self._parse_host(self.databricks_conn.host)
 
-        url = f'https://{self.host}/{endpoint}'
+        url = f'https://{host}/{endpoint}'
 
         aad_headers = self._get_aad_headers()
         headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
