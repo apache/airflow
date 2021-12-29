@@ -404,6 +404,7 @@ class TaskInstance(Base, LoggingMixin):
         uselist=False,
         innerjoin=True,
         viewonly=True,
+        lazy='joined'
     )
 
     trigger = relationship(
