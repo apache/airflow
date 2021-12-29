@@ -251,7 +251,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         try_number = 1
         log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
-        while not self.poke(context):
+        while True:
+            truth_value, xcom_value = self._process_poke(context=context)
+            if truth_value:
+                break
             if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but times out raise AirflowSkipException.
                 if self.soft_fail:
@@ -271,6 +274,20 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
+        return xcom_value
+
+    def _process_poke(self, context):
+        """
+        The ``poke`` method can either return True / False or can return a 2-tuple where the second
+        element is to be pushed to XCom through the operator return value.
+
+        This helper method handles the polymorphism in the return type.
+        """
+        poke_return = self.poke(context)
+        if isinstance(poke_return, (list, tuple)):
+            return poke_return
+        else:
+            return poke_return, None
 
     def _get_next_poke_interval(
         self,
