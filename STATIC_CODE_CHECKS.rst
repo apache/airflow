@@ -280,6 +280,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-versions``                    Updates latest versions in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
+``vendor-k8s-json-schema``             Vendor k8s schema definitions in the helm chart schema file
+------------------------------------ ---------------------------------------------------------------- ------------
 ``verify-db-migrations-documented``    Verify DB Migrations have been documented
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``www-lint``                           Static checks of js in airflow/www/static/js/ folder

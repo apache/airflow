@@ -665,6 +665,12 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: vendor-k8s-json-schema
+        name: Vendor k8s definitions into values.schema.json
+        entry: ./scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py
+        language: python
+        files: ^chart/values\.schema\.json$
+        additional_dependencies: ['requests==2.25.0']
       - id: json-schema
         name: Lint chart/values.yaml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py

@@ -152,6 +152,7 @@ update-extras
 update-local-yml-file
 update-setup-cfg-file
 update-versions
+vendor-k8s-json-schema
 verify-db-migrations-documented
 version-sync
 www-lint
