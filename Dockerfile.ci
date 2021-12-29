@@ -272,10 +272,9 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 # force them on the main Airflow package. Those limitations are:
 # * certifi<2021.0.0: required by snowflake provider
 # * lazy-object-proxy<1.5.0: required by astroid
-# * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
 # * google-ads<14.0.1 required to prevent updating google-python-api>=2.0.0
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="lazy-object-proxy<1.5.0 pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="lazy-object-proxy<1.5.0 dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}

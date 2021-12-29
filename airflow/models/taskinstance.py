@@ -1845,14 +1845,14 @@ class TaskInstance(Base, LoggingMixin):
 
         @cache
         def get_yesterday_ds() -> str:
-            return (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
+            return (logical_date - timedelta(1)).strftime('%Y-%m-%d')
 
         def get_yesterday_ds_nodash() -> str:
             return get_yesterday_ds().replace('-', '')
 
         @cache
         def get_tomorrow_ds() -> str:
-            return (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
+            return (logical_date + timedelta(1)).strftime('%Y-%m-%d')
 
         def get_tomorrow_ds_nodash() -> str:
             return get_tomorrow_ds().replace('-', '')
@@ -1860,18 +1860,15 @@ class TaskInstance(Base, LoggingMixin):
         @cache
         def get_next_execution_date() -> Optional[pendulum.DateTime]:
             # For manually triggered dagruns that aren't run on a schedule,
-            # next/previous execution dates don't make sense, and should be set
+            # the "next" execution date doesn't make sense, and should be set
             # to execution date for consistency with how execution_date is set
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                next_execution_date = dag_run.execution_date
-            else:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", DeprecationWarning)
-                    next_execution_date = dag.following_schedule(self.execution_date)
-            if next_execution_date is None:
+                return logical_date
+            next_info = dag.next_dagrun_info(data_interval, restricted=False)
+            if next_info is None:
                 return None
-            return timezone.coerce_datetime(next_execution_date)
+            return timezone.coerce_datetime(next_info.logical_date)
 
         def get_next_ds() -> Optional[str]:
             execution_date = get_next_execution_date()
@@ -1887,11 +1884,15 @@ class TaskInstance(Base, LoggingMixin):
 
         @cache
         def get_prev_execution_date():
+            # For manually triggered dagruns that aren't run on a schedule,
+            # the "previous" execution date doesn't make sense, and should be set
+            # to execution date for consistency with how execution_date is set
+            # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                return timezone.coerce_datetime(self.execution_date)
+                return logical_date
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                return dag.previous_schedule(self.execution_date)
+                return dag.previous_schedule(logical_date)
 
         @cache
         def get_prev_ds() -> Optional[str]:

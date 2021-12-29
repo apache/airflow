@@ -56,7 +56,7 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
 
 class TestCleanUpPodsCommand(unittest.TestCase):
 
-    label_selector = ','.join(['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version'])
+    label_selector = ','.join(['dag_id', 'task_id', 'try_number', 'airflow_version'])
 
     @classmethod
     def setUpClass(cls):

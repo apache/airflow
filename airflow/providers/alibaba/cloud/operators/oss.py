@@ -39,7 +39,7 @@ class OSSCreateBucketOperator(BaseOperator):
         self,
         region: str,
         bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        oss_conn_id: str = 'oss_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,7 +68,7 @@ class OSSDeleteBucketOperator(BaseOperator):
         self,
         region: str,
         bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        oss_conn_id: str = 'oss_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -103,7 +103,7 @@ class OSSUploadObjectOperator(BaseOperator):
         file: str,
         region: str,
         bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        oss_conn_id: str = 'oss_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -140,7 +140,7 @@ class OSSDownloadObjectOperator(BaseOperator):
         file: str,
         region: str,
         bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        oss_conn_id: str = 'oss_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -174,7 +174,7 @@ class OSSDeleteBatchObjectOperator(BaseOperator):
         keys: list,
         region: str,
         bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        oss_conn_id: str = 'oss_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -207,7 +207,7 @@ class OSSDeleteObjectOperator(BaseOperator):
         key: str,
         region: str,
         bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        oss_conn_id: str = 'oss_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -116,7 +116,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     def _bq_get_data(self):
 
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,

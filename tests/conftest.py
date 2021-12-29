@@ -699,7 +699,15 @@ def create_task_instance(dag_maker, create_dummy_dag):
     Uses ``create_dummy_dag`` to create the dag structure.
     """
 
-    def maker(execution_date=None, dagrun_state=None, state=None, run_id=None, run_type=None, **kwargs):
+    def maker(
+        execution_date=None,
+        dagrun_state=None,
+        state=None,
+        run_id=None,
+        run_type=None,
+        data_interval=None,
+        **kwargs,
+    ):
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -711,6 +719,8 @@ def create_task_instance(dag_maker, create_dummy_dag):
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:
             dagrun_kwargs["run_type"] = run_type
+        if data_interval is not None:
+            dagrun_kwargs["data_interval"] = data_interval
         dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
         (ti,) = dagrun.task_instances
         ti.state = state

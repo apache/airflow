@@ -23,15 +23,15 @@ from airflow.providers.alibaba.cloud.operators.oss import OSSCreateBucketOperato
 with DAG(
     dag_id='oss_bucket_dag',
     start_date=datetime(2021, 1, 1),
-    default_args={'bucket_name': 'your bucket'},
+    default_args={'bucket_name': 'your bucket', 'region': 'your region'},
     max_active_runs=1,
     tags=['example'],
     catchup=False,
 ) as dag:
 
-    create_bucket = OSSCreateBucketOperator(task_id='task1', region='your region')
+    create_bucket = OSSCreateBucketOperator(task_id='task1')
 
-    delete_bucket = OSSDeleteBucketOperator(task_id='task2', region='your region')
+    delete_bucket = OSSDeleteBucketOperator(task_id='task2')
 
     create_bucket >> delete_bucket
 # [END howto_operator_oss_bucket]
