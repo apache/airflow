@@ -19,7 +19,7 @@
 import logging
 import re
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -243,7 +243,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         job_id = _normalize_mlengine_job_id(self._job_id)
-        prediction_request = {
+        prediction_request: Dict[str, Any] = {
             'jobId': job_id,
             'predictionInput': {
                 'dataFormat': self._data_format,
@@ -1237,7 +1237,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         job_id = _normalize_mlengine_job_id(self._job_id)
-        training_request = {
+        training_request: Dict[str, Any] = {
             'jobId': job_id,
             'trainingInput': {
                 'scaleTier': self._scale_tier,
