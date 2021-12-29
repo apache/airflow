@@ -18,6 +18,7 @@
 # under the License.
 
 import json
+from typing import Iterator
 
 import requests
 
@@ -31,26 +32,24 @@ VALUES_SCHEMA_FILE = "chart/values.schema.json"
 with open(VALUES_SCHEMA_FILE) as f:
     schema = json.load(f)
 
-refs = set()
 
-
-def find_refs(props: dict):
+def find_refs(props: dict) -> Iterator[str]:
     for value in props.values():
         if "$ref" in value:
-            refs.add(value["$ref"])
+            yield value["$ref"]
 
         if "items" in value:
             if "$ref" in value["items"]:
-                refs.add(value["items"]["$ref"])
+                yield value["items"]["$ref"]
 
         if "properties" in value:
-            find_refs(value["properties"])
+            yield from find_refs(value["properties"])
 
 
 def get_remote_schema(url: str) -> dict:
     req = requests.get(url)
     req.raise_for_status()
-    return json.loads(req.text)
+    return req.json()
 
 
 # Create 'definitions' if it doesn't exist or reset it
@@ -60,23 +59,23 @@ schema["definitions"] = {}
 defs = get_remote_schema(K8S_DEFINITIONS)
 
 # first find refs in our schema
-find_refs(schema["properties"])
+refs = set(find_refs(schema["properties"]))
 
 # now we look for refs in refs
 i = 0
 while True:
-    starting_refs = refs.copy()
+    starting_refs = refs
     for ref in refs:
         ref_id = ref.split('/')[-1]
         schema["definitions"][ref_id] = defs["definitions"][ref_id]
-    find_refs(schema["definitions"])
+    refs = set(find_refs(schema["definitions"]))
     if refs == starting_refs:
         break
 
     # Make sure we don't have a runaway loop
     i += 1
     if i > 15:
-        raise Exception("Wasn't able to find all nested references in 15 cycles")
+        raise SystemExit("Wasn't able to find all nested references in 15 cycles")
 
 # and finally, sort them all!
 schema["definitions"] = dict(sorted(schema["definitions"].items()))
