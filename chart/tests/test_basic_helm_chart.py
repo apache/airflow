@@ -143,8 +143,11 @@ class TestBaseChartTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
+                "ingress": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "logs": {"persistence": {"enabled": True}},
+                "dags": {"persistence": {"enabled": True}},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
         )
@@ -167,6 +170,7 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-airflow-statsd", "ServiceAccount", "statsd"),
             (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
+            (f"{release_name}-airflow-triggerer", "ServiceAccount", "triggerer"),
             (f"{release_name}-broker-url", "Secret", "redis"),
             (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
             (f"{release_name}-cleanup-role", "Role", None),
@@ -176,6 +180,7 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-flower", "Deployment", "flower"),
             (f"{release_name}-flower", "Service", "flower"),
             (f"{release_name}-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
+            (f"{release_name}-flower-ingress", "Ingress", "flower-ingress"),
             (f"{release_name}-pgbouncer", "Deployment", "pgbouncer"),
             (f"{release_name}-pgbouncer", "Service", "pgbouncer"),
             (f"{release_name}-pgbouncer-config", "Secret", "pgbouncer"),
@@ -199,9 +204,13 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-webserver", "Service", "webserver"),
             (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
+            (f"{release_name}-airflow-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
+            (f"{release_name}-triggerer", "Deployment", "triggerer"),
+            (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
+            (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
         ]
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {

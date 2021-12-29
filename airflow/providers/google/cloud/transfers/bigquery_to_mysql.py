@@ -123,7 +123,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         self.log.info('Dataset: %s ; Table: %s', self.dataset_id, self.table_id)
 
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
