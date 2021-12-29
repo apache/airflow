@@ -168,6 +168,7 @@ class SFTPToGCSOperator(BaseOperator):
                 object_name=destination_object,
                 filename=tmp.name,
                 mime_type=self.mime_type,
+                gzip=self.gzip,
             )
 
         if self.move_object:
