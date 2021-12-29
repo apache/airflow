@@ -742,7 +742,10 @@ ARG_MIN_PENDING_MINUTES = Arg(
     ("--min-pending-minutes",),
     default=30,
     type=positive_int(allow_zero=False),
-    help="Pending pods created before the time interval are to be cleaned up，measured in minutes. Default value is 30(m).",
+    help=(
+        "Pending pods created before the time interval are to be cleaned up, "
+        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
+    ),
 )
 
 # jobs check

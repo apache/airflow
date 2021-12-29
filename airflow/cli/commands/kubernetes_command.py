@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Kubernetes sub-commands"""
-from datetime import datetime, timedelta
 import os
 import sys
+from datetime import datetime, timedelta
 
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
@@ -124,7 +124,11 @@ def cleanup_pods(args):
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
-                or (pod_phase == pod_pending and current_time - pod.metadata.creation_timestamp > timedelta(minutes=min_pending_minutes))
+                or (
+                    pod_phase == pod_pending
+                    and current_time - pod.metadata.creation_timestamp
+                    > timedelta(minutes=min_pending_minutes)
+                )
             ):
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
