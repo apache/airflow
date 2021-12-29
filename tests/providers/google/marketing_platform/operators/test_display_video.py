@@ -429,9 +429,7 @@ class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator(TestCase):
             "filter": {"id": []},
         }
         test_name = 'test_task'
-        mock_hook.return_value.create_sdf_download_operation.return_value = {
-            "name": test_name
-        }
+        mock_hook.return_value.create_sdf_download_operation.return_value = {"name": test_name}
 
         op = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
             body_request=body_request,
