@@ -19,14 +19,15 @@
 
 import ast
 import json
+import sys
 from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.secrets import BaseSecretsBackend
@@ -194,7 +195,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         else:
             try:
                 secret_string = self._get_secret(self.connections_prefix, conn_id)
-                secret = ast.literal_eval(secret_string)  # json.loads gives error
+                # json.loads gives error
+                secret = ast.literal_eval(secret_string) if secret_string else None
             except ValueError:  # 'malformed node or string: ' error, for empty conns
                 connection = None
                 secret = None

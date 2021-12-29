@@ -137,7 +137,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         kms_key_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -234,8 +234,8 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
                     topic_project='my-project', topic='my-topic')
             )
 
-    ``topic_project``, ``topic``, ``subscription``, and
-    ``subscription`` are templated so you can use variables in them.
+    ``topic_project``, ``topic``, ``subscription``, ``subscription_project_id`` and
+    ``impersonation_chain`` are templated so you can use variables in them.
 
     :param project_id: Optional, the Google Cloud project ID where the topic exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
@@ -363,7 +363,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         topic_project: Optional[str] = None,
         subscription_project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -530,7 +530,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -662,7 +662,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,

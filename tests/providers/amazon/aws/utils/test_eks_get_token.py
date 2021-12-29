@@ -25,8 +25,8 @@ import pytest
 from freezegun import freeze_time
 
 
-class TestGetEksTtoken:
-    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EKSHook')
+class TestGetEksToken:
+    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EksHook')
     @freeze_time("1995-02-14")
     @pytest.mark.parametrize(
         "args, expected_aws_conn_id, expected_region_name",

@@ -16,14 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vision Hook."""
-
+import sys
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.retry import Retry
 from google.cloud.vision_v1 import ImageAnnotatorClient, ProductSearchClient
 from google.cloud.vision_v1.types import (
@@ -37,7 +38,7 @@ from google.cloud.vision_v1.types import (
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 ERR_DIFF_NAMES = """The {label} name provided in the object ({explicit_name}) is different
     than the name created from the input parameters ({constructed_name}). Please either:
@@ -174,11 +175,11 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_set: Union[dict, ProductSet],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         product_set_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
         """
         For the documentation see:
@@ -210,10 +211,10 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_set_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
         """
         For the documentation see:
@@ -231,13 +232,13 @@ class CloudVisionHook(GoogleBaseHook):
     def update_product_set(
         self,
         product_set: Union[dict, ProductSet],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
         update_mask: Union[dict, FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
         """
         For the documentation see:
@@ -260,10 +261,10 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_set_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         For the documentation see:
@@ -280,11 +281,11 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product: Union[dict, Product],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         product_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
         For the documentation see:
@@ -316,10 +317,10 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
         For the documentation see:
@@ -337,13 +338,13 @@ class CloudVisionHook(GoogleBaseHook):
     def update_product(
         self,
         product: Union[dict, Product],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: Optional[str] = None,
         product_id: Optional[str] = None,
         update_mask: Optional[Dict[str, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
         For the documentation see:
@@ -364,10 +365,10 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         For the documentation see:
@@ -389,7 +390,7 @@ class CloudVisionHook(GoogleBaseHook):
         reference_image_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
         """
         For the documentation see:
@@ -429,7 +430,7 @@ class CloudVisionHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
         """
         For the documentation see:
@@ -460,7 +461,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         For the documentation see:
@@ -488,7 +489,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         For the documentation see:

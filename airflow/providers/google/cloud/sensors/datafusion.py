@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Data Fusion sensors."""
-from typing import Optional, Sequence, Set, Union
+from typing import Iterable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
@@ -69,10 +69,10 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self,
         pipeline_name: str,
         pipeline_id: str,
-        expected_statuses: Set[str],
+        expected_statuses: Iterable[str],
         instance_name: str,
         location: str,
-        failure_statuses: Set[str] = None,
+        failure_statuses: Optional[Iterable[str]] = None,
         project_id: Optional[str] = None,
         namespace: str = "default",
         gcp_conn_id: str = 'google_cloud_default',
@@ -122,12 +122,12 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
             pipeline_status = pipeline_workflow["status"]
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
-
-        if self.failure_statuses and pipeline_status in self.failure_statuses:
-            raise AirflowException(
-                f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
-                f"Terminating sensor..."
-            )
+        if pipeline_status is not None:
+            if self.failure_statuses and pipeline_status in self.failure_statuses:
+                raise AirflowException(
+                    f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
+                    f"Terminating sensor..."
+                )
 
         self.log.debug(
             "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status

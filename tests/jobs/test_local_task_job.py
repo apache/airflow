@@ -22,6 +22,7 @@ import signal
 import time
 import uuid
 from multiprocessing import Lock, Value
+from typing import List, Union
 from unittest import mock
 from unittest.mock import patch
 
@@ -148,8 +149,9 @@ class TestLocalTaskJob:
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()
 
+    @mock.patch('subprocess.check_call')
     @mock.patch('airflow.jobs.local_task_job.psutil')
-    def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, dag_maker):
+    def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
             op1 = DummyOperator(task_id='op1', run_as_user='myuser')
@@ -190,8 +192,9 @@ class TestLocalTaskJob:
             job1.heartbeat_callback()
 
     @conf_vars({('core', 'default_impersonation'): 'testuser'})
+    @mock.patch('subprocess.check_call')
     @mock.patch('airflow.jobs.local_task_job.psutil')
-    def test_localtaskjob_heartbeat_with_default_impersonation(self, psutil_mock, dag_maker):
+    def test_localtaskjob_heartbeat_with_default_impersonation(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
             op1 = DummyOperator(task_id='op1')
@@ -431,6 +434,47 @@ class TestLocalTaskJob:
         assert failure_callback_called.value == 1
         assert "State of this instance has been externally set to failed. "
         "Terminating instance." in caplog.text
+
+    def test_dagrun_timeout_logged_in_task_logs(self, caplog, dag_maker):
+        """
+        Test that ensures that if a running task is externally skipped (due to a dagrun timeout)
+        It is logged in the task logs.
+        """
+
+        session = settings.Session()
+
+        def task_function(ti):
+            assert State.RUNNING == ti.state
+            time.sleep(0.1)
+            ti.log.info("Marking TI as skipped externally")
+            ti.state = State.SKIPPED
+            session.merge(ti)
+            session.commit()
+
+            # This should not happen -- the state change should be noticed and the task should get killed
+            time.sleep(10)
+            assert False
+
+        with dag_maker(
+            "test_mark_failure", start_date=DEFAULT_DATE, dagrun_timeout=datetime.timedelta(microseconds=1)
+        ):
+            task = PythonOperator(
+                task_id='skipped_externally',
+                python_callable=task_function,
+            )
+        dag_maker.create_dagrun()
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        with timeout(30):
+            # This should be _much_ shorter to run.
+            # If you change this limit, make the timeout in the callable above bigger
+            job1.run()
+
+        ti.refresh_from_db()
+        assert ti.state == State.SKIPPED
+        assert "DagRun timed out after " in caplog.text
 
     @patch('airflow.utils.process_utils.subprocess.check_call')
     @patch.object(StandardTaskRunner, 'return_code')
@@ -864,10 +908,10 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-@pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])
 @mock.patch("airflow.jobs.local_task_job.get_task_runner")
-def test_number_of_queries_single_loop(mock_get_task_runner, return_codes, dag_maker):
-    mock_get_task_runner.return_value.return_code.side_effects = return_codes
+def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
+    codes: List[Union[int, None]] = 9 * [None] + [0]
+    mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())
     with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):

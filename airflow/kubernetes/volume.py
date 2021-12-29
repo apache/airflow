@@ -16,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
-# flake8: noqa
-
-
 import warnings
 
 with warnings.catch_warnings():
-    from airflow.providers.cncf.kubernetes.backcompat.volume import Volume
+    from airflow.providers.cncf.kubernetes.backcompat.volume import Volume  # noqa: autoflake
 
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",

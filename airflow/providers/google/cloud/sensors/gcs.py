@@ -21,11 +21,14 @@ import os
 import textwrap
 import warnings
 from datetime import datetime
-from typing import Callable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
@@ -80,7 +83,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
@@ -160,7 +163,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
@@ -225,7 +228,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self._matches: List[str] = []
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         self.log.info('Sensor checks existence of objects: %s, %s', self.bucket, self.prefix)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
@@ -235,7 +238,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self._matches = hook.list(self.bucket, prefix=self.prefix)
         return bool(self._matches)
 
-    def execute(self, context: dict) -> List[str]:
+    def execute(self, context: "Context") -> List[str]:
         """Overridden to allow matches to be passed"""
         super().execute(context)
         return self._matches
@@ -433,7 +436,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             return False
         return False
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         return self.is_bucket_updated(
             set(self._get_gcs_hook().list(self.bucket, prefix=self.prefix))  # type: ignore[union-attr]
         )

@@ -19,10 +19,10 @@
 from unittest import mock
 from unittest.mock import call
 
-from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor
+from airflow.providers.amazon.aws.sensors.s3 import S3PrefixSensor
 
 
-@mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')
+@mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook')
 def test_poke(mock_hook):
     op = S3PrefixSensor(task_id='s3_prefix', bucket_name='bucket', prefix='prefix')
 
@@ -36,7 +36,7 @@ def test_poke(mock_hook):
     assert op.poke({})
 
 
-@mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')
+@mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook')
 def test_poke_should_check_multiple_prefixes(mock_hook):
     op = S3PrefixSensor(task_id='s3_prefix', bucket_name='bucket', prefix=['prefix1', 'prefix2'])
 

@@ -50,7 +50,7 @@ from google.cloud.dlp_v2.types import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 
@@ -109,10 +109,10 @@ class CloudDLPHook(GoogleBaseHook):
     def cancel_dlp_job(
         self,
         dlp_job_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Starts asynchronous cancellation on a long-running DLP job.
@@ -149,7 +149,7 @@ class CloudDLPHook(GoogleBaseHook):
         template_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
         Creates a deidentify template for re-using frequently used configuration for
@@ -200,13 +200,13 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_dlp_job(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_job: Optional[Union[dict, InspectJobConfig]] = None,
         risk_job: Optional[Union[dict, RiskAnalysisJobConfig]] = None,
         job_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         wait_until_finished: bool = True,
         time_to_sleep_in_seconds: int = 60,
     ) -> DlpJob:
@@ -289,7 +289,7 @@ class CloudDLPHook(GoogleBaseHook):
         template_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
         Creates an inspect template for re-using frequently used configuration for
@@ -341,12 +341,12 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_job_trigger(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_trigger: Optional[Union[dict, JobTrigger]] = None,
         trigger_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> JobTrigger:
         """
         Creates a job trigger to run DLP actions such as scanning storage for sensitive
@@ -391,7 +391,7 @@ class CloudDLPHook(GoogleBaseHook):
         stored_info_type_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
         Creates a pre-built stored info type to be used for inspection.
@@ -442,7 +442,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def deidentify_content(
         self,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_config: Optional[Union[dict, DeidentifyConfig]] = None,
         inspect_config: Optional[Union[dict, InspectConfig]] = None,
         item: Optional[Union[dict, ContentItem]] = None,
@@ -450,7 +450,7 @@ class CloudDLPHook(GoogleBaseHook):
         deidentify_template_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyContentResponse:
         """
         De-identifies potentially sensitive info from a content item. This method has limits
@@ -503,7 +503,7 @@ class CloudDLPHook(GoogleBaseHook):
         )
 
     def delete_deidentify_template(
-        self, template_id, organization_id=None, project_id=None, retry=None, timeout=None, metadata=None
+        self, template_id, organization_id=None, project_id=None, retry=None, timeout=None, metadata=()
     ) -> None:
         """
         Deletes a deidentify template.
@@ -551,7 +551,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a long-running DLP job. This method indicates that the client is no longer
@@ -588,7 +588,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes an inspect template.
@@ -636,7 +636,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a job trigger.
@@ -672,7 +672,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a stored info type.
@@ -720,7 +720,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
         Gets a deidentify template.
@@ -769,7 +769,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> DlpJob:
         """
         Gets the latest state of a long-running Dlp Job.
@@ -806,7 +806,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
         Gets an inspect template.
@@ -855,7 +855,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> JobTrigger:
         """
         Gets a DLP job trigger.
@@ -892,7 +892,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
         Gets a stored info type.
@@ -943,7 +943,7 @@ class CloudDLPHook(GoogleBaseHook):
         inspect_template_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectContentResponse:
         """
         Finds potentially sensitive info in content. This method has limits on input size,
@@ -993,7 +993,7 @@ class CloudDLPHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[DeidentifyTemplate]:
         """
         Lists deidentify templates.
@@ -1055,7 +1055,7 @@ class CloudDLPHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[DlpJob]:
         """
         Lists DLP jobs that match the specified filter in the request.
@@ -1106,7 +1106,7 @@ class CloudDLPHook(GoogleBaseHook):
         results_filter: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListInfoTypesResponse:
         """
         Returns a list of the sensitive information types that the DLP API supports.
@@ -1146,7 +1146,7 @@ class CloudDLPHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[InspectTemplate]:
         """
         Lists inspect templates.
@@ -1206,7 +1206,7 @@ class CloudDLPHook(GoogleBaseHook):
         results_filter: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[JobTrigger]:
         """
         Lists job triggers.
@@ -1256,7 +1256,7 @@ class CloudDLPHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[StoredInfoType]:
         """
         Lists stored info types.
@@ -1319,7 +1319,7 @@ class CloudDLPHook(GoogleBaseHook):
         byte_item: Optional[Union[dict, ByteContentItem]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> RedactImageResponse:
         """
         Redacts potentially sensitive info from an image. This method has limits on
@@ -1377,7 +1377,7 @@ class CloudDLPHook(GoogleBaseHook):
         reidentify_template_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ReidentifyContentResponse:
         """
         Re-identifies content that has been de-identified.
@@ -1435,7 +1435,7 @@ class CloudDLPHook(GoogleBaseHook):
         update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
         Updates the deidentify template.
@@ -1497,7 +1497,7 @@ class CloudDLPHook(GoogleBaseHook):
         update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
         Updates the inspect template.
@@ -1558,7 +1558,7 @@ class CloudDLPHook(GoogleBaseHook):
         update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> JobTrigger:
         """
         Updates a job trigger.
@@ -1608,7 +1608,7 @@ class CloudDLPHook(GoogleBaseHook):
         update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
         Updates the stored info type by creating a new version.

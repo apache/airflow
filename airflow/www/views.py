@@ -25,12 +25,13 @@ import re
 import socket
 import sys
 import traceback
+import warnings
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -38,12 +39,10 @@ import markupsafe
 import nvd3
 import sqlalchemy as sqla
 from flask import (
-    Markup,
     Response,
     abort,
     before_render_template,
     current_app,
-    escape,
     flash,
     g,
     jsonify,
@@ -78,6 +77,7 @@ from flask_appbuilder.security.views import (
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
+from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
@@ -120,6 +120,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
+from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -136,6 +137,11 @@ from airflow.www.widgets import AirflowModelListWidget
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
+LINECHART_X_AXIS_TICKFORMAT = (
+    "function (d, i) { let xLabel;"
+    "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
+    "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
+)
 
 
 def truncate_task_duration(task_duration):
@@ -543,7 +549,7 @@ class AirflowBaseView(BaseView):
     }
 
     if not conf.getboolean('core', 'unit_test_mode'):
-        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
+        extra_args['sqlite_warning'] = settings.engine.dialect.name == 'sqlite'
         extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
@@ -781,6 +787,29 @@ class Airflow(AirflowBaseView):
                     continue
                 # Second segment is a version marker that we don't need to show.
                 yield segments[2], table_name
+
+        if (
+            permissions.ACTION_CAN_ACCESS_MENU,
+            permissions.RESOURCE_ADMIN_MENU,
+        ) in user_permissions and conf.getboolean("webserver", "warn_deployment_exposure"):
+            robots_file_access_count = (
+                session.query(Log)
+                .filter(Log.event == "robots")
+                .filter(Log.dttm > (utcnow() - timedelta(days=7)))
+                .count()
+            )
+            if robots_file_access_count > 0:
+                flash(
+                    Markup(
+                        'Recent requests have been made to /robots.txt. '
+                        'This indicates that this deployment may be accessible to the public internet. '
+                        'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
+                        'airflow.cfg. Read more about web deployment security <a href='
+                        f'"{get_docs_url("security/webserver.html")}">'
+                        'here</a>'
+                    ),
+                    "warning",
+                )
 
         return self.render_template(
             'airflow/dags.html',
@@ -1319,7 +1348,7 @@ class Airflow(AirflowBaseView):
                 return jsonify(message=message, metadata=metadata)
 
             metadata['download_logs'] = True
-            attachment_filename = task_log_reader.render_log_filename(ti, try_number)
+            attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,
@@ -1468,7 +1497,10 @@ class Airflow(AirflowBaseView):
             ti_attrs: Optional[List[Tuple[str, Any]]] = None
         else:
             ti.refresh_from_task(task)
-            all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
+            # Some fields on TI are deprecated, but we don't want those warnings here.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
             ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
 
         attr_renderers = wwwutils.get_attr_renderer()
@@ -1656,7 +1688,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def delete(self):
         """Deletes DAG."""
-        from airflow.api.common.experimental import delete_dag
+        from airflow.api.common import delete_dag
         from airflow.exceptions import DagNotFound
 
         dag_id = request.values.get('dag_id')
@@ -2561,10 +2593,20 @@ class Airflow(AirflowBaseView):
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="lineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
         cum_chart = nvd3.lineChart(
-            name="cumLineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="cumLineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
 
         y_points = defaultdict(list)
@@ -2690,8 +2732,9 @@ class Airflow(AirflowBaseView):
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart",
-            x_is_date=True,
-            y_axis_format='d',
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
             chart_attr=self.line_chart_attr,
         )
@@ -2767,7 +2810,12 @@ class Airflow(AirflowBaseView):
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="lineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
         y_points = {}
         x_points = {}
@@ -2889,7 +2937,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = task_dict['end_date'] or timezone.utcnow()
             task_dict['extraLinks'] = dag.get_task(ti.task_id).extra_links
             task_dict['try_number'] = try_count
-            task_dict['execution_date'] = dttm
+            task_dict['execution_date'] = dttm.isoformat()
             tasks.append(task_dict)
 
         tf_count = 0
@@ -2911,7 +2959,7 @@ class Airflow(AirflowBaseView):
             task_dict['operator'] = task.task_type
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
-            task_dict['execution_date'] = dttm
+            task_dict['execution_date'] = dttm.isoformat()
             tasks.append(task_dict)
 
         task_names = [ti.task_id for ti in tis]
@@ -3447,7 +3495,7 @@ class ConnectionModelView(AirflowModelView):
     edit_columns = add_columns.copy()
 
     # Initialized later by lazy_add_provider_discovered_options_to_connection_form
-    extra_fields = []
+    extra_fields: List[str] = []
 
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
@@ -4039,9 +4087,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         start_date = self.get('start_date')
 
-        difference = '0.0'
+        difference = '0s'
         if start_date and end_date:
-            difference = str(end_date - start_date)
+            difference = td_format(end_date - start_date)
 
         return difference
 
@@ -4150,7 +4198,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         try:
             count = 0
             cleared_ti_count = 0
-            dag_to_tis = {}
+            dag_to_tis: Dict[DAG, List[TaskInstance]] = {}
             for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
                 count += 1
                 dag = current_app.dag_bag.get_dag(dr.dag_id)
@@ -4255,7 +4303,7 @@ class TaskRescheduleModelView(AirflowModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {
@@ -4373,13 +4421,16 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'task_id',
         'run_id',
         'execution_date',
-        'hostname',
-        'queue',
-        'pool',
         'operator',
         'start_date',
         'end_date',
+        'hostname',
+        'priority_weight',
+        'queue',
         'queued_dttm',
+        'try_number',
+        'pool',
+        'queued_by_job_id',
     ]
 
     edit_columns = [
@@ -4408,7 +4459,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {
@@ -4559,8 +4610,8 @@ class DagDependenciesView(AirflowBaseView):
         )
     )
     last_refresh = timezone.utcnow() - refresh_interval
-    nodes = []
-    edges = []
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, str]] = []
 
     @expose('/dag-dependencies')
     @auth.has_access(
@@ -4596,8 +4647,8 @@ class DagDependenciesView(AirflowBaseView):
 
     def _calculate_graph(self):
 
-        nodes = []
-        edges = []
+        nodes: List[Dict[str, Any]] = []
+        edges: List[Dict[str, str]] = []
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
@@ -4849,22 +4900,14 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
 
-    pass
-
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
-
-    pass
 
 
 class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
     """Customize permission names for FAB's builtin UserOIDModelView."""
 
-    pass
-
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
-
-    pass

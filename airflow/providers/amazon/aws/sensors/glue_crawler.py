@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from typing import Optional
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
+from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator
 
 
-class AwsGlueCrawlerSensor(BaseSensorOperator):
+class GlueCrawlerSensor(BaseSensorOperator):
     """
     Waits for an AWS Glue crawler to reach any of the statuses below
     'FAILED', 'CANCELLED', 'SUCCEEDED'
@@ -39,7 +40,7 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_statuses = 'SUCCEEDED'
         self.errored_statuses = ('FAILED', 'CANCELLED')
-        self.hook: Optional[AwsGlueCrawlerHook] = None
+        self.hook: Optional[GlueCrawlerHook] = None
 
     def poke(self, context):
         hook = self.get_hook()
@@ -56,10 +57,26 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
         else:
             return False
 
-    def get_hook(self) -> AwsGlueCrawlerHook:
-        """Returns a new or pre-existing AwsGlueCrawlerHook"""
+    def get_hook(self) -> GlueCrawlerHook:
+        """Returns a new or pre-existing GlueCrawlerHook"""
         if self.hook:
             return self.hook
 
-        self.hook = AwsGlueCrawlerHook(aws_conn_id=self.aws_conn_id)
+        self.hook = GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
+
+
+class AwsGlueCrawlerSensor(GlueCrawlerSensor):
+    """
+    This sensor is deprecated. Please use
+    :class:`airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

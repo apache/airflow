@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Union
 
 import dill
 
@@ -32,7 +32,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.operator_helpers import determine_kwargs
+from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
@@ -146,8 +147,8 @@ class PythonOperator(BaseOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
         show_return_value_in_logs: bool = True,
@@ -164,18 +165,17 @@ class PythonOperator(BaseOperator):
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
-        self.op_args = op_args or []
+        self.op_args = op_args or ()
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def execute(self, context: Dict):
-        context.update(self.op_kwargs)
-        context['templates_dict'] = self.templates_dict
-
-        self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
+    def execute(self, context: Context) -> Any:
+        context_merge(context, self.op_kwargs)
+        context_merge(context, {'templates_dict': self.templates_dict})
+        self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -184,6 +184,9 @@ class PythonOperator(BaseOperator):
             self.log.info("Done. Returned value not shown")
 
         return return_value
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
     def execute_callable(self):
         """
@@ -209,7 +212,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         branch = super().execute(context)
         # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
         if isinstance(branch, str):
@@ -241,21 +244,21 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
         if condition:
             self.log.info('Proceeding with downstream tasks...')
-            return
+            return condition
 
         self.log.info('Skipping downstream tasks...')
 
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
+            self.skip(context["dag_run"], context["logical_date"], downstream_tasks)
 
         self.log.info("Done.")
 
@@ -355,8 +358,8 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
@@ -393,15 +396,17 @@ class PythonVirtualenvOperator(PythonOperator):
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
         if not self.system_site_packages:
-            if 'lazy-object-proxy' not in self.requirements:
-                self.requirements.append('lazy-object-proxy')
             if self.use_dill and 'dill' not in self.requirements:
                 self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
-    def execute(self, context: Dict):
-        serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
+    def execute(self, context: Context) -> Any:
+        serializable_keys = set(self._iter_serializable_context_keys())
+        serializable_context = context_copy_partial(context, serializable_keys)
         return super().execute(context=serializable_context)
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
@@ -458,19 +463,13 @@ class PythonVirtualenvOperator(PythonOperator):
             with open(filename, 'wb') as file:
                 self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
 
-    def _get_serializable_context_keys(self):
-        def _is_airflow_env():
-            return self.system_site_packages or 'apache-airflow' in self.requirements
-
-        def _is_pendulum_env():
-            return 'pendulum' in self.requirements and 'lazy_object_proxy' in self.requirements
-
-        serializable_context_keys = self.BASE_SERIALIZABLE_CONTEXT_KEYS.copy()
-        if _is_airflow_env():
-            serializable_context_keys.update(self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
-        if _is_pendulum_env() or _is_airflow_env():
-            serializable_context_keys.update(self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS)
-        return serializable_context_keys
+    def _iter_serializable_context_keys(self):
+        yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
+        if self.system_site_packages or 'apache-airflow' in self.requirements:
+            yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
+        elif 'pendulum' in self.requirements:
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
     def _write_string_args(self, filename):
         with open(filename, 'w') as file:
@@ -495,7 +494,7 @@ class PythonVirtualenvOperator(PythonOperator):
         return super().__deepcopy__(memo)
 
 
-def get_current_context() -> Dict[str, Any]:
+def get_current_context() -> Context:
     """
     Obtain the execution context for the currently executing operator without
     altering user method's signature.

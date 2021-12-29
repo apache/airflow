@@ -17,6 +17,8 @@
 # under the License.
 
 import json
+import random
+import string
 import unittest
 from unittest.mock import ANY, patch
 
@@ -25,7 +27,7 @@ from freezegun import freeze_time
 
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowBadRequest, AirflowException, PoolNotFound
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -133,6 +135,10 @@ class TestLocalClient(unittest.TestCase):
         pool = self.client.get_pool(name='foo')
         assert pool == ('foo', 1, '')
 
+    def test_get_pool_non_existing_raises(self):
+        with pytest.raises(PoolNotFound):
+            self.client.get_pool(name='foo')
+
     def test_get_pools(self):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
@@ -145,6 +151,26 @@ class TestLocalClient(unittest.TestCase):
         with create_session() as session:
             assert session.query(Pool).count() == 2
 
+    def test_create_pool_bad_slots(self):
+        with pytest.raises(AirflowBadRequest, match="^Bad value for `slots`: foo$"):
+            self.client.create_pool(
+                name='foo',
+                slots='foo',
+                description='',
+            )
+
+    def test_create_pool_name_too_long(self):
+        long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
+        pool_name_length = Pool.pool.property.columns[0].type.length
+        with pytest.raises(
+            AirflowBadRequest, match=f"^pool name cannot be more than {pool_name_length} characters"
+        ):
+            self.client.create_pool(
+                name=long_name,
+                slots=5,
+                description='',
+            )
+
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
@@ -152,3 +178,6 @@ class TestLocalClient(unittest.TestCase):
         self.client.delete_pool(name='foo')
         with create_session() as session:
             assert session.query(Pool).count() == 1
+        for name in ('', '    '):
+            with pytest.raises(PoolNotFound, match=f"^Pool {name!r} doesn't exist$"):
+                Pool.delete_pool(name=name)

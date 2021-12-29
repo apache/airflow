@@ -14,23 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional
+import copy
+import json
+import warnings
+from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
 from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 
 from airflow.exceptions import AirflowException
+from airflow.utils.types import NOTSET, ArgNotSet
 
-
-class NoValueSentinel:
-    """Sentinel class used to distinguish between None and no passed value"""
-
-    def __str__(self):
-        return "NoValueSentinel"
-
-    def __repr__(self):
-        return "NoValueSentinel"
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class Param:
@@ -47,35 +44,55 @@ class Param:
     :type schema: dict
     """
 
-    __NO_VALUE_SENTINEL = NoValueSentinel()
     CLASS_IDENTIFIER = '__class'
 
-    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: str = None, **kwargs):
+    def __init__(self, default: Any = NOTSET, description: Optional[str] = None, **kwargs):
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
-        # If we have a value, validate it once. May raise ValueError.
         if self.has_value:
+            self._validate(self.value, self.schema)
+
+    @staticmethod
+    def _validate(value, schema):
+        """
+        1. Check that value is json-serializable; if not, warn.  In future release we will require
+        the value to be json-serializable.
+        2. Validate ``value`` against ``schema``
+        """
+        try:
+            json.dumps(value)
+        except Exception:
+            warnings.warn(
+                "The use of non-json-serializable params is deprecated and will be removed in "
+                "a future release",
+                DeprecationWarning,
+            )
+        # If we have a value, validate it once. May raise ValueError.
+        if not isinstance(value, ArgNotSet):
             try:
-                jsonschema.validate(self.value, self.schema, format_checker=FormatChecker())
+                jsonschema.validate(value, schema, format_checker=FormatChecker())
             except ValidationError as err:
                 raise ValueError(err)
 
-    def resolve(self, value: Optional[Any] = __NO_VALUE_SENTINEL, suppress_exception: bool = False) -> Any:
+    def __copy__(self) -> "Param":
+        return Param(self.value, self.description, schema=self.schema)
+
+    def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
         Runs the validations and returns the Param's final value.
         May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
 
         :param value: The value to be updated for the Param
-        :type value: Optional[Any]
+        :type value: Any
         :param suppress_exception: To raise an exception or not when the validations fails.
             If true and validations fails, the return value would be None.
         :type suppress_exception: bool
         """
-        final_val = value if value != self.__NO_VALUE_SENTINEL else self.value
-        if isinstance(final_val, NoValueSentinel):
+        final_val = value if value is not NOTSET else self.value
+        if isinstance(final_val, ArgNotSet):
             if suppress_exception:
                 return None
             raise TypeError("No value passed and Param has no default value")
@@ -96,33 +113,52 @@ class Param:
 
     @property
     def has_value(self) -> bool:
-        return not isinstance(self.value, NoValueSentinel)
+        return self.value is not NOTSET
 
 
-class ParamsDict(dict):
+class ParamsDict(MutableMapping[str, Any]):
     """
     Class to hold all params for dags or tasks. All the keys are strictly string and values
     are converted into Param's object if they are not already. This class is to replace param's
     dictionary implicitly and ideally not needed to be used directly.
     """
 
+    __slots__ = ['__dict', 'suppress_exception']
+
     def __init__(self, dict_obj: Optional[Dict] = None, suppress_exception: bool = False):
         """
-        Init override for ParamsDict
         :param dict_obj: A dict or dict like object to init ParamsDict
         :type dict_obj: Optional[dict]
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
         :type suppress_exception: bool
         """
-        params_dict = {}
+        params_dict: Dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
             if not isinstance(v, Param):
                 params_dict[k] = Param(v)
             else:
                 params_dict[k] = v
-        super().__init__(params_dict)
+        self.__dict = params_dict
         self.suppress_exception = suppress_exception
+
+    def __copy__(self) -> "ParamsDict":
+        return ParamsDict(self.__dict, self.suppress_exception)
+
+    def __deepcopy__(self, memo: Optional[Dict[int, Any]]) -> "ParamsDict":
+        return ParamsDict(copy.deepcopy(self.__dict, memo), self.suppress_exception)
+
+    def __contains__(self, o: object) -> bool:
+        return o in self.__dict
+
+    def __len__(self) -> int:
+        return len(self.__dict)
+
+    def __delitem__(self, v: str) -> None:
+        del self.__dict[v]
+
+    def __iter__(self):
+        return iter(self.__dict)
 
     def __setitem__(self, key: str, value: Any) -> None:
         """
@@ -137,14 +173,17 @@ class ParamsDict(dict):
         """
         if isinstance(value, Param):
             param = value
-        elif key in self:
-            param = dict.__getitem__(self, key)
-            param.resolve(value=value, suppress_exception=self.suppress_exception)
+        elif key in self.__dict:
+            param = self.__dict[key]
+            try:
+                param.resolve(value=value, suppress_exception=self.suppress_exception)
+            except ValueError as ve:
+                raise ValueError(f'Invalid input for param {key}: {ve}') from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
 
-        super().__setitem__(key, param)
+        self.__dict[key] = param
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -154,30 +193,33 @@ class ParamsDict(dict):
         :param key: The key to fetch
         :type key: str
         """
-        param = super().__getitem__(key)
+        param = self.__dict[key]
         return param.resolve(suppress_exception=self.suppress_exception)
 
-    def dump(self) -> dict:
+    def get_param(self, key: str) -> Param:
+        """Get the internal :class:`.Param` object for this key"""
+        return self.__dict[key]
+
+    def items(self):
+        return ItemsView(self.__dict)
+
+    def values(self):
+        return ValuesView(self.__dict)
+
+    def update(self, *args, **kwargs) -> None:
+        if len(args) == 1 and not kwargs and isinstance(args[0], ParamsDict):
+            return super().update(args[0].__dict)
+        super().update(*args, **kwargs)
+
+    def dump(self) -> Dict[str, Any]:
         """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
-    def update(self, other_dict: dict) -> None:
-        """
-        Override for dictionary's update method.
-        :param other_dict: A dict type object which needs to be merged in the ParamsDict object
-        :type other_dict: dict
-        """
-        try:
-            for k, v in other_dict.items():
-                self.__setitem__(k, v)
-        except ValueError as ve:
-            raise ValueError(f'Invalid input for param {k}: {ve}') from None
-
-    def validate(self) -> dict:
+    def validate(self) -> Dict[str, Any]:
         """Validates & returns all the Params object stored in the dictionary"""
         resolved_dict = {}
         try:
-            for k, v in dict.items(self):
+            for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
         except ValueError as ve:
             raise ValueError(f'Invalid input for param {k}: {ve}') from None
@@ -215,7 +257,7 @@ class DagParam:
         self._name = name
         self._default = default
 
-    def resolve(self, context: Dict) -> Any:
+    def resolve(self, context: "Context") -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:

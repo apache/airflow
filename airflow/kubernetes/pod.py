@@ -24,7 +24,7 @@ Please use :mod:`kubernetes.client.models for V1ResourceRequirements and Port.
 import warnings
 
 with warnings.catch_warnings():
-    from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources
+    from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources  # noqa: autoflake
 
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models for V1ResourceRequirements and Port.",

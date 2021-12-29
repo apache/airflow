@@ -603,7 +603,7 @@ which checks if the image has been released and will pull it and rebuild it if n
     export FORCE_ANSWER_TO_QUESTIONS="true"
     export CI="true"
 
-    for python_version in "3.6" "3.7" "3.8"
+    for python_version in "3.7" "3.8" "3.9"
     do
             ./breeze build-image --python ${python_version} --build-cache-local \
                     --check-if-python-base-image-updated --verbose

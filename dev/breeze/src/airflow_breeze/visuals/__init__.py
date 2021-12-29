@@ -59,4 +59,4 @@ ASCIIART = """
 
 """
 
-ASCIIART_STYLE = "blue"
+ASCIIART_STYLE = "white"

@@ -59,7 +59,7 @@ class GKEDeleteClusterOperator(BaseOperator):
     :type project_id: str
     :param name: The name of the resource to delete, in this case cluster name
     :type name: str
-    :param location: The name of the Google Compute Engine zone in which the cluster
+    :param location: The name of the Google Compute Engine zone or region in which the cluster
         resides.
     :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -158,7 +158,7 @@ class GKECreateClusterOperator(BaseOperator):
 
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
-    :param location: The name of the Google Compute Engine zone in which the cluster
+    :param location: The name of the Google Compute Engine  or region in which the cluster
         resides.
     :type location: str
     :param body: The Cluster definition to create, can be protobuf or python dict, if
@@ -273,13 +273,14 @@ class GKEStartPodOperator(KubernetesPodOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GKEStartPodOperator`
 
-    :param location: The name of the Google Kubernetes Engine zone in which the
+    :param location: The name of the Google Kubernetes Engine zone or region in which the
         cluster resides, e.g. 'us-central1-a'
     :type location: str
     :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
         should be spawned in
     :type cluster_name: str
     :param use_internal_ip: Use the internal IP address as the endpoint.
+    :type use_internal_ip: bool
     :param project_id: The Google Developers Console project id
     :type project_id: str
     :param gcp_conn_id: The google cloud connection id to use. This allows for
@@ -294,6 +295,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param regional: The location param is region name.
+    :type regional: bool
     """
 
     template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
@@ -307,6 +310,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        regional: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -316,6 +320,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
         self.impersonation_chain = impersonation_chain
+        self.regional = regional
 
         if self.gcp_conn_id is None:
             raise AirflowException(
@@ -356,8 +361,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "clusters",
                 "get-credentials",
                 self.cluster_name,
-                "--zone",
-                self.location,
                 "--project",
                 self.project_id,
             ]
@@ -377,6 +380,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
                         impersonation_account,
                     ]
                 )
+            if self.regional:
+                cmd.append('--region')
+            else:
+                cmd.append('--zone')
+            cmd.append(self.location)
             if self.use_internal_ip:
                 cmd.append('--internal-ip')
             execute_in_subprocess(cmd)

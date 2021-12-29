@@ -15,9 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any
 
 from airflow.sensors.sql import SqlSensor
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MetastorePartitionSensor(SqlSensor):
@@ -67,7 +70,7 @@ class MetastorePartitionSensor(SqlSensor):
         # constructor below and apply_defaults will no longer throw an exception.
         super().__init__(**kwargs)
 
-    def poke(self, context: Dict[str, Any]) -> Any:
+    def poke(self, context: "Context") -> Any:
         if self.first_poke:
             self.first_poke = False
             if '.' in self.table:

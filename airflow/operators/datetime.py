@@ -16,11 +16,12 @@
 # under the License.
 
 import datetime
-from typing import Dict, Iterable, Union
+from typing import Iterable, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 
 
 class BranchDateTimeOperator(BaseBranchOperator):
@@ -70,9 +71,9 @@ class BranchDateTimeOperator(BaseBranchOperator):
         self.follow_task_ids_if_false = follow_task_ids_if_false
         self.use_task_execution_date = use_task_execution_date
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         if self.use_task_execution_date is True:
-            now = timezone.make_naive(context["execution_date"], self.dag.timezone)
+            now = timezone.make_naive(context["logical_date"], self.dag.timezone)
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 
@@ -100,7 +101,7 @@ def target_times_as_dates(
     if upper is not None and isinstance(upper, datetime.time):
         upper = datetime.datetime.combine(base_date, upper)
 
-    if any(date is None for date in (lower, upper)):
+    if lower is None or upper is None:
         return lower, upper
 
     if upper < lower:

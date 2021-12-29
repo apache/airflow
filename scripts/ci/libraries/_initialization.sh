@@ -107,15 +107,15 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.6")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("9.6" "13")
+    CURRENT_POSTGRES_VERSIONS+=("10" "13")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -915,6 +915,16 @@ function initialization::ver() {
 }
 
 function initialization::check_docker_version() {
+    local permission_denied
+    permission_denied=$(docker info 2>/dev/null | grep "ERROR: Got permission denied while trying " || true)
+    if [[ ${permission_denied} != "" ]]; then
+        echo
+        echo "${COLOR_RED}ERROR: You have 'permission denied' error when trying to communicate with docker.${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}Most likely you need to add your user to 'docker' group: https://docs.docker.com/engine/install/linux-postinstall/ .${COLOR_RESET}"
+        echo
+        exit 1
+    fi
     local docker_version
     # In GitHub Code QL, the version of docker has +azure suffix which we should remove
     docker_version=$(docker version --format '{{.Client.Version}}' | sed 's/\+.*$//' || true)

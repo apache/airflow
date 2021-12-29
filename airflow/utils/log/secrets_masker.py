@@ -18,14 +18,14 @@
 import collections
 import logging
 import re
-from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
-    RedactableItem = TypeVar('RedactableItem')
+    RedactableItem = Union[str, Dict[Any, Any], Tuple[Any, ...], List[Any]]
 
 
 log = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: Union[str, dict, Iterable], name: str = None) -> None:
+def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) -> None:
     """
     Mask a secret from appearing in the task logs.
 
@@ -93,7 +93,7 @@ def mask_secret(secret: Union[str, dict, Iterable], name: str = None) -> None:
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: "RedactableItem", name: str = None) -> "RedactableItem":
+def redact(value: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name)
 
@@ -213,11 +213,13 @@ class SecretsMasker(logging.Filter):
             else:
                 return item
         # I think this should never happen, but it does not hurt to leave it just in case
+        # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
+        # but it caused infinite recursion, so we need to cast it to str first.
         except Exception as e:
             log.warning(
-                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
+                "Unable to redact %s, please report this via <https://github.com/apache/airflow/issues>. "
                 "Error was: %s: %s",
-                item,
+                repr(item),
                 type(e).__name__,
                 str(e),
             )
@@ -232,7 +234,7 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
+    def add_mask(self, secret: Union[str, dict, Iterable], name: Optional[str] = None):
         """Add a new secret to be masked to this filter instance."""
         from airflow.configuration import conf
 

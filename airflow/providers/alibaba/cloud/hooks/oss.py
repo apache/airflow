@@ -65,7 +65,7 @@ def unify_bucket_name_and_key(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
-        def get_key() -> Optional[str]:
+        def get_key() -> str:
             if 'key' in bound_args.arguments:
                 return 'key'
             raise ValueError('Missing key parameter!')

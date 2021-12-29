@@ -23,6 +23,7 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:
     from airflow.hooks.dbapi import DbApiHook
+    from airflow.utils.context import Context
 
 
 class MsSqlOperator(BaseOperator):
@@ -90,7 +91,7 @@ class MsSqlOperator(BaseOperator):
                 self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
         return self._hook
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
         hook.run(  # type: ignore[union-attr]

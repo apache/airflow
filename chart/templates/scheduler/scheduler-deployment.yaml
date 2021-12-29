@@ -31,6 +31,7 @@
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
@@ -98,9 +99,7 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
-      securityContext:
-        runAsUser: {{ .Values.uid }}
-        fsGroup: {{ .Values.gid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}

@@ -86,7 +86,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -106,7 +106,9 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         result = set()
         for state in states:
             if isinstance(state, str):
-                result.add(TransferState[state.upper()])
+                # The proto.Enum type is indexable (via MetaClass and aliased) but MyPy is not able to
+                # infer this https://github.com/python/mypy/issues/8968
+                result.add(TransferState[state.upper()])  # type: ignore[misc]
             elif isinstance(state, int):
                 result.add(TransferState(state))
             elif isinstance(state, TransferState):

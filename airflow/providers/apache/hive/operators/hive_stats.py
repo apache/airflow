@@ -18,13 +18,16 @@
 import json
 import warnings
 from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -116,7 +119,7 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         return exp
 
-    def execute(self, context: Optional[Dict[str, Any]] = None) -> None:
+    def execute(self, context: "Context") -> None:
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}

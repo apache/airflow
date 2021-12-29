@@ -15,16 +15,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes task in a Kubernetes POD"""
+import json
+import logging
 import re
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Type
+from contextlib import AbstractContextManager
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 from kubernetes.client import CoreV1Api, models as k8s
+
+from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLaunchFailedException, PodPhase
 
 try:
     import airflow.utils.yaml as yaml
 except ImportError:
     import yaml
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator
@@ -46,11 +56,14 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
 from airflow.utils.helpers import validate_key
-from airflow.utils.state import State
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
+
+
+class PodReattachFailure(AirflowException):
+    """When we expect to be able to find a pod but cannot."""
 
 
 class KubernetesPodOperator(BaseOperator):
@@ -163,7 +176,11 @@ class KubernetesPodOperator(BaseOperator):
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
     :type termination_grace_period: int
+
     """
+
+    BASE_CONTAINER_NAME = 'base'
+    POD_CHECKED_KEY = 'already_checked'
 
     template_fields: Iterable[str] = (
         'image',
@@ -176,9 +193,7 @@ class KubernetesPodOperator(BaseOperator):
         'namespace',
     )
 
-    # fmt: off
     def __init__(
-        # fmt: on
         self,
         *,
         namespace: Optional[str] = None,
@@ -269,8 +284,9 @@ class KubernetesPodOperator(BaseOperator):
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
-        self.tolerations = [convert_toleration(toleration) for toleration in tolerations] \
-            if tolerations else []
+        self.tolerations = (
+            [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
+        )
         self.security_context = security_context or {}
         self.dnspolicy = dnspolicy
         self.schedulername = schedulername
@@ -282,8 +298,8 @@ class KubernetesPodOperator(BaseOperator):
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
-        self.client: CoreV1Api = None
-        self.pod: k8s.V1Pod = None
+        self.pod_request_obj: Optional[k8s.V1Pod] = None
+        self.pod: Optional[k8s.V1Pod] = None
 
     def _render_nested_template_fields(
         self,
@@ -297,27 +313,26 @@ class KubernetesPodOperator(BaseOperator):
             self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
             return
 
-        super()._render_nested_template_fields(
-            content,
-            context,
-            jinja_env,
-            seen_oids
-        )
+        super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     @staticmethod
-    def create_labels_for_pod(context) -> dict:
+    def _get_ti_pod_labels(context: Optional[dict] = None, include_try_number: bool = True) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
 
         :param context: task context provided by airflow DAG
         :return: dict
         """
+        if not context:
+            return {}
+
         labels = {
             'dag_id': context['dag'].dag_id,
             'task_id': context['task'].task_id,
             'execution_date': context['ts'],
-            'try_number': context['ti'].try_number,
         }
+        if include_try_number:
+            labels.update(try_number=context['ti'].try_number)
         # In the case of sub dags this is just useful
         if context['dag'].is_subdag:
             labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
@@ -328,101 +343,125 @@ class KubernetesPodOperator(BaseOperator):
             labels[label_id] = safe_label
         return labels
 
-    def create_pod_launcher(self) -> Type[pod_launcher.PodLauncher]:
-        return pod_launcher.PodLauncher(kube_client=self.client, extract_xcom=self.do_xcom_push)
+    @cached_property
+    def launcher(self) -> pod_launcher.PodLauncher:
+        return pod_launcher.PodLauncher(kube_client=self.client)
 
-    def execute(self, context) -> Optional[str]:
+    @cached_property
+    def client(self) -> CoreV1Api:
+        # todo: use airflow Connection / hook to authenticate to the cluster
+        kwargs: Dict[str, Any] = dict(
+            cluster_context=self.cluster_context,
+            config_file=self.config_file,
+        )
+        if self.in_cluster is not None:
+            kwargs.update(in_cluster=self.in_cluster)
+        return kube_client.get_kube_client(**kwargs)
+
+    def find_pod(self, namespace, context) -> Optional[k8s.V1Pod]:
+        """Returns an already-running pod for this task instance if one exists."""
+        label_selector = self._build_find_pod_label_selector(context)
+        pod_list = self.client.list_namespaced_pod(
+            namespace=namespace,
+            label_selector=label_selector,
+        ).items
+
+        num_pods = len(pod_list)
+        if num_pods > 1:
+            raise AirflowException(f'More than one pod running with labels {label_selector}')
+        elif num_pods == 1:
+            pod = pod_list[0]
+            self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
+            self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
+            return pod
+
+    def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context):
+        if self.reattach_on_restart:
+            pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+            if pod:
+                return pod
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
+        self.launcher.create_pod(pod=pod_request_obj)
+        return pod_request_obj
+
+    def await_pod_start(self, pod):
         try:
-            if self.in_cluster is not None:
-                client = kube_client.get_kube_client(
-                    in_cluster=self.in_cluster,
-                    cluster_context=self.cluster_context,
-                    config_file=self.config_file,
+            self.launcher.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
+        except PodLaunchFailedException:
+            if self.log_events_on_failure:
+                for event in self.launcher.read_pod_events(pod).items:
+                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            raise
+
+    def extract_xcom(self, pod):
+        """Retrieves xcom value and kills xcom sidecar container"""
+        result = self.launcher.extract_xcom(pod)
+        self.log.info("xcom result: \n%s", result)
+        return json.loads(result)
+
+    def execute(self, context):
+        remote_pod = None
+        try:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
+            self.await_pod_start(pod=self.pod)
+
+            if self.get_logs:
+                self.launcher.follow_container_logs(
+                    pod=self.pod,
+                    container_name=self.BASE_CONTAINER_NAME,
                 )
             else:
-                client = kube_client.get_kube_client(
-                    cluster_context=self.cluster_context, config_file=self.config_file
+                self.launcher.await_container_completion(
+                    pod=self.pod, container_name=self.BASE_CONTAINER_NAME
                 )
 
-            self.client = client
-
-            self.pod = self.create_pod_request_obj()
-            self.namespace = self.pod.metadata.namespace
-
-            # Add combination of labels to uniquely identify a running pod
-            labels = self.create_labels_for_pod(context)
-
-            label_selector = self._get_pod_identifying_label_string(labels)
-
-            pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector)
-
-            if len(pod_list.items) > 1 and self.reattach_on_restart:
-                raise AirflowException(
-                    f'More than one pod running with labels: {label_selector}'
-                )
-
-            launcher = self.create_pod_launcher()
-
-            if len(pod_list.items) == 1:
-                try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-                final_state, remote_pod, result = self.handle_pod_overlap(
-                    labels, try_numbers_match, launcher, pod_list.items[0]
-                )
-            else:
-                self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
-                final_state, remote_pod, result = self.create_new_pod_for_operator(labels, launcher)
-            if final_state != State.SUCCESS:
-                raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {remote_pod}')
-            context['task_instance'].xcom_push(key='pod_name', value=self.pod.metadata.name)
-            context['task_instance'].xcom_push(key='pod_namespace', value=self.namespace)
+            if self.do_xcom_push:
+                result = self.extract_xcom(pod=self.pod)
+            remote_pod = self.launcher.await_pod_completion(self.pod)
+        finally:
+            self.cleanup(
+                pod=self.pod or self.pod_request_obj,
+                remote_pod=remote_pod,
+            )
+        ti = context['ti']
+        ti.xcom_push(key='pod_name', value=self.pod.metadata.name)
+        ti.xcom_push(key='pod_namespace', value=self.pod.metadata.namespace)
+        if self.do_xcom_push:
             return result
-        except AirflowException as ex:
-            raise AirflowException(f'Pod Launching failed: {ex}')
 
-    def handle_pod_overlap(
-        self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
-    ) -> Tuple[State, k8s.V1Pod, Optional[str]]:
-        """
-
-        In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
-        this function will either continue to monitor the existing pod or launch a new pod
-        based on the `reattach_on_restart` parameter.
-
-        :param labels: labels used to determine if a pod is repeated
-        :type labels: dict
-        :param try_numbers_match: do the try numbers match? Only needed for logging purposes
-        :type try_numbers_match: bool
-        :param launcher: PodLauncher
-        :param pod: Pod found with matching labels
-        """
-        if try_numbers_match:
-            log_line = f"found a running pod with labels {labels} and the same try_number."
+    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
+        if pod_phase != PodPhase.SUCCEEDED:
+            if self.log_events_on_failure:
+                with _suppress(Exception):
+                    for event in self.launcher.read_pod_events(pod).items:
+                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            if not self.is_delete_operator_pod:
+                with _suppress(Exception):
+                    self.patch_already_checked(pod)
+            with _suppress(Exception):
+                self.process_pod_deletion(pod)
+            raise AirflowException(f'Pod {pod and pod.metadata.name} returned a failure: {remote_pod}')
         else:
-            log_line = f"found a running pod with labels {labels} but a different try_number."
+            with _suppress(Exception):
+                self.process_pod_deletion(pod)
 
-        # In case of failed pods, should reattach the first time, but only once
-        # as the task will have already failed.
-        if self.reattach_on_restart and not pod.metadata.labels.get("already_checked"):
-            log_line += " Will attach to this pod and monitor instead of starting new one"
-            self.log.info(log_line)
-            self.pod = pod
-            final_state, remote_pod, result = self.monitor_launched_pod(launcher, pod)
+    def process_pod_deletion(self, pod):
+        if self.is_delete_operator_pod:
+            self.log.info("Deleting pod: %s", pod.metadata.name)
+            self.launcher.delete_pod(pod)
         else:
-            log_line += f"creating pod with labels {labels} and launcher {launcher}"
-            self.log.info(log_line)
-            final_state, remote_pod, result = self.create_new_pod_for_operator(labels, launcher)
-        return final_state, remote_pod, result
+            self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    @staticmethod
-    def _get_pod_identifying_label_string(labels) -> str:
-        label_strings = [
-            f'{label_id}={label}' for label_id, label in sorted(labels.items()) if label_id != 'try_number'
-        ]
-        return ','.join(label_strings) + ',already_checked!=True'
-
-    @staticmethod
-    def _try_numbers_match(context, pod) -> bool:
-        return pod.metadata.labels['try_number'] == context['ti'].try_number
+    def _build_find_pod_label_selector(self, context: Optional[dict] = None) -> str:
+        labels = self._get_ti_pod_labels(context, include_try_number=False)
+        label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
+        return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True'
 
     def _set_name(self, name):
         if name is None:
@@ -433,7 +472,24 @@ class KubernetesPodOperator(BaseOperator):
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 
-    def create_pod_request_obj(self) -> k8s.V1Pod:
+    def patch_already_checked(self, pod: k8s.V1Pod):
+        """Add an "already checked" annotation to ensure we don't reattach on retries"""
+        pod.metadata.labels[self.POD_CHECKED_KEY] = "True"
+        body = PodGenerator.serialize_pod(pod)
+        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
+
+    def on_kill(self) -> None:
+        if self.pod:
+            pod = self.pod
+            kwargs = dict(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
+            )
+            if self.termination_grace_period is not None:
+                kwargs.update(grace_period_seconds=self.termination_grace_period)
+            self.client.delete_namespaced_pod(**kwargs)
+
+    def build_pod_request_obj(self, context=None):
         """
         Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
         will supersede all other values.
@@ -467,7 +523,7 @@ class KubernetesPodOperator(BaseOperator):
                 containers=[
                     k8s.V1Container(
                         image=self.image,
-                        name="base",
+                        name=self.BASE_CONTAINER_NAME,
                         command=self.cmds,
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,
@@ -501,83 +557,43 @@ class KubernetesPodOperator(BaseOperator):
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
             pod = xcom_sidecar.add_xcom_sidecar(pod)
-        return pod
 
-    def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
-        """
-        Creates a new pod and monitors for duration of task
-
-        :param labels: labels used to track pod
-        :param launcher: pod launcher that will manage launching and monitoring pods
-        :return:
-        """
-        self.log.debug(
-            "Adding KubernetesPodOperator labels to pod before launch for task %s", self.task_id
-        )
+        labels = self._get_ti_pod_labels(context)
+        self.log.info("Creating pod %s with labels: %s", pod.metadata.name, labels)
 
         # Merge Pod Identifying labels with labels passed to operator
-        self.pod.metadata.labels.update(labels)
+        pod.metadata.labels.update(labels)
         # Add Airflow Version to the label
         # And a label to identify that pod is launched by KubernetesPodOperator
-        self.pod.metadata.labels.update(
+        pod.metadata.labels.update(
             {
                 'airflow_version': airflow_version.replace('+', '-'),
                 'kubernetes_pod_operator': 'True',
             }
         )
+        return pod
 
-        self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
-        final_state = None
-        try:
-            launcher.start_pod(self.pod, startup_timeout=self.startup_timeout_seconds)
-            final_state, remote_pod, result = launcher.monitor_pod(pod=self.pod, get_logs=self.get_logs)
-        except AirflowException:
-            if self.log_events_on_failure:
-                for event in launcher.read_pod_events(self.pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            raise
-        finally:
-            if self.is_delete_operator_pod:
-                self.log.debug("Deleting pod for task %s", self.task_id)
-                launcher.delete_pod(self.pod)
-            elif final_state != State.SUCCESS:
-                self.patch_already_checked(self.pod)
-        return final_state, remote_pod, result
 
-    def patch_already_checked(self, pod: k8s.V1Pod):
-        """Add an "already tried annotation to ensure we only retry once"""
-        pod.metadata.labels["already_checked"] = "True"
-        body = PodGenerator.serialize_pod(pod)
-        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
+class _suppress(AbstractContextManager):
+    """
+    This behaves the same as ``contextlib.suppress`` but logs the suppressed
+    exceptions as errors with traceback.
 
-    def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
-        """
-        Monitors a pod to completion that was created by a previous KubernetesPodOperator
+    The caught exception is also stored on the context manager instance under
+    attribute ``exception``.
+    """
 
-        :param launcher: pod launcher that will manage launching and monitoring pods
-        :param pod: podspec used to find pod using k8s API
-        :return:
-        """
-        try:
-            (final_state, remote_pod, result) = launcher.monitor_pod(pod, get_logs=self.get_logs)
-        finally:
-            if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
-        if final_state != State.SUCCESS:
-            if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            if not self.is_delete_operator_pod:
-                self.patch_already_checked(pod)
-            raise AirflowException(f'Pod returned a failure: {final_state}')
-        return final_state, remote_pod, result
+    def __init__(self, *exceptions):
+        self._exceptions = exceptions
+        self.exception = None
 
-    def on_kill(self) -> None:
-        if self.pod:
-            pod: k8s.V1Pod = self.pod
-            namespace = pod.metadata.namespace
-            name = pod.metadata.name
-            kwargs = {}
-            if self.termination_grace_period is not None:
-                kwargs = {"grace_period_seconds": self.termination_grace_period}
-            self.client.delete_namespaced_pod(name=name, namespace=namespace, **kwargs)
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exctype, excinst, exctb):
+        caught_error = exctype is not None and issubclass(exctype, self._exceptions)
+        if caught_error:
+            self.exception = excinst
+            logger = logging.getLogger()
+            logger.error(str(excinst), exc_info=True)
+        return caught_error

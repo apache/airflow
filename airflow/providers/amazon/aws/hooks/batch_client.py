@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 A client for AWS batch services
 
@@ -195,6 +194,17 @@ class AwsBatchClientHook(AwsBaseHook):
     DEFAULT_DELAY_MIN = 1
     DEFAULT_DELAY_MAX = 10
 
+    FAILURE_STATE = 'FAILED'
+    SUCCESS_STATE = 'SUCCEEDED'
+    RUNNING_STATE = 'RUNNING'
+    INTERMEDIATE_STATES = (
+        'SUBMITTED',
+        'PENDING',
+        'RUNNABLE',
+        'STARTING',
+        RUNNING_STATE,
+    )
+
     def __init__(
         self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
     ) -> None:
@@ -245,14 +255,14 @@ class AwsBatchClientHook(AwsBaseHook):
         job = self.get_job_description(job_id)
         job_status = job.get("status")
 
-        if job_status == "SUCCEEDED":
+        if job_status == self.SUCCESS_STATE:
             self.log.info("AWS batch job (%s) succeeded: %s", job_id, job)
             return True
 
-        if job_status == "FAILED":
+        if job_status == self.FAILURE_STATE:
             raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
-        if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
+        if job_status in self.INTERMEDIATE_STATES:
             raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
         raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
@@ -295,7 +305,7 @@ class AwsBatchClientHook(AwsBaseHook):
         :raises: AirflowException
         """
         self.delay(delay)
-        running_status = ["RUNNING", "SUCCEEDED", "FAILED"]
+        running_status = [self.RUNNING_STATE, self.SUCCESS_STATE, self.FAILURE_STATE]
         self.poll_job_status(job_id, running_status)
 
     def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None) -> None:
@@ -315,7 +325,7 @@ class AwsBatchClientHook(AwsBaseHook):
         :raises: AirflowException
         """
         self.delay(delay)
-        complete_status = ["SUCCEEDED", "FAILED"]
+        complete_status = [self.SUCCESS_STATE, self.FAILURE_STATE]
         self.poll_job_status(job_id, complete_status)
 
     def poll_job_status(self, job_id: str, match_status: List[str]) -> bool:

@@ -194,12 +194,13 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
+        url_parts = urlparse(REMOTE_BASE_LOG_FOLDER)
         CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
-                'log_group_arn': urlparse(REMOTE_BASE_LOG_FOLDER).netloc,
+                'log_group_arn': url_parts.netloc + url_parts.path,
                 'filename_template': FILENAME_TEMPLATE,
             },
         }

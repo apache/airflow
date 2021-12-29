@@ -20,7 +20,7 @@
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import pymssql
 import unicodecsv as csv
@@ -28,6 +28,9 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MsSqlToHiveOperator(BaseOperator):
@@ -109,7 +112,7 @@ class MsSqlToHiveOperator(BaseOperator):
         }
         return map_dict.get(mssql_type, 'STRING')
 
-    def execute(self, context: Dict[str, str]):
+    def execute(self, context: "Context"):
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
         self.log.info("Dumping Microsoft SQL Server query results to local file")
         with mssql.get_conn() as conn:

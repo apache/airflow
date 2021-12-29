@@ -19,6 +19,90 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Simplify KubernetesPodOperator (#19572)``
+
+.. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodLauncher` have been renamed.
+    If you have subclassed :class:`~.KubernetesPodOperator` will need to update your subclass to reflect
+    the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
+
+Notes on changes KubernetesPodOperator and PodLauncher
+``````````````````````````````````````````````````````
+
+Overview
+''''''''
+
+Generally speaking if you did not subclass ``KubernetesPodOperator`` and you didn't use the ``PodLauncher`` class directly,
+then you don't need to worry about this change.  If however you have subclassed ``KubernetesPodOperator``, what
+follows are some notes on the changes in this release.
+
+One of the principal goals of the refactor is to clearly separate the "get or create pod" and
+"wait for pod completion" phases.  Previously the "wait for pod completion" logic would be invoked
+differently depending on whether the operator were to  "attach to an existing pod" (e.g. after a
+worker failure) or "create a new pod" and this resulted in some code duplication and a bit more
+nesting of logic.  With this refactor we encapsulate  the "get or create" step
+into method :meth:`~.KubernetesPodOperator.get_or_create_pod`, and pull the monitoring and XCom logic up
+into the top level of ``execute`` because it can be the same for "attached" pods and "new" pods.
+
+:meth:`~.KubernetesPodOperator.get_or_create_pod` tries first to find an existing pod using labels
+specific to the task instance (see :meth:`~.KubernetesPodOperator.find_pod`).
+If one does not exist it :meth:`creates a pod <~.PodLauncher.create_pod>`.
+
+The "waiting" part of execution has three components.  The first step is to wait for the pod to leave the
+``Pending`` phase (:meth:`~.KubernetesPodOperator.await_pod_start`). Next, if configured to do so,
+the operator will :meth:`follow the base container logs <~.KubernetesPodOperator.await_pod_start>`
+and forward these logs to the task logger until the ``base`` container is done. If not configured to harvest the
+logs, the operator will instead :meth:`poll for container completion until done <~.KubernetesPodOperator.await_container_completion>`;
+either way, we must await container completion before harvesting xcom. After (optionally) extracting the xcom
+value from the base container, we :meth:`await pod completion <~.PodLauncher.await_pod_completion>`.
+
+Previously, depending on whether the pod was "reattached to" (e.g. after a worker failure) or
+created anew, the waiting logic may have occurred in either ``handle_pod_overlap`` or ``create_new_pod_for_operator``.
+
+After the pod terminates, we execute different cleanup tasks depending on whether the pod terminated successfully.
+
+If the pod terminates *unsuccessfully*, we attempt to :meth:`log the pod events <~.PodLauncher.read_pod_events>`. If
+additionally the task is configured *not* to delete the pod after termination, :meth:`we apply a label <~.KubernetesPodOperator.patch_already_checked>`
+indicating that the pod failed and should not be "reattached to" in a retry.  If the task is configured
+to delete its pod, we :meth:`delete it <~.KubernetesPodOperator.process_pod_deletion>`.  Finally,
+we raise an AirflowException to fail the task instance.
+
+If the pod terminates successfully, we :meth:`delete the pod <~.KubernetesPodOperator.process_pod_deletion>`
+(if configured to delete the pod) and push XCom (if configured to push XCom).
+
+Details on method renames, refactors, and deletions
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+In ``KubernetesPodOperator``:
+
+* Method ``create_pod_launcher`` is converted to cached property ``launcher``
+* Construction of k8s ``CoreV1Api`` client is now encapsulated within cached property ``client``
+* Logic to search for an existing pod (e.g. after an airflow worker failure) is moved out of ``execute`` and into method ``find_pod``.
+* Method ``handle_pod_overlap`` is removed. Previously it monitored a "found" pod until completion.  With this change the pod monitoring (and log following) is orchestrated directly from ``execute`` and it is the same  whether it's a "found" pod or a "new" pod. See methods ``await_pod_start``, ``follow_container_logs``, ``await_container_completion`` and ``await_pod_completion``.
+* Method ``create_pod_request_obj`` is renamed ``build_pod_request_obj``.  It now takes argument ``context`` in order to add TI-specific pod labels; previously they were added after return.
+* Method ``create_labels_for_pod`` is renamed ``_get_ti_pod_labels``.  This method doesn't return *all* labels, but only those specific to the TI. We also add parameter ``include_try_number`` to control the inclusion of this label instead of possibly filtering it out later.
+* Method ``_get_pod_identifying_label_string`` is renamed ``_build_find_pod_label_selector``
+* Method ``_try_numbers_match`` is removed.
+* Method ``create_new_pod_for_operator`` is removed. Previously it would mutate the labels on ``self.pod``, launch the pod, monitor the pod to completion etc.  Now this logic is in part handled by ``get_or_create_pod``, where a new pod will be created if necessary. The monitoring etc is now orchestrated directly from ``execute``.  Again, see the calls to methods ``await_pod_start``, ``follow_container_logs``, ``await_container_completion`` and ``await_pod_completion``.
+
+In ``pod_launcher.py``, in class ``PodLauncher``:
+
+* Method ``start_pod`` is removed and split into two methods: ``create_pod`` and ``await_pod_start``.
+* Method ``monitor_pod`` is removed and split into methods ``follow_container_logs``, ``await_container_completion``, ``await_pod_completion``
+* Methods ``pod_not_started``, ``pod_is_running``, ``process_status``, and ``_task_status`` are removed.  These were needed due to the way in which pod ``phase`` was mapped to task instance states; but we no longer do such a mapping and instead deal with pod phases directly and untransformed.
+* Method ``_extract_xcom`` is renamed  ``extract_xcom``.
+* Method ``read_pod_logs`` now takes kwarg ``container_name``
+
+
+Other changes in ``pod_launcher.py``:
+
+* Enum-like class ``PodStatus`` is renamed ``PodPhase``, and the values are no longer lower-cased.
+
 2.2.0
 .....
 

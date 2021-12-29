@@ -19,7 +19,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import pytz
 from google.api_core.exceptions import AlreadyExists
@@ -73,7 +73,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         force_rerun: bool = False,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -179,10 +179,10 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        update_mask: Optional[FieldMask] = None,
+        update_mask: Optional[Union[FieldMask, Dict[str, List[str]]]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -258,7 +258,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -329,7 +329,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -395,7 +395,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -464,7 +464,7 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -535,7 +535,7 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -609,7 +609,7 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -678,7 +678,7 @@ class WorkflowsGetExecutionOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,

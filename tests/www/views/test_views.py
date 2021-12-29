@@ -228,7 +228,11 @@ def test_mark_task_instance_state(test_app):
         task_1 >> [task_2, task_3, task_4, task_5]
 
     dagrun = dag.create_dagrun(
-        start_date=start_date, execution_date=start_date, state=State.FAILED, run_type=DagRunType.SCHEDULED
+        start_date=start_date,
+        execution_date=start_date,
+        data_interval=(start_date, start_date),
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
     )
 
     def get_task_instance(session, task):

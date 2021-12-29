@@ -15,15 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 from typing import Any, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -84,6 +85,6 @@ class AthenaSensor(BaseSensorOperator):
         return True
 
     @cached_property
-    def hook(self) -> AWSAthenaHook:
-        """Create and return an AWSAthenaHook"""
-        return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
+    def hook(self) -> AthenaHook:
+        """Create and return an AthenaHook"""
+        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)

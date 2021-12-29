@@ -27,7 +27,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def triggerer(args):
     """Starts Airflow Triggerer"""
     print(settings.HEADER)

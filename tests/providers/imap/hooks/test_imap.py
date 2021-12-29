@@ -63,6 +63,7 @@ class TestImapHook(unittest.TestCase):
                 conn_type='imap',
                 host='imap_server_address',
                 login='imap_user',
+                port=1993,
                 password='imap_password',
             )
         )
@@ -74,7 +75,7 @@ class TestImapHook(unittest.TestCase):
         with ImapHook():
             pass
 
-        mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address')
+        mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address', 1993)
         mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
         assert mock_conn.logout.call_count == 1
 

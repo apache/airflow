@@ -22,7 +22,7 @@ from typing import Dict, Iterable, List, Optional
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook, FargateProfileStates
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 CHECK_INTERVAL_SECONDS = 15
@@ -44,7 +44,7 @@ NODEGROUP_FULL_NAME = 'Amazon EKS managed node groups'
 FARGATE_FULL_NAME = 'AWS Fargate profiles'
 
 
-class EKSCreateClusterOperator(BaseOperator):
+class EksCreateClusterOperator(BaseOperator):
     """
     Creates an Amazon EKS Cluster control plane.
 
@@ -52,18 +52,18 @@ class EKSCreateClusterOperator(BaseOperator):
 
      - If argument 'compute' is provided with a value of 'nodegroup', will also
          attempt to create an Amazon EKS Managed Nodegroup for the cluster.
-         See :class:`~airflow.providers.amazon.aws.operators.EKSCreateNodegroupOperator`
+         See :class:`~airflow.providers.amazon.aws.operators.EksCreateNodegroupOperator`
          documentation for requirements.
 
     -  If argument 'compute' is provided with a value of 'fargate', will also attempt to create an AWS
          Fargate profile for the cluster.
-         See :class:`~airflow.providers.amazon.aws.operators.EKSCreateFargateProfileOperator`
+         See :class:`~airflow.providers.amazon.aws.operators.EksCreateFargateProfileOperator`
          documentation for requirements.
 
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSCreateClusterOperator`
+        :ref:`howto/operator:EksCreateClusterOperator`
 
     :param cluster_name: The unique name to give to your Amazon EKS Cluster. (templated)
     :type cluster_name: str
@@ -162,7 +162,7 @@ class EKSCreateClusterOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -212,13 +212,13 @@ class EKSCreateClusterOperator(BaseOperator):
             )
 
 
-class EKSCreateNodegroupOperator(BaseOperator):
+class EksCreateNodegroupOperator(BaseOperator):
     """
     Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSCreateNodegroupOperator`
+        :ref:`howto/operator:EksCreateNodegroupOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster to create the managed nodegroup in. (templated)
     :type cluster_name: str
@@ -270,7 +270,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -283,13 +283,13 @@ class EKSCreateNodegroupOperator(BaseOperator):
         )
 
 
-class EKSCreateFargateProfileOperator(BaseOperator):
+class EksCreateFargateProfileOperator(BaseOperator):
     """
     Creates an AWS Fargate profile for an Amazon EKS cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSCreateFargateProfileOperator`
+        :ref:`howto/operator:EksCreateFargateProfileOperator`
 
     :param cluster_name: The name of the Amazon EKS cluster to apply the AWS Fargate profile to. (templated)
     :type cluster_name: str
@@ -340,7 +340,7 @@ class EKSCreateFargateProfileOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -353,13 +353,13 @@ class EKSCreateFargateProfileOperator(BaseOperator):
         )
 
 
-class EKSDeleteClusterOperator(BaseOperator):
+class EksDeleteClusterOperator(BaseOperator):
     """
     Deletes the Amazon EKS Cluster control plane and all nodegroups attached to it.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSDeleteClusterOperator`
+        :ref:`howto/operator:EksDeleteClusterOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster to delete. (templated)
     :type cluster_name: str
@@ -400,7 +400,7 @@ class EKSDeleteClusterOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -478,13 +478,13 @@ class EKSDeleteClusterOperator(BaseOperator):
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
 
-class EKSDeleteNodegroupOperator(BaseOperator):
+class EksDeleteNodegroupOperator(BaseOperator):
     """
     Deletes an Amazon EKS managed node group from an Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSDeleteNodegroupOperator`
+        :ref:`howto/operator:EksDeleteNodegroupOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster associated with your nodegroup. (templated)
     :type cluster_name: str
@@ -524,7 +524,7 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -532,13 +532,13 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
 
 
-class EKSDeleteFargateProfileOperator(BaseOperator):
+class EksDeleteFargateProfileOperator(BaseOperator):
     """
     Deletes an AWS Fargate profile from an Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSDeleteFargateProfileOperator`
+        :ref:`howto/operator:EksDeleteFargateProfileOperator`
 
     :param cluster_name: The name of the Amazon EKS cluster associated with your Fargate profile. (templated)
     :type cluster_name: str
@@ -577,7 +577,7 @@ class EKSDeleteFargateProfileOperator(BaseOperator):
         self.region = region
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -587,13 +587,13 @@ class EKSDeleteFargateProfileOperator(BaseOperator):
         )
 
 
-class EKSPodOperator(KubernetesPodOperator):
+class EksPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod on the specified Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSPodOperator`
+        :ref:`howto/operator:EksPodOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
     :type cluster_name: str
@@ -635,9 +635,9 @@ class EKSPodOperator(KubernetesPodOperator):
         # file is stored locally in the worker and not in the cluster.
         in_cluster: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
-        pod_context: str = None,
-        pod_name: str = None,
-        pod_username: str = None,
+        pod_context: Optional[str] = None,
+        pod_name: Optional[str] = None,
+        pod_username: Optional[str] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -678,12 +678,12 @@ class EKSPodOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
         # There is no need to manage the kube_config file, as it will be generated automatically.
-        # All Kubernetes parameters (except config_file) are also valid for the EKSPodOperator.
+        # All Kubernetes parameters (except config_file) are also valid for the EksPodOperator.
         if self.config_file:
-            raise AirflowException("The config_file is not an allowed parameter for the EKSPodOperator.")
+            raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
     def execute(self, context):
-        eks_hook = EKSHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -691,3 +691,115 @@ class EKSPodOperator(KubernetesPodOperator):
             eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
         ) as self.config_file:
             return super().execute(context)
+
+
+class EKSCreateClusterOperator(EksCreateClusterOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksCreateClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksCreateClusterOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSCreateNodegroupOperator(EksCreateNodegroupOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksCreateNodegroupOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksCreateNodegroupOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSCreateFargateProfileOperator(EksCreateFargateProfileOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksCreateFargateProfileOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksCreateFargateProfileOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSDeleteClusterOperator(EksDeleteClusterOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSDeleteNodegroupOperator(EksDeleteNodegroupOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSDeleteFargateProfileOperator(EksDeleteFargateProfileOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksDeleteFargateProfileOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksDeleteFargateProfileOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSPodOperator(EksPodOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksPodOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.eks.EksPodOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

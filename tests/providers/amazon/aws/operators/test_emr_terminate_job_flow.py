@@ -19,7 +19,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator
+from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator
 
 TERMINATE_SUCCESS_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}}
 

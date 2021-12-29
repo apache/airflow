@@ -94,7 +94,7 @@ repos:
       - id: insert-license
         name: Add license for all Python files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        types: [python]
+        files: \.py$|\.pyi$
         args:
           - --comment-style
           - "|#|"
@@ -196,10 +196,10 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.29.0
+    rev: v2.29.1
     hooks:
       - id: pyupgrade
-        args: ["--py36-plus"]
+        args: ["--py37-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
@@ -281,6 +281,11 @@ repos:
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
   - repo: local
     hooks:
+      - id: autoflake
+        name: Remove all unused code
+        entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
+        language: python
+        additional_dependencies: ['autoflake']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
@@ -408,7 +413,7 @@ repos:
         language: pygrep
         name: Only capitalized Breeze used in Breeze2.
         description: Please use capitalized "Breeze" in the new Breeze docs
-        entry: "breeze"
+        entry: ([\W\s\n\t\r]|^)breeze([\W\s\n\t\r]|$)
         pass_filenames: true
         files: ^dev/breeze/doc
       - id: base-operator
@@ -660,6 +665,12 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: vendor-k8s-json-schema
+        name: Vendor k8s definitions into values.schema.json
+        entry: ./scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py
+        language: python
+        files: ^chart/values\.schema\.json$
+        additional_dependencies: ['requests==2.25.0']
       - id: json-schema
         name: Lint chart/values.yaml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -684,6 +695,20 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: persist-credentials-disabled
+        name: Check that workflow files have persist-credentials disabled
+        entry: ./scripts/ci/pre_commit/pre_commit_checkout_no_credentials.py
+        language: python
+        pass_filenames: true
+        files: \.github/workflows/.*\.yml$
+        additional_dependencies: ['PyYAML', 'rich']
+      - id: chart-schema-lint
+        name: Lint chart/values.schema.json file
+        entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py
+        language: python
+        pass_filenames: false
+        files: ^chart/values\.schema\.json$
+        require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node
@@ -721,22 +746,23 @@ repos:
       - id: mypy
         name: Run mypy
         language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/
+        exclude: ^provider_packages|^chart|^docs|^airflow/_vendor/
+        require_serial: true
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^chart/.*\.py$
-        require_serial: false
+        require_serial: true
       - id: mypy
         name: Run mypy for /docs/ folder
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^docs/.*\.py$
         exclude: rtd-deprecation
-        require_serial: false
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system

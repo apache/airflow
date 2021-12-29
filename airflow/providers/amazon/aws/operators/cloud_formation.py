@@ -19,7 +19,7 @@
 from typing import List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 
 
 class CloudFormationCreateStackOperator(BaseOperator):
@@ -50,7 +50,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Parameters: %s', self.params)
 
-        cloudformation_hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id)
+        cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
         cloudformation_hook.create_stack(self.stack_name, self.params)
 
 
@@ -85,5 +85,5 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Parameters: %s', self.params)
 
-        cloudformation_hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id)
+        cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
         cloudformation_hook.delete_stack(self.stack_name, self.params)

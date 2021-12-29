@@ -81,6 +81,7 @@ class SqoopHook(BaseHook):
         self.verbose = verbose
         self.num_mappers = num_mappers
         self.properties = properties or {}
+        self.sub_process_pid: int
         self.log.info("Using connection to: %s:%s/%s", self.conn.host, self.conn.port, self.conn.schema)
 
     def get_conn(self) -> Any:
@@ -107,6 +108,7 @@ class SqoopHook(BaseHook):
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: %s", masked_cmd)
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs) as sub_process:
+            self.sub_process_pid = sub_process.pid
             for line in iter(sub_process.stdout):  # type: ignore
                 self.log.info(line.strip())
             sub_process.wait()

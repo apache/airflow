@@ -17,7 +17,7 @@
 
 from collections.abc import Iterator
 from logging import Logger
-from typing import List, Union
+from typing import List, Optional, Union
 
 from google.cloud.bigquery.table import Row
 
@@ -30,7 +30,7 @@ def bigquery_get_data(
     table_id: str,
     big_query_hook: BigQueryHook,
     batch_size: int,
-    selected_fields: Union[List, str],
+    selected_fields: Optional[Union[List[str], str]],
 ) -> Iterator:
     logger.info('Fetching Data from:')
     logger.info('Dataset: %s ; Table: %s', dataset_id, table_id)

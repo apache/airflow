@@ -66,7 +66,7 @@ Google services including:
   - `Google Firebase <https://firebase.google.com/>`__
   - `Google LevelDB <https://github.com/google/leveldb/>`__
   - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-  - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
+  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
 Release: 6.2.0
@@ -80,7 +80,7 @@ are in ``airflow.providers.google`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-google``
 
 PIP requirements

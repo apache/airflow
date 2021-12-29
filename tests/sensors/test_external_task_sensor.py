@@ -174,7 +174,7 @@ class TestExternalTaskSensor(unittest.TestCase):
 
     def test_external_task_sensor_fn_multiple_execution_dates(self):
         bash_command_code = """
-{% set s=execution_date.time().second %}
+{% set s=logical_date.time().second %}
 echo "second is {{ s }}"
 if [[ $(( {{ s }} % 60 )) == 1 ]]
     then
@@ -292,7 +292,7 @@ exit 0
         self.test_time_sensor()
 
         def my_func(dt, context):
-            assert context['execution_date'] == dt
+            assert context['logical_date'] == dt
             return dt + timedelta(0)
 
         op1 = ExternalTaskSensor(
@@ -541,7 +541,7 @@ def dag_bag_parent_child():
             task_id="task_1",
             external_dag_id=dag_0.dag_id,
             external_task_id=task_0.task_id,
-            execution_date_fn=lambda execution_date: day_1 if execution_date == day_1 else [],
+            execution_date_fn=lambda logical_date: day_1 if logical_date == day_1 else [],
             mode='reschedule',
         )
 
@@ -889,7 +889,7 @@ def dag_bag_head_tail():
             task_id="tail",
             external_dag_id=dag.dag_id,
             external_task_id=head.task_id,
-            execution_date="{{ tomorrow_ds_nodash }}",
+            execution_date="{{ macros.ds_add(ds, 1) }}",
         )
         head >> body >> tail
 

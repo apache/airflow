@@ -38,6 +38,10 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     """
     Creates a queue in Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueCreateOperator`
+
     :param location: The location name in which the queue will be created.
     :type location: str
     :param task_queue: The task queue to create.
@@ -92,7 +96,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         queue_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -139,6 +143,10 @@ class CloudTasksQueueCreateOperator(BaseOperator):
 class CloudTasksQueueUpdateOperator(BaseOperator):
     """
     Updates a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueUpdateOperator`
 
     :param task_queue: The task queue to update.
         This method creates the queue if it does not exist and updates the queue if
@@ -198,10 +206,10 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         queue_name: Optional[str] = None,
-        update_mask: Union[Dict, FieldMask] = None,
+        update_mask: Optional[Union[Dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -239,6 +247,10 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
 class CloudTasksQueueGetOperator(BaseOperator):
     """
     Gets a queue from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueGetOperator`
 
     :param location: The location name in which the queue was created.
     :type location: str
@@ -287,7 +299,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -321,6 +333,10 @@ class CloudTasksQueueGetOperator(BaseOperator):
 class CloudTasksQueuesListOperator(BaseOperator):
     """
     Lists queues from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuesListOperator`
 
     :param location: The location name in which the queues were created.
     :type location: str
@@ -372,7 +388,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -408,6 +424,10 @@ class CloudTasksQueuesListOperator(BaseOperator):
 class CloudTasksQueueDeleteOperator(BaseOperator):
     """
     Deletes a queue from Cloud Tasks, even if it has tasks in it.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueDeleteOperator`
 
     :param location: The location name in which the queue will be deleted.
     :type location: str
@@ -454,7 +474,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -487,6 +507,10 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
 class CloudTasksQueuePurgeOperator(BaseOperator):
     """
     Purges a queue by deleting all of its tasks from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuePurgeOperator`
 
     :param location: The location name in which the queue will be purged.
     :type location: str
@@ -535,7 +559,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -569,6 +593,10 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
 class CloudTasksQueuePauseOperator(BaseOperator):
     """
     Pauses a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuePauseOperator`
 
     :param location: The location name in which the queue will be paused.
     :type location: str
@@ -617,7 +645,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -651,6 +679,10 @@ class CloudTasksQueuePauseOperator(BaseOperator):
 class CloudTasksQueueResumeOperator(BaseOperator):
     """
     Resumes a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueResumeOperator`
 
     :param location: The location name in which the queue will be resumed.
     :type location: str
@@ -699,7 +731,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -733,6 +765,10 @@ class CloudTasksQueueResumeOperator(BaseOperator):
 class CloudTasksTaskCreateOperator(BaseOperator):
     """
     Creates a task in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskCreateOperator`
 
     :param location: The location name in which the task will be created.
     :type location: str
@@ -792,10 +828,10 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         task: Union[Dict, Task],
         project_id: Optional[str] = None,
         task_name: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -835,6 +871,10 @@ class CloudTasksTaskCreateOperator(BaseOperator):
 class CloudTasksTaskGetOperator(BaseOperator):
     """
     Gets a task from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskGetOperator`
 
     :param location: The location name in which the task was created.
     :type location: str
@@ -888,10 +928,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -929,6 +969,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
 class CloudTasksTasksListOperator(BaseOperator):
     """
     Lists the tasks in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTasksListOperator`
 
     :param location: The location name in which the tasks were created.
     :type location: str
@@ -981,11 +1025,11 @@ class CloudTasksTasksListOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1023,6 +1067,10 @@ class CloudTasksTasksListOperator(BaseOperator):
 class CloudTasksTaskDeleteOperator(BaseOperator):
     """
     Deletes a task from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskDeleteOperator`
 
     :param location: The location name in which the task will be deleted.
     :type location: str
@@ -1073,7 +1121,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1108,6 +1156,10 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
 class CloudTasksTaskRunOperator(BaseOperator):
     """
     Forces to run a task in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskRunOperator`
 
     :param location: The location name in which the task was created.
     :type location: str
@@ -1161,10 +1213,10 @@ class CloudTasksTaskRunOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,

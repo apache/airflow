@@ -14,35 +14,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
+
 from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
+from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.models.pool import Pool
 from airflow.security import permissions
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL)])
 @provide_session
-def delete_pool(pool_name: str, session):
+def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a pool"""
     if pool_name == "default_pool":
         raise BadRequest(detail="Default Pool can't be deleted")
-    elif session.query(Pool).filter(Pool.pool == pool_name).delete() == 0:
+    affected_count = session.query(Pool).filter(Pool.pool == pool_name).delete()
+    if affected_count == 0:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
-    else:
-        return Response(status=204)
+    return Response(status=204)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
 @provide_session
-def get_pool(pool_name, session):
+def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a pool"""
     obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
     if obj is None:
@@ -51,9 +55,15 @@ def get_pool(pool_name, session):
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
-def get_pools(session, limit, order_by='id', offset=None):
+def get_pools(
+    *,
+    limit: int,
+    order_by: str = "id",
+    offset: Optional[int] = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get all pools"""
     to_replace = {"name": "pool"}
     allowed_filter_attrs = ['name', 'slots', "id"]
@@ -66,7 +76,12 @@ def get_pools(session, limit, order_by='id', offset=None):
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL)])
 @provide_session
-def patch_pool(pool_name, session, update_mask=None):
+def patch_pool(
+    *,
+    pool_name: str,
+    update_mask: UpdateMask = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Update a pool"""
     # Only slots can be modified in 'default_pool'
     try:
@@ -116,7 +131,7 @@ def patch_pool(pool_name, session, update_mask=None):
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL)])
 @provide_session
-def post_pool(session):
+def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool"""
     required_fields = {"name", "slots"}  # Pool would require both fields in the post request
     fields_diff = required_fields - set(request.json.keys())

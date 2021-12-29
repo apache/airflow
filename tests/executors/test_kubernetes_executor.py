@@ -687,6 +687,61 @@ class TestKubernetesExecutor:
         )
         mock_delete_pod.assert_called_once_with('foo90', 'anothernamespace')
 
+    def test_clear_not_launched_queued_tasks_not_launched(self, dag_maker, create_dummy_dag, session):
+        """If a pod isn't found for a TI, reset the state to scheduled"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
+
+        create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 1
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti.refresh_from_db()
+        assert ti.state == State.SCHEDULED
+        assert mock_kube_client.list_namespaced_pod.call_count == 2
+        mock_kube_client.list_namespaced_pod.assert_any_call(
+            "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+        )
+        # also check that we fall back to execution_date if we didn't find the pod with run_id
+        execution_date_label = pod_generator.datetime_to_label_safe_datestring(ti.execution_date)
+        mock_kube_client.list_namespaced_pod.assert_called_with(
+            "default",
+            label_selector=(
+                f"dag_id=test_clear,task_id=task1,airflow-worker=1,execution_date={execution_date_label}"
+            ),
+        )
+
+    def test_clear_not_launched_queued_tasks_launched(self, dag_maker, create_dummy_dag, session):
+        """Leave the state alone if a pod already exists"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=["something"])
+
+        create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 1
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti.refresh_from_db()
+        assert ti.state == State.QUEUED
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+        )
+
 
 class TestKubernetesJobWatcher(unittest.TestCase):
     def setUp(self):

@@ -19,11 +19,14 @@
 """This module contains a sqoop 1 operator"""
 import os
 import signal
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SqoopOperator(BaseOperator):
@@ -183,7 +186,7 @@ class SqoopOperator(BaseOperator):
         self.hook: Optional[SqoopHook] = None
         self.schema = schema
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context: "Context") -> None:
         """Execute sqoop job"""
         if self.hook is None:
             self.hook = self._get_hook()
@@ -250,7 +253,7 @@ class SqoopOperator(BaseOperator):
         if self.hook is None:
             self.hook = self._get_hook()
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)
+        os.killpg(os.getpgid(self.hook.sub_process_pid), signal.SIGTERM)
 
     def _get_hook(self) -> SqoopHook:
         return SqoopHook(

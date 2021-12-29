@@ -143,7 +143,7 @@ class BashOperator(BaseOperator):
         append_env: bool = False,
         output_encoding: str = 'utf-8',
         skip_exit_code: int = 99,
-        cwd: str = None,
+        cwd: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

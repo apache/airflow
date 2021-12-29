@@ -21,7 +21,7 @@ import os
 import re
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Pattern, Union
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Pattern, Union, overload
 
 from airflow.configuration import conf
 
@@ -68,7 +68,17 @@ def mkdirs(path, mode):
 ZIP_REGEX = re.compile(fr'((.*\.zip){re.escape(os.sep)})?(.*)')
 
 
-def correct_maybe_zipped(fileloc):
+@overload
+def correct_maybe_zipped(fileloc: None) -> None:
+    ...
+
+
+@overload
+def correct_maybe_zipped(fileloc: Union[str, Path]) -> Union[str, Path]:
+    ...
+
+
+def correct_maybe_zipped(fileloc: Union[None, str, Path]) -> Union[None, str, Path]:
     """
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.

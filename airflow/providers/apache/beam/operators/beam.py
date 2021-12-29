@@ -41,7 +41,9 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     """
 
     dataflow_hook: Optional[DataflowHook]
-    dataflow_config: Optional[DataflowConfiguration]
+    dataflow_config: DataflowConfiguration
+    gcp_conn_id: str
+    delegate_to: Optional[str]
 
     def _set_dataflow(
         self, pipeline_options: dict, job_name_variable_key: Optional[str] = None
@@ -198,10 +200,16 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
         self.py_system_site_packages = py_system_site_packages
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.dataflow_config = dataflow_config or {}
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
         self.dataflow_job_id: Optional[str] = None
+
+        if dataflow_config is None:
+            self.dataflow_config = DataflowConfiguration()
+        elif isinstance(dataflow_config, dict):
+            self.dataflow_config = DataflowConfiguration(**dataflow_config)
+        else:
+            self.dataflow_config = dataflow_config
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
@@ -215,9 +223,6 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
         process_line_callback: Optional[Callable] = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: Optional[str] = None
-
-        if isinstance(self.dataflow_config, dict):
-            self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
 
         if is_dataflow:
             dataflow_job_name, pipeline_options, process_line_callback = self._set_dataflow(
@@ -366,13 +371,19 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
         self.default_pipeline_options = default_pipeline_options or {}
         self.pipeline_options = pipeline_options or {}
         self.job_class = job_class
-        self.dataflow_config = dataflow_config or {}
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.dataflow_job_id = None
         self.dataflow_hook: Optional[DataflowHook] = None
         self.beam_hook: Optional[BeamHook] = None
         self._dataflow_job_name: Optional[str] = None
+
+        if dataflow_config is None:
+            self.dataflow_config = DataflowConfiguration()
+        elif isinstance(dataflow_config, dict):
+            self.dataflow_config = DataflowConfiguration(**dataflow_config)
+        else:
+            self.dataflow_config = dataflow_config
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
@@ -386,9 +397,6 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
         process_line_callback: Optional[Callable] = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: Optional[str] = None
-
-        if isinstance(self.dataflow_config, dict):
-            self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
 
         if is_dataflow:
             dataflow_job_name, pipeline_options, process_line_callback = self._set_dataflow(

@@ -143,7 +143,9 @@ class ExasolHook(DbApiHook):
             )
         self.log.info("Data saved to %s", filename)
 
-    def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None) -> None:
+    def run(
+        self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler=None
+    ) -> None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -157,6 +159,8 @@ class ExasolHook(DbApiHook):
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
+        :param handler: The result handler which is called with the result of each statement.
+        :type handler: callable
         """
         if isinstance(sql, str):
             sql = [sql]

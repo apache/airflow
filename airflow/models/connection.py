@@ -214,7 +214,7 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query = urlencode(self.extra_dejson)
+                query: Optional[str] = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):

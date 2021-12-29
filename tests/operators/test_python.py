@@ -19,6 +19,7 @@ import copy
 import logging
 import sys
 import unittest.mock
+import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
@@ -39,6 +40,7 @@ from airflow.operators.python import (
     get_current_context,
 )
 from airflow.utils import timezone
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -703,6 +705,25 @@ class TestShortCircuitOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
+    def test_xcom_push(self):
+        dag = DAG(
+            'shortcircuit_operator_test_xcom_push',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: 'signature')
+        dag.clear()
+        dr = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        tis = dr.get_task_instances()
+        xcom_value = tis[0].xcom_pull(task_ids='make_choice', key='return_value')
+        assert xcom_value == 'signature'
+
 
 virtualenv_string_args: List[str] = []
 
@@ -898,6 +919,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_airflow_context(self):
         def f(
             # basic
@@ -938,6 +960,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_pendulum_context(self):
         def f(
             # basic
@@ -969,10 +992,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         ):
             pass
 
-        self._run_as_operator(
-            f, use_dill=True, system_site_packages=False, requirements=['pendulum', 'lazy_object_proxy']
-        )
+        self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=['pendulum'])
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_base_context(self):
         def f(
             # basic
@@ -1076,7 +1098,9 @@ class MyContextAssertOperator(BaseOperator):
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
+        assert context == current_context._context
 
 
 @pytest.fixture()

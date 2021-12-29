@@ -53,7 +53,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     :type source_project_dataset_table: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
-    :type selected_fields: str
+    :type selected_fields: List[str] | str
     :param gcp_conn_id: reference to a specific Google Cloud hook.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
@@ -120,7 +120,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
 
     def execute(self, context) -> None:
         big_query_hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,

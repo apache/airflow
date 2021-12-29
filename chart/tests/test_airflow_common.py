@@ -123,3 +123,68 @@ class TestAirflowCommon:
 
         for doc in docs:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=["templates/secrets/fernetkey-secret.yaml"],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "0"
+
+    def test_should_disable_some_variables(self):
+        docs = render_chart(
+            values={
+                "enableBuiltInSecretEnvVars": {
+                    "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
+                    "AIRFLOW__WEBSERVER__SECRET_KEY": False,
+                    "AIRFLOW__CELERY__RESULT_BACKEND": False,
+                    "AIRFLOW__ELASTICSEARCH__HOST": False,
+                },
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        expected_vars = [
+            'AIRFLOW__CORE__FERNET_KEY',
+            'AIRFLOW_CONN_AIRFLOW_DB',
+            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
+            'AIRFLOW__CELERY__BROKER_URL',
+        ]
+        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        for doc in docs:
+            component = doc['metadata']['labels']['component']
+            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            assert variables == jmespath.search(
+                "spec.template.spec.containers[0].env[*].name", doc
+            ), f"Wrong vars in {component}"
+
+    def test_have_all_variables(self):
+        docs = render_chart(
+            values={},
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        expected_vars = [
+            'AIRFLOW__CORE__FERNET_KEY',
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
+            'AIRFLOW_CONN_AIRFLOW_DB',
+            'AIRFLOW__WEBSERVER__SECRET_KEY',
+            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
+            'AIRFLOW__CELERY__RESULT_BACKEND',
+            'AIRFLOW__CELERY__BROKER_URL',
+        ]
+        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        for doc in docs:
+            component = doc['metadata']['labels']['component']
+            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            assert variables == jmespath.search(
+                "spec.template.spec.containers[0].env[*].name", doc
+            ), f"Wrong vars in {component}"

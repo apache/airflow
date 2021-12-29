@@ -19,7 +19,7 @@
 from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
+from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 
@@ -83,9 +83,9 @@ class RedshiftToS3Operator(BaseOperator):
         *,
         s3_bucket: str,
         s3_key: str,
-        schema: str = None,
-        table: str = None,
-        select_query: str = None,
+        schema: Optional[str] = None,
+        table: Optional[str] = None,
+        select_query: Optional[str] = None,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,

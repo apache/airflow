@@ -44,11 +44,14 @@ class PapermillOperator(BaseOperator):
     :type output_nb: str
     :param parameters: the notebook parameters to set
     :type parameters: dict
+    :param kernel_name: (optional) name of kernel to execute the notebook against
+        (ignores kernel name in the notebook document metadata)
+    :type kernel_name: str
     """
 
     supports_lineage = True
 
-    template_fields = ('input_nb', 'output_nb', 'parameters')
+    template_fields = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
 
     def __init__(
         self,
@@ -56,6 +59,7 @@ class PapermillOperator(BaseOperator):
         input_nb: Optional[str] = None,
         output_nb: Optional[str] = None,
         parameters: Optional[Dict] = None,
+        kernel_name: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -63,6 +67,7 @@ class PapermillOperator(BaseOperator):
         self.input_nb = input_nb
         self.output_nb = output_nb
         self.parameters = parameters
+        self.kernel_name = kernel_name
         if input_nb:
             self.inlets.append(NoteBook(url=input_nb, parameters=self.parameters))
         if output_nb:
@@ -79,4 +84,5 @@ class PapermillOperator(BaseOperator):
                 parameters=item.parameters,
                 progress_bar=False,
                 report_mode=True,
+                kernel_name=self.kernel_name,
             )

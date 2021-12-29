@@ -19,7 +19,7 @@
 import re
 from collections import namedtuple
 from time import sleep
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from azure.mgmt.containerinstance.models import (
     Container,
@@ -38,6 +38,10 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 Volume = namedtuple(
     'Volume',
@@ -195,7 +199,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.ip_address = ip_address
         self.ports = ports
 
-    def execute(self, context: dict) -> int:
+    def execute(self, context: "Context") -> int:
         # Check name again in case it was templated.
         self._check_name(self.name)
 

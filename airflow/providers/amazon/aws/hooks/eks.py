@@ -75,7 +75,7 @@ class NodegroupStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
-class EKSHook(AwsBaseHook):
+class EksHook(AwsBaseHook):
     """
     Interact with Amazon EKS, using the boto3 library.
 
@@ -644,3 +644,18 @@ class EKSHook(AwsBaseHook):
 
         # remove any base64 encoding padding:
         return 'k8s-aws-v1.' + base64_url.rstrip("=")
+
+
+class EKSHook(EksHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.eks.EksHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. " "Please use `airflow.providers.amazon.aws.hooks.eks.EksHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

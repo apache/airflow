@@ -138,12 +138,7 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    def run(
-        self,
-        hql,
-        autocommit: bool = False,
-        parameters: Optional[dict] = None,
-    ) -> None:
+    def run(self, hql, autocommit: bool = False, parameters: Optional[dict] = None, handler=None) -> None:
         """Execute the statement against Trino. Can be used to create views."""
         return super().run(sql=self._strip_sql(hql), parameters=parameters)
 

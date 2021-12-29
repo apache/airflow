@@ -66,15 +66,18 @@ class WorkflowExecutionSensor(BaseSensorOperator):
         failure_states: Optional[Set[Execution.State]] = None,
         retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        self.success_states = success_states or {Execution.State.SUCCEEDED}
-        self.failure_states = failure_states or {Execution.State.FAILED, Execution.State.CANCELLED}
+        self.success_states = success_states or {Execution.State(Execution.State.SUCCEEDED)}
+        self.failure_states = failure_states or {
+            Execution.State(Execution.State.FAILED),
+            Execution.State(Execution.State.CANCELLED),
+        }
         self.workflow_id = workflow_id
         self.execution_id = execution_id
         self.location = location

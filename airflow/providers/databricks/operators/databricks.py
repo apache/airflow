@@ -74,22 +74,24 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     if operator.do_xcom_push:
         context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
 
-    log.info('View run status, Spark UI, and logs at %s', run_page_url)
-    while True:
-        run_state = hook.get_run_state(operator.run_id)
-        if run_state.is_terminal:
-            if run_state.is_successful:
-                log.info('%s completed successfully.', operator.task_id)
-                log.info('View run status, Spark UI, and logs at %s', run_page_url)
-                return
+    if operator.wait_for_termination:
+        while True:
+            run_state = hook.get_run_state(operator.run_id)
+            if run_state.is_terminal:
+                if run_state.is_successful:
+                    log.info('%s completed successfully.', operator.task_id)
+                    log.info('View run status, Spark UI, and logs at %s', run_page_url)
+                    return
+                else:
+                    error_message = f'{operator.task_id} failed with terminal state: {run_state}'
+                    raise AirflowException(error_message)
             else:
-                error_message = f'{operator.task_id} failed with terminal state: {run_state}'
-                raise AirflowException(error_message)
-        else:
-            log.info('%s in run state: %s', operator.task_id, run_state)
-            log.info('View run status, Spark UI, and logs at %s', run_page_url)
-            log.info('Sleeping for %s seconds.', operator.polling_period_seconds)
-            time.sleep(operator.polling_period_seconds)
+                log.info('%s in run state: %s', operator.task_id, run_state)
+                log.info('View run status, Spark UI, and logs at %s', run_page_url)
+                log.info('Sleeping for %s seconds.', operator.polling_period_seconds)
+                time.sleep(operator.polling_period_seconds)
+    else:
+        log.info('View run status, Spark UI, and logs at %s', run_page_url)
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
@@ -282,6 +284,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         do_xcom_push: bool = False,
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
+        wait_for_termination: bool = True,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -291,6 +294,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.wait_for_termination = wait_for_termination
         if tasks is not None:
             self.json['tasks'] = tasks
         if spark_jar_task is not None:
@@ -511,6 +515,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         do_xcom_push: bool = False,
+        wait_for_termination: bool = True,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -520,6 +525,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.wait_for_termination = wait_for_termination
 
         if job_id is not None:
             self.json['job_id'] = job_id

@@ -23,6 +23,7 @@
 {{- $nodeSelector := or .Values.nodeSelector .Values.triggerer.nodeSelector }}
 {{- $affinity := or .Values.affinity .Values.triggerer.affinity }}
 {{- $tolerations := or .Values.tolerations .Values.triggerer.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.triggerer) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -81,9 +82,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
-      securityContext:
-        runAsUser: {{ .Values.uid }}
-        fsGroup: {{ .Values.gid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}

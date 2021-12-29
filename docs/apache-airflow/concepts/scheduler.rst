@@ -130,7 +130,7 @@ This does however place some requirements on the Database.
 Database Requirements
 """""""""""""""""""""
 
-The short version is that users of PostgreSQL 9.6+ or MySQL 8+ are all ready to go -- you can start running as
+The short version is that users of PostgreSQL 10+ or MySQL 8+ are all ready to go -- you can start running as
 many copies of the scheduler as you like -- there is no further set up or config options needed. If you are
 using a different database please read on.
 
@@ -146,7 +146,7 @@ UPDATE NOWAIT`` but the exact query is slightly different).
 
 The following databases are fully supported and provide an "optimal" experience:
 
-- PostgreSQL 9.6+
+- PostgreSQL 10+
 - MySQL 8+
 
 .. warning::
@@ -353,9 +353,9 @@ However you can also look at other non-performance-related scheduler configurati
 
 - :ref:`config:scheduler__pool_metrics_interval`
 
-  How often (in seconds) should pool usage stats be sent to statsd (if
+  How often (in seconds) should pool usage stats be sent to StatsD (if
   statsd_on is enabled). This is a *relatively* expensive query to compute
-  this, so this should be set to match the same period as your statsd roll-up
+  this, so this should be set to match the same period as your StatsD roll-up
   period.
 
 - :ref:`config:scheduler__orphaned_tasks_check_interval`

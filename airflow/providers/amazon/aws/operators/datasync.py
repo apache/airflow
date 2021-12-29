@@ -19,14 +19,15 @@
 
 import logging
 import random
+import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
+from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 
 
-class AWSDataSyncOperator(BaseOperator):
+class DataSyncOperator(BaseOperator):
     r"""Find, Create, Update, Execute and Delete AWS DataSync Tasks.
 
     If ``do_xcom_push`` is True, then the DataSync TaskArn and TaskExecutionArn
@@ -34,7 +35,7 @@ class AWSDataSyncOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AWSDataSyncOperator`
+        :ref:`howto/operator:DataSyncOperator`
 
     .. note:: There may be 0, 1, or many existing DataSync Tasks defined in your AWS
         environment. The default behavior is to create a new Task if there are 0, or
@@ -185,7 +186,7 @@ class AWSDataSyncOperator(BaseOperator):
             )
 
         # Others
-        self.hook: Optional[AWSDataSyncHook] = None
+        self.hook: Optional[DataSyncHook] = None
         # Candidates - these are found in AWS as possible things
         # for us to use
         self.candidate_source_location_arns: Optional[List[str]] = None
@@ -196,15 +197,15 @@ class AWSDataSyncOperator(BaseOperator):
         self.destination_location_arn: Optional[str] = None
         self.task_execution_arn: Optional[str] = None
 
-    def get_hook(self) -> AWSDataSyncHook:
-        """Create and return AWSDataSyncHook.
+    def get_hook(self) -> DataSyncHook:
+        """Create and return DataSyncHook.
 
-        :return AWSDataSyncHook: An AWSDataSyncHook instance.
+        :return DataSyncHook: An DataSyncHook instance.
         """
         if self.hook:
             return self.hook
 
-        self.hook = AWSDataSyncHook(
+        self.hook = DataSyncHook(
             aws_conn_id=self.aws_conn_id,
             wait_interval_seconds=self.wait_interval_seconds,
         )
@@ -345,7 +346,7 @@ class AWSDataSyncOperator(BaseOperator):
         self.log.info("Updated TaskArn %s", self.task_arn)
 
     def _execute_datasync_task(self) -> None:
-        """Create and monitor an AWSDataSync TaskExecution for a Task."""
+        """Create and monitor an AWS DataSync TaskExecution for a Task."""
         if not self.task_arn:
             raise AirflowException("Missing TaskArn")
 
@@ -407,3 +408,19 @@ class AWSDataSyncOperator(BaseOperator):
         location_arns = self.get_hook().get_location_arns(location_uri)
         self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
         return location_arns
+
+
+class AWSDataSyncOperator(DataSyncOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.datasync.DataSyncOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. Please use "
+            "`airflow.providers.amazon.aws.operators.datasync.DataSyncHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
