@@ -41,3 +41,24 @@ maintainers:
   - email: dev@airflow.apache.org
     name: Apache Airflow PMC
 type: application
+annotations:
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://airflow.apache.org/docs/helm-chart/1.4.0/
+  artifacthub.io/screenshots: |
+    - title: DAGs View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/dags.png
+    - title: Tree View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/tree.png
+    - title: Calendar View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/calendar.png
+    - title: Variable View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/variable_hidden1.png
+    - title: Gantt Chart
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/gantt.png
+    - title: Task Duration
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/duration.png
+    - title: Code View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/code.png
+    - title: Task Instance Context Menu
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/context.png
