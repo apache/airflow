@@ -60,7 +60,7 @@ If there's already a dag param with that name, the task-level default will take 
 
 When a user manually triggers a dag, they can change the parameters that are provided to the dagrun.
 This can be disabled by setting ``core.dag_run_conf_overrides_params = False``, which will prevent the user from changing the params.
-If the user-supplied values don't pass validation, Airflow will show the user a warning it will not create the dagrun.
+If the user-supplied values don't pass validation, Airflow will show the user a warning instead of creating the dagrun.
 
 
 You can reference dag params via a templated task argument:
