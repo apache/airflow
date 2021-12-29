@@ -18,11 +18,14 @@
 
 import os.path
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GlueJobOperator(BaseOperator):
@@ -104,7 +107,7 @@ class GlueJobOperator(BaseOperator):
         self.run_job_kwargs = run_job_kwargs or {}
         self.wait_for_completion = wait_for_completion
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Executes AWS Glue Job from Airflow
 

@@ -16,12 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class RedshiftToS3Operator(BaseOperator):
@@ -135,7 +138,7 @@ class RedshiftToS3Operator(BaseOperator):
                     {unload_options};
         """
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
 

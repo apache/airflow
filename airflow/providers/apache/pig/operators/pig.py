@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PigOperator(BaseOperator):
@@ -68,7 +71,7 @@ class PigOperator(BaseOperator):
         if self.pigparams_jinja_translate:
             self.pig = re.sub(r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Executing: %s', self.pig)
         self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)

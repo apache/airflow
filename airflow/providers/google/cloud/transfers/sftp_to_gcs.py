@@ -18,12 +18,16 @@
 """This module contains SFTP to Google Cloud Storage operator."""
 import os
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 WILDCARD = "*"
 
@@ -113,7 +117,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

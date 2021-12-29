@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GlacierToGCSOperator(BaseOperator):
@@ -92,7 +95,7 @@ class GlacierToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = google_impersonation_chain
 
-    def execute(self, context) -> str:
+    def execute(self, context: 'Context') -> str:
         glacier_hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

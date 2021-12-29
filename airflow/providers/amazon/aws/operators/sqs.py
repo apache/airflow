@@ -16,10 +16,13 @@
 # under the License.
 
 """Publish message to SQS queue"""
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SQSPublishOperator(BaseOperator):
@@ -64,7 +67,7 @@ class SQSPublishOperator(BaseOperator):
         self.delay_seconds = delay_seconds
         self.message_attributes = message_attributes or {}
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Publish the message to SQS queue
 

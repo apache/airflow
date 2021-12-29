@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google BigQuery Data Transfer Service sensor."""
-from typing import Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
@@ -121,7 +124,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
                 )
         return result
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

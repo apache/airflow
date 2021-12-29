@@ -19,11 +19,15 @@
 """This module contains an operator to move data from Hive to Samba."""
 
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.samba.hooks.samba import SambaHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HiveToSambaOperator(BaseOperator):
@@ -63,7 +67,7 @@ class HiveToSambaOperator(BaseOperator):
         self.destination_filepath = destination_filepath
         self.hql = hql.strip().rstrip(';')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         with NamedTemporaryFile() as tmp_file:
             self.log.info("Fetching file from Hive")
             hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)

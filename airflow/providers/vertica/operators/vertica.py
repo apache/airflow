@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Union
+from typing import TYPE_CHECKING, Any, List, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class VerticaOperator(BaseOperator):
@@ -44,7 +47,7 @@ class VerticaOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.sql = sql
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         hook.run(sql=self.sql)

@@ -18,6 +18,7 @@
 from typing import Any, Dict, List, Optional, Union
 
 from airflow.models import BaseOperator
+from airflow.utils.context import Context
 from airflow.utils.email import send_email
 
 
@@ -79,7 +80,7 @@ class EmailOperator(BaseOperator):
         self.conn_id = conn_id
         self.custom_headers = custom_headers
 
-    def execute(self, context):
+    def execute(self, context: Context):
         send_email(
             self.to,
             self.subject,

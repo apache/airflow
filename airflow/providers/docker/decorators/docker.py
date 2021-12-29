@@ -21,7 +21,7 @@ import os
 import pickle
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, TypeVar, Union
 
 import dill
 
@@ -82,7 +82,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
         )
 
-    def execute(self, context: "Context") -> Any:
+    def execute(self, context: 'Context'):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             input_filename = os.path.join(tmp_dir, 'script.in')
             script_filename = os.path.join(tmp_dir, 'script.py')

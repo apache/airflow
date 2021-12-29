@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
+from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -585,7 +586,7 @@ def test_init_subclass_args():
             cls._class_arg = class_arg
             super().__init_subclass__()
 
-        def execute(self, context):
+        def execute(self, context: Context):
             self.context_arg = context
 
     class_arg = "foo"

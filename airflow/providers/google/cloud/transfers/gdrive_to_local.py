@@ -15,10 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleDriveToLocalOperator(BaseOperator):
@@ -79,7 +82,7 @@ class GoogleDriveToLocalOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Executing download: %s into %s', self.file_name, self.output_file)
         gdrive_hook = GoogleDriveHook(
             delegate_to=self.delegate_to,

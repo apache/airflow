@@ -18,12 +18,16 @@
 import ast
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -83,7 +87,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context: Dict[str, Any]) -> List[str]:
+    def execute(self, context: 'Context') -> List[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -184,7 +188,7 @@ class EmrContainerOperator(BaseOperator):
             virtual_cluster_id=self.virtual_cluster_id,
         )
 
-    def execute(self, context: dict) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         """Run job on EMR Containers"""
         self.job_id = self.hook.submit_job(
             self.name,
@@ -293,7 +297,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides
         self.region_name = region_name
 
-    def execute(self, context: Dict[str, Any]) -> str:
+    def execute(self, context: 'Context') -> str:
         emr = EmrHook(
             aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
         )
@@ -343,7 +347,7 @@ class EmrModifyClusterOperator(BaseOperator):
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
-    def execute(self, context: Dict[str, Any]) -> int:
+    def execute(self, context: 'Context') -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -382,7 +386,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context: 'Context') -> None:
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
         self.log.info('Terminating JobFlow %s', self.job_flow_id)

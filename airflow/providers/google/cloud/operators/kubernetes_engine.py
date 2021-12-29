@@ -20,7 +20,7 @@
 
 import os
 import tempfile
-from typing import Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 from google.cloud.container_v1.types import Cluster
 
@@ -30,6 +30,9 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GKEDeleteClusterOperator(BaseOperator):
@@ -112,7 +115,7 @@ class GKEDeleteClusterOperator(BaseOperator):
             self.log.error('One of (project_id, name, location) is missing or incorrect')
             raise AirflowException('Operator has incorrect or missing input.')
 
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -240,7 +243,7 @@ class GKECreateClusterOperator(BaseOperator):
             self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
             raise AirflowException("Operator has incorrect or missing input.")
 
-    def execute(self, context) -> str:
+    def execute(self, context: 'Context') -> str:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -333,7 +336,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
         self.project_id = self.project_id or hook.project_id
 

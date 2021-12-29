@@ -15,8 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING
+
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GlacierCreateJobOperator(BaseOperator):
@@ -46,7 +51,7 @@ class GlacierCreateJobOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.vault_name = vault_name
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         response = hook.retrieve_inventory(vault_name=self.vault_name)
         return response

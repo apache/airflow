@@ -61,6 +61,8 @@ from airflow.version import version as airflow_version
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.utils.context import Context
+
 
 class PodReattachFailure(AirflowException):
     """When we expect to be able to find a pod but cannot."""
@@ -400,7 +402,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log.info("xcom result: \n%s", result)
         return json.loads(result)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         remote_pod = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)

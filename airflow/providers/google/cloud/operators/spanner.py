@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Spanner operators."""
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SpannerDeployInstanceOperator(BaseOperator):
@@ -100,7 +103,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -178,7 +181,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
 
-    def execute(self, context) -> Optional[bool]:
+    def execute(self, context: 'Context') -> Optional[bool]:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -267,7 +270,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         if not self.query:
             raise AirflowException("The required parameter 'query' is empty")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -374,7 +377,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         if not self.database_id:
             raise AirflowException("The required parameter 'database_id' is empty or None")
 
-    def execute(self, context) -> Optional[bool]:
+    def execute(self, context: 'Context') -> Optional[bool]:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -482,7 +485,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         if not self.ddl_statements:
             raise AirflowException("The required parameter 'ddl_statements' is empty or None")
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -569,7 +572,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         if not self.database_id:
             raise AirflowException("The required parameter 'database_id' is empty or None")
 
-    def execute(self, context) -> bool:
+    def execute(self, context: 'Context') -> bool:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

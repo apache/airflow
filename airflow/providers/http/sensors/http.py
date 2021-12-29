@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HttpSensor(BaseSensorOperator):
@@ -95,7 +98,7 @@ class HttpSensor(BaseSensorOperator):
 
         self.hook = HttpHook(method=method, http_conn_id=http_conn_id)
 
-    def poke(self, context: Dict[Any, Any]) -> bool:
+    def poke(self, context: 'Context') -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
 
         self.log.info('Poking: %s', self.endpoint)

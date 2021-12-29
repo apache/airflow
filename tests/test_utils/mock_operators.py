@@ -23,6 +23,7 @@ import attr
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+from airflow.utils.context import Context
 
 
 # Namedtuple for testing purposes
@@ -41,7 +42,7 @@ class MockOperator(BaseOperator):
         self.arg1 = arg1
         self.arg2 = arg2
 
-    def execute(self, context):
+    def execute(self, context: Context):
         pass
 
 
@@ -121,7 +122,7 @@ class CustomOperator(BaseOperator):
         super().__init__(**kwargs)
         self.bash_command = bash_command
 
-    def execute(self, context):
+    def execute(self, context: Context):
         self.log.info("Hello World!")
         context['task_instance'].xcom_push(key='search_query', value="dummy_value")
 
@@ -172,5 +173,5 @@ class DeprecatedOperator(BaseOperator):
         warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: Context):
         pass

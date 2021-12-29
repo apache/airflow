@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PostgresOperator(BaseOperator):
@@ -64,7 +67,7 @@ class PostgresOperator(BaseOperator):
         self.database = database
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:

@@ -19,7 +19,7 @@
 import json
 import tempfile
 import uuid
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient import http
 
@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
@@ -102,7 +105,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -224,7 +227,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -337,7 +340,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
             with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -420,7 +423,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -522,7 +525,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -623,7 +626,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

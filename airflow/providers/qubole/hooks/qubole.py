@@ -22,7 +22,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -44,6 +44,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 log = logging.getLogger(__name__)
 
@@ -153,7 +157,7 @@ class QuboleHook(BaseHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Execute call"""
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)

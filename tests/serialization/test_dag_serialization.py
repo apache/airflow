@@ -46,6 +46,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -888,7 +889,7 @@ class TestStringifiedDAGs:
 
             operator_extra_links = [TaskStateLink()]
 
-            def execute(self, context):
+            def execute(self, context: Context):
                 pass
 
         with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1)) as dag:
@@ -1335,7 +1336,7 @@ class TestStringifiedDAGs:
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
-            def poke(self, context):
+            def poke(self, context: Context):
                 return False
 
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)

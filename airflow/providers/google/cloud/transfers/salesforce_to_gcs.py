@@ -17,11 +17,14 @@
 
 import os
 import tempfile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SalesforceToGcsOperator(BaseOperator):
@@ -96,7 +99,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.include_deleted = include_deleted
         self.query_params = query_params
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
