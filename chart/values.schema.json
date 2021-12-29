@@ -3611,6 +3611,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "scheme": {
+                            "description": "Scheme",
+                            "type": "string",
+                            "default": "http"
+                        },
                         "user": {
                             "description": "Username",
                             "type": "string",
@@ -3634,6 +3639,7 @@
                     },
                     "examples": [
                         {
+                            "scheme": "https",
                             "user": "...",
                             "pass": "...",
                             "host": "...",
