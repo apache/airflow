@@ -22,7 +22,7 @@ import hashlib
 import time
 import warnings
 from datetime import timedelta
-from typing import Any, Callable, Iterable, Union
+from typing import Any, Callable, Iterable, Tuple, Union
 
 from airflow import settings
 from airflow.configuration import conf
@@ -54,6 +54,18 @@ def _is_metadatabase_mysql() -> bool:
     if settings.engine is None:
         raise AirflowException("Must initialize ORM first")
     return settings.engine.url.get_backend_name() == "mysql"
+
+
+class PokeReturnValue:
+    """
+    Sensors can optionally return this an instance of this class in the poke method.
+    If an xcom value is supplied when sensor is done, then the XCom value will be
+    push through the operator return value.
+    """
+
+    def __init__(self, is_done, xcom_value=None):
+        self.xcom_value = xcom_value
+        self.is_done = is_done
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -251,7 +263,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         try_number = 1
         log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
-        while not self.poke(context):
+        while True:
+            is_done, xcom_value = self._process_poke(context=context)
+            if is_done:
+                break
             if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but times out raise AirflowSkipException.
                 if self.soft_fail:
@@ -271,6 +286,20 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
+        return xcom_value
+
+    def _process_poke(self, context) -> Tuple[bool, Any]:
+        """
+        The ``poke`` method can either return True / False or a PokeReturnValue instance,
+        the latter which can be used to push an XCom value.
+
+        This helper method handles the polymorphism in the return type.
+        """
+        poke_return = self.poke(context)
+        if isinstance(poke_return, PokeReturnValue):
+            return poke_return.is_done, poke_return.xcom_value
+        else:
+            return poke_return, None
 
     def _get_next_poke_interval(
         self,
