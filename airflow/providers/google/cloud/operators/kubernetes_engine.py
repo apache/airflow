@@ -327,8 +327,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
             warnings.warn(
                 f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
                 "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to set "
-                "`is_delete_operator_pod=False` explicitly.",
+                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
+                "set `is_delete_operator_pod=False` explicitly.",
                 DeprecationWarning,
                 stacklevel=2,
             )
