@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional, List, Dict, Union
+from typing import Dict, List, Optional, Union
 
 from airflow.models import BaseOperator
 

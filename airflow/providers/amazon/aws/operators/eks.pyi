@@ -15,15 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.operators.eks import (
-    DEFAULT_NODEGROUP_NAME,
     DEFAULT_COMPUTE_TYPE,
-    DEFAULT_FARGATE_PROFILE_NAME,
     DEFAULT_CONN_ID,
+    DEFAULT_FARGATE_PROFILE_NAME,
     DEFAULT_NAMESPACE_NAME,
+    DEFAULT_NODEGROUP_NAME,
 )
 
 class EksCreateClusterOperator(BaseOperator):
