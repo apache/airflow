@@ -82,7 +82,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task_queue",
         "project_id",
         "location",
@@ -193,7 +193,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task_queue",
         "project_id",
         "location",
@@ -287,7 +287,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -376,7 +376,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "gcp_conn_id",
@@ -462,7 +462,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -547,7 +547,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -633,7 +633,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -719,7 +719,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -814,7 +814,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task",
         "project_id",
         "location",
@@ -916,7 +916,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "task_name",
@@ -1015,7 +1015,7 @@ class CloudTasksTasksListOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Task]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -1107,7 +1107,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "task_name",
@@ -1201,7 +1201,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "task_name",

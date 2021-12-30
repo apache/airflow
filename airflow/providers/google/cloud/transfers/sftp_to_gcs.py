@@ -82,7 +82,7 @@ class SFTPToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "source_path",
         "destination_path",
         "destination_bucket",

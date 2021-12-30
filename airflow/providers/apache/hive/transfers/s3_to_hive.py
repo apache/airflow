@@ -23,7 +23,7 @@ import gzip
 import os
 import tempfile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -102,7 +102,7 @@ class S3ToHiveOperator(BaseOperator):
     :type select_expression: str
     """
 
-    template_fields = ('s3_key', 'partition', 'hive_table')
+    template_fields: Sequence[str] = ('s3_key', 'partition', 'hive_table')
     template_ext = ()
     ui_color = '#a0e08c'
 

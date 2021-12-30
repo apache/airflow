@@ -97,7 +97,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "blob_name",
         "file_path",
         "container_name",

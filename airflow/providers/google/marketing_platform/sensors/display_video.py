@@ -55,7 +55,7 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_id",
         "impersonation_chain",
     )
@@ -122,7 +122,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
 
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "operation_name",
         "impersonation_chain",
     )

@@ -16,7 +16,7 @@
 # under the License.
 
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -48,7 +48,7 @@ class S3ToMySqlOperator(BaseOperator):
     :type mysql_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         's3_source_key',
         'mysql_table',
     )

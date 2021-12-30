@@ -19,7 +19,7 @@
 import copy
 from abc import ABCMeta
 from contextlib import ExitStack
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -169,7 +169,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
     :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
-    template_fields = ["py_file", "runner", "pipeline_options", "default_pipeline_options", "dataflow_config"]
+    template_fields: Sequence[str] = (
+        "py_file",
+        "runner",
+        "pipeline_options",
+        "default_pipeline_options",
+        "dataflow_config",
+    )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
 
     def __init__(
@@ -343,14 +349,14 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
     :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "jar",
         "runner",
         "job_class",
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
-    ]
+    )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
     ui_color = "#0273d4"
 

@@ -68,7 +68,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "body",
         "impersonation_chain",
     )
@@ -147,7 +147,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_id",
         "impersonation_chain",
     )
@@ -239,7 +239,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_id",
         "bucket_name",
         "report_name",
@@ -369,7 +369,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_id",
         "parameters",
         "impersonation_chain",
@@ -439,7 +439,7 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
     :type request_body: Dict[str, Any],
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "request_body",
         "bucket_name",
         "object_name",
@@ -523,7 +523,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
     :type dry_run: str,
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "bucket_name",
         "object_name",
         "impersonation_chain",
@@ -615,7 +615,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "body_request",
         "impersonation_chain",
     )
@@ -696,7 +696,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "operation_name",
         "bucket_name",
         "object_name",

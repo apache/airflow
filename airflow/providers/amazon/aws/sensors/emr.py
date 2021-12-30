@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -149,7 +149,7 @@ class EmrContainerSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ("COMPLETED",)
 
-    template_fields = ['virtual_cluster_id', 'job_id']
+    template_fields: Sequence[str] = ('virtual_cluster_id', 'job_id')
     template_ext = ()
     ui_color = '#66c3ff'
 
@@ -206,7 +206,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields = ['job_flow_id', 'target_states', 'failed_states']
+    template_fields: Sequence[str] = ('job_flow_id', 'target_states', 'failed_states')
     template_ext = ()
 
     def __init__(
@@ -287,7 +287,7 @@ class EmrStepSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
+    template_fields: Sequence[str] = ('job_flow_id', 'step_id', 'target_states', 'failed_states')
     template_ext = ()
 
     def __init__(

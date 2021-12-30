@@ -17,7 +17,7 @@
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -72,7 +72,7 @@ class SalesforceToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = ("salesforce_query", "s3_bucket_name", "s3_key")
+    template_fields: Sequence[str] = ("salesforce_query", "s3_bucket_name", "s3_key")
     template_ext = (".sql",)
     template_fields_renderers = {"salesforce_query": "sql"}
 

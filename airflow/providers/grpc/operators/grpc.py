@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
@@ -52,7 +52,7 @@ class GrpcOperator(BaseOperator):
     :type log_response: boolean
     """
 
-    template_fields = ('stub_class', 'call_func', 'data')
+    template_fields: Sequence[str] = ('stub_class', 'call_func', 'data')
     template_fields_renderers = {"data": "py"}
 
     def __init__(

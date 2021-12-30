@@ -18,7 +18,7 @@
 """This module contains Amazon EKS operators."""
 import warnings
 from time import sleep
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -109,7 +109,7 @@ class EksCreateClusterOperator(BaseOperator):
 
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
@@ -246,7 +246,7 @@ class EksCreateNodegroupOperator(BaseOperator):
 
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         "cluster_name",
         "nodegroup_subnets",
         "nodegroup_role_arn",
@@ -316,7 +316,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :type region: str
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         "cluster_name",
         "pod_execution_role_arn",
         "selectors",
@@ -382,7 +382,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         "cluster_name",
         "force_delete_compute",
         "aws_conn_id",
@@ -506,7 +506,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
 
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         "cluster_name",
         "nodegroup_name",
         "aws_conn_id",
@@ -559,7 +559,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
     :type region: str
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         "cluster_name",
         "fargate_profile_name",
         "aws_conn_id",
@@ -623,14 +623,17 @@ class EksPodOperator(KubernetesPodOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: Iterable[str] = {
-        "cluster_name",
-        "in_cluster",
-        "namespace",
-        "pod_name",
-        "aws_conn_id",
-        "region",
-    } | set(KubernetesPodOperator.template_fields)
+    template_fields: Sequence[str] = tuple(
+        {
+            "cluster_name",
+            "in_cluster",
+            "namespace",
+            "pod_name",
+            "aws_conn_id",
+            "region",
+        }
+        | set(KubernetesPodOperator.template_fields)
+    )
 
     def __init__(
         self,

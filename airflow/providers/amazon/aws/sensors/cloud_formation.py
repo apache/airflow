@@ -17,7 +17,7 @@
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -44,7 +44,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields = ['stack_name']
+    template_fields: Sequence[str] = ('stack_name',)
     ui_color = '#C5CAE9'
 
     def __init__(self, *, stack_name, aws_conn_id='aws_default', region_name=None, **kwargs):
@@ -80,7 +80,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields = ['stack_name']
+    template_fields: Sequence[str] = ('stack_name',)
     ui_color = '#C5CAE9'
 
     def __init__(

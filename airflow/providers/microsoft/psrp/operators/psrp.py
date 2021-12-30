@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -37,7 +37,7 @@ class PSRPOperator(BaseOperator):
     :type powershell: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "command",
         "powershell",
     )

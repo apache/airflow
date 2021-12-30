@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -67,7 +67,7 @@ class FTPToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
+    template_fields: Sequence[str] = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
 
     def __init__(
         self,

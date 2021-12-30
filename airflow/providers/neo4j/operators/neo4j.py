@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
@@ -39,7 +39,7 @@ class Neo4jOperator(BaseOperator):
     :type neo4j_conn_id: str
     """
 
-    template_fields = ['sql']
+    template_fields: Sequence[str] = ('sql',)
 
     def __init__(
         self,

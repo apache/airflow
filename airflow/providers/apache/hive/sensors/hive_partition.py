@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base import BaseSensorOperator
@@ -45,7 +45,7 @@ class HivePartitionSensor(BaseSensorOperator):
     :type metastore_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'schema',
         'table',
         'partition',

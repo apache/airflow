@@ -104,13 +104,13 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ('instance_id', 'main_cluster_id', 'main_cluster_zone')
-    template_fields: Iterable[str] = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'main_cluster_id',
         'main_cluster_zone',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -225,11 +225,11 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ['instance_id']
-    template_fields: Iterable[str] = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -308,11 +308,11 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id',)  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -388,12 +388,12 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -497,12 +497,12 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -581,13 +581,13 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'cluster_id', 'nodes')  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'cluster_id',
         'nodes',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,

@@ -18,7 +18,7 @@
 
 """This module contains an operator to move data from Hive to MySQL."""
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
@@ -63,7 +63,7 @@ class HiveToMySqlOperator(BaseOperator):
     :type hive_conf: dict
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
+    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 

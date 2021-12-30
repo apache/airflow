@@ -120,11 +120,11 @@ class PubSubCreateTopicOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
 
     def __init__(
@@ -335,13 +335,13 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'subscription',
         'subscription_project_id',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
 
     def __init__(
@@ -516,11 +516,11 @@ class PubSubDeleteTopicOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#cb4335'
 
     def __init__(
@@ -648,11 +648,11 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'subscription',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#cb4335'
 
     def __init__(
@@ -773,12 +773,12 @@ class PubSubPublishMessageOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'messages',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
 
     def __init__(
@@ -880,11 +880,11 @@ class PubSubPullOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'subscription',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,

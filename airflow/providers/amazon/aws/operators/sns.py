@@ -17,7 +17,7 @@
 # under the License.
 
 """Publish message to SNS queue"""
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
@@ -43,7 +43,7 @@ class SnsPublishOperator(BaseOperator):
     :type message_attributes: dict
     """
 
-    template_fields = ['message', 'subject', 'message_attributes']
+    template_fields: Sequence[str] = ('message', 'subject', 'message_attributes')
     template_ext = ()
     template_fields_renderers = {"message_attributes": "json"}
 

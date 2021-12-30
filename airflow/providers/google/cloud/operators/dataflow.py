@@ -138,7 +138,7 @@ class DataflowConfiguration:
     :type check_if_running: CheckJobRunning
     """
 
-    template_fields = ["job_name", "location"]
+    template_fields: Sequence[str] = ("job_name", "location")
 
     def __init__(
         self,
@@ -347,7 +347,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     """
 
-    template_fields = ["options", "jar", "job_name"]
+    template_fields: Sequence[str] = ("options", "jar", "job_name")
     ui_color = "#0273d4"
 
     def __init__(
@@ -617,7 +617,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             https://cloud.google.com/dataflow/docs/templates/executing-templates
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "template",
         "job_name",
         "options",
@@ -627,7 +627,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
-    ]
+    )
     ui_color = "#0273d4"
 
     def __init__(
@@ -770,7 +770,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     :type wait_until_finished: Optional[bool]
     """
 
-    template_fields = ["body", "location", "project_id", "gcp_conn_id"]
+    template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -870,14 +870,14 @@ class DataflowStartSqlJobOperator(BaseOperator):
     :type drain_pipeline: bool
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "job_name",
         "query",
         "options",
         "location",
         "project_id",
         "gcp_conn_id",
-    ]
+    )
 
     def __init__(
         self,
@@ -1052,7 +1052,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :type wait_until_finished: Optional[bool]
     """
 
-    template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
+    template_fields: Sequence[str] = ("options", "dataflow_default_options", "job_name", "py_file")
 
     def __init__(
         self,

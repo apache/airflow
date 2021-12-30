@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base import BaseSensorOperator
@@ -40,7 +40,7 @@ class WasbBlobSensor(BaseSensorOperator):
     :type check_options: dict
     """
 
-    template_fields = ('container_name', 'blob_name')
+    template_fields: Sequence[str] = ('container_name', 'blob_name')
 
     def __init__(
         self,
@@ -80,7 +80,7 @@ class WasbPrefixSensor(BaseSensorOperator):
     :type check_options: dict
     """
 
-    template_fields = ('container_name', 'prefix')
+    template_fields: Sequence[str] = ('container_name', 'prefix')
 
     def __init__(
         self,

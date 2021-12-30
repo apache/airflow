@@ -68,7 +68,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     """
 
     # [START natural_language_analyze_entities_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -148,7 +148,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     """
 
     # [START natural_language_analyze_entity_sentiment_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -231,7 +231,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
     """
 
     # [START natural_language_analyze_sentiment_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -306,7 +306,7 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
     """
 
     # [START natural_language_classify_text_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",

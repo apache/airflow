@@ -65,7 +65,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
     """
 
     # [START gcp_spanner_deploy_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'configuration_name',
@@ -151,7 +151,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     """
 
     # [START gcp_spanner_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'gcp_conn_id',
@@ -229,7 +229,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     """
 
     # [START gcp_spanner_query_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'database_id',
@@ -338,7 +338,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     """
 
     # [START gcp_spanner_database_deploy_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'database_id',
@@ -442,7 +442,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     """
 
     # [START gcp_spanner_database_update_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'database_id',
@@ -537,7 +537,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     """
 
     # [START gcp_spanner_database_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'database_id',

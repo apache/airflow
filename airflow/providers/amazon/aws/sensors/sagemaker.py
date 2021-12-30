@@ -16,7 +16,7 @@
 # under the License.
 
 import time
-from typing import TYPE_CHECKING, Optional, Set
+from typing import TYPE_CHECKING, Optional, Sequence, Set
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
@@ -94,7 +94,7 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     :type job_name: str
     """
 
-    template_fields = ['endpoint_name']
+    template_fields: Sequence[str] = ('endpoint_name',)
     template_ext = ()
 
     def __init__(self, *, endpoint_name, **kwargs):
@@ -131,7 +131,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     :type job_name: str
     """
 
-    template_fields = ['job_name']
+    template_fields: Sequence[str] = ('job_name',)
     template_ext = ()
 
     def __init__(self, *, job_name: str, **kwargs):
@@ -168,7 +168,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     job_name: str
     """
 
-    template_fields = ['job_name']
+    template_fields: Sequence[str] = ('job_name',)
     template_ext = ()
 
     def __init__(self, *, job_name: str, **kwargs):
@@ -205,7 +205,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     :type print_log: bool
     """
 
-    template_fields = ['job_name']
+    template_fields: Sequence[str] = ('job_name',)
     template_ext = ()
 
     def __init__(self, *, job_name, print_log=True, **kwargs):

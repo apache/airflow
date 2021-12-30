@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
@@ -37,7 +37,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_identifier",)
+    template_fields: Sequence[str] = ("cluster_identifier",)
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -78,7 +78,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_identifier",)
+    template_fields: Sequence[str] = ("cluster_identifier",)
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 

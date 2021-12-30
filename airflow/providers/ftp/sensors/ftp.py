@@ -17,7 +17,7 @@
 # under the License.
 import ftplib
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
@@ -40,7 +40,7 @@ class FTPSensor(BaseSensorOperator):
     :type ftp_conn_id: str
     """
 
-    template_fields = ('path',)
+    template_fields: Sequence[str] = ('path',)
 
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]

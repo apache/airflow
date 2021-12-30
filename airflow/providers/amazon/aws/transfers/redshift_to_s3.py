@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -76,7 +76,14 @@ class RedshiftToS3Operator(BaseOperator):
     :type table_as_file_name: bool
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options', 'select_query')
+    template_fields: Sequence[str] = (
+        's3_bucket',
+        's3_key',
+        'schema',
+        'table',
+        'unload_options',
+        'select_query',
+    )
     template_ext = ('.sql',)
     template_fields_renderers = {'select_query': 'sql'}
     ui_color = '#ededed'

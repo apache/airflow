@@ -163,7 +163,7 @@ class GCSToBigQueryOperator(BaseOperator):
     :type description: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'source_objects',
         'schema_object',

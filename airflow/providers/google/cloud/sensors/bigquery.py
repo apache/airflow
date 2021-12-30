@@ -56,7 +56,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'dataset_id',
         'table_id',
@@ -130,7 +130,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'dataset_id',
         'table_id',

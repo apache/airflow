@@ -97,11 +97,11 @@ class PubSubPullSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'subscription',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#ff7f50'
 
     def __init__(

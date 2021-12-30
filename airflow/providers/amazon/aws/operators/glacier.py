@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
@@ -38,7 +38,7 @@ class GlacierCreateJobOperator(BaseOperator):
     :type vault_name: str
     """
 
-    template_fields = ("vault_name",)
+    template_fields: Sequence[str] = ("vault_name",)
 
     def __init__(
         self,

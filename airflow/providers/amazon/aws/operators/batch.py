@@ -26,7 +26,7 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -97,7 +97,7 @@ class AwsBatchOperator(BaseOperator):
 
     ui_color = "#c3dae0"
     arn = None  # type: Optional[str]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_name",
         "overrides",
         "parameters",

@@ -58,7 +58,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "body",
         "gcp_conn_id",
         "api_version",

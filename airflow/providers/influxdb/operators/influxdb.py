@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
@@ -39,7 +39,7 @@ class InfluxDBOperator(BaseOperator):
     :type influxdb_conn_id: str
     """
 
-    template_fields = ['sql']
+    template_fields: Sequence[str] = ('sql',)
 
     def __init__(
         self,

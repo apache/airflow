@@ -83,7 +83,7 @@ class BigQueryToMySqlOperator(BaseOperator):
     :type impersonation_chain: str | Sequence[str]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'mysql_table',

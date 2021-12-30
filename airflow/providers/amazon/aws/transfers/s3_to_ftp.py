@@ -17,7 +17,7 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -47,7 +47,7 @@ class S3ToFTPOperator(BaseOperator):
     :type ftp_conn_id: str
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'ftp_path')
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'ftp_path')
 
     def __init__(
         self,

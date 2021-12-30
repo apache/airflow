@@ -63,7 +63,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "impersonation_chain",
     )
@@ -139,7 +139,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "impersonation_chain",
     )
@@ -218,7 +218,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "instance",
         "impersonation_chain",
@@ -325,7 +325,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "instance",
         "impersonation_chain",
@@ -408,7 +408,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "impersonation_chain",
     )
@@ -490,7 +490,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",
@@ -585,7 +585,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "version_id",
         "pipeline_name",
@@ -682,7 +682,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "artifact_name",
         "artifact_version",
@@ -789,7 +789,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type asynchronous: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "pipeline_name",
         "runtime_args",
@@ -906,7 +906,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",

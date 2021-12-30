@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
@@ -43,7 +43,7 @@ class ExasolOperator(BaseOperator):
     :type schema: string
     """
 
-    template_fields = ('sql',)
+    template_fields: Sequence[str] = ('sql',)
     template_ext = ('.sql',)
     ui_color = '#ededed'
 

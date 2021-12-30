@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Tuple
+from typing import TYPE_CHECKING, Any, List, Sequence, Tuple
 
 from airflow.sensors.base import BaseSensorOperator
 
@@ -40,7 +40,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     :type metastore_conn_id: str
     """
 
-    template_fields = ('partition_names',)
+    template_fields: Sequence[str] = ('partition_names',)
     ui_color = '#8d99ae'
     poke_context_fields = ('partition_names', 'metastore_conn_id')
 

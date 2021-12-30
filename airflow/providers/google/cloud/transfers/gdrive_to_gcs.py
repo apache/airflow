@@ -67,14 +67,14 @@ class GoogleDriveToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "bucket_name",
         "object_name",
         "folder_id",
         "file_name",
         "drive_id",
         "impersonation_chain",
-    ]
+    )
 
     def __init__(
         self,

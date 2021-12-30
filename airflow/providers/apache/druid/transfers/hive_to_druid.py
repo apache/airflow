@@ -18,7 +18,7 @@
 
 """This module contains operator to move data from Hive to Druid."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
@@ -79,7 +79,7 @@ class HiveToDruidOperator(BaseOperator):
     :type job_properties: dict
     """
 
-    template_fields = ('sql', 'intervals')
+    template_fields: Sequence[str] = ('sql', 'intervals')
     template_ext = ('.sql',)
 
     def __init__(

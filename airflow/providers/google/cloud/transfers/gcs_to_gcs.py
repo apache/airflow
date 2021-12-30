@@ -176,7 +176,7 @@ class GCSToGCSOperator(BaseOperator):
 
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_bucket',
         'source_object',
         'source_objects',

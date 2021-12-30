@@ -85,7 +85,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -171,7 +171,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "deidentify_template",
@@ -278,7 +278,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_job",
         "risk_job",
@@ -385,7 +385,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "inspect_template",
@@ -487,7 +487,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "job_trigger",
         "trigger_id",
@@ -588,7 +588,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "config",
@@ -704,7 +704,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "deidentify_config",
         "inspect_config",
@@ -802,7 +802,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -888,7 +888,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -972,7 +972,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1057,7 +1057,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "gcp_conn_id",
@@ -1141,7 +1141,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -1231,7 +1231,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1316,7 +1316,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -1400,7 +1400,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1485,7 +1485,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "gcp_conn_id",
@@ -1569,7 +1569,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -1661,7 +1661,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.InspectContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_config",
         "item",
@@ -1757,7 +1757,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.DeidentifyTemplate]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -1852,7 +1852,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.DlpJob]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -1941,7 +1941,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
     :rtype: ListInfoTypesResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "language_code",
         "gcp_conn_id",
         "impersonation_chain",
@@ -2028,7 +2028,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.InspectTemplate]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -2121,7 +2121,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.JobTrigger]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -2214,7 +2214,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.StoredInfoType]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -2312,7 +2312,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.RedactImageResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_config",
         "image_redaction_configs",
@@ -2417,7 +2417,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "reidentify_config",
         "inspect_config",
@@ -2521,7 +2521,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -2621,7 +2621,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -2718,7 +2718,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "job_trigger",
@@ -2815,7 +2815,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",

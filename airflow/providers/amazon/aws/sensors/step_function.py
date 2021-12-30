@@ -16,7 +16,7 @@
 # under the License.
 
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
@@ -49,7 +49,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ('SUCCEEDED',)
 
-    template_fields = ['execution_arn']
+    template_fields: Sequence[str] = ('execution_arn',)
     template_ext = ()
     ui_color = '#66c3ff'
 

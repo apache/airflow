@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
@@ -106,7 +106,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :type check_interval: int
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "azure_data_factory_conn_id",
         "resource_group_name",
         "factory_name",

@@ -18,7 +18,7 @@
 #
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 from uuid import uuid4
 
 if sys.version_info >= (3, 8):
@@ -64,7 +64,7 @@ class AthenaOperator(BaseOperator):
     """
 
     ui_color = '#44b5e2'
-    template_fields = ('query', 'database', 'output_location')
+    template_fields: Sequence[str] = ('query', 'database', 'output_location')
     template_ext = ('.sql',)
     template_fields_renderers = {"query": "sql"}
 

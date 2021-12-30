@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -69,7 +69,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = ('filename', 'dest_key', 'dest_bucket')
+    template_fields: Sequence[str] = ('filename', 'dest_key', 'dest_bucket')
 
     def __init__(
         self,

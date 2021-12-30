@@ -19,7 +19,7 @@
 # pylint: disable=C0302
 import time
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
@@ -51,7 +51,7 @@ class DataprocJobSensor(BaseSensorOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'region', 'dataproc_job_id')
+    template_fields: Sequence[str] = ('project_id', 'region', 'dataproc_job_id')
     ui_color = '#f0eee4'
 
     def __init__(

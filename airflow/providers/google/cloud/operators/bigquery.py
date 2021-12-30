@@ -164,7 +164,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     :type labels: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'gcp_conn_id',
         'impersonation_chain',
@@ -232,7 +232,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     :type labels: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'gcp_conn_id',
         'pass_value',
@@ -316,7 +316,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     :type labels: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'table',
         'gcp_conn_id',
         'sql1',
@@ -424,7 +424,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'max_results',
@@ -597,7 +597,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'destination_dataset_table',
         'labels',
@@ -880,7 +880,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type exists_ok: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'project_id',
@@ -1079,7 +1079,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'source_objects',
         'schema_object',
@@ -1286,7 +1286,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
             dag=dag)
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1387,7 +1387,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 dag=dag)
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'dataset_reference',
@@ -1486,7 +1486,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1555,7 +1555,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1632,7 +1632,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1722,7 +1722,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'project_id',
@@ -1813,7 +1813,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1896,7 +1896,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'deletion_dataset_table',
         'impersonation_chain',
     )
@@ -1983,7 +1983,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_resource',
         'impersonation_chain',
@@ -2100,7 +2100,7 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'schema_fields_updates',
         'dataset_id',
         'table_id',
@@ -2209,7 +2209,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     :type cancel_on_kill: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "configuration",
         "job_id",
         "impersonation_chain",

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
@@ -41,7 +41,7 @@ class DruidOperator(BaseOperator):
     :type max_ingestion_time: int
     """
 
-    template_fields = ('json_index_file',)
+    template_fields: Sequence[str] = ('json_index_file',)
     template_ext = ('.json',)
     template_fields_renderers = {'json_index_file': 'json'}
 

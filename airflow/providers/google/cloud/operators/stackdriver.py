@@ -88,7 +88,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
@@ -196,7 +196,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     """
 
     ui_color = "#e5ffcc"
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
@@ -286,7 +286,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     """
 
     ui_color = "#e5ffcc"
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
@@ -375,7 +375,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'alerts',
         'impersonation_chain',
     )
@@ -464,7 +464,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'name',
         'impersonation_chain',
     )
@@ -571,7 +571,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
@@ -679,7 +679,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
@@ -771,7 +771,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
@@ -864,7 +864,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'channels',
         'impersonation_chain',
     )
@@ -955,7 +955,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'name',
         'impersonation_chain',
     )

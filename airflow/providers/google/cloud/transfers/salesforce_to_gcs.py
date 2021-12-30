@@ -17,7 +17,7 @@
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -63,7 +63,7 @@ class SalesforceToGcsOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'query',
         'bucket_name',
         'object_name',

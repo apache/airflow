@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
@@ -62,7 +62,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'webhook_token',
         'message',
         'attachments',
@@ -70,7 +70,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         'channel',
         'username',
         'proxy',
-    ]
+    )
 
     def __init__(
         self,

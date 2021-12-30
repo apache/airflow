@@ -80,14 +80,14 @@ class GKEDeleteClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'gcp_conn_id',
         'name',
         'location',
         'api_version',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -182,14 +182,14 @@ class GKECreateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'gcp_conn_id',
         'location',
         'api_version',
         'body',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,

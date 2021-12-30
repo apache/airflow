@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP sensor."""
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
@@ -37,7 +37,7 @@ class SFTPSensor(BaseSensorOperator):
     :type sftp_conn_id: str
     """
 
-    template_fields = ('path',)
+    template_fields: Sequence[str] = ('path',)
 
     def __init__(self, *, path: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
         super().__init__(**kwargs)

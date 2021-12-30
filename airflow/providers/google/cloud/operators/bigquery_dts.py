@@ -69,7 +69,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config",
         "project_id",
         "authorization_code",
@@ -158,7 +158,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config_id",
         "project_id",
         "gcp_conn_id",
@@ -250,7 +250,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config_id",
         "project_id",
         "requested_time_range",

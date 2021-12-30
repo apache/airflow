@@ -16,7 +16,7 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -75,7 +75,7 @@ class S3ToRedshiftOperator(BaseOperator):
     :type upsert_keys: List[str]
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
     template_ext = ()
     ui_color = '#99e699'
 

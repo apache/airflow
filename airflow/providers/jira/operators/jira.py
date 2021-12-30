@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -44,7 +44,7 @@ class JiraOperator(BaseOperator):
     :type get_jira_resource_method: function
     """
 
-    template_fields = ("jira_method_args",)
+    template_fields: Sequence[str] = ("jira_method_args",)
 
     def __init__(
         self,

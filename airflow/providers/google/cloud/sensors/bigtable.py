@@ -60,12 +60,12 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,

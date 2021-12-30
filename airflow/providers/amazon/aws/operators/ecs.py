@@ -22,7 +22,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
 from threading import Event, Thread
-from typing import Dict, Generator, Optional
+from typing import Dict, Generator, Optional, Sequence
 
 from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
@@ -225,7 +225,7 @@ class ECSOperator(BaseOperator):
     """
 
     ui_color = '#f0ede4'
-    template_fields = ('overrides',)
+    template_fields: Sequence[str] = ('overrides',)
     template_fields_renderers = {
         "overrides": "json",
         "network_configuration": "json",

@@ -18,7 +18,7 @@
 import ast
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
@@ -59,7 +59,7 @@ class EmrAddStepsOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
+    template_fields: Sequence[str] = ('job_flow_id', 'job_flow_name', 'cluster_states', 'steps')
     template_ext = ('.json',)
     template_fields_renderers = {"steps": "json"}
     ui_color = '#f9c915'
@@ -149,7 +149,13 @@ class EmrContainerOperator(BaseOperator):
     :type max_tries: int
     """
 
-    template_fields = ["name", "virtual_cluster_id", "execution_role_arn", "release_label", "job_driver"]
+    template_fields: Sequence[str] = (
+        "name",
+        "virtual_cluster_id",
+        "execution_role_arn",
+        "release_label",
+        "job_driver",
+    )
     ui_color = "#f9c915"
 
     def __init__(
@@ -274,7 +280,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields = ['job_flow_overrides']
+    template_fields: Sequence[str] = ('job_flow_overrides',)
     template_ext = ('.json',)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
@@ -333,7 +339,7 @@ class EmrModifyClusterOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['cluster_id', 'step_concurrency_level']
+    template_fields: Sequence[str] = ('cluster_id', 'step_concurrency_level')
     template_ext = ()
     ui_color = '#f9c915'
 
@@ -377,7 +383,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['job_flow_id']
+    template_fields: Sequence[str] = ('job_flow_id',)
     template_ext = ()
     ui_color = '#f9c915'
 

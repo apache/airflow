@@ -18,7 +18,7 @@
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -58,7 +58,7 @@ class WinRMOperator(BaseOperator):
     :type timeout: int
     """
 
-    template_fields = ('command',)
+    template_fields: Sequence[str] = ('command',)
     template_fields_renderers = {"command": "powershell"}
 
     def __init__(

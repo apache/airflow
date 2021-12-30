@@ -69,7 +69,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "report_name",
@@ -171,7 +171,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "file_id",
@@ -304,7 +304,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report",
         "api_version",
@@ -392,7 +392,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "synchronous",
@@ -489,7 +489,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "conversions",
         "encryption_entity_type",
@@ -590,7 +590,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "conversions",
         "encryption_entity_type",

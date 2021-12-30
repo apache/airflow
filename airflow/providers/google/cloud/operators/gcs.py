@@ -22,7 +22,7 @@ import sys
 import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -110,7 +110,7 @@ class GCSCreateBucketOperator(BaseOperator):
 
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket_name',
         'storage_class',
         'location',
@@ -222,7 +222,7 @@ class GCSListObjectsOperator(BaseOperator):
             )
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'delimiter',
@@ -312,7 +312,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket_name',
         'prefix',
         'objects',
@@ -407,7 +407,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
     """
 
     # [START gcs_bucket_create_acl_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'entity',
         'role',
@@ -499,7 +499,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     """
 
     # [START gcs_object_create_acl_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'object_name',
         'entity',
@@ -593,7 +593,7 @@ class GCSFileTransformOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_bucket',
         'destination_bucket',
         'transform_script',
@@ -734,7 +734,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     :type upload_num_attempts: int
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_bucket',
         'source_prefix',
         'destination_bucket',
@@ -940,7 +940,7 @@ class GCSDeleteBucketOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket_name',
         "gcp_conn_id",
         "impersonation_chain",
@@ -1019,7 +1019,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_bucket',
         'destination_bucket',
         'source_object',

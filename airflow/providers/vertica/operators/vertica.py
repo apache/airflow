@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Union
+from typing import TYPE_CHECKING, Any, List, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
@@ -36,7 +36,7 @@ class VerticaOperator(BaseOperator):
         Template reference are recognized by str ending in '.sql'
     """
 
-    template_fields = ('sql',)
+    template_fields: Sequence[str] = ('sql',)
     template_ext = ('.sql',)
     ui_color = '#b4e0ff'
 

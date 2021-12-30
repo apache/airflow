@@ -17,7 +17,7 @@
 # under the License.
 import os
 import re
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
@@ -65,7 +65,7 @@ class HiveOperator(BaseOperator):
     :type  mapred_job_name: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'hql',
         'schema',
         'hive_cli_conn_id',

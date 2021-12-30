@@ -84,7 +84,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "entry_id",
@@ -202,7 +202,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group_id",
         "entry_group",
@@ -317,7 +317,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "entry",
@@ -452,7 +452,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "tag_template_id",
         "tag_template",
@@ -568,7 +568,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "tag_template",
         "tag_template_field_id",
@@ -679,7 +679,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "entry",
@@ -773,7 +773,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "project_id",
@@ -865,7 +865,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "entry",
@@ -965,7 +965,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "tag_template",
         "force",
@@ -1061,7 +1061,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "tag_template",
         "field",
@@ -1159,7 +1159,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "entry",
@@ -1254,7 +1254,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "read_mask",
@@ -1344,7 +1344,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "tag_template",
         "project_id",
@@ -1437,7 +1437,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "entry_group",
         "entry",
@@ -1533,7 +1533,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "linked_resource",
         "sql_resource",
         "project_id",
@@ -1624,7 +1624,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "tag_template",
         "field",
@@ -1746,7 +1746,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "scope",
         "query",
         "page_size",
@@ -1849,7 +1849,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "entry",
         "update_mask",
         "location",
@@ -1959,7 +1959,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "tag",
         "update_mask",
         "location",
@@ -2076,7 +2076,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "tag_template",
         "update_mask",
         "location",
@@ -2191,7 +2191,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "tag_template_field",
         "update_mask",
         "tag_template_field_name",

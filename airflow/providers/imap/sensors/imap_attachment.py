@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to poke for attachments on a mail server."""
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.sensors.base import BaseSensorOperator
@@ -44,7 +44,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
     :type imap_conn_id: str
     """
 
-    template_fields = ('attachment_name', 'mail_filter')
+    template_fields: Sequence[str] = ('attachment_name', 'mail_filter')
 
     def __init__(
         self,

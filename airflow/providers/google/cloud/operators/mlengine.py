@@ -167,7 +167,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         determined.
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_job_id',
         '_region',
@@ -177,7 +177,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         '_version_name',
         '_uri',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -336,11 +336,11 @@ class MLEngineManageModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -416,11 +416,11 @@ class MLEngineCreateModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -481,11 +481,11 @@ class MLEngineGetModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -550,11 +550,11 @@ class MLEngineDeleteModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -651,13 +651,13 @@ class MLEngineManageVersionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_version_name',
         '_version',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -755,12 +755,12 @@ class MLEngineCreateVersionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_version',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -838,12 +838,12 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_version_name',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -919,11 +919,11 @@ class MLEngineListVersionsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -997,12 +997,12 @@ class MLEngineDeleteVersionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_model_name',
         '_version_name',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -1143,7 +1143,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_job_id',
         '_region',
@@ -1159,7 +1159,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_service_account',
         '_hyperparameters',
         '_impersonation_chain',
-    ]
+    )
 
     operator_extra_links = (AIPlatformConsoleLink(),)
 
@@ -1346,11 +1346,11 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         '_project_id',
         '_job_id',
         '_impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,

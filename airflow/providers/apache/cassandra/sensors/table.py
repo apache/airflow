@@ -21,7 +21,7 @@ This module contains sensor that check the existence
 of a table in a Cassandra cluster.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base import BaseSensorOperator
@@ -54,7 +54,7 @@ class CassandraTableSensor(BaseSensorOperator):
     :type cassandra_conn_id: str
     """
 
-    template_fields = ('table',)
+    template_fields: Sequence[str] = ('table',)
 
     def __init__(
         self,

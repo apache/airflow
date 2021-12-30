@@ -20,7 +20,7 @@ import logging
 import re
 import warnings
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
@@ -184,7 +184,7 @@ class KubernetesPodOperator(BaseOperator):
     BASE_CONTAINER_NAME = 'base'
     POD_CHECKED_KEY = 'already_checked'
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'image',
         'cmds',
         'arguments',

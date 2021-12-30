@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
 
 from airflow.models import BaseOperator
@@ -56,7 +56,7 @@ class SFTPToS3Operator(BaseOperator):
     :type use_temp_file: bool
     """
 
-    template_fields = ('s3_key', 'sftp_path')
+    template_fields: Sequence[str] = ('s3_key', 'sftp_path')
 
     def __init__(
         self,

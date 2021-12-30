@@ -18,7 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
 import unicodecsv as csv
 
@@ -58,7 +58,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :type quoting: str
     """
 
-    template_fields = ('filename', 'sql', 'sql_params')
+    template_fields: Sequence[str] = ('filename', 'sql', 'sql_params')
     template_fields_renderers = {"sql_params": "py"}
     ui_color = '#e08c8c'
 

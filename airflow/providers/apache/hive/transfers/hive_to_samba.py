@@ -19,7 +19,7 @@
 """This module contains an operator to move data from Hive to Samba."""
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
@@ -46,7 +46,7 @@ class HiveToSambaOperator(BaseOperator):
     :type hiveserver2_conn_id: str
     """
 
-    template_fields = ('hql', 'destination_filepath')
+    template_fields: Sequence[str] = ('hql', 'destination_filepath')
     template_ext = (
         '.hql',
         '.sql',

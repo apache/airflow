@@ -102,7 +102,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_start_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'zone',
         'resource_id',
@@ -155,7 +155,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_stop_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'zone',
         'resource_id',
@@ -220,7 +220,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_set_machine_type_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'zone',
         'resource_id',
@@ -383,7 +383,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_template_copy_operator_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'resource_id',
         'request_id',
@@ -516,7 +516,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     """
 
     # [START gce_igm_update_template_operator_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'resource_id',
         'zone',

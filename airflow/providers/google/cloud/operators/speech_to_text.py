@@ -69,7 +69,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
     """
 
     # [START gcp_speech_to_text_synthesize_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "audio",
         "config",
         "project_id",

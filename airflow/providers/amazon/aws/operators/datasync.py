@@ -20,7 +20,7 @@
 import logging
 import random
 import warnings
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
@@ -111,7 +111,7 @@ class DataSyncOperator(BaseOperator):
     :raises AirflowException: If Task creation, update, execution or delete fails.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task_arn",
         "source_location_uri",
         "destination_location_uri",

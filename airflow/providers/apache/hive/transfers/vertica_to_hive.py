@@ -20,7 +20,7 @@
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 import unicodecsv as csv
 
@@ -68,7 +68,7 @@ class VerticaToHiveOperator(BaseOperator):
     :type hive_cli_conn_id: str
     """
 
-    template_fields = ('sql', 'partition', 'hive_table')
+    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
     template_ext = ('.sql',)
     ui_color = '#b4e0ff'
 

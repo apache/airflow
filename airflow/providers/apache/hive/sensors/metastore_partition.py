@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.sensors.sql import SqlSensor
 
@@ -44,7 +44,7 @@ class MetastorePartitionSensor(SqlSensor):
     :type mysql_conn_id: str
     """
 
-    template_fields = ('partition_name', 'table', 'schema')
+    template_fields: Sequence[str] = ('partition_name', 'table', 'schema')
     ui_color = '#8da7be'
     poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
 

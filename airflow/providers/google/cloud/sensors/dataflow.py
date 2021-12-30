@@ -68,7 +68,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -162,7 +162,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -255,7 +255,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -348,7 +348,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,

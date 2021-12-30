@@ -21,7 +21,7 @@
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -54,7 +54,7 @@ class S3CreateBucketOperator(BaseOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields: Sequence[str] = ("bucket_name",)
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class S3DeleteBucketOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields: Sequence[str] = ("bucket_name",)
 
     def __init__(
         self,
@@ -140,7 +140,7 @@ class S3GetBucketTaggingOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields: Sequence[str] = ("bucket_name",)
 
     def __init__(self, bucket_name: str, aws_conn_id: Optional[str] = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
@@ -183,7 +183,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields: Sequence[str] = ("bucket_name",)
     template_fields_renderers = {"tag_set": "json"}
 
     def __init__(
@@ -233,7 +233,7 @@ class S3DeleteBucketTaggingOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields: Sequence[str] = ("bucket_name",)
 
     def __init__(self, bucket_name: str, aws_conn_id: Optional[str] = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
@@ -297,7 +297,12 @@ class S3CopyObjectOperator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = ('source_bucket_key', 'dest_bucket_key', 'source_bucket_name', 'dest_bucket_name')
+    template_fields: Sequence[str] = (
+        'source_bucket_key',
+        'dest_bucket_key',
+        'source_bucket_name',
+        'dest_bucket_name',
+    )
 
     def __init__(
         self,
@@ -373,7 +378,7 @@ class S3DeleteObjectsOperator(BaseOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('keys', 'bucket', 'prefix')
+    template_fields: Sequence[str] = ('keys', 'bucket', 'prefix')
 
     def __init__(
         self,
@@ -455,7 +460,7 @@ class S3FileTransformOperator(BaseOperator):
     :type replace: bool
     """
 
-    template_fields = ('source_s3_key', 'dest_s3_key', 'script_args')
+    template_fields: Sequence[str] = ('source_s3_key', 'dest_s3_key', 'script_args')
     template_ext = ()
     ui_color = '#f9c915'
 
@@ -583,7 +588,7 @@ class S3ListOperator(BaseOperator):
             )
     """
 
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
+    template_fields: Sequence[str] = ('bucket', 'prefix', 'delimiter')
     ui_color = '#ffd700'
 
     def __init__(
@@ -658,7 +663,7 @@ class S3ListPrefixesOperator(BaseOperator):
             )
     """
 
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
+    template_fields: Sequence[str] = ('bucket', 'prefix', 'delimiter')
     ui_color = '#ffd700'
 
     def __init__(

@@ -78,7 +78,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
     """
 
     # [START gcp_text_to_speech_synthesize_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_data",
         "voice",
         "audio_config",
