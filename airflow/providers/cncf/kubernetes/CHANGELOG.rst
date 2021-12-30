@@ -30,7 +30,7 @@ Breaking changes
 
 .. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodManager` (formerly named ``PodLauncher``)
     have been renamed. If you have subclassed :class:`~.KubernetesPodOperator` you will need to update your subclass to
-    reflect the new structure. Additionally, class ``PodStatus`` enum has been renamed to ``PodPhase``.
+    reflect the new structure. Additionally, class ``PodStatus`` has been renamed to ``PodPhase``.
 
 Notes on changes KubernetesPodOperator and PodLauncher
 ``````````````````````````````````````````````````````

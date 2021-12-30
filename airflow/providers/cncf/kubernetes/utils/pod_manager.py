@@ -81,7 +81,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 
 class PodManager(LoggingMixin):
     """
-    Helper class for creating, monitoring and otherwise interacting with kubernetes pods
+    Helper class for creating, monitoring, and otherwise interacting with Kubernetes pods
     for use with the KubernetesPodOperator
     """
 
