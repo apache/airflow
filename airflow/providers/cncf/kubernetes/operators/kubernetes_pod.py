@@ -20,7 +20,7 @@ import logging
 import re
 import warnings
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
@@ -184,7 +184,7 @@ class KubernetesPodOperator(BaseOperator):
     BASE_CONTAINER_NAME = 'base'
     POD_CHECKED_KEY = 'already_checked'
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'image',
         'cmds',
         'arguments',
@@ -493,9 +493,10 @@ class KubernetesPodOperator(BaseOperator):
 
     def build_pod_request_obj(self, context=None):
         """
-        Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
-        will supersede all other values.
+        Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
+        The V1Pod attributes are derived (in order of precedence) from operator params, full pod spec, pod
+        template file.
         """
         self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
         if self.pod_template_file:

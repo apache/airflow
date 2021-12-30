@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from kubernetes import client
 
@@ -50,7 +50,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
     :type api_version: str
     """
 
-    template_fields = ("application_name", "namespace")
+    template_fields: Sequence[str] = ("application_name", "namespace")
     FAILURE_STATES = ("FAILED", "UNKNOWN")
     SUCCESS_STATES = ("COMPLETED",)
 

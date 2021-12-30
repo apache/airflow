@@ -66,7 +66,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
 
     """
 
-    template_fields = ['pipeline_id']
+    template_fields: Sequence[str] = ('pipeline_id',)
 
     def __init__(
         self,

@@ -20,7 +20,7 @@ This module contains sensor that check the existence
 of a record in a Cassandra cluster.
 """
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Sequence
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base import BaseSensorOperator
@@ -56,7 +56,7 @@ class CassandraRecordSensor(BaseSensorOperator):
     :type cassandra_conn_id: str
     """
 
-    template_fields = ('table', 'keys')
+    template_fields: Sequence[str] = ('table', 'keys')
 
     def __init__(
         self,

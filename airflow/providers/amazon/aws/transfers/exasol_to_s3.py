@@ -18,7 +18,7 @@
 """Transfers data from Exasol database into a S3 Bucket."""
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -58,7 +58,7 @@ class ExasolToS3Operator(BaseOperator):
     :type export_params: dict
     """
 
-    template_fields = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
+    template_fields: Sequence[str] = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
     template_fields_renderers = {"query_or_table": "sql", "query_params": "json", "export_params": "json"}
     template_ext = ('.sql',)
     ui_color = '#ededed'

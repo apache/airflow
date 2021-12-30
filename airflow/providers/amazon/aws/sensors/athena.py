@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -58,7 +58,7 @@ class AthenaSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ('SUCCEEDED',)
 
-    template_fields = ['query_execution_id']
+    template_fields: Sequence[str] = ('query_execution_id',)
     template_ext = ()
     ui_color = '#66c3ff'
 

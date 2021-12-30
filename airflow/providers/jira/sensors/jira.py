@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 from jira.resources import Issue, Resource
 
@@ -84,7 +84,7 @@ class JiraTicketSensor(JiraSensor):
     :type result_processor: function
     """
 
-    template_fields = ("ticket_id",)
+    template_fields: Sequence[str] = ("ticket_id",)
 
     def __init__(
         self,

@@ -19,7 +19,7 @@
 import warnings
 from base64 import b64encode
 from select import select
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from paramiko.client import SSHClient
 
@@ -67,7 +67,7 @@ class SSHOperator(BaseOperator):
     :type get_pty: bool
     """
 
-    template_fields = ('command', 'remote_host')
+    template_fields: Sequence[str] = ('command', 'remote_host')
     template_ext = ('.sh',)
     template_fields_renderers = {"command": "bash"}
 

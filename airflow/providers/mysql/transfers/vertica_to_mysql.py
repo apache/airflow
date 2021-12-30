@@ -18,7 +18,7 @@
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -60,7 +60,7 @@ class VerticaToMySqlOperator(BaseOperator):
     :type bulk_load: bool
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
+    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext = ('.sql',)
     template_fields_renderers = {
         "sql": "sql",

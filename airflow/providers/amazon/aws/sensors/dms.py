@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -44,7 +44,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
     :type termination_statuses: list[str]
     """
 
-    template_fields = ['replication_task_arn']
+    template_fields: Sequence[str] = ('replication_task_arn',)
     template_ext = ()
 
     def __init__(
@@ -102,7 +102,7 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
     :type replication_task_arn: str
     """
 
-    template_fields = ['replication_task_arn']
+    template_fields: Sequence[str] = ('replication_task_arn',)
     template_ext = ()
 
     def __init__(self, *args, **kwargs):

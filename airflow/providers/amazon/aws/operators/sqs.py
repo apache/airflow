@@ -16,7 +16,7 @@
 # under the License.
 
 """Publish message to SQS queue"""
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
@@ -46,7 +46,7 @@ class SQSPublishOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
+    template_fields: Sequence[str] = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
     template_fields_renderers = {'message_attributes': 'json'}
     ui_color = '#6ad3fa'
 

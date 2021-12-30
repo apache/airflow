@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
@@ -65,7 +65,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     :type mode: str
     """
 
-    template_fields = ["vault_name", "job_id"]
+    template_fields: Sequence[str] = ("vault_name", "job_id")
 
     def __init__(
         self,

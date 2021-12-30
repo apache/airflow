@@ -17,7 +17,7 @@
 
 import json
 import sys
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -44,7 +44,7 @@ class SageMakerBaseOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['config']
+    template_fields: Sequence[str] = ('config',)
     template_ext = ()
     template_fields_renderers = {'config': 'json'}
     ui_color = '#ededed'

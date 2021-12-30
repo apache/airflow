@@ -56,7 +56,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
 
     def __init__(
         self,

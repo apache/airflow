@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
@@ -52,7 +52,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'database_name',
         'table_name',
         'expression',

@@ -73,7 +73,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
     :type api_version: Optional[str]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "client_ids",
         "query",
         "attributes",

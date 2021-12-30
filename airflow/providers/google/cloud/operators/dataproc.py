@@ -512,7 +512,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'region',
         'cluster_config',
@@ -747,7 +747,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain']
+    template_fields: Sequence[str] = ('cluster_name', 'project_id', 'region', 'impersonation_chain')
 
     operator_extra_links = (DataprocClusterLink(),)
 
@@ -888,7 +888,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('project_id', 'region', 'cluster_name', 'impersonation_chain')
+    template_fields: Sequence[str] = ('project_id', 'region', 'cluster_name', 'impersonation_chain')
 
     def __init__(
         self,
@@ -1144,7 +1144,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'query',
         'variables',
         'job_name',
@@ -1153,7 +1153,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     template_ext = ('.pg', '.pig')
     ui_color = '#0273d4'
     job_type = 'pig_job'
@@ -1223,7 +1223,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'query',
         'variables',
         'job_name',
@@ -1232,7 +1232,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     template_ext = ('.q', '.hql')
     ui_color = '#0273d4'
     job_type = 'hive_job'
@@ -1300,7 +1300,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'query',
         'variables',
         'job_name',
@@ -1309,7 +1309,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'spark_sql_job'
@@ -1382,7 +1382,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     :type files: list
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'arguments',
         'job_name',
         'cluster_name',
@@ -1390,7 +1390,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
     job_type = 'spark_job'
 
@@ -1460,7 +1460,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     :type files: list
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'arguments',
         'job_name',
         'cluster_name',
@@ -1468,7 +1468,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
     job_type = 'hadoop_job'
 
@@ -1538,7 +1538,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'main',
         'arguments',
         'job_name',
@@ -1547,7 +1547,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
     job_type = 'pyspark_job'
 
@@ -1663,7 +1663,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("region", "template")
+    template_fields: Sequence[str] = ("region", "template")
     template_fields_renderers = {"template": "json"}
 
     def __init__(
@@ -1766,7 +1766,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template_id', 'impersonation_chain', 'request_id', 'parameters']
+    template_fields: Sequence[str] = ('template_id', 'impersonation_chain', 'request_id', 'parameters')
     template_fields_renderers = {"parameters": "json"}
 
     def __init__(
@@ -1865,7 +1865,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template', 'impersonation_chain']
+    template_fields: Sequence[str] = ('template', 'impersonation_chain')
     template_fields_renderers = {"template": "json"}
 
     def __init__(
@@ -1958,7 +1958,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'region', 'job', 'impersonation_chain', 'request_id')
+    template_fields: Sequence[str] = ('project_id', 'region', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
@@ -2102,7 +2102,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('impersonation_chain', 'cluster_name')
+    template_fields: Sequence[str] = ('impersonation_chain', 'cluster_name')
     operator_extra_links = (DataprocClusterLink(),)
 
     def __init__(
@@ -2216,7 +2216,7 @@ class DataprocCreateBatchOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'batch_id',
         'region',
@@ -2323,7 +2323,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("batch_id", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -2395,7 +2395,7 @@ class DataprocGetBatchOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("batch_id", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -2471,7 +2471,7 @@ class DataprocListBatchesOperator(BaseOperator):
     :rtype: List[dict]
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
 
     def __init__(
         self,

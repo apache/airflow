@@ -79,7 +79,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_project_dataset_tables',
         'destination_project_dataset_table',
         'labels',

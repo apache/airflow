@@ -62,7 +62,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "file_id",

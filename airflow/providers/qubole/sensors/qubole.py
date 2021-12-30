@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 class QuboleSensor(BaseSensorOperator):
     """Base class for all Qubole Sensors"""
 
-    template_fields = ('data', 'qubole_conn_id')
+    template_fields: Sequence[str] = ('data', 'qubole_conn_id')
 
     template_ext = ('.txt',)
 

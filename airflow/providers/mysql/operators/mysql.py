@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -51,7 +51,7 @@ class MySqlOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields = ('sql', 'parameters')
+    template_fields: Sequence[str] = ('sql', 'parameters')
     template_fields_renderers = {'sql': 'sql', 'parameters': 'json'}
     template_ext = ('.sql', '.json')
     ui_color = '#ededed'

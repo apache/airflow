@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
@@ -73,7 +73,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
     :type note: str
     """
 
-    template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
+    template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
     def __init__(
         self,

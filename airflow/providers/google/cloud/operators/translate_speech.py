@@ -109,7 +109,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
     """
 
     # [START translate_speech_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'target_language',
         'format_',
         'source_language',

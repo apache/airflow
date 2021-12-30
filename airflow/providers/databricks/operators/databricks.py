@@ -19,7 +19,7 @@
 """This module contains Databricks operators."""
 
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -261,7 +261,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields = ('json',)
+    template_fields: Sequence[str] = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -500,7 +500,7 @@ class DatabricksRunNowOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields = ('json',)
+    template_fields: Sequence[str] = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'

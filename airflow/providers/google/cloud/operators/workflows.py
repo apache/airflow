@@ -64,7 +64,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow", "workflow_id")
     template_fields_renderers = {"workflow": "json"}
 
     def __init__(
@@ -173,7 +173,7 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("workflow_id", "update_mask")
+    template_fields: Sequence[str] = ("workflow_id", "update_mask")
     template_fields_renderers = {"update_mask": "json"}
 
     def __init__(
@@ -251,7 +251,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id")
 
     def __init__(
         self,
@@ -321,7 +321,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "order_by", "filter_")
+    template_fields: Sequence[str] = ("location", "order_by", "filter_")
 
     def __init__(
         self,
@@ -388,7 +388,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id")
 
     def __init__(
         self,
@@ -455,7 +455,7 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution")
     template_fields_renderers = {"execution": "json"}
 
     def __init__(
@@ -527,7 +527,7 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
 
     def __init__(
         self,
@@ -601,7 +601,7 @@ class WorkflowsListExecutionsOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id")
 
     def __init__(
         self,
@@ -670,7 +670,7 @@ class WorkflowsGetExecutionOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
 
     def __init__(
         self,

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Type
 
 from requests.auth import AuthBase, HTTPBasicAuth
 
@@ -68,11 +68,11 @@ class SimpleHttpOperator(BaseOperator):
     :type auth_type: AuthBase of python requests lib
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'endpoint',
         'data',
         'headers',
-    ]
+    )
     template_fields_renderers = {'headers': 'json', 'data': 'py'}
     template_ext = ()
     ui_color = '#f4a460'

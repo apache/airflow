@@ -301,7 +301,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -402,7 +402,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_patch_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -482,7 +482,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'gcp_conn_id',
@@ -538,7 +538,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_db_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -645,7 +645,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_db_patch_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -743,7 +743,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_db_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'database',
@@ -835,7 +835,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_export_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -939,7 +939,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
     """
 
     # [START gcp_sql_import_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -1024,7 +1024,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     """
 
     # [START gcp_sql_query_template_fields]
-    template_fields = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
+    template_fields: Sequence[str] = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
     template_ext = ('.sql',)
     # [END gcp_sql_query_template_fields]
 

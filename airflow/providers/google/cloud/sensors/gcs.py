@@ -58,7 +58,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'object',
         'impersonation_chain',
@@ -137,7 +137,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'object',
         'impersonation_chain',
@@ -204,7 +204,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'impersonation_chain',
@@ -314,7 +314,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'impersonation_chain',

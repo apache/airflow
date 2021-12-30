@@ -84,7 +84,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     :type impersonation_chain: str | Sequence[str]
     """
 
-    template_fields = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
+    template_fields: Sequence[str] = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
 
     def __init__(
         self,

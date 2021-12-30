@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Iterable, List, Mapping, Optional, Union
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
@@ -40,7 +40,7 @@ class SqliteOperator(BaseOperator):
     :type parameters: dict or iterable
     """
 
-    template_fields = ('sql',)
+    template_fields: Sequence[str] = ('sql',)
     template_ext = ('.sql',)
     ui_color = '#cdaaed'
 

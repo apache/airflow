@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -47,7 +47,7 @@ class TrinoToMySqlOperator(BaseOperator):
     :type mysql_preoperator: str
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator')
+    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator')
     template_ext = ('.sql',)
     template_fields_renderers = {"sql": "sql", "mysql_preoperator": "sql"}
     ui_color = '#a0e08c'

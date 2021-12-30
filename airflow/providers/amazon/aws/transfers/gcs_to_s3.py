@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
 import warnings
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -87,7 +87,7 @@ class GCSToS3Operator(BaseOperator):
     :type s3_acl_policy: str
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'delimiter',

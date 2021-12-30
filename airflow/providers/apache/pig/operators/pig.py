@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
@@ -43,7 +43,7 @@ class PigOperator(BaseOperator):
     :type pig_opts: str
     """
 
-    template_fields = ('pig',)
+    template_fields: Sequence[str] = ('pig',)
     template_ext = (
         '.pig',
         '.piglatin',

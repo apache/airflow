@@ -75,7 +75,7 @@ class LivyOperator(BaseOperator):
     :type extra_headers: Dict[str, Any]
     """
 
-    template_fields = ('spark_params',)
+    template_fields: Sequence[str] = ('spark_params',)
 
     def __init__(
         self,

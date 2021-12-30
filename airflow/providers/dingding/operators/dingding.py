@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.dingding.hooks.dingding import DingdingHook
@@ -46,7 +46,7 @@ class DingdingOperator(BaseOperator):
     :type at_all: bool
     """
 
-    template_fields = ('message',)
+    template_fields: Sequence[str] = ('message',)
     ui_color = '#4ea4d4'  # Dingding icon color
 
     def __init__(

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 import attr
 import papermill as pm
@@ -54,7 +54,7 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    template_fields = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
+    template_fields: Sequence[str] = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
 
     def __init__(
         self,

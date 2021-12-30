@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -97,7 +97,7 @@ class SparkSubmitOperator(BaseOperator):
     :type spark_binary: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         '_application',
         '_conf',
         '_files',

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
@@ -34,7 +34,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     :type target_status: str
     """
 
-    template_fields = ('cluster_identifier', 'target_status')
+    template_fields: Sequence[str] = ('cluster_identifier', 'target_status')
 
     def __init__(
         self,

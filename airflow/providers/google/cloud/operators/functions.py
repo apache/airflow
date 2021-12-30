@@ -142,7 +142,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
     """
 
     # [START gcf_function_deploy_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'body',
         'project_id',
         'location',
@@ -353,7 +353,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
     """
 
     # [START gcf_function_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'name',
         'gcp_conn_id',
         'api_version',
@@ -434,7 +434,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
     :return: None
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'function_id',
         'input_data',
         'location',

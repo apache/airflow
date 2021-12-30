@@ -62,7 +62,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report",
         "impersonation_chain",
     )
@@ -146,7 +146,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_name",
         "report_id",
         "bucket_name",

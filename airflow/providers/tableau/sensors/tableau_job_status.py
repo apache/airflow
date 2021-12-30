@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
@@ -42,7 +42,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
     :type tableau_conn_id: str
     """
 
-    template_fields = ('job_id',)
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,

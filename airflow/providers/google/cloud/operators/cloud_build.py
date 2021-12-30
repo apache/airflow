@@ -76,7 +76,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id_", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
 
     def __init__(
         self,
@@ -154,7 +154,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "build", "body", "gcp_conn_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("project_id", "build", "body", "gcp_conn_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -257,7 +257,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger", "gcp_conn_id")
 
     def __init__(
         self,
@@ -326,7 +326,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("project_id", "trigger_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -396,7 +396,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id_", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
 
     def __init__(
         self,
@@ -467,7 +467,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -542,7 +542,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
     :rtype: List[dict]
     """
 
-    template_fields = ("location", "project_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -623,7 +623,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
     :rtype: List[dict]
     """
 
-    template_fields = ("location", "project_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -703,7 +703,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id_", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
 
     def __init__(
         self,
@@ -782,7 +782,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger_id", "source", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id")
 
     def __init__(
         self,
@@ -862,7 +862,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger_id", "trigger", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id")
 
     def __init__(
         self,

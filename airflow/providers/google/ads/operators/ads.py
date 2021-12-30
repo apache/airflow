@@ -68,7 +68,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type api_version: Optional[str]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "bucket",
         "object_name",
         "impersonation_chain",

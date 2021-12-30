@@ -215,7 +215,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     """
 
     # [START gcp_transfer_job_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'body',
         'gcp_conn_id',
         'aws_conn_id',
@@ -293,7 +293,7 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     """
 
     # [START gcp_transfer_job_update_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'job_name',
         'body',
         'gcp_conn_id',
@@ -370,7 +370,7 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     """
 
     # [START gcp_transfer_job_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'job_name',
         'project_id',
         'gcp_conn_id',
@@ -439,7 +439,7 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
     """
 
     # [START gcp_transfer_operation_get_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'operation_name',
         'gcp_conn_id',
         'google_impersonation_chain',
@@ -505,7 +505,7 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
     """
 
     # [START gcp_transfer_operations_list_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter',
         'gcp_conn_id',
         'google_impersonation_chain',
@@ -577,7 +577,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
     """
 
     # [START gcp_transfer_operation_pause_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'operation_name',
         'gcp_conn_id',
         'api_version',
@@ -640,7 +640,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
     """
 
     # [START gcp_transfer_operation_resume_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'operation_name',
         'gcp_conn_id',
         'api_version',
@@ -704,7 +704,7 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
     """
 
     # [START gcp_transfer_operation_cancel_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'operation_name',
         'gcp_conn_id',
         'api_version',
@@ -820,7 +820,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     :type delete_job_after_completion: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'gcp_conn_id',
         's3_bucket',
         'gcs_bucket',
@@ -1006,7 +1006,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     :type delete_job_after_completion: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'gcp_conn_id',
         'source_bucket',
         'destination_bucket',

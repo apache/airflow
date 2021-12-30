@@ -54,7 +54,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'folder_id',
         'file_name',
         'drive_id',

@@ -76,7 +76,7 @@ class AutoMLTrainModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model",
         "location",
         "project_id",
@@ -169,7 +169,7 @@ class AutoMLPredictOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -274,7 +274,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "input_config",
         "output_config",
@@ -374,7 +374,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset",
         "location",
         "project_id",
@@ -468,7 +468,7 @@ class AutoMLImportDataOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "input_config",
         "location",
@@ -570,7 +570,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "table_spec_id",
         "field_mask",
@@ -674,7 +674,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset",
         "update_mask",
         "location",
@@ -760,7 +760,7 @@ class AutoMLGetModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -845,7 +845,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -939,7 +939,7 @@ class AutoMLDeployModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -1036,7 +1036,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "filter_",
         "location",
@@ -1127,7 +1127,7 @@ class AutoMLListDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "impersonation_chain",
@@ -1215,7 +1215,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "location",
         "project_id",

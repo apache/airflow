@@ -17,7 +17,7 @@
 # under the License.
 """Reads and then deletes the message from SQS queue"""
 import json
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
@@ -63,7 +63,7 @@ class SQSSensor(BaseSensorOperator):
     :type message_filtering_config: Any
     """
 
-    template_fields = ('sqs_queue', 'max_messages', 'message_filtering_config')
+    template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
 
     def __init__(
         self,

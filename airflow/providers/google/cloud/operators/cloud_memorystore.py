@@ -84,7 +84,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance_id",
         "instance",
@@ -173,7 +173,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "project_id",
@@ -263,7 +263,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "output_config",
@@ -355,7 +355,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "data_protection_mode",
@@ -442,7 +442,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "project_id",
@@ -534,7 +534,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "input_config",
@@ -625,7 +625,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "page_size",
         "project_id",
@@ -728,7 +728,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "update_mask",
         "instance",
         "location",
@@ -822,7 +822,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "memory_size_gb",
         "location",
         "instance_id",
@@ -933,7 +933,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance_id",
         "instance",
@@ -1042,7 +1042,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "output_config",
@@ -1135,7 +1135,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "node_ids",
         "apply_all",
         "location",
@@ -1233,7 +1233,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance_id",
         "instance",
@@ -1308,7 +1308,15 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
+    template_fields: Sequence[str] = (
+        "location",
+        "instance",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -1378,7 +1386,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "instance",
         "project_id",
@@ -1463,7 +1471,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "retry",
@@ -1559,7 +1567,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "update_mask",
         "instance",
         "location",
@@ -1651,7 +1659,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "update_mask",
         "parameters",
         "location",

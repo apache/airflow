@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains CloudFormation create/delete stack operators."""
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
@@ -40,7 +40,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: List[str] = ['stack_name']
+    template_fields: Sequence[str] = ('stack_name',)
     template_ext = ()
     ui_color = '#6b9659'
 
@@ -72,7 +72,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: List[str] = ['stack_name']
+    template_fields: Sequence[str] = ('stack_name',)
     template_ext = ()
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'

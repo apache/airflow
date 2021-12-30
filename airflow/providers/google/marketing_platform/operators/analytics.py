@@ -57,7 +57,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "api_version",
         "gcp_conn_id",
         "impersonation_chain",
@@ -116,7 +116,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "api_version",
         "gcp_conn_id",
         "account_id",
@@ -186,7 +186,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "api_version",
         "gcp_conn_id",
         "account_id",
@@ -263,7 +263,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "storage_bucket",
         "storage_name_object",
         "impersonation_chain",
@@ -360,7 +360,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("impersonation_chain",)
+    template_fields: Sequence[str] = ("impersonation_chain",)
 
     def __init__(
         self,
@@ -442,7 +442,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "storage_bucket",
         "storage_name_object",
         "impersonation_chain",

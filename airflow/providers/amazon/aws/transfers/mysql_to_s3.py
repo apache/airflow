@@ -21,7 +21,7 @@ import warnings
 from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -89,7 +89,7 @@ class MySQLToS3Operator(BaseOperator):
     :type pd_kwargs: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         's3_bucket',
         's3_key',
         'query',

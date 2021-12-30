@@ -22,7 +22,7 @@ if sys.version_info >= (3, 8):
 else:
     from cached_property import cached_property
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
@@ -51,7 +51,7 @@ class OSSKeySensor(BaseSensorOperator):
     :type oss_conn_id: Optional[str]
     """
 
-    template_fields = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
 
     def __init__(
         self,

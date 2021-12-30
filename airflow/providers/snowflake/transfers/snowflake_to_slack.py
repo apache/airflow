@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -70,7 +70,7 @@ class SnowflakeToSlackOperator(BaseOperator):
     :type slack_token: Optional[str]
     """
 
-    template_fields = ['sql', 'slack_message']
+    template_fields: Sequence[str] = ('sql', 'slack_message')
     template_ext = ['.sql', '.jinja', '.j2']
     template_fields_renderers = {"slack_message": "jinja"}
     times_rendered = 0

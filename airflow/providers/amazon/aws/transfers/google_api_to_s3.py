@@ -95,7 +95,7 @@ class GoogleApiToS3Operator(BaseOperator):
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'google_api_endpoint_params',
         's3_destination_key',
         'google_impersonation_chain',

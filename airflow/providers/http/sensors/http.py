@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -74,7 +74,7 @@ class HttpSensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint', 'request_params', 'headers')
+    template_fields: Sequence[str] = ('endpoint', 'request_params', 'headers')
 
     def __init__(
         self,

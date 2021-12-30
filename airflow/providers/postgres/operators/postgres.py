@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -44,7 +44,7 @@ class PostgresOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields = ('sql',)
+    template_fields: Sequence[str] = ('sql',)
     template_fields_renderers = {'sql': 'sql'}
     template_ext = ('.sql',)
     ui_color = '#ededed'

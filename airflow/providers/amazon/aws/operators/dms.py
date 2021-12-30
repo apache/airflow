@@ -17,7 +17,7 @@
 # under the License.
 
 
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -56,7 +56,7 @@ class DmsCreateTaskOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'replication_task_id',
         'source_endpoint_arn',
         'target_endpoint_arn',
@@ -134,7 +134,7 @@ class DmsDeleteTaskOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ('replication_task_arn',)
+    template_fields: Sequence[str] = ('replication_task_arn',)
     template_ext = ()
     template_fields_renderers: Dict[str, str] = {}
 
@@ -174,7 +174,7 @@ class DmsDescribeTasksOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ('describe_tasks_kwargs',)
+    template_fields: Sequence[str] = ('describe_tasks_kwargs',)
     template_ext = ()
     template_fields_renderers: Dict[str, str] = {'describe_tasks_kwargs': 'json'}
 
@@ -223,7 +223,7 @@ class DmsStartTaskOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'replication_task_arn',
         'start_replication_task_type',
         'start_task_kwargs',
@@ -276,7 +276,7 @@ class DmsStopTaskOperator(BaseOperator):
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ('replication_task_arn',)
+    template_fields: Sequence[str] = ('replication_task_arn',)
     template_ext = ()
     template_fields_renderers: Dict[str, str] = {}
 

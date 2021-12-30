@@ -85,7 +85,7 @@ class CloudTranslateTextOperator(BaseOperator):
     """
 
     # [START translate_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'values',
         'target_language',
         'format_',

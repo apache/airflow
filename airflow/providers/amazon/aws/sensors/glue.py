@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
@@ -37,7 +37,7 @@ class GlueJobSensor(BaseSensorOperator):
     :type run_id: str
     """
 
-    template_fields = ('job_name', 'run_id')
+    template_fields: Sequence[str] = ('job_name', 'run_id')
 
     def __init__(self, *, job_name: str, run_id: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)

@@ -21,7 +21,7 @@ import os
 import re
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class S3KeySensor(BaseSensorOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
 
     def __init__(
         self,
@@ -256,7 +256,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     :type allow_delete: bool
     """
 
-    template_fields = ('bucket_name', 'prefix')
+    template_fields: Sequence[str] = ('bucket_name', 'prefix')
 
     def __init__(
         self,
@@ -392,7 +392,7 @@ class S3PrefixSensor(BaseSensorOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('prefix', 'bucket_name')
+    template_fields: Sequence[str] = ('prefix', 'bucket_name')
 
     def __init__(
         self,

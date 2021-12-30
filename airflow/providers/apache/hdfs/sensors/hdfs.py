@@ -18,7 +18,7 @@
 import logging
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern, Sequence, Type
 
 from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
@@ -50,7 +50,7 @@ class HdfsSensor(BaseSensorOperator):
         :ref:`howto/operator:HdfsSensor`
     """
 
-    template_fields = ('filepath',)
+    template_fields: Sequence[str] = ('filepath',)
     ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
     def __init__(

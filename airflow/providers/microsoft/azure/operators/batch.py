@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence
 
 from azure.batch import models as batch_models
 
@@ -124,7 +124,7 @@ class AzureBatchOperator(BaseOperator):
     :type should_delete_pool: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'batch_pool_id',
         'batch_pool_vm_size',
         'batch_job_id',

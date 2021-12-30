@@ -64,7 +64,7 @@ class TestSlackWebhookOperator(unittest.TestCase):
     def test_assert_templated_fields(self):
         operator = SlackWebhookOperator(task_id='slack_webhook_job', dag=self.dag, **self._config)
 
-        template_fields = [
+        template_fields = (
             'webhook_token',
             'message',
             'attachments',
@@ -72,6 +72,6 @@ class TestSlackWebhookOperator(unittest.TestCase):
             'channel',
             'username',
             'proxy',
-        ]
+        )
 
         assert operator.template_fields == template_fields

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.sensors.base import BaseSensorOperator
@@ -39,7 +39,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields = ("target_state", "instance_id", "region_name")
+    template_fields: Sequence[str] = ("target_state", "instance_id", "region_name")
     ui_color = "#cc8811"
     ui_fgcolor = "#ffffff"
     valid_states = ["running", "stopped", "terminated"]

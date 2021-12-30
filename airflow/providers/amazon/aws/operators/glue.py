@@ -18,7 +18,7 @@
 
 import os.path
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
@@ -62,7 +62,7 @@ class GlueJobOperator(BaseOperator):
     :type wait_for_completion: bool
     """
 
-    template_fields = ('script_args',)
+    template_fields: Sequence[str] = ('script_args',)
     template_ext = ()
     template_fields_renderers = {
         "script_args": "json",

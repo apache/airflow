@@ -20,7 +20,7 @@
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 import pymssql
 import unicodecsv as csv
@@ -72,7 +72,7 @@ class MsSqlToHiveOperator(BaseOperator):
     :type tblproperties: dict
     """
 
-    template_fields = ('sql', 'partition', 'hive_table')
+    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Sequence, Union
 
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.sensors.base import BaseSensorOperator
@@ -35,7 +35,7 @@ class RedisPubSubSensor(BaseSensorOperator):
     :type redis_conn_id: str
     """
 
-    template_fields = ('channels',)
+    template_fields: Sequence[str] = ('channels',)
     ui_color = '#f0eee4'
 
     def __init__(self, *, channels: Union[List[str], str], redis_conn_id: str, **kwargs) -> None:

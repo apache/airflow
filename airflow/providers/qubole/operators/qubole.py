@@ -18,7 +18,7 @@
 """Qubole operator"""
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -186,7 +186,7 @@ class QuboleOperator(BaseOperator):
         handler in task definition.
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'query',
         'script_location',
         'sub_command',

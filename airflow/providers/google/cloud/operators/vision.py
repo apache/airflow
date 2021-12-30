@@ -86,7 +86,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
     """
 
     # [START vision_productset_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "product_set_id",
@@ -182,7 +182,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
     """
 
     # [START vision_productset_get_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_set_id',
@@ -287,7 +287,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
     """
 
     # [START vision_productset_update_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_set_id',
@@ -381,7 +381,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
     """
 
     # [START vision_productset_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_set_id',
@@ -479,7 +479,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
     """
 
     # [START vision_product_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_id',
@@ -578,7 +578,7 @@ class CloudVisionGetProductOperator(BaseOperator):
     """
 
     # [START vision_product_get_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_id',
@@ -694,7 +694,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
     """
 
     # [START vision_product_update_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_id',
@@ -793,7 +793,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
     """
 
     # [START vision_product_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'location',
         'project_id',
         'product_id',
@@ -874,7 +874,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
     """
 
     # [START vision_annotate_image_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'request',
         'gcp_conn_id',
         'impersonation_chain',
@@ -963,7 +963,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
     """
 
     # [START vision_reference_image_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "reference_image",
         "product_id",
@@ -1069,7 +1069,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
     """
 
     # [START vision_reference_image_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "product_id",
         "reference_image_id",
@@ -1167,7 +1167,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     """
 
     # [START vision_add_product_to_product_set_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "product_set_id",
         "product_id",
@@ -1259,7 +1259,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     """
 
     # [START vision_remove_product_from_product_set_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "product_set_id",
         "product_id",
@@ -1351,7 +1351,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
     """
 
     # [START vision_detect_text_set_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "image",
         "max_results",
         "timeout",
@@ -1442,7 +1442,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
     """
 
     # [START vision_document_detect_text_set_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "image",
         "max_results",
         "timeout",
@@ -1526,7 +1526,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
     """
 
     # [START vision_detect_labels_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "image",
         "max_results",
         "timeout",
@@ -1604,7 +1604,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
     """
 
     # [START vision_detect_safe_search_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "image",
         "max_results",
         "timeout",

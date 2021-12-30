@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -41,7 +41,7 @@ class EC2StartInstanceOperator(BaseOperator):
     :type check_interval: float
     """
 
-    template_fields = ("instance_id", "region_name")
+    template_fields: Sequence[str] = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -87,7 +87,7 @@ class EC2StopInstanceOperator(BaseOperator):
     :type check_interval: float
     """
 
-    template_fields = ("instance_id", "region_name")
+    template_fields: Sequence[str] = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 

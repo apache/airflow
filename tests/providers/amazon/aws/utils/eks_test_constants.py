@@ -22,7 +22,7 @@ This file should only contain constants used for the EKS tests.
 """
 import re
 from enum import Enum
-from typing import Dict, List, Pattern, Tuple
+from typing import Any, Dict, List, Pattern, Tuple
 
 DEFAULT_CONN_ID: str = "aws_default"
 DEFAULT_NAMESPACE: str = "default_namespace"
@@ -96,8 +96,8 @@ class ErrorAttributes:
 class ClusterInputs:
     """All possible inputs for creating an EKS Cluster."""
 
-    REQUIRED: List[Tuple] = [ROLE_ARN, RESOURCES_VPC_CONFIG]
-    OPTIONAL: List[Tuple] = [
+    REQUIRED: List[Tuple[str, Any]] = [ROLE_ARN, RESOURCES_VPC_CONFIG]
+    OPTIONAL: List[Tuple[str, Any]] = [
         CLIENT_REQUEST_TOKEN,
         ENCRYPTION_CONFIG,
         LOGGING,
@@ -108,15 +108,15 @@ class ClusterInputs:
 
 
 class FargateProfileInputs:
-    REQUIRED: List[Tuple] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
-    OPTIONAL: List[Tuple] = [SUBNETS, TAGS]
+    REQUIRED: List[Tuple[str, Any]] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
+    OPTIONAL: List[Tuple[str, Any]] = [SUBNETS, TAGS]
 
 
 class NodegroupInputs:
     """All possible inputs for creating an EKS Managed Nodegroup."""
 
-    REQUIRED: List[Tuple] = [NODEROLE_ARN, SUBNETS]
-    OPTIONAL: List[Tuple] = [
+    REQUIRED: List[Tuple[str, Any]] = [NODEROLE_ARN, SUBNETS]
+    OPTIONAL: List[Tuple[str, Any]] = [
         AMI_TYPE,
         DISK_SIZE,
         INSTANCE_TYPES,

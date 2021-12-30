@@ -19,7 +19,7 @@
 import ast
 import os
 import shutil
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from spython.main import Client
 
@@ -64,7 +64,7 @@ class SingularityOperator(BaseOperator):
     :type working_dir: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'command',
         'environment',
     )

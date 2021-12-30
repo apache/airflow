@@ -17,7 +17,7 @@
 
 
 import json
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -48,7 +48,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['state_machine_arn', 'name', 'input']
+    template_fields: Sequence[str] = ('state_machine_arn', 'name', 'input')
     template_ext = ()
     ui_color = '#f9c915'
 
@@ -97,7 +97,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['execution_arn']
+    template_fields: Sequence[str] = ('execution_arn',)
     template_ext = ()
     ui_color = '#f9c915'
 

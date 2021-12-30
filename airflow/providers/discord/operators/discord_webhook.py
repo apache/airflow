@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
@@ -56,7 +56,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
-    template_fields = ['username', 'message']
+    template_fields: Sequence[str] = ('username', 'message')
 
     def __init__(
         self,

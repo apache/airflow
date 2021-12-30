@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -117,7 +117,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :type blocks: list of hashes
     """
 
-    template_fields = ('username', 'text', 'attachments', 'blocks', 'channel')
+    template_fields: Sequence[str] = ('username', 'text', 'attachments', 'blocks', 'channel')
     ui_color = '#FFBA40'
 
     def __init__(
@@ -194,7 +194,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :type content: str
     """
 
-    template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
+    template_fields: Sequence[str] = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
     ui_color = '#44BEDF'
 
     def __init__(

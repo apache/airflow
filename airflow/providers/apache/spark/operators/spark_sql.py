@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
@@ -63,7 +63,7 @@ class SparkSqlOperator(BaseOperator):
     :type yarn_queue: str
     """
 
-    template_fields = ["_sql"]
+    template_fields: Sequence[str] = ('_sql',)
     template_ext = [".sql", ".hql"]
 
     def __init__(

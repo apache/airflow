@@ -96,7 +96,7 @@ class CassandraToGCSOperator(BaseOperator):
     :type query_timeout: float | None
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'cql',
         'bucket',
         'filename',

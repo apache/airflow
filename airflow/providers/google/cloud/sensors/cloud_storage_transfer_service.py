@@ -63,7 +63,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
     """
 
     # [START gcp_transfer_job_sensor_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'job_name',
         'impersonation_chain',
     )

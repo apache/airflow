@@ -17,7 +17,7 @@
 # under the License.
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -104,7 +104,7 @@ class S3ToGCSOperator(S3ListOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'delimiter',

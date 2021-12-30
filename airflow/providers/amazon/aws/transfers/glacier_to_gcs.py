@@ -68,7 +68,7 @@ class GlacierToGCSOperator(BaseOperator):
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("vault_name", "bucket_name", "object_name")
+    template_fields: Sequence[str] = ("vault_name", "bucket_name", "object_name")
 
     def __init__(
         self,

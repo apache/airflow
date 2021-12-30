@@ -19,7 +19,7 @@
 """This module contains a sqoop 1 operator"""
 import os
 import signal
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -83,7 +83,7 @@ class SqoopOperator(BaseOperator):
         Don't include prefix of -- for sqoop options.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'conn_id',
         'cmd_type',
         'table',

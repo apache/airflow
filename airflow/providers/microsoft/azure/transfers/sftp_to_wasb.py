@@ -20,7 +20,7 @@ import os
 import sys
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -76,7 +76,7 @@ class SFTPToWasbOperator(BaseOperator):
     :type move_object: bool
     """
 
-    template_fields = ("sftp_source_path", "container_name", "blob_prefix")
+    template_fields: Sequence[str] = ("sftp_source_path", "container_name", "blob_prefix")
 
     def __init__(
         self,

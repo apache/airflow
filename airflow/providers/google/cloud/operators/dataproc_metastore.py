@@ -86,7 +86,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'backup',
         'impersonation_chain',
@@ -208,7 +208,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'metadata_import',
         'impersonation_chain',
@@ -308,7 +308,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'service',
         'impersonation_chain',
@@ -419,7 +419,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -489,7 +489,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -575,7 +575,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -689,7 +689,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -768,7 +768,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -877,7 +877,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -1016,7 +1016,7 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )

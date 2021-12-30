@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
@@ -46,7 +46,7 @@ class SparkKubernetesOperator(BaseOperator):
     :type api_version: str
     """
 
-    template_fields = ['application_file', 'namespace']
+    template_fields: Sequence[str] = ('application_file', 'namespace')
     template_ext = ('.yaml', '.yml', '.json')
     ui_color = '#f4a460'
 

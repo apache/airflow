@@ -76,13 +76,13 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'bucket',
         'namespace',
         'entity_filter',
         'labels',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -190,14 +190,14 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'bucket',
         'file',
         'namespace',
         'entity_filter',
         'labels',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -285,7 +285,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "partial_keys",
         "impersonation_chain",
     )
@@ -352,7 +352,7 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transaction_options",
         "impersonation_chain",
     )
@@ -419,7 +419,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "body",
         "impersonation_chain",
     )
@@ -486,7 +486,7 @@ class CloudDatastoreRollbackOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transaction",
         "impersonation_chain",
     )
@@ -552,7 +552,7 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "body",
         "impersonation_chain",
     )
@@ -617,7 +617,7 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "name",
         "impersonation_chain",
     )
@@ -677,7 +677,7 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "name",
         "impersonation_chain",
     )

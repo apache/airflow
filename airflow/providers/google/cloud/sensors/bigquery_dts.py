@@ -69,7 +69,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
     :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "run_id",
         "transfer_config_id",
         "expected_statuses",

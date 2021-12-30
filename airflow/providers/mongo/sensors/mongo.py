@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.sensors.base import BaseSensorOperator
@@ -46,7 +46,7 @@ class MongoSensor(BaseSensorOperator):
     :type mongo_db: str
     """
 
-    template_fields = ('collection', 'query')
+    template_fields: Sequence[str] = ('collection', 'query')
 
     def __init__(
         self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", mongo_db=None, **kwargs

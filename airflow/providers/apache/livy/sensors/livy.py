@@ -16,7 +16,7 @@
 # under the License.
 
 """This module contains the Apache Livy sensor."""
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base import BaseSensorOperator
@@ -37,7 +37,7 @@ class LivySensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('batch_id',)
+    template_fields: Sequence[str] = ('batch_id',)
 
     def __init__(
         self,

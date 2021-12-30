@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.segment.hooks.segment import SegmentHook
@@ -41,7 +41,7 @@ class SegmentTrackEventOperator(BaseOperator):
     :type segment_debug_mode: bool
     """
 
-    template_fields = ('user_id', 'event', 'properties')
+    template_fields: Sequence[str] = ('user_id', 'event', 'properties')
     ui_color = '#ffd700'
 
     def __init__(

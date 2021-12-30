@@ -17,7 +17,7 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -71,7 +71,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'share_name',
         'directory_name',
         'prefix',

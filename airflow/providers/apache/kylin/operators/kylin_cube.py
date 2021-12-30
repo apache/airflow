@@ -18,7 +18,7 @@
 
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from kylinpy import kylinpy
 
@@ -88,7 +88,7 @@ class KylinCubeOperator(BaseOperator):
     :type eager_error_status: tuple
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project',
         'cube',
         'dsn',

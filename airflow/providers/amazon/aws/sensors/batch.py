@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
@@ -36,7 +36,7 @@ class BatchSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
     template_ext = ()
     ui_color = '#66c3ff'
 

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
@@ -39,7 +39,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     :type api_version: str
     """
 
-    template_fields = ('airbyte_job_id',)
+    template_fields: Sequence[str] = ('airbyte_job_id',)
     ui_color = '#6C51FD'
 
     def __init__(

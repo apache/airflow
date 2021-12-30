@@ -17,7 +17,7 @@
 # under the License.
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
 
 from bson import json_util
 
@@ -64,7 +64,7 @@ class MongoToS3Operator(BaseOperator):
     :type compression: str
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
     ui_color = '#589636'
     template_fields_renderers = {"mongo_query": "json"}
 

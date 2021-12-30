@@ -17,7 +17,7 @@
 #
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
@@ -75,7 +75,7 @@ class EksClusterStateSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = ("cluster_name", "target_state", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -137,7 +137,13 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "fargate_profile_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "fargate_profile_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -203,7 +209,13 @@ class EksNodegroupStateSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "nodegroup_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "nodegroup_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 

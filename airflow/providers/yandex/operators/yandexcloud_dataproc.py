@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
@@ -218,7 +218,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type cluster_id: Optional[str]
     """
 
-    template_fields = ['cluster_id']
+    template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
         self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
@@ -261,7 +261,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
     :type connection_id: Optional[str]
     """
 
-    template_fields = ['cluster_id']
+    template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
         self,
@@ -333,7 +333,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     :type connection_id: Optional[str]
     """
 
-    template_fields = ['cluster_id']
+    template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
         self,
@@ -418,7 +418,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     :type exclude_packages: Optional[Iterable[str]]
     """
 
-    template_fields = ['cluster_id']
+    template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
         self,
@@ -512,7 +512,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     :type exclude_packages: Optional[Iterable[str]]
     """
 
-    template_fields = ['cluster_id']
+    template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
         self,

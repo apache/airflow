@@ -18,7 +18,7 @@
 import json
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -64,7 +64,7 @@ class HiveStatsCollectionOperator(BaseOperator):
     :type assignment_func: function
     """
 
-    template_fields = ('table', 'partition', 'ds', 'dttm')
+    template_fields: Sequence[str] = ('table', 'partition', 'ds', 'dttm')
     ui_color = '#aff7a6'
 
     def __init__(

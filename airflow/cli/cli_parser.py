@@ -738,6 +738,16 @@ ARG_NAMESPACE = Arg(
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 
+ARG_MIN_PENDING_MINUTES = Arg(
+    ("--min-pending-minutes",),
+    default=30,
+    type=positive_int(allow_zero=False),
+    help=(
+        "Pending pods created before the time interval are to be cleaned up, "
+        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
+    ),
+)
+
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ('--job-type',),
@@ -1526,10 +1536,10 @@ KUBERNETES_COMMANDS = (
         help=(
             "Clean up Kubernetes pods "
             "(created by KubernetesExecutor/KubernetesPodOperator) "
-            "in evicted/failed/succeeded states"
+            "in evicted/failed/succeeded/pending states"
         ),
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
-        args=(ARG_NAMESPACE,),
+        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES),
     ),
     ActionCommand(
         name='generate-dag-yaml',

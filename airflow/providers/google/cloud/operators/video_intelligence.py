@@ -76,7 +76,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
     """
 
     # [START gcp_video_intelligence_detect_labels_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_uri",
         "output_uri",
         "gcp_conn_id",
@@ -175,7 +175,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
     """
 
     # [START gcp_video_intelligence_detect_explicit_content_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_uri",
         "output_uri",
         "gcp_conn_id",
@@ -274,7 +274,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
     """
 
     # [START gcp_video_intelligence_detect_video_shots_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_uri",
         "output_uri",
         "gcp_conn_id",

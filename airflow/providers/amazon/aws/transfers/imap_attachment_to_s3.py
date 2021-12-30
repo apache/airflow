@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to transfer mail attachments from a mail server into s3 bucket."""
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -53,7 +53,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
     :type s3_conn_id: str
     """
 
-    template_fields = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
+    template_fields: Sequence[str] = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
 
     def __init__(
         self,
