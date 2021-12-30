@@ -26,7 +26,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
 from airflow.operators.dummy import DummyOperator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+    KubernetesPodOperator,
+    _prune_dict,
+    _suppress,
+)
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -834,3 +838,32 @@ def test__suppress():
             raise ValueError("failure")
 
         mock_error.assert_called_once_with("failure", exc_info=True)
+
+
+@pytest.mark.parametrize(
+    'mode, expected',
+    [
+        (
+            'strict',
+            {
+                'b': '',
+                'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
+                'd': ['', 0, '1'],
+                'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
+            },
+        ),
+        (
+            'truthy',
+            {
+                'c': {'c': 'hi', 'd': ['1']},
+                'd': ['1'],
+                'e': [{'c': 'hi', 'd': ['1']}, ['1']],
+            },
+        ),
+    ],
+)
+def test__prune_dict(mode, expected):
+    l1 = ['', 0, '1', None]
+    d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
+    d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
+    assert _prune_dict(d2, mode=mode) == expected
