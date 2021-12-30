@@ -2208,7 +2208,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
                  ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 update-versions verify-db-migrations-documented version-sync www-lint yamllint yesqa
+                 update-supported-versions update-versions verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

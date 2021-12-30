@@ -23,19 +23,21 @@ Version Life Cycle
 
 Apache Airflow version life cycle:
 
-+---------+-----------------+---------------+-----------------+----------------+
-| Version | State           | First Release | Limited Support | EOL/Terminated |
-+---------+-----------------+---------------+-----------------+----------------+
-| 2       | Supported       | Dec 17, 2020  | TBD             | TBD            |
-+---------+-----------------+---------------+-----------------+----------------+
-| 1.10    | EOL             | Aug 27, 2018  | Dec 17, 2020    | June 2021      |
-+---------+-----------------+---------------+-----------------+----------------+
-| 1.9     | EOL             | Jan 03, 2018  | Aug 27, 2018    | Aug 2018       |
-+---------+-----------------+---------------+-----------------+----------------+
-| 1.8     | EOL             | Mar 19, 2017  | Jan 03, 2018    | Jan 2018       |
-+---------+-----------------+---------------+-----------------+----------------+
-| 1.7     | EOL             | Mar 28, 2016  | Mar 19, 2017    | Mar 2017       |
-+---------+-----------------+---------------+-----------------+----------------+
+ .. This table is automatically updated by pre-commit scripts/ci/pre-commit/supported_versions.py
+ .. Beginning of auto-generated table
+
+=========  =====================  =========  ===============  =================  ================
+Version    Current Patch/Minor    State      First Release    Limited Support    EOL/Terminated
+=========  =====================  =========  ===============  =================  ================
+2          2.2.4                  Supported  Dec 17, 2020     TBD                TBD
+1.10       1.10.15                EOL        Aug 27, 2018     Dec 17, 2020       June 17, 2021
+1.9        1.9.0                  EOL        Jan 03, 2018     Aug 27, 2018       Aug 27, 2018
+1.8        1.8.2                  EOL        Mar 19, 2017     Jan 03, 2018       Jan 03, 2018
+1.7        1.7.1.2                EOL        Mar 28, 2016     Mar 19, 2017       Mar 19, 2017
+=========  =====================  =========  ===============  =================  ================
+
+ .. End of auto-generated table
+
 
 Limited support versions will be supported with security and critical bug fix only.
 EOL versions will not get any fixes nor support.

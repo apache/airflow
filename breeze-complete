@@ -147,6 +147,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+update-supported-versions
 update-versions
 verify-db-migrations-documented
 version-sync

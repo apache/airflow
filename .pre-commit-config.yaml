@@ -338,6 +338,13 @@ repos:
         files: ^Dockerfile$
         pass_filenames: false
         additional_dependencies: ['rich']
+      - id: update-supported-versions
+        name: Updates supported versions in documentation
+        entry: ./scripts/ci/pre_commit/supported_versions.py
+        language: python
+        files: ^scripts/ci/pre_commit/supported_versions.py$|^README.md$|^docs/apache-airflow/supported-versions.rst$
+        pass_filenames: false
+        additional_dependencies: ['tabulate']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
