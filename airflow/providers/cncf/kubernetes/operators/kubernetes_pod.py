@@ -491,9 +491,9 @@ class KubernetesPodOperator(BaseOperator):
 
     def build_pod_request_obj(self, context=None):
         """
-        Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
-        will supersede all other values.
+        Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
+        Full pod spec overrides pod template, and operator params take highest precedence.
         """
         self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
         if self.pod_template_file:
