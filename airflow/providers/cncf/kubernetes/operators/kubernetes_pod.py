@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 from kubernetes.client import CoreV1Api, models as k8s
 
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
+from airflow.settings import pod_mutation_hook
 
 try:
     import airflow.utils.yaml as yaml
@@ -574,6 +575,7 @@ class KubernetesPodOperator(BaseOperator):
                 'kubernetes_pod_operator': 'True',
             }
         )
+        pod = pod_mutation_hook(pod)
         return pod
 
 

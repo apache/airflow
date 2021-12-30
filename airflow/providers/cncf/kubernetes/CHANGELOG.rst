@@ -27,6 +27,8 @@ Breaking changes
 
 * ``Simplify KubernetesPodOperator (#19572)``
 * Class ``pod_launcher.PodLauncher`` renamed to ``pod_manager.PodManager``
+* :func:`airflow.settings.pod_mutation_hook` is no longer called in :meth:`~cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async``. For ``KubernetesPodOperator``, mutation now occurs in ``build_pod_request_obj``.
+
 
 .. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodManager` (formerly named ``PodLauncher``)
     have been renamed. If you have subclassed :class:`~.KubernetesPodOperator` you will need to update your subclass to

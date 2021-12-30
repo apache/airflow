@@ -36,7 +36,6 @@ from requests.exceptions import BaseHTTPError
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -104,8 +103,6 @@ class PodManager(LoggingMixin):
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously"""
-        pod_mutation_hook(pod)
-
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
