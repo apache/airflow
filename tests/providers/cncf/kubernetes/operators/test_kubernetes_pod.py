@@ -29,6 +29,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
@@ -841,6 +842,44 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
+
+    @pytest.mark.parametrize(
+        'conf_setting, conn_id, should_disable',
+        [
+            ('True', None, False),
+            ('False', None, True),
+            ('True', 'abc', False),
+            ('False', 'abc', False),
+        ],
+    )
+    @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook')
+    def test_disable_verify_ssl(self, mock_hook, conf_setting, conn_id, should_disable):
+        with conf_vars({('kubernetes', 'verify_ssl'): conf_setting}):
+            op = KubernetesPodOperator(task_id='abc', name='hi', kubernetes_conn_id=conn_id)
+            op.get_hook()
+            if should_disable:
+                assert mock_hook.call_args[1]['disable_verify_ssl'] is True
+            else:
+                assert 'disable_verify_ssl' not in mock_hook.call_args[1]
+
+    @pytest.mark.parametrize(
+        'conf_setting, conn_id, should_disable',
+        [
+            ('True', None, False),
+            ('False', None, True),
+            ('True', 'abc', False),
+            ('False', 'abc', False),
+        ],
+    )
+    @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook')
+    def test_disable_tcp_keepalive(self, mock_hook, conf_setting, conn_id, should_disable):
+        with conf_vars({('kubernetes', 'enable_tcp_keepalive'): conf_setting}):
+            op = KubernetesPodOperator(task_id='abc', name='hi', kubernetes_conn_id=conn_id)
+            op.get_hook()
+            if should_disable:
+                assert mock_hook.call_args[1]['disable_tcp_keepalive'] is True
+            else:
+                assert 'disable_tcp_keepalive' not in mock_hook.call_args[1]
 
 
 def test__suppress():

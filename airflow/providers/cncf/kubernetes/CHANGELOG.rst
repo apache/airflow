@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+main
+....
+
+Features
+~~~~~~~~
+
+KubernetesPodOperator now uses KubernetesHook
+`````````````````````````````````````````````
+
+Previously, KubernetesPodOperator relied on core Airflow configuration (namely setting for kubernetes executor) for certain settings used in client generation.  Now KubernetesPodOperator uses KubernetesHook, and the consideration of core k8s settings is officially deprecated.
+
+If you are using the Airflow configuration settings (e.g. as opposed to operator params) to configure the kubernetes client, then prior to the next major release you will need to add an Airflow connection and set your KPO processes to use that connection.
+
 4.0.2
 .....
 

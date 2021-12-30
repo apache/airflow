@@ -21,7 +21,7 @@ import json
 import os
 import tempfile
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import kubernetes
 import pytest
@@ -41,9 +41,9 @@ class TestKubernetesHook:
     def setup_class(cls) -> None:
         for conn_id, extra in [
             ('in_cluster', {'extra__kubernetes__in_cluster': True}),
+            ('in_cluster_empty', {'extra__kubernetes__in_cluster': ''}),
             ('kube_config', {'extra__kubernetes__kube_config': '{"test": "kube"}'}),
             ('kube_config_path', {'extra__kubernetes__kube_config_path': 'path/to/file'}),
-            ('in_cluster_empty', {'extra__kubernetes__in_cluster': ''}),
             ('kube_config_empty', {'extra__kubernetes__kube_config': ''}),
             ('kube_config_path_empty', {'extra__kubernetes__kube_config_path': ''}),
             ('kube_config_empty', {'extra__kubernetes__kube_config': ''}),
@@ -52,6 +52,10 @@ class TestKubernetesHook:
             ('context', {'extra__kubernetes__cluster_context': 'my-context'}),
             ('with_namespace', {'extra__kubernetes__namespace': 'mock_namespace'}),
             ('default_kube_config', {}),
+            ('disable_verify_ssl', {'extra__kubernetes__disable_verify_ssl': True}),
+            ('disable_verify_ssl_empty', {'extra__kubernetes__disable_verify_ssl': ''}),
+            ('disable_tcp_keepalive', {'extra__kubernetes__disable_tcp_keepalive': True}),
+            ('disable_tcp_keepalive_empty', {'extra__kubernetes__disable_tcp_keepalive': ''}),
         ]:
             db.merge_conn(Connection(conn_type='kubernetes', conn_id=conn_id, extra=json.dumps(extra)))
 
@@ -129,6 +133,76 @@ class TestKubernetesHook:
             mock_incluster.assert_called_once()
             mock_merger.assert_not_called()
             mock_loader.assert_not_called()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @pytest.mark.parametrize(
+        'disable_verify_ssl, conn_id, disable_called',
+        (
+            (True, None, True),
+            (None, None, False),
+            (False, None, False),
+            (None, 'disable_verify_ssl', True),
+            (True, 'disable_verify_ssl', True),
+            (False, 'disable_verify_ssl', False),
+            (None, 'disable_verify_ssl_empty', False),
+            (True, 'disable_verify_ssl_empty', True),
+            (False, 'disable_verify_ssl_empty', False),
+        ),
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes._disable_verify_ssl")
+    def test_disable_verify_ssl(
+        self,
+        mock_disable,
+        disable_verify_ssl,
+        conn_id,
+        disable_called,
+    ):
+        """
+        Verifies whether disable verify ssl is called depending on combination of hook param and
+        connection extra. Hook param should beat extra.
+        """
+        kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_verify_ssl=disable_verify_ssl)
+        api_conn = kubernetes_hook.get_conn()
+        if disable_called:
+            assert mock_disable.called
+        else:
+            assert not mock_disable.called
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @pytest.mark.parametrize(
+        'disable_tcp_keepalive, conn_id, should_disable',
+        (
+            (True, None, True),
+            (None, None, False),
+            (False, None, False),
+            (None, 'disable_tcp_keepalive', True),
+            (True, 'disable_tcp_keepalive', True),
+            (False, 'disable_tcp_keepalive', False),
+            (None, 'disable_tcp_keepalive_empty', False),
+            (True, 'disable_tcp_keepalive_empty', True),
+            (False, 'disable_tcp_keepalive_empty', False),
+        ),
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes._enable_tcp_keepalive")
+    def test_disable_tcp_keepalive(
+        self,
+        mock_enable,
+        disable_tcp_keepalive,
+        conn_id,
+        should_disable,
+    ):
+        """
+        Verifies whether enable tcp keepalive is called depending on combination of hook
+        param and connection extra. Hook param should beat extra.
+        """
+        kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_tcp_keepalive=disable_tcp_keepalive)
+        api_conn = kubernetes_hook.get_conn()
+        if not should_disable:
+            assert mock_enable.called
+        else:
+            assert not mock_enable.called
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
