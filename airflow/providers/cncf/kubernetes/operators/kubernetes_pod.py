@@ -575,7 +575,7 @@ class KubernetesPodOperator(BaseOperator):
                 'kubernetes_pod_operator': 'True',
             }
         )
-        pod = pod_mutation_hook(pod)
+        pod_mutation_hook(pod)
         return pod
 
 
