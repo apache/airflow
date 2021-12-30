@@ -152,6 +152,8 @@ class KylinCubeOperator(BaseOperator):
         _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
 
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command
+        if not self.command:
+            raise AirflowException(f'Kylin:Command {self.command} can not be empty')
         if self.command.lower() not in _support_invoke_command:
             raise AirflowException(
                 f'Kylin:Command {self.command} can not match kylin command list {_support_invoke_command}'
