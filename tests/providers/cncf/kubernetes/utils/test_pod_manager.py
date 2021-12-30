@@ -275,7 +275,7 @@ class TestPodManager:
                 startup_timeout=0,
             )
 
-    @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_launcher.container_is_running')
+    @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
     def test_container_is_running(self, container_is_running_mock):
         mock_pod = MagicMock()
         self.pod_manager.read_pod = mock.MagicMock(return_value=mock_pod)
