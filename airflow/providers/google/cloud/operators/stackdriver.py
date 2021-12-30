@@ -122,7 +122,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info(
@@ -223,7 +223,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Enable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
@@ -313,7 +313,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Disable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
@@ -405,7 +405,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Upsert Alert Policies: Alerts: %s Project id: %s', self.alerts, self.project_id)
@@ -493,7 +493,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Delete Alert Policy: Project id: %s Name: %s', self.project_id, self.name)
@@ -606,7 +606,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info(
@@ -708,7 +708,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info(
@@ -800,7 +800,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info(
@@ -894,7 +894,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info(
@@ -984,7 +984,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Delete Notification Channel: Project id: %s Name: %s', self.project_id, self.name)
