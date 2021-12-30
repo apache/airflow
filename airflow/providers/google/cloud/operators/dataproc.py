@@ -1036,23 +1036,30 @@ class DataprocJobBaseOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self.project_id = self.hook.project_id if project_id is None else project_id
-        self.job_template = None
-        self.job = None
+        self.job_template: Optional[DataProcJobBuilder] = None
+        self.job: Optional[dict] = None
         self.dataproc_job_id = None
         self.asynchronous = asynchronous
 
-    def create_job_template(self):
+    def create_job_template(self) -> DataProcJobBuilder:
         """Initialize `self.job_template` with default values"""
-        self.job_template = DataProcJobBuilder(
+        if self.project_id is None:
+            raise AirflowException(
+                "project id should either be set via project_id "
+                "parameter or retrieved from the connection,"
+            )
+        job_template = DataProcJobBuilder(
             project_id=self.project_id,
             task_id=self.task_id,
             cluster_name=self.cluster_name,
             job_type=self.job_type,
             properties=self.dataproc_properties,
         )
-        self.job_template.set_job_name(self.job_name)
-        self.job_template.add_jar_file_uris(self.dataproc_jars)
-        self.job_template.add_labels(self.labels)
+        job_template.set_job_name(self.job_name)
+        job_template.add_jar_file_uris(self.dataproc_jars)
+        job_template.add_labels(self.labels)
+        self.job_template = job_template
+        return job_template
 
     def _generate_job_template(self) -> str:
         if self.job_template:
@@ -1180,23 +1187,26 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
 
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         return self._generate_job_template()
 
     def execute(self, context: 'Context'):
-        self.create_job_template()
-
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
 
         super().execute(context)
 
@@ -1256,22 +1266,25 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         return self._generate_job_template()
 
     def execute(self, context: 'Context'):
-        self.create_job_template()
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
-
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         super().execute(context)
 
 
@@ -1330,22 +1343,23 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         return self._generate_job_template()
 
     def execute(self, context: 'Context'):
-        self.create_job_template()
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
-
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         super().execute(context)
 
 
@@ -1411,20 +1425,19 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         return self._generate_job_template()
 
     def execute(self, context: 'Context'):
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         super().execute(context)
 
 
@@ -1490,20 +1503,19 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         return self._generate_job_template()
 
     def execute(self, context: 'Context'):
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         super().execute(context)
 
 
@@ -1594,7 +1606,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
@@ -1602,16 +1614,16 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = f"gs://{bucket}/{self.main}"
-        self.job_template.set_python_main(self.main)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-        self.job_template.add_python_file_uris(self.pyfiles)
+        job_template.set_python_main(self.main)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
+        job_template.add_python_file_uris(self.pyfiles)
 
         return self._generate_job_template()
 
     def execute(self, context: 'Context'):
-        self.create_job_template()
+        job_template = self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
@@ -1620,12 +1632,11 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             bucket = cluster_info['config']['config_bucket']
             self.main = self._upload_file_temp(bucket, self.main)
 
-        self.job_template.set_python_main(self.main)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-        self.job_template.add_python_file_uris(self.pyfiles)
-
+        job_template.set_python_main(self.main)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
+        job_template.add_python_file_uris(self.pyfiles)
         super().execute(context)
 
 
@@ -2243,6 +2254,8 @@ class DataprocCreateBatchOperator(BaseOperator):
     def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating batch")
+        if self.region is None:
+            raise AirflowException('Region should be set here')
         try:
             self.operation = hook.create_batch(
                 region=self.region,
@@ -2254,10 +2267,14 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            if self.timeout is None:
+                raise AirflowException('Timeout should be set here')
             result = hook.wait_for_operation(self.timeout, self.operation)
             self.log.info("Batch %s created", self.batch_id)
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
+            if self.batch_id is None:
+                raise AirflowException('Batch Id should be set here')
             result = hook.get_batch(
                 batch_id=self.batch_id,
                 region=self.region,
