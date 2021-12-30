@@ -18,13 +18,12 @@
 """This module contains Amazon EKS operators."""
 import warnings
 from time import sleep
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -654,7 +653,7 @@ class EksPodOperator(KubernetesPodOperator):
         pod_username: Optional[str] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
-        is_delete_operator_pod: Union[bool, ArgNotSet] = NOTSET,
+        is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
         if pod_name is None:
@@ -666,7 +665,7 @@ class EksPodOperator(KubernetesPodOperator):
             )
             pod_name = DEFAULT_POD_NAME
 
-        if is_delete_operator_pod == NOTSET:
+        if is_delete_operator_pod is None:
             warnings.warn(
                 f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
                 "Currently the default for this parameter is `False` but in a future release the default "

@@ -31,7 +31,6 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -321,10 +320,10 @@ class GKEStartPodOperator(KubernetesPodOperator):
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         regional: bool = False,
-        is_delete_operator_pod: Union[bool, ArgNotSet] = NOTSET,
+        is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod == NOTSET:
+        if is_delete_operator_pod is None:
             warnings.warn(
                 f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
                 "Currently the default for this parameter is `False` but in a future release the default "
