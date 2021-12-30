@@ -28,7 +28,7 @@ Breaking changes
 * ``Simplify KubernetesPodOperator (#19572)``
 * Class ``pod_launcher.PodLauncher`` renamed to ``pod_manager.PodManager``
 * :func:`airflow.settings.pod_mutation_hook` is no longer called in :meth:`~cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async``. For ``KubernetesPodOperator``, mutation now occurs in ``build_pod_request_obj``.
-
+* Parameter ``is_delete_operator_pod`` default is changed to ``True`` so that pods are deleted after task completion and not left to accumulate. In practice it seems more common to disable pod deletion only on a temporary basis for debugging purposes and therefore pod deletion is the more sensible default.
 
 .. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodManager` (formerly named ``PodLauncher``)
     have been renamed. If you have subclassed :class:`~.KubernetesPodOperator` you will need to update your subclass to

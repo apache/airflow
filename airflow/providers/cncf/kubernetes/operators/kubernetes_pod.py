@@ -149,8 +149,8 @@ class KubernetesPodOperator(BaseOperator):
     :param service_account_name: Name of the service account
     :type service_account_name: str
     :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted.
-        If False (default): do nothing, If True: delete the pod
+        state, or the execution is interrupted. If True (default), delete the
+        pod; if False, leave the pod.
     :type is_delete_operator_pod: bool
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
@@ -226,7 +226,7 @@ class KubernetesPodOperator(BaseOperator):
         node_selector: Optional[dict] = None,
         image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
         service_account_name: Optional[str] = None,
-        is_delete_operator_pod: bool = False,
+        is_delete_operator_pod: bool = True,
         hostnetwork: bool = False,
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         security_context: Optional[Dict] = None,

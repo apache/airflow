@@ -20,6 +20,7 @@
 
 import os
 import tempfile
+import warnings
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 from google.cloud.container_v1.types import Cluster
@@ -30,6 +31,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -300,6 +302,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     :param regional: The location param is region name.
     :type regional: bool
+    :param is_delete_operator_pod: What to do when the pod reaches its final
+        state, or the execution is interrupted. If True, delete the
+        pod; if False, leave the pod.  Current default is False, but this will be
+        changed in the next major release of this provider.
+    :type is_delete_operator_pod: bool
     """
 
     template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
@@ -314,9 +321,21 @@ class GKEStartPodOperator(KubernetesPodOperator):
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         regional: bool = False,
+        is_delete_operator_pod: Union[bool, ArgNotSet] = NOTSET,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        if is_delete_operator_pod == NOTSET:
+            warnings.warn(
+                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
+                "Currently the default for this parameter is `False` but in a future release the default "
+                "will be changed to `True`. To ensure pods are not deleted in the future you will need to set "
+                "`is_delete_operator_pod=False` explicitly.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            is_delete_operator_pod = False
+
+        super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
