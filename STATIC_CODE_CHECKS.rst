@@ -278,6 +278,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-setup-cfg-file``              Update setup.cfg file with all licenses
 ------------------------------------ ---------------------------------------------------------------- ------------
+``update-supported-versions``          Updates supported versions in documentation
+------------------------------------ ---------------------------------------------------------------- ------------
 ``update-versions``                    Updates latest versions in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``vendor-k8s-json-schema``             Vendor k8s schema definitions in the helm chart schema file

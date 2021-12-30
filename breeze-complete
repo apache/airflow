@@ -151,6 +151,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+update-supported-versions
 update-versions
 vendor-k8s-json-schema
 verify-db-migrations-documented
