@@ -19,18 +19,16 @@
 """adding index for dag_id in job
 
 Revision ID: 587bdf053233
-Revises: 5e3ec427fdd3
+Revises: f9da662e7089
 Create Date: 2021-12-14 10:20:12.482940
 
 """
 
-import sqlalchemy as sa
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = '587bdf053233'
-down_revision = '5e3ec427fdd3'
+down_revision = 'f9da662e7089'
 branch_labels = None
 depends_on = None
 
