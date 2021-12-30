@@ -45,14 +45,14 @@ def create_context(task):
     }
 
 
-POD_LAUNCHER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher"
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
 class TestKubernetesPodOperator:
     def setup_method(self):
-        self.create_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.create_pod")
-        self.await_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_start")
-        self.await_pod_completion_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_completion")
+        self.create_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.await_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.await_pod_completion_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
         self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
@@ -231,7 +231,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     def test_pod_delete_even_on_launcher_error(self, delete_pod_mock):
         k = KubernetesPodOperator(
             namespace="default",
@@ -504,8 +504,8 @@ class TestKubernetesPodOperator:
                 "execution_date": mock.ANY,
             }
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.follow_container_logs")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_container_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
     def test_describes_pod_on_failure(self, await_container_mock, follow_container_mock):
         name_base = "test"
 
@@ -532,8 +532,8 @@ class TestKubernetesPodOperator:
 
         assert not self.client_mock.return_value.read_namespaced_pod.called
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.follow_container_logs")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_container_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
     def test_no_handle_failure_on_success(self, await_container_mock, follow_container_mock):
         name_base = "test"
 
@@ -718,7 +718,7 @@ class TestKubernetesPodOperator:
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
-    @mock.patch(f"{POD_LAUNCHER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     def test_push_xcom_pod_info(self, extract_xcom, do_xcom_push):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
         extract_xcom.return_value = '{}'
@@ -756,7 +756,7 @@ class TestKubernetesPodOperator:
         _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
         assert 'already_checked!=True' in kwargs['label_selector']
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
         ".KubernetesPodOperator.patch_already_checked"
@@ -779,7 +779,7 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
         ".KubernetesPodOperator.patch_already_checked"
@@ -802,7 +802,7 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators."
         "kubernetes_pod.KubernetesPodOperator.patch_already_checked"

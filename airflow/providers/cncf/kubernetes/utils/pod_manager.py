@@ -79,8 +79,11 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.running is not None
 
 
-class PodLauncher(LoggingMixin):
-    """Launches PODS"""
+class PodManager(LoggingMixin):
+    """
+    Helper class for creating, monitoring and otherwise interacting with kubernetes pods
+    for use with the KubernetesPodOperator
+    """
 
     def __init__(
         self,

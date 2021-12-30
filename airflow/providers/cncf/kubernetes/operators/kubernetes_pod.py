@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 from kubernetes.client import CoreV1Api, models as k8s
 
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLaunchFailedException, PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
 
 try:
     import airflow.utils.yaml as yaml
@@ -54,7 +54,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
-from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.utils.helpers import validate_key
 from airflow.version import version as airflow_version
 
@@ -344,8 +344,8 @@ class KubernetesPodOperator(BaseOperator):
         return labels
 
     @cached_property
-    def launcher(self) -> pod_launcher.PodLauncher:
-        return pod_launcher.PodLauncher(kube_client=self.client)
+    def pod_manager(self) -> PodManager:
+        return PodManager(kube_client=self.client)
 
     @cached_property
     def client(self) -> CoreV1Api:
@@ -382,21 +382,21 @@ class KubernetesPodOperator(BaseOperator):
             if pod:
                 return pod
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
-        self.launcher.create_pod(pod=pod_request_obj)
+        self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
 
     def await_pod_start(self, pod):
         try:
-            self.launcher.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
+            self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
         except PodLaunchFailedException:
             if self.log_events_on_failure:
-                for event in self.launcher.read_pod_events(pod).items:
+                for event in self.pod_manager.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             raise
 
     def extract_xcom(self, pod):
         """Retrieves xcom value and kills xcom sidecar container"""
-        result = self.launcher.extract_xcom(pod)
+        result = self.pod_manager.extract_xcom(pod)
         self.log.info("xcom result: \n%s", result)
         return json.loads(result)
 
@@ -411,18 +411,18 @@ class KubernetesPodOperator(BaseOperator):
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
-                self.launcher.follow_container_logs(
+                self.pod_manager.follow_container_logs(
                     pod=self.pod,
                     container_name=self.BASE_CONTAINER_NAME,
                 )
             else:
-                self.launcher.await_container_completion(
+                self.pod_manager.await_container_completion(
                     pod=self.pod, container_name=self.BASE_CONTAINER_NAME
                 )
 
             if self.do_xcom_push:
                 result = self.extract_xcom(pod=self.pod)
-            remote_pod = self.launcher.await_pod_completion(self.pod)
+            remote_pod = self.pod_manager.await_pod_completion(self.pod)
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,
@@ -439,7 +439,7 @@ class KubernetesPodOperator(BaseOperator):
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
-                    for event in self.launcher.read_pod_events(pod).items:
+                    for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
             if not self.is_delete_operator_pod:
                 with _suppress(Exception):
@@ -454,7 +454,7 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod):
         if self.is_delete_operator_pod:
             self.log.info("Deleting pod: %s", pod.metadata.name)
-            self.launcher.delete_pod(pod)
+            self.pod_manager.delete_pod(pod)
         else:
             self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
