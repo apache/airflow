@@ -493,7 +493,8 @@ class KubernetesPodOperator(BaseOperator):
         """
         Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
-        Full pod spec overrides pod template, and operator params take highest precedence.
+        The V1Pod attributes are derived (in order of precedence) from operator params, full pod spec, pod
+        template file.
         """
         self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
         if self.pod_template_file:
