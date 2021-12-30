@@ -264,6 +264,7 @@ extraSecrets: {}
 # eg:
 # extraSecrets:
 #   '{{ .Release.Name }}-airflow-connections':
+#     type: 'Opaque'
 #     data: |
 #       AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'

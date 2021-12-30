@@ -814,6 +814,10 @@
                 "minProperties": 1,
                 "additionalProperties": false,
                 "properties": {
+                    "type": {
+                        "description": "Type **as string** of secret E.G. Opaque, kubernetes.io/dockerconfigjson, etc.",
+                        "type": "string"
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
