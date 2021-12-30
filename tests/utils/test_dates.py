@@ -18,6 +18,7 @@
 
 import unittest
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pendulum
 import pytest
@@ -27,20 +28,19 @@ from pytest import approx
 from airflow.utils import dates, timezone
 
 
-class TestDates(unittest.TestCase):
-    def test_days_ago(self):
-        from airflow.settings import TIMEZONE
+class TestDates:
+    @pytest.mark.parametrize('timezone', ['UTC', 'America/Los_Angeles'])
+    def test_days_ago(self, timezone):
+        with mock.patch('airflow.utils.timezone.TIMEZONE', pendulum.tz.timezone(timezone)):
+            today_midnight = pendulum.today(timezone)
 
-        today = pendulum.today()
-        today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()), tz=TIMEZONE)
-
-        assert dates.days_ago(0) == today_midnight
-        assert dates.days_ago(100) == today_midnight + timedelta(days=-100)
-
-        assert dates.days_ago(0, hour=3) == today_midnight + timedelta(hours=3)
-        assert dates.days_ago(0, minute=3) == today_midnight + timedelta(minutes=3)
-        assert dates.days_ago(0, second=3) == today_midnight + timedelta(seconds=3)
-        assert dates.days_ago(0, microsecond=3) == today_midnight + timedelta(microseconds=3)
+            assert today_midnight.tzinfo == dates.days_ago(2).tzinfo == pendulum.tz.timezone(timezone)
+            assert dates.days_ago(0) == today_midnight
+            assert dates.days_ago(100) == today_midnight.add(days=-100)  # For the DST boundary test.
+            assert dates.days_ago(0, hour=3) == today_midnight + timedelta(hours=3)
+            assert dates.days_ago(0, minute=3) == today_midnight + timedelta(minutes=3)
+            assert dates.days_ago(0, second=3) == today_midnight + timedelta(seconds=3)
+            assert dates.days_ago(0, microsecond=3) == today_midnight + timedelta(microseconds=3)
 
     def test_parse_execution_date(self):
         execution_date_str_wo_ms = '2017-11-02 00:00:00'
