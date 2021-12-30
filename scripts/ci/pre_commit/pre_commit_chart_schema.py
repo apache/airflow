@@ -36,6 +36,10 @@ KNOWN_INVALID_TYPES = {
     # The value of this parameter is passed to statsd_exporter, which does not have a strict type definition.
     "$['properties']['statsd']['properties']['extraMappings']",
 }
+VENDORED_PATHS = {
+    # We don't want to check the upstream k8s definitions
+    "$['definitions']['io.k8s",
+}
 
 SCHEMA = json.loads((CHART_DIR / "values.schema.json").read_text())
 
@@ -57,6 +61,13 @@ def walk(value, path='$'):
             yield from walk(v, path + f"[{no}]")
 
 
+def is_vendored_path(path: str) -> bool:
+    for prefix in VENDORED_PATHS:
+        if path.startswith(prefix):
+            return True
+    return False
+
+
 def validate_object_types():
     all_object_types = ((d, p) for d, p in walk(SCHEMA) if type(d) == dict and d.get('type') == 'object')
     all_object_types_with_a_loose_definition = [
@@ -66,6 +77,7 @@ def validate_object_types():
         and "$ref" not in d
         and type(d.get('additionalProperties')) != dict
         and p not in KNOWN_INVALID_TYPES
+        and not is_vendored_path(p)
     ]
     to_display_invalid_types = [
         (d, p) for d, p in all_object_types_with_a_loose_definition if p not in KNOWN_INVALID_TYPES

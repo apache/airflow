@@ -18,13 +18,13 @@
 import json
 import math
 import time
-from datetime import datetime as dt
+from contextlib import closing
+from datetime import datetime
 from typing import Iterable, Optional, Tuple, Union
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_event import V1Event
 from kubernetes.client.models.v1_event_list import V1EventList
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
@@ -38,7 +38,10 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+
+
+class PodLaunchFailedException(AirflowException):
+    """When pod launching fails in KubernetesPodOperator."""
 
 
 def should_retry_start_pod(exception: Exception) -> bool:
@@ -48,13 +51,32 @@ def should_retry_start_pod(exception: Exception) -> bool:
     return False
 
 
-class PodStatus:
-    """Status of the PODs"""
+class PodPhase:
+    """
+    Possible pod phases
+    See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
+    """
 
-    PENDING = 'pending'
-    RUNNING = 'running'
-    FAILED = 'failed'
-    SUCCEEDED = 'succeeded'
+    PENDING = 'Pending'
+    RUNNING = 'Running'
+    FAILED = 'Failed'
+    SUCCEEDED = 'Succeeded'
+
+    terminal_states = {FAILED, SUCCEEDED}
+
+
+def container_is_running(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+    If that container is present and running, returns True.  Returns False otherwise.
+    """
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return False
+    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+    if not container_status:
+        return False
+    return container_status.state.running is not None
 
 
 class PodLauncher(LoggingMixin):
@@ -65,7 +87,6 @@ class PodLauncher(LoggingMixin):
         kube_client: client.CoreV1Api = None,
         in_cluster: bool = True,
         cluster_context: Optional[str] = None,
-        extract_xcom: bool = False,
     ):
         """
         Creates the launcher.
@@ -73,12 +94,10 @@ class PodLauncher(LoggingMixin):
         :param kube_client: kubernetes client
         :param in_cluster: whether we are in cluster
         :param cluster_context: context of the cluster
-        :param extract_xcom: whether we should extract xcom
         """
         super().__init__()
         self._client = kube_client or get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
         self._watch = watch.Watch()
-        self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously"""
@@ -117,79 +136,104 @@ class PodLauncher(LoggingMixin):
         reraise=True,
         retry=tenacity.retry_if_exception(should_retry_start_pod),
     )
-    def start_pod(self, pod: V1Pod, startup_timeout: int = 120) -> None:
+    def create_pod(self, pod: V1Pod) -> V1Pod:
+        """Launches the pod asynchronously."""
+        return self.run_pod_async(pod)
+
+    def await_pod_start(self, pod: V1Pod, startup_timeout: int = 120) -> None:
         """
-        Launches the pod synchronously and waits for completion.
+        Waits for the pod to reach phase other than ``Pending``
 
         :param pod:
         :param startup_timeout: Timeout (in seconds) for startup of the pod
             (if pod is pending for too long, fails task)
         :return:
         """
-        resp = self.run_pod_async(pod)
-        curr_time = dt.now()
-        if resp.status.start_time is None:
-            while self.pod_not_started(pod):
-                self.log.warning("Pod not yet started: %s", pod.metadata.name)
-                delta = dt.now() - curr_time
-                if delta.total_seconds() >= startup_timeout:
-                    msg = (
-                        f"Pod took longer than {startup_timeout} seconds to start. "
-                        "Check the pod events in kubernetes to determine why."
-                    )
-                    raise AirflowException(msg)
+        curr_time = datetime.now()
+        while True:
+            remote_pod = self.read_pod(pod)
+            if remote_pod.status.phase != PodPhase.PENDING:
+                break
+            self.log.warning("Pod not yet started: %s", pod.metadata.name)
+            delta = datetime.now() - curr_time
+            if delta.total_seconds() >= startup_timeout:
+                msg = (
+                    f"Pod took longer than {startup_timeout} seconds to start. "
+                    "Check the pod events in kubernetes to determine why."
+                )
+                raise PodLaunchFailedException(msg)
+            time.sleep(1)
+
+    def follow_container_logs(self, pod: V1Pod, container_name: str) -> None:
+        """
+        Follows the logs of container and streams to airflow logging.
+        Returns when container exits.
+
+        .. note:: :meth:`read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
+            loop as we do here. But in a long-running process we might temporarily lose connectivity.
+            So the looping logic is there to let us resume following the logs.
+        """
+
+        def follow_logs(since_time: Optional[datetime] = None) -> Optional[datetime]:
+            """
+            Tries to follow container logs until container completes.
+            For a long-running container, sometimes the log read may be interrupted
+            Such errors of this kind are suppressed.
+
+            Returns the last timestamp observed in logs.
+            """
+            timestamp = None
+            try:
+                logs = self.read_pod_logs(
+                    pod=pod,
+                    container_name=container_name,
+                    timestamps=True,
+                    since_seconds=(
+                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+                    ),
+                )
+                for line in logs:  # type: bytes
+                    timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                    self.log.info(message)
+            except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
+                self.log.warning(
+                    'Failed to read logs for pod %s',
+                    pod.metadata.name,
+                    exc_info=True,
+                )
+            return timestamp or since_time
+
+        last_log_time = None
+        while True:
+            last_log_time = follow_logs(since_time=last_log_time)
+            if not self.container_is_running(pod, container_name=container_name):
+                return
+            else:
+                self.log.warning(
+                    'Pod %s log read interrupted but container %s still running',
+                    pod.metadata.name,
+                    container_name,
+                )
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
+    def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
+        while not self.container_is_running(pod=pod, container_name=container_name):
+            time.sleep(1)
+
+    def await_pod_completion(self, pod: V1Pod) -> V1Pod:
         """
-        Monitors a pod and returns the final state, pod and xcom result
+        Monitors a pod and returns the final state
 
         :param pod: pod spec that will be monitored
-        :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
-        if get_logs:
-            read_logs_since_sec = None
-            last_log_time = None
-            while True:
-                try:
-                    logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
-                    for line in logs:
-                        timestamp, message = self.parse_log_line(line.decode('utf-8'))
-                        self.log.info(message)
-                        if timestamp:
-                            last_log_time = timestamp
-                except BaseHTTPError:
-                    # Catches errors like ProtocolError(TimeoutError).
-                    self.log.warning(
-                        'Failed to read logs for pod %s',
-                        pod.metadata.name,
-                        exc_info=True,
-                    )
-
-                time.sleep(1)
-
-                if not self.base_container_is_running(pod):
-                    break
-
-                self.log.warning('Pod %s log read interrupted', pod.metadata.name)
-                if last_log_time:
-                    delta = pendulum.now() - last_log_time
-                    # Prefer logs duplication rather than loss
-                    read_logs_since_sec = math.ceil(delta.total_seconds())
-        result = None
-        if self.extract_xcom:
-            while self.base_container_is_running(pod):
-                self.log.info('Container %s has state %s', pod.metadata.name, State.RUNNING)
-                time.sleep(2)
-            result = self._extract_xcom(pod)
-            self.log.info(result)
-            result = json.loads(result)
-        while self.pod_is_running(pod):
-            self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
+        while True:
+            remote_pod = self.read_pod(pod)
+            if remote_pod.status.phase in PodPhase.terminal_states:
+                break
+            self.log.info('Pod %s has phase %s', pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
-        remote_pod = self.read_pod(pod)
-        return self._task_status(remote_pod), remote_pod, result
+        return remote_pod
 
     def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
         """
@@ -212,35 +256,16 @@ class PodLauncher(LoggingMixin):
             return None, line
         return last_log_time, message
 
-    def _task_status(self, event: V1Event) -> str:
-        self.log.info('Event: %s had an event of type %s', event.metadata.name, event.status.phase)
-        status = self.process_status(event.metadata.name, event.status.phase)
-        return status
-
-    def pod_not_started(self, pod: V1Pod) -> bool:
-        """Tests if pod has not started"""
-        state = self._task_status(self.read_pod(pod))
-        return state == State.QUEUED
-
-    def pod_is_running(self, pod: V1Pod) -> bool:
-        """Tests if pod is running"""
-        state = self._task_status(self.read_pod(pod))
-        return state not in (State.SUCCESS, State.FAILED)
-
-    def base_container_is_running(self, pod: V1Pod) -> bool:
-        """Tests if base container is running"""
-        event = self.read_pod(pod)
-        if not (event and event.status and event.status.container_statuses):
-            return False
-        status = next(iter(filter(lambda s: s.name == 'base', event.status.container_statuses)), None)
-        if not status:
-            return False
-        return status.state.running is not None
+    def container_is_running(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is running"""
+        remote_pod = self.read_pod(pod)
+        return container_is_running(pod=remote_pod, container_name=container_name)
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_logs(
         self,
         pod: V1Pod,
+        container_name: str,
         tail_lines: Optional[int] = None,
         timestamps: bool = False,
         since_seconds: Optional[int] = None,
@@ -257,7 +282,7 @@ class PodLauncher(LoggingMixin):
             return self._client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                container='base',
+                container=container_name,
                 follow=True,
                 timestamps=timestamps,
                 _preload_content=False,
@@ -265,7 +290,6 @@ class PodLauncher(LoggingMixin):
             )
         except BaseHTTPError:
             self.log.exception('There was an error reading the kubernetes API.')
-            # Reraise to be caught by self.monitor_pod.
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
@@ -286,29 +310,29 @@ class PodLauncher(LoggingMixin):
         except BaseHTTPError as e:
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
-    def _extract_xcom(self, pod: V1Pod) -> str:
-        resp = kubernetes_stream(
-            self._client.connect_get_namespaced_pod_exec,
-            pod.metadata.name,
-            pod.metadata.namespace,
-            container=PodDefaults.SIDECAR_CONTAINER_NAME,
-            command=['/bin/sh'],
-            stdin=True,
-            stdout=True,
-            stderr=True,
-            tty=False,
-            _preload_content=False,
-        )
-        try:
+    def extract_xcom(self, pod: V1Pod) -> str:
+        """Retrieves XCom value and kills xcom sidecar container"""
+        with closing(
+            kubernetes_stream(
+                self._client.connect_get_namespaced_pod_exec,
+                pod.metadata.name,
+                pod.metadata.namespace,
+                container=PodDefaults.SIDECAR_CONTAINER_NAME,
+                command=['/bin/sh'],
+                stdin=True,
+                stdout=True,
+                stderr=True,
+                tty=False,
+                _preload_content=False,
+            )
+        ) as resp:
             result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
-        finally:
-            resp.close()
         if result is None:
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
-    def _exec_pod_command(self, resp, command: str) -> None:
+    def _exec_pod_command(self, resp, command: str) -> Optional[str]:
         if resp.is_open():
             self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
@@ -317,23 +341,6 @@ class PodLauncher(LoggingMixin):
                 if resp.peek_stdout():
                     return resp.read_stdout()
                 if resp.peek_stderr():
-                    self.log.info(resp.read_stderr())
+                    self.log.info("stderr from command: %s", resp.read_stderr())
                     break
         return None
-
-    def process_status(self, job_id: str, status: str) -> str:
-        """Process status information for the JOB"""
-        status = status.lower()
-        if status == PodStatus.PENDING:
-            return State.QUEUED
-        elif status == PodStatus.FAILED:
-            self.log.error('Event with job id %s Failed', job_id)
-            return State.FAILED
-        elif status == PodStatus.SUCCEEDED:
-            self.log.info('Event with job id %s Succeeded', job_id)
-            return State.SUCCESS
-        elif status == PodStatus.RUNNING:
-            return State.RUNNING
-        else:
-            self.log.error('Event: Invalid state %s on job %s', status, job_id)
-            return State.FAILED

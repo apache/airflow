@@ -22,11 +22,14 @@ Google Cloud Storage operator.
 import os
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ADLSToGCSOperator(ADLSListOperator):
@@ -144,7 +147,7 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
         g_hook = GCSHook(

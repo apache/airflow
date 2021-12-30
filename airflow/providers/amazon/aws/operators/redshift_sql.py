@@ -15,10 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class RedshiftSQLOperator(BaseOperator):
@@ -66,7 +69,7 @@ class RedshiftSQLOperator(BaseOperator):
         """
         return RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
         self.log.info(f"Executing statement: {self.sql}")
         hook = self.get_hook()

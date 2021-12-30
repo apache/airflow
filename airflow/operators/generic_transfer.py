@@ -19,6 +19,7 @@ from typing import List, Optional, Union
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
+from airflow.utils.context import Context
 
 
 class GenericTransfer(BaseOperator):
@@ -72,7 +73,7 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
-    def execute(self, context):
+    def execute(self, context: Context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
 
         self.log.info("Extracting data from %s", self.source_conn_id)

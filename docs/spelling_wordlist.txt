@@ -1299,6 +1299,7 @@ storedInfoType
 str
 stringified
 subchart
+subclassed
 subclasses
 subclassing
 subcluster
@@ -1411,6 +1412,7 @@ unpausing
 unpredicted
 unqueued
 unterminated
+untransformed
 unutilized
 updateMask
 updateonly

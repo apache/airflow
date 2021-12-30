@@ -22,7 +22,7 @@ This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.retry import Retry
@@ -44,6 +44,9 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudDLPCancelDLPJobOperator(BaseOperator):
@@ -110,7 +113,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -202,7 +205,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -311,7 +314,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -416,7 +419,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -515,7 +518,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -619,7 +622,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -741,7 +744,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -830,7 +833,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -913,7 +916,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1000,7 +1003,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1082,7 +1085,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1169,7 +1172,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1259,7 +1262,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1341,7 +1344,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1428,7 +1431,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1510,7 +1513,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1597,7 +1600,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1692,7 +1695,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1786,7 +1789,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1882,7 +1885,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1965,7 +1968,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2057,7 +2060,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2149,7 +2152,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2243,7 +2246,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2346,7 +2349,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2454,7 +2457,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2555,7 +2558,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2655,7 +2658,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2749,7 +2752,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2849,7 +2852,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

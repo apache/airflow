@@ -14,10 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class LevelDBOperator(BaseOperator):
@@ -73,7 +76,7 @@ class LevelDBOperator(BaseOperator):
         self.create_if_missing = create_if_missing
         self.create_db_extra_options = create_db_extra_options or {}
 
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         """
         Execute command in LevelDB
 

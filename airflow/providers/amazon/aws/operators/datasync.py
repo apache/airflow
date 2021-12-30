@@ -20,11 +20,14 @@
 import logging
 import random
 import warnings
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataSyncOperator(BaseOperator):
@@ -211,7 +214,7 @@ class DataSyncOperator(BaseOperator):
         )
         return self.hook
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         # If task_arn was not specified then try to
         # find 0, 1 or many candidate DataSync Tasks to run
         if not self.task_arn:

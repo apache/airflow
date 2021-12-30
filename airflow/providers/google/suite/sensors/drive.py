@@ -17,10 +17,13 @@
 # under the License.
 """This module contains Google Drive sensors."""
 
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleDriveFileExistenceSensor(BaseSensorOperator):
@@ -79,7 +82,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info('Sensor is checking for the file %s in the folder %s', self.file_name, self.folder_id)
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,

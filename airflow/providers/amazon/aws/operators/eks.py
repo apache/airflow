@@ -18,12 +18,16 @@
 """This module contains Amazon EKS operators."""
 import warnings
 from time import sleep
-from typing import Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
@@ -161,7 +165,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -269,7 +273,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -339,7 +343,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -399,7 +403,7 @@ class EksDeleteClusterOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -523,7 +527,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -576,7 +580,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region = region
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -682,7 +686,7 @@ class EksPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,

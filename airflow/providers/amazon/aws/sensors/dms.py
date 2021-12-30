@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DmsTaskBaseSensor(BaseSensorOperator):
@@ -68,7 +71,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         self.hook = DmsHook(self.aws_conn_id)
         return self.hook
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         status: str = self.get_hook().get_task_status(self.replication_task_arn)
 
         if not status:

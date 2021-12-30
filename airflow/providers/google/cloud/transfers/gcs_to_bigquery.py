@@ -18,11 +18,14 @@
 """This module contains a Google Cloud Storage to BigQuery operator."""
 
 import json
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GCSToBigQueryOperator(BaseOperator):
@@ -253,7 +256,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.labels = labels
         self.description = description
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,

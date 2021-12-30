@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Speech to Text operator."""
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1.types import RecognitionConfig
@@ -25,6 +25,9 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
@@ -104,7 +107,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         if self.config == "":
             raise AirflowException("The required parameter 'config' is empty")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudSpeechToTextHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

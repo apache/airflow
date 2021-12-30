@@ -16,7 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import Any, Dict, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -60,7 +64,7 @@ class EmrBaseSensor(BaseSensorOperator):
         self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         response = self.get_emr_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -166,7 +170,7 @@ class EmrContainerSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
         self.max_retries = max_retries
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         state = self.hook.poll_query_status(self.job_id, self.max_retries, self.poll_interval)
 
         if state in self.FAILURE_STATES:

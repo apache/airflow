@@ -22,7 +22,10 @@ import sys
 import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
@@ -152,7 +155,7 @@ class GCSCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -258,7 +261,7 @@ class GCSListObjectsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> list:
+    def execute(self, context: "Context") -> list:
 
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -320,7 +323,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self,
         *,
         bucket_name: str,
-        objects: Optional[Iterable[str]] = None,
+        objects: Optional[List[str]] = None,
         prefix: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         google_cloud_storage_conn_id: Optional[str] = None,
@@ -350,7 +353,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -443,7 +446,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -541,7 +544,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -620,7 +623,7 @@ class GCSFileTransformOperator(BaseOperator):
         self.output_encoding = sys.getdefaultencoding()
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
@@ -742,7 +745,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     )
 
     @staticmethod
-    def interpolate_prefix(prefix: str, dt: datetime.datetime) -> Optional[datetime.datetime]:
+    def interpolate_prefix(prefix: str, dt: datetime.datetime) -> Optional[str]:
         """Interpolate prefix with datetime.
 
         :param prefix: The prefix to interpolate
@@ -792,7 +795,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> List[str]:
         # Define intervals and prefixes.
         try:
             timespan_start = context["data_interval_start"]
@@ -838,12 +841,12 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         )
 
         with TemporaryDirectory() as temp_input_dir, TemporaryDirectory() as temp_output_dir:
-            temp_input_dir = Path(temp_input_dir)
-            temp_output_dir = Path(temp_output_dir)
+            temp_input_dir_path = Path(temp_input_dir)
+            temp_output_dir_path = Path(temp_output_dir)
 
             # TODO: download in parallel.
             for blob_to_transform in blobs_to_transform:
-                destination_file = temp_input_dir / blob_to_transform
+                destination_file = temp_input_dir_path / blob_to_transform
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     source_hook.download(
@@ -861,8 +864,8 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
             cmd += [
-                str(temp_input_dir),
-                str(temp_output_dir),
+                str(temp_input_dir_path),
+                str(temp_output_dir_path),
                 timespan_start.replace(microsecond=0).isoformat(),
                 timespan_end.replace(microsecond=0).isoformat(),
             ]
@@ -878,16 +881,16 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
                 if process.returncode:
                     raise AirflowException(f"Transform script failed: {process.returncode}")
 
-            self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir)
+            self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir_path)
 
             files_uploaded = []
 
             # TODO: upload in parallel.
-            for upload_file in temp_output_dir.glob("**/*"):
+            for upload_file in temp_output_dir_path.glob("**/*"):
                 if upload_file.is_dir():
                     continue
 
-                upload_file_name = str(upload_file.relative_to(temp_output_dir))
+                upload_file_name = str(upload_file.relative_to(temp_output_dir_path))
 
                 if self.destination_prefix is not None:
                     upload_file_name = f"{destination_prefix_interp}/{upload_file_name}"
@@ -959,7 +962,7 @@ class GCSDeleteBucketOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
 
@@ -1056,7 +1059,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: "Context") -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

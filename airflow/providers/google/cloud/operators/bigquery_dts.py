@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery Data Transfer Service operators."""
-from typing import Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryCreateDataTransferOperator(BaseOperator):
@@ -99,7 +102,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
@@ -185,7 +188,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
@@ -283,7 +286,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )

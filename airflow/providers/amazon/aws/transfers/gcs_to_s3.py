@@ -17,11 +17,14 @@
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
 import warnings
-from typing import Dict, Iterable, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GCSToS3Operator(BaseOperator):
@@ -135,7 +138,7 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
 
-    def execute(self, context) -> List[str]:
+    def execute(self, context: 'Context') -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

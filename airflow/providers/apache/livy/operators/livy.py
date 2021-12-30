@@ -17,11 +17,14 @@
 
 """This module contains the Apache Livy operator."""
 from time import sleep
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class LivyOperator(BaseOperator):
@@ -144,7 +147,7 @@ class LivyOperator(BaseOperator):
             )
         return self._livy_hook
 
-    def execute(self, context: Dict[Any, Any]) -> Any:
+    def execute(self, context: "Context") -> Any:
         self._batch_id = self.get_hook().post_batch(**self.spark_params)
 
         if self._polling_interval > 0:

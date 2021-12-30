@@ -423,9 +423,9 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     """
 
     # For derived classes to define which fields will get jinjaified
-    template_fields: Iterable[str] = ()
+    template_fields: Sequence[str] = ()
     # Defines which files extensions to look for in the templated fields
-    template_ext: Iterable[str] = ()
+    template_ext: Sequence[str] = ()
     # Template field renderers indicating type of the field, for example sql, json, bash
     template_fields_renderers: Dict[str, str] = {}
 
@@ -444,7 +444,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     )
 
     # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs: Tuple[str, ...] = ()
+    shallow_copy_attrs: Sequence[str] = ()
 
     # Defines the operator level extra links
     operator_extra_links: Iterable['BaseOperatorLink'] = ()

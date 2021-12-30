@@ -14,8 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING
+
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SalesforceApexRestOperator(BaseOperator):
@@ -51,7 +56,7 @@ class SalesforceApexRestOperator(BaseOperator):
         self.payload = payload
         self.salesforce_conn_id = salesforce_conn_id
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: 'Context') -> dict:
         """
         Makes an HTTP request to an APEX REST endpoint and pushes results to xcom.
         :param context: The task context during execution.

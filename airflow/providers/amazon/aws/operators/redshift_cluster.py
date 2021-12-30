@@ -14,9 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class RedshiftResumeClusterOperator(BaseOperator):
@@ -48,7 +52,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
         if cluster_state == 'paused':
@@ -89,7 +93,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
         if cluster_state == 'available':

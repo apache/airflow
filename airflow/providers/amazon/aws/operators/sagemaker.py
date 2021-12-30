@@ -17,7 +17,7 @@
 
 import json
 import sys
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from botocore.exceptions import ClientError
 
@@ -30,6 +30,9 @@ if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SageMakerBaseOperator(BaseOperator):
@@ -94,7 +97,7 @@ class SageMakerBaseOperator(BaseOperator):
             json.dumps(self.config, sort_keys=True, indent=4, separators=(',', ': ')),
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         raise NotImplementedError('Please implement execute() in sub class!')
 
     @cached_property
@@ -170,7 +173,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         processing_job_name = self.config['ProcessingJobName']
         if self.hook.find_processing_job_by_name(processing_job_name):
@@ -209,7 +212,7 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         super().__init__(config=config, **kwargs)
         self.config = config
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         self.log.info('Creating SageMaker Endpoint Config %s.', self.config['EndpointConfigName'])
         response = self.hook.create_endpoint_config(self.config)
@@ -298,7 +301,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         model_info = self.config.get('Model')
         endpoint_config_info = self.config.get('EndpointConfig')
@@ -417,7 +420,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         model_config = self.config.get('Model')
         transform_config = self.config.get('Transform', self.config)
@@ -493,7 +496,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
                 config['RoleArn'] = hook.expand_role(config['RoleArn'])
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         self.log.info(
             'Creating SageMaker Hyper-Parameter Tuning Job %s', self.config['HyperParameterTuningJobName']
@@ -532,7 +535,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['ExecutionRoleArn'] = hook.expand_role(self.config['ExecutionRoleArn'])
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         self.log.info('Creating SageMaker Model %s.', self.config['ModelName'])
         response = self.hook.create_model(self.config)
@@ -611,7 +614,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.preprocess_config()
         if self.check_if_job_exists:
             self._check_if_job_exists()

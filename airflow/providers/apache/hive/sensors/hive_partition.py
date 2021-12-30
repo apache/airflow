@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HivePartitionSensor(BaseSensorOperator):
@@ -67,7 +70,7 @@ class HivePartitionSensor(BaseSensorOperator):
         self.partition = partition
         self.schema = schema
 
-    def poke(self, context: Dict[str, Any]) -> bool:
+    def poke(self, context: "Context") -> bool:
         if '.' in self.table:
             self.schema, self.table = self.table.split('.')
         self.log.info('Poking for table %s.%s, partition %s', self.schema, self.table, self.partition)

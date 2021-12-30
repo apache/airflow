@@ -40,7 +40,7 @@ from airflow.operators.python import (
     get_current_context,
 )
 from airflow.utils import timezone
-from airflow.utils.context import AirflowContextDeprecationWarning
+from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -1092,7 +1092,7 @@ class TestCurrentContext:
 
 
 class MyContextAssertOperator(BaseOperator):
-    def execute(self, context):
+    def execute(self, context: Context):
         assert context == get_current_context()
 
 

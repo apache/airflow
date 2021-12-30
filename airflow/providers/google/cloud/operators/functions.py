@@ -18,7 +18,7 @@
 """This module contains Google Cloud Functions operators."""
 
 import re
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 
@@ -30,6 +30,9 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpFieldValidationException,
 )
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 def _validate_available_memory_in_mb(value):
@@ -216,7 +219,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             self.body['labels'] = {}
         self.body['labels'].update({'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -382,7 +385,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
             if not pattern.match(self.name):
                 raise AttributeError(f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -460,7 +463,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = CloudFunctionsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,

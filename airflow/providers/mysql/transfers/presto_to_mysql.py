@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PrestoToMySqlOperator(BaseOperator):
@@ -66,7 +69,7 @@ class PrestoToMySqlOperator(BaseOperator):
         self.mysql_preoperator = mysql_preoperator
         self.presto_conn_id = presto_conn_id
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info("Extracting data from Presto: %s", self.sql)
         results = presto.get_records(self.sql)

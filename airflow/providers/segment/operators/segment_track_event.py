@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.segment.hooks.segment import SegmentHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SegmentTrackEventOperator(BaseOperator):
@@ -59,7 +62,7 @@ class SegmentTrackEventOperator(BaseOperator):
         self.segment_debug_mode = segment_debug_mode
         self.segment_conn_id = segment_conn_id
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = SegmentHook(segment_conn_id=self.segment_conn_id, segment_debug_mode=self.segment_debug_mode)
 
         self.log.info(

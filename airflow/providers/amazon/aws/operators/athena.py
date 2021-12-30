@@ -18,7 +18,7 @@
 #
 import sys
 import warnings
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import uuid4
 
 if sys.version_info >= (3, 8):
@@ -28,6 +28,9 @@ else:
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AthenaOperator(BaseOperator):
@@ -98,7 +101,7 @@ class AthenaOperator(BaseOperator):
         """Create and return an AthenaHook."""
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
-    def execute(self, context: dict) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         """Run Presto Query on Athena"""
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location

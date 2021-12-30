@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 import datetime
 import logging
 import os
@@ -33,6 +31,7 @@ from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -62,7 +61,7 @@ class DummySensor(BaseSensorOperator):
         self.input_field = input_field
         self.return_value = return_value
 
-    def poke(self, context):
+    def poke(self, context: Context):
         return context.get('return_value', False)
 
     def is_smart_sensor_compatible(self):

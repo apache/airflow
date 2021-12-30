@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Vision operator."""
 
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
@@ -33,6 +33,10 @@ from google.cloud.vision_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -116,7 +120,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -210,7 +214,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -319,7 +323,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -409,7 +413,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -509,7 +513,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -606,7 +610,7 @@ class CloudVisionGetProductOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -726,7 +730,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -821,7 +825,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -894,7 +898,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -997,7 +1001,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         try:
             hook = CloudVisionHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -1100,7 +1104,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1198,7 +1202,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1290,7 +1294,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1383,7 +1387,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
         )
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1473,7 +1477,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
         )
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1551,7 +1555,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         self.additional_properties = additional_properties
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1629,7 +1633,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         self.additional_properties = additional_properties
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVisionHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

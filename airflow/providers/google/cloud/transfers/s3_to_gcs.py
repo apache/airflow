@@ -17,12 +17,15 @@
 # under the License.
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToGCSOperator(S3ListOperator):
@@ -158,7 +161,7 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)

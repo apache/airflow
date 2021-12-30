@@ -15,10 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AwsRedshiftClusterSensor(BaseSensorOperator):
@@ -47,7 +50,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.hook: Optional[RedshiftHook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 

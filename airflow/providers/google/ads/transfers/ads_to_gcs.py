@@ -18,11 +18,14 @@
 import csv
 from operator import attrgetter
 from tempfile import NamedTemporaryFile
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleAdsToGcsOperator(BaseOperator):
@@ -108,7 +111,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         service = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id,
