@@ -16,12 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MSSQL operator."""
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryToMsSqlOperator(BaseOperator):
@@ -118,7 +121,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
             ) from None
         self.source_project_dataset_table = source_project_dataset_table
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         big_query_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

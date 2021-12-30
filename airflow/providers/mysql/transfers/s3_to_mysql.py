@@ -16,11 +16,14 @@
 # under the License.
 
 import os
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToMySqlOperator(BaseOperator):
@@ -71,7 +74,7 @@ class S3ToMySqlOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.mysql_conn_id = mysql_conn_id
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         """
         Executes the transfer operation from S3 to MySQL.
 

@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -74,7 +77,7 @@ class AthenaSensor(BaseSensorOperator):
         self.sleep_time = sleep_time
         self.max_retries = max_retries
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retries)
 
         if state in self.FAILURE_STATES:

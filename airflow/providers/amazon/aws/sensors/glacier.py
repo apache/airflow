@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class JobStatus(Enum):
@@ -81,7 +84,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         self.poke_interval = poke_interval
         self.mode = mode
 
-    def poke(self, context) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         response = hook.describe_job(vault_name=self.vault_name, job_id=self.job_id)
 

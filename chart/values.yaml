@@ -797,7 +797,7 @@ webserver:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: airflow-ui
+        - port: "{{ .Values.ports.airflowUI }}"
 
   resources: {}
   #   limits:
@@ -982,7 +982,7 @@ flower:
       from: []
       # Ports for flower NetworkPolicy ingress (if ingressPeers is set)
       ports:
-        - port: flower-ui
+        - port: "{{ .Values.ports.flowerUI }}"
 
   resources: {}
   #   limits:

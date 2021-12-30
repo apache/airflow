@@ -18,6 +18,7 @@
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.weekday import WeekDay
 
 
@@ -77,7 +78,7 @@ class DayOfWeekSensor(BaseSensorOperator):
         self.use_task_execution_day = use_task_execution_day
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def poke(self, context):
+    def poke(self, context: Context):
         self.log.info(
             'Poking until weekday is in %s, Today is %s',
             self.week_day,

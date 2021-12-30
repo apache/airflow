@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class StackdriverListAlertPoliciesOperator(BaseOperator):
@@ -121,7 +124,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
@@ -222,7 +225,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Enable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -312,7 +315,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Disable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -404,7 +407,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Upsert Alert Policies: Alerts: %s Project id: %s', self.alerts, self.project_id)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -492,7 +495,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Delete Alert Policy: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -605,7 +608,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
@@ -707,7 +710,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Enable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
         )
@@ -799,7 +802,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Disable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
         )
@@ -893,7 +896,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Upsert Notification Channels: Channels: %s Project id: %s', self.channels, self.project_id
         )
@@ -983,7 +986,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Delete Notification Channel: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(

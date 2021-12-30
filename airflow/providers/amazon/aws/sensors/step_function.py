@@ -16,11 +16,14 @@
 # under the License.
 
 import json
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class StepFunctionExecutionSensor(BaseSensorOperator):
@@ -64,7 +67,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         self.region_name = region_name
         self.hook: Optional[StepFunctionHook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         execution_status = self.get_hook().describe_execution(self.execution_arn)
         state = execution_status['status']
         output = json.loads(execution_status['output']) if 'output' in execution_status else None

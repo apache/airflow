@@ -18,13 +18,16 @@
 
 import time
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from kylinpy import kylinpy
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class KylinCubeOperator(BaseOperator):
@@ -144,7 +147,7 @@ class KylinCubeOperator(BaseOperator):
         self.eager_error_status = eager_error_status
         self.jobs_error_status = [stat.upper() for stat in eager_error_status]
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
 
         _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
 

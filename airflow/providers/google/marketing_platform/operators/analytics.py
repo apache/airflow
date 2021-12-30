@@ -18,11 +18,14 @@
 """This module contains Google Analytics 360 operators."""
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleAnalyticsListAccountsOperator(BaseOperator):
@@ -74,7 +77,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> List[Dict[str, Any]]:
+    def execute(self, context: 'Context') -> List[Dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -142,7 +145,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> Dict[str, Any]:
+    def execute(self, context: 'Context') -> Dict[str, Any]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -209,7 +212,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> List[Dict[str, Any]]:
+    def execute(self, context: 'Context') -> List[Dict[str, Any]]:
         hook = GoogleAnalyticsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -293,7 +296,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -380,7 +383,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         ga_hook = GoogleAnalyticsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -496,7 +499,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         with open(tmp_file_location, "w") as write_file:
             write_file.writelines(all_data)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

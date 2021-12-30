@@ -26,7 +26,7 @@ import time
 import uuid
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -41,6 +41,10 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
 DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
@@ -658,7 +662,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster = self._get_cluster(hook)
         return cluster
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
@@ -816,7 +820,7 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         return {'seconds': timeout}
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
@@ -913,7 +917,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
@@ -1056,7 +1060,7 @@ class DataprocJobBaseOperator(BaseOperator):
             return job['job']
         raise Exception("Create a job template before")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         if self.job_template:
             self.job = self.job_template.build()
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
@@ -1185,7 +1189,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         self.job_template.add_variables(self.variables)
         return self._generate_job_template()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.create_job_template()
 
         if self.query is None:
@@ -1260,7 +1264,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         self.job_template.add_variables(self.variables)
         return self._generate_job_template()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.create_job_template()
         if self.query is None:
             self.job_template.add_query_uri(self.query_uri)
@@ -1334,7 +1338,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         self.job_template.add_variables(self.variables)
         return self._generate_job_template()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.create_job_template()
         if self.query is None:
             self.job_template.add_query_uri(self.query_uri)
@@ -1414,7 +1418,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         self.job_template.add_file_uris(self.files)
         return self._generate_job_template()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.create_job_template()
         self.job_template.set_main(self.main_jar, self.main_class)
         self.job_template.add_args(self.arguments)
@@ -1493,7 +1497,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         self.job_template.add_file_uris(self.files)
         return self._generate_job_template()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.create_job_template()
         self.job_template.set_main(self.main_jar, self.main_class)
         self.job_template.add_args(self.arguments)
@@ -1606,7 +1610,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
         return self._generate_job_template()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
@@ -1686,7 +1690,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating template")
         try:
@@ -1784,7 +1788,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info('Instantiating template %s', self.template_id)
         operation = hook.instantiate_workflow_template(
@@ -1879,7 +1883,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Instantiating Inline Template')
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.instantiate_inline_workflow_template(
@@ -1993,7 +1997,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.job_id: Optional[str] = None
         self.wait_timeout = wait_timeout
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         self.log.info("Submitting job")
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_object = self.hook.submit_job(
@@ -2133,7 +2137,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required by extra links no matter what the cluster status will be
         self.xcom_push(
@@ -2236,7 +2240,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.operation: Optional[operation.Operation] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating batch")
         try:
@@ -2327,7 +2331,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting batch: %s", self.batch_id)
         hook.delete_batch(
@@ -2399,7 +2403,7 @@ class DataprocGetBatchOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Getting batch: %s", self.batch_id)
         batch = hook.get_batch(
@@ -2477,7 +2481,7 @@ class DataprocListBatchesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_batches(
             region=self.region,

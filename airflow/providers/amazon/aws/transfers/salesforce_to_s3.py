@@ -17,11 +17,14 @@
 
 import os
 import tempfile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SalesforceToS3Operator(BaseOperator):
@@ -108,7 +111,7 @@ class SalesforceToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def execute(self, context: Dict) -> str:
+    def execute(self, context: 'Context') -> str:
         salesforce_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce_hook.make_query(
             query=self.salesforce_query,

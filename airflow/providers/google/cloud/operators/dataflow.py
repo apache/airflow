@@ -21,7 +21,7 @@ import re
 import warnings
 from contextlib import ExitStack
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -32,6 +32,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CheckJobRunning(Enum):
@@ -398,7 +401,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
@@ -664,7 +667,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -794,7 +797,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.job = None
         self.hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -901,7 +904,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.job = None
         self.hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1104,7 +1107,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the python dataflow job."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(

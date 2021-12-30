@@ -17,13 +17,17 @@
 # under the License.
 import json
 import warnings
-from typing import Any, Iterable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Union, cast
 
 from bson import json_util
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mongo.hooks.mongo import MongoHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 _DEPRECATION_MSG = (
     "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
@@ -102,7 +106,7 @@ class MongoToS3Operator(BaseOperator):
         self.allow_disk_use = allow_disk_use
         self.compression = compression
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Is written to depend on transform method"""
         s3_conn = S3Hook(self.aws_conn_id)
 

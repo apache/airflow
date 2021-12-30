@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 

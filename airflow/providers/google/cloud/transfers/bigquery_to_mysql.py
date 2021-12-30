@@ -16,12 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MySQL operator."""
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryToMySqlOperator(BaseOperator):
@@ -119,7 +122,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         except ValueError:
             raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>') from None
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         big_query_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

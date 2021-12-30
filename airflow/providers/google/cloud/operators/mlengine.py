@@ -19,12 +19,16 @@
 import logging
 import re
 import warnings
-from typing import Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 log = logging.getLogger(__name__)
 
@@ -237,7 +241,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                 'a model & version combination, or a URI to a savedModel.'
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         job_id = _normalize_mlengine_job_id(self._job_id)
         prediction_request = {
             'jobId': job_id,
@@ -365,7 +369,7 @@ class MLEngineManageModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -435,7 +439,7 @@ class MLEngineCreateModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -500,7 +504,7 @@ class MLEngineGetModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -571,7 +575,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -685,7 +689,7 @@ class MLEngineManageVersionOperator(BaseOperator):
             stacklevel=3,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         if 'name' not in self._version:
             self._version['name'] = self._version_name
 
@@ -786,7 +790,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
         if not self._version:
             raise AirflowException("The version parameter could not be empty.")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -869,7 +873,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         if not self._version_name:
             raise AirflowException("The version_name parameter could not be empty.")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -944,7 +948,7 @@ class MLEngineListVersionsOperator(BaseOperator):
         if not self._model_name:
             raise AirflowException("The model_name parameter could not be empty.")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -1028,7 +1032,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         if not self._version_name:
             raise AirflowException("The version_name parameter could not be empty.")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             delegate_to=self._delegate_to,
@@ -1231,7 +1235,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                 'a custom Docker image should be provided but not both.'
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         job_id = _normalize_mlengine_job_id(self._job_id)
         training_request = {
             'jobId': job_id,
@@ -1368,7 +1372,7 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,

@@ -16,11 +16,14 @@
 # under the License.
 
 import time
-from typing import Optional, Set
+from typing import TYPE_CHECKING, Optional, Set
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SageMakerBaseSensor(BaseSensorOperator):
@@ -45,7 +48,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         response = self.get_sagemaker_response()
         if not (response['ResponseMetadata']['HTTPStatusCode'] == 200):
             self.log.info('Bad HTTP response: %s', response)

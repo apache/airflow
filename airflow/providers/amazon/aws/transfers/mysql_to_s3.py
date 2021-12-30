@@ -21,7 +21,7 @@ import warnings
 from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -31,6 +31,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 FILE_FORMAT = Enum(
     "FILE_FORMAT",
@@ -165,7 +169,7 @@ class MySQLToS3Operator(BaseOperator):
                     df[col] = np.where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(pd.Int64Dtype())
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         mysql_hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = mysql_hook.get_pandas_df(self.query)

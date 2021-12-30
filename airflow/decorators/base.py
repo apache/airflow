@@ -19,12 +19,13 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Collection, Dict, Mapping, Optional, Sequence, Type, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
+from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
@@ -101,27 +102,29 @@ class DecoratedOperator(BaseOperator):
     :type kwargs_to_upstream: dict
     """
 
-    template_fields: Iterable[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
     def __init__(
         self,
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Tuple[Any],
-        op_kwargs: Dict[str, Any],
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         multiple_outputs: bool = False,
-        kwargs_to_upstream: dict = None,
+        kwargs_to_upstream: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
+        op_args = op_args or []
+        op_kwargs = op_kwargs or {}
 
         # Check that arguments can be binded
         signature(python_callable).bind(*op_args, **op_kwargs)
@@ -130,7 +133,7 @@ class DecoratedOperator(BaseOperator):
         self.op_kwargs = op_kwargs
         super().__init__(**kwargs_to_upstream, **kwargs)
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
@@ -180,7 +183,7 @@ T = TypeVar("T", bound=Callable)
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Type[BaseOperator] = None,
+    decorated_operator_class: Optional[Type[BaseOperator]] = None,
     **kwargs,
 ) -> Callable[[T], T]:
     """
@@ -196,7 +199,7 @@ def task_decorator_factory(
     :type multiple_outputs: bool
     :param decorated_operator_class: The operator that executes the logic needed to run the python function in
         the correct environment
-    :type decorated_operator_class: BaseDecoratedOperator
+    :type decorated_operator_class: BaseOperator
 
     """
     # try to infer from  type annotation

@@ -2404,12 +2404,12 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "airflow-ui"
+                                            "port": "{{ .Values.ports.airflowUI }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": "sidecar"
+                                            "port": 8070
                                         }
                                     ]
                                 }
@@ -2725,12 +2725,12 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "flower-ui"
+                                            "port": "{{ .Values.ports.flowerUI }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": "sidecar"
+                                            "port": 5565
                                         }
                                     ]
                                 }
@@ -3611,6 +3611,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "scheme": {
+                            "description": "Scheme",
+                            "type": "string",
+                            "default": "http"
+                        },
                         "user": {
                             "description": "Username",
                             "type": "string",
@@ -3634,6 +3639,7 @@
                     },
                     "examples": [
                         {
+                            "scheme": "https",
                             "user": "...",
                             "pass": "...",
                             "host": "...",

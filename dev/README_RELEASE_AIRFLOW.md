@@ -968,6 +968,8 @@ will use the latest released version. You'll need to update `chart/values.yaml`,
 
 Also add a note to `UPDATING.rst` that the default version of Airflow has changed.
 
+In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
+
 ## Update airflow/config_templates/config.yml file
 
 File `airflow/config_templates/config.yml` contains documentation on all configuration options available in Airflow. The `version_added` fields must be updated when a new Airflow version is released.

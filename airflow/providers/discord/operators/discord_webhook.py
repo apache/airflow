@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import SimpleHttpOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DiscordWebhookOperator(SimpleHttpOperator):
@@ -81,7 +84,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.proxy = proxy
         self.hook: Optional[DiscordWebhookHook] = None
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         """Call the DiscordWebhookHook to post message"""
         self.hook = DiscordWebhookHook(
             self.http_conn_id,
