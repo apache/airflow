@@ -16,10 +16,13 @@
 # under the License.
 
 """This module contains the Apache Livy sensor."""
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class LivySensor(BaseSensorOperator):
@@ -61,7 +64,7 @@ class LivySensor(BaseSensorOperator):
             self._livy_hook = LivyHook(livy_conn_id=self._livy_conn_id, extra_options=self._extra_options)
         return self._livy_hook
 
-    def poke(self, context: Dict[Any, Any]) -> bool:
+    def poke(self, context: "Context") -> bool:
         batch_id = self.batch_id
 
         status = self.get_hook().get_batch_state(batch_id)

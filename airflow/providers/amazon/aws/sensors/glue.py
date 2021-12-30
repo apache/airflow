@@ -16,10 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GlueJobSensor(BaseSensorOperator):
@@ -43,7 +47,7 @@ class GlueJobSensor(BaseSensorOperator):
         self.success_states = ['SUCCEEDED']
         self.errored_states = ['FAILED', 'STOPPED', 'TIMEOUT']
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
         job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)

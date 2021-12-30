@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ftp.hooks.ftp import FTPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class FTPToS3Operator(BaseOperator):
@@ -114,7 +117,7 @@ class FTPToS3Operator(BaseOperator):
             )
             self.log.info(f'File upload to {s3_file_key}')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
         self.s3_hook = S3Hook(self.aws_conn_id)
 

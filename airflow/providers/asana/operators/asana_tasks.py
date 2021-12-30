@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.asana.hooks.asana import AsanaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AsanaCreateTaskOperator(BaseOperator):
@@ -56,7 +59,7 @@ class AsanaCreateTaskOperator(BaseOperator):
         self.name = name
         self.task_parameters = task_parameters
 
-    def execute(self, context: Dict) -> str:
+    def execute(self, context: 'Context') -> str:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.create_task(self.name, self.task_parameters)
         self.log.info(response)
@@ -96,7 +99,7 @@ class AsanaUpdateTaskOperator(BaseOperator):
         self.asana_task_gid = asana_task_gid
         self.task_parameters = task_parameters
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.update_task(self.asana_task_gid, self.task_parameters)
         self.log.info(response)
@@ -128,7 +131,7 @@ class AsanaDeleteTaskOperator(BaseOperator):
         self.conn_id = conn_id
         self.asana_task_gid = asana_task_gid
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.delete_task(self.asana_task_gid)
         self.log.info(response)
@@ -163,7 +166,7 @@ class AsanaFindTaskOperator(BaseOperator):
         self.conn_id = conn_id
         self.search_parameters = search_parameters
 
-    def execute(self, context: Dict) -> list:
+    def execute(self, context: 'Context') -> list:
         hook = AsanaHook(conn_id=self.conn_id)
         response = hook.find_task(self.search_parameters)
         self.log.info(response)

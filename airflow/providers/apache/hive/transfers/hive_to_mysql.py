@@ -18,12 +18,15 @@
 
 """This module contains an operator to move data from Hive to MySQL."""
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HiveToMySqlOperator(BaseOperator):
@@ -87,7 +90,7 @@ class HiveToMySqlOperator(BaseOperator):
         self.bulk_load = bulk_load
         self.hive_conf = hive_conf
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info("Extracting data from Hive: %s", self.sql)

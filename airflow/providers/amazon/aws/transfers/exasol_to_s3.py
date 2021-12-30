@@ -18,11 +18,14 @@
 """Transfers data from Exasol database into a S3 Bucket."""
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.exasol.hooks.exasol import ExasolHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ExasolToS3Operator(BaseOperator):
@@ -89,7 +92,7 @@ class ExasolToS3Operator(BaseOperator):
         self.exasol_conn_id = exasol_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         exasol_hook = ExasolHook(exasol_conn_id=self.exasol_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 

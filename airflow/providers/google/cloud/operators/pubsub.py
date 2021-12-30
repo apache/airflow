@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google PubSub operators."""
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import (
@@ -32,6 +32,9 @@ from google.cloud.pubsub_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PubSubCreateTopicOperator(BaseOperator):
@@ -166,7 +169,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -412,7 +415,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> str:
+    def execute(self, context: 'Context') -> str:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -556,7 +559,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -688,7 +691,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -808,7 +811,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -906,7 +909,7 @@ class PubSubPullOperator(BaseOperator):
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> list:
+    def execute(self, context: 'Context') -> list:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

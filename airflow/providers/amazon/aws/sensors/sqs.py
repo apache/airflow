@@ -17,7 +17,7 @@
 # under the License.
 """Reads and then deletes the message from SQS queue"""
 import json
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
@@ -25,6 +25,9 @@ from typing_extensions import Literal
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SQSSensor(BaseSensorOperator):
@@ -97,7 +100,7 @@ class SQSSensor(BaseSensorOperator):
 
         self.hook: Optional[SQSHook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         """
         Check for message on subscribed queue and write to xcom the message with key ``messages``
 

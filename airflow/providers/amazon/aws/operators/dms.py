@@ -17,10 +17,13 @@
 # under the License.
 
 
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DmsCreateTaskOperator(BaseOperator):
@@ -91,7 +94,7 @@ class DmsCreateTaskOperator(BaseOperator):
         self.create_task_kwargs = create_task_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Creates AWS DMS replication task from Airflow
 
@@ -146,7 +149,7 @@ class DmsDeleteTaskOperator(BaseOperator):
         self.replication_task_arn = replication_task_arn
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Deletes AWS DMS replication task from Airflow
 
@@ -186,7 +189,7 @@ class DmsDescribeTasksOperator(BaseOperator):
         self.describe_tasks_kwargs = describe_tasks_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Describes AWS DMS replication tasks from Airflow
 
@@ -243,7 +246,7 @@ class DmsStartTaskOperator(BaseOperator):
         self.start_task_kwargs = start_task_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Starts AWS DMS replication task from Airflow
 
@@ -288,7 +291,7 @@ class DmsStopTaskOperator(BaseOperator):
         self.replication_task_arn = replication_task_arn
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Stops AWS DMS replication task from Airflow
 

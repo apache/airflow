@@ -406,7 +406,7 @@ class ComputeEngineHook(GoogleBaseHook):
         if use_internal_ip:
             return instance_info["networkInterfaces"][0].get("networkIP")
 
-        access_config = instance_info.get("networkInterfaces")[0].get("accessConfigs")
+        access_config = instance_info["networkInterfaces"][0].get("accessConfigs")
         if access_config:
             return access_config[0].get("natIP")
         raise AirflowException("The target instance does not have external IP")

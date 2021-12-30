@@ -21,6 +21,7 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class BashSensor(BaseSensorOperator):
@@ -49,7 +50,7 @@ class BashSensor(BaseSensorOperator):
         self.env = env
         self.output_encoding = output_encoding
 
-    def poke(self, context):
+    def poke(self, context: Context):
         """
         Execute the bash command in a temporary directory
         which will be cleaned afterwards

@@ -20,6 +20,7 @@ import unittest
 from subprocess import CalledProcessError
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -113,3 +114,21 @@ class ElasticsearchSecretTest(unittest.TestCase):
         )
 
         assert "http://username:password@elastichostname:2222" == connection
+
+    @parameterized.expand(["http", "https"])
+    def test_should_generate_secret_with_specified_schemes(self, scheme):
+        connection = self._get_connection(
+            {
+                "elasticsearch": {
+                    "enabled": True,
+                    "connection": {
+                        "scheme": scheme,
+                        "user": "username",
+                        "pass": "password",
+                        "host": "elastichostname",
+                    },
+                }
+            }
+        )
+
+        assert f"{scheme}://username:password@elastichostname:80" == connection

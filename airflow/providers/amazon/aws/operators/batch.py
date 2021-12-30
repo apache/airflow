@@ -26,11 +26,14 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AwsBatchOperator(BaseOperator):
@@ -137,7 +140,7 @@ class AwsBatchOperator(BaseOperator):
             region_name=region_name,
         )
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         """
         Submit and monitor an AWS Batch job
 
@@ -150,7 +153,7 @@ class AwsBatchOperator(BaseOperator):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
-    def submit_job(self, context: Dict):
+    def submit_job(self, context: 'Context'):
         """
         Submit an AWS Batch job
 
@@ -180,7 +183,7 @@ class AwsBatchOperator(BaseOperator):
             self.log.error("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
-    def monitor_job(self, context: Dict):
+    def monitor_job(self, context: 'Context'):
         """
         Monitor an AWS Batch job
         monitor_job can raise an exception or an AirflowTaskTimeout can be raised if execution_timeout

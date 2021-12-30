@@ -17,12 +17,15 @@
 # under the License.
 """This module contains a Google PubSub sensor."""
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PubSubPullSensor(BaseSensorOperator):
@@ -151,12 +154,12 @@ class PubSubPullSensor(BaseSensorOperator):
 
         self._return_value = None
 
-    def execute(self, context: dict):
+    def execute(self, context: "Context") -> Any:
         """Overridden to allow messages to be passed"""
         super().execute(context)
         return self._return_value
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -186,7 +189,7 @@ class PubSubPullSensor(BaseSensorOperator):
     def _default_message_callback(
         self,
         pulled_messages: List[ReceivedMessage],
-        context: Dict[str, Any],
+        context: "Context",
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

@@ -19,11 +19,15 @@
 """This module contains Databricks operators."""
 
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -336,7 +340,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = self._get_hook()
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
@@ -550,7 +554,7 @@ class DatabricksRunNowOperator(BaseOperator):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = self._get_hook()
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)

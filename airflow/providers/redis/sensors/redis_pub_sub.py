@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, List, Union
+from typing import TYPE_CHECKING, List, Union
 
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class RedisPubSubSensor(BaseSensorOperator):
@@ -42,7 +45,7 @@ class RedisPubSubSensor(BaseSensorOperator):
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
         self.pubsub.subscribe(self.channels)
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         """
         Check for message on subscribed channels and write to xcom the message with key ``message``
 

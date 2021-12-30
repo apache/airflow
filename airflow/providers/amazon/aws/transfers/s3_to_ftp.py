@@ -17,10 +17,14 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ftp.hooks.ftp import FTPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToFTPOperator(BaseOperator):
@@ -62,7 +66,7 @@ class S3ToFTPOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 

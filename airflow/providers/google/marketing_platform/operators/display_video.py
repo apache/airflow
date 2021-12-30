@@ -22,13 +22,16 @@ import shutil
 import tempfile
 import urllib.request
 import warnings
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
@@ -94,7 +97,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
             with open(self.body) as file:
                 self.body = json.load(file)
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -174,7 +177,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         if not (report_name or report_id):
             raise AirflowException("Provide one of the values: `report_name` or `report_id`.")
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -278,7 +281,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -403,7 +406,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
             )
             self.parameters = params
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -466,7 +469,7 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> str:
+    def execute(self, context: 'Context') -> str:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -545,7 +548,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -634,7 +637,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> Dict[str, Any]:
+    def execute(self, context: 'Context') -> Dict[str, Any]:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -644,6 +647,10 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
 
         self.log.info("Creating operation for SDF download task...")
         operation = hook.create_sdf_download_operation(body_request=self.body_request)
+
+        name = operation["name"]
+        self.xcom_push(context, key="name", value=name)
+        self.log.info("Created SDF operation with name: %s", name)
 
         return operation
 
@@ -719,7 +726,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> str:
+    def execute(self, context: 'Context') -> str:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -733,10 +740,10 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         )
 
         self.log.info("Retrieving operation...")
-        operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
+        operation_state = hook.get_sdf_download_operation(operation_name=self.operation_name)
 
         self.log.info("Creating file for upload...")
-        media = hook.download_media(resource_name=operation)
+        media = hook.download_media(resource_name=operation_state)
 
         self.log.info("Sending file to the Google Cloud Storage...")
         with tempfile.NamedTemporaryFile() as temp_file:

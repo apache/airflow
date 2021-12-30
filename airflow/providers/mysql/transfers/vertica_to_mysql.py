@@ -18,7 +18,7 @@
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import MySQLdb
 import unicodecsv as csv
@@ -26,6 +26,9 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -87,7 +90,7 @@ class VerticaToMySqlOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.bulk_load = bulk_load
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 

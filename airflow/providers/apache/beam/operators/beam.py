@@ -19,7 +19,7 @@
 import copy
 from abc import ABCMeta
 from contextlib import ExitStack
-from typing import Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -31,6 +31,9 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BeamDataflowMixin(metaclass=ABCMeta):
@@ -216,7 +219,7 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                 "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
@@ -390,7 +393,7 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                 "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()

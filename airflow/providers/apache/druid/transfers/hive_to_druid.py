@@ -18,11 +18,14 @@
 
 """This module contains operator to move data from Hive to Druid."""
 
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
@@ -116,7 +119,7 @@ class HiveToDruidOperator(BaseOperator):
         self.hive_tblproperties = hive_tblproperties or {}
         self.job_properties = job_properties
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context: "Context") -> None:
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')

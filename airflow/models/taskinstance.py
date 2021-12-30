@@ -2359,6 +2359,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.job.base_job import BaseJob
+    from airflow.jobs.base_job import BaseJob
 
     TaskInstance.queued_by_job = relationship(BaseJob)
