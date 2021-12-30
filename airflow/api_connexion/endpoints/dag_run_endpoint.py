@@ -149,7 +149,7 @@ def get_dag_runs(
     execution_date_lte: Optional[str] = None,
     end_date_gte: Optional[str] = None,
     end_date_lte: Optional[str] = None,
-    state: Optional[str] = None,
+    state: Optional[List[str]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     order_by: str = "id",
