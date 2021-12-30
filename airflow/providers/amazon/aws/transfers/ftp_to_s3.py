@@ -97,8 +97,8 @@ class FTPToS3Operator(BaseOperator):
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
-        self.s3_hook = None
-        self.ftp_hook = None
+        self.s3_hook: Optional[S3Hook] = None
+        self.ftp_hook: Optional[FTPHook] = None
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
@@ -132,12 +132,13 @@ class FTPToS3Operator(BaseOperator):
                 if self.ftp_filenames == '*':
                     files = list_dir
                 else:
-                    files = list(filter(lambda file: self.ftp_filenames in file, list_dir))
+                    ftp_filename: str = self.ftp_filenames
+                    files = list(filter(lambda f: ftp_filename in f, list_dir))
 
                 for file in files:
                     self.log.info(f'Moving file {file}')
 
-                    if self.s3_filenames:
+                    if self.s3_filenames and isinstance(self.s3_filenames, str):
                         filename = file.replace(self.ftp_filenames, self.s3_filenames)
                     else:
                         filename = file
