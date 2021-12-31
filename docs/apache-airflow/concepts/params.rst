@@ -60,20 +60,19 @@ So you can reference them in a template.
         ),
     )
 
-If you're using non-string Params, you might be interested in the ``render_template_as_native_obj`` DAG kwarg.
+Even though Params can use a variety of types, the default behavior of templates is to provide your task with a string.
+You can change this by setting ``render_template_as_native_obj=True`` while initializing the :class:`~airflow.models.dag.DAG`.
 
 .. code-block::
 
     with DAG(
         "the_dag",
-        params={"x": Param(5, type="integer", minimum=3),
-                "y": 6},
+        params={"x": Param(5, type="integer", minimum=3)},
         render_template_as_native_obj=True
     ) as the_dag:
 
 
-Even though Params can use a variety of types, the default behavior of templates is to provide your task with a string.
-You can change this by setting``render_template_as_native_obj=True`` while initializing the :class:`~airflow.models.dag.DAG`.
+This way, the Param's type is respected when its provided to your task.
 
 .. code-block::
 
@@ -82,7 +81,7 @@ You can change this by setting``render_template_as_native_obj=True`` while initi
     PythonOperator(
         task_id="template_type",
         op_args=[
-            "{{ params.int_param + 10 }}",
+            "{{ params.int_param }}",
         ],
         python_callable=(
             lambda x: print(type(x))
