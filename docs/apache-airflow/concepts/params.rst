@@ -25,7 +25,7 @@ To use them, initialize your DAG with a dictionary where the keys are strings wi
 Or, if you want a default value without any validation, you can use literals instead.
 
 .. code-block::
-   :caption a simple DAG with a parameter
+   :caption: a simple DAG with a parameter
         from airflow import DAG
         from airflow.models.param import Param
         from airflow.operators.python_operator import PythonOperator
@@ -49,7 +49,7 @@ Params can also be added to individual tasks.
 If there's already a dag param with that name, the task-level default will take precedence over the dag-level default.
 
 .. code-block::
-   :caption tasks can have parameters too
+   :caption: tasks can have parameters too
 
             # prints 10, or whatever the user provided at trigger time
             PythonOperator(
@@ -66,7 +66,7 @@ If the user-supplied values don't pass validation, Airflow will show the user a 
 You can reference dag params via a templated task argument:
 
 .. code-block::
-   :caption use a template
+   :caption: use a template
         from airflow import DAG
         from airflow.models.param import Param
         from airflow.operators.python import PythonOperator
@@ -114,7 +114,7 @@ It will allow you to preserve the type of the parameter, even if you manipulate 
 If templates aren't your style, you can access params in via the context.
 
 .. code-block::
-   :caption use the context kwarg
+   :caption: use the context kwarg
 
             # or you can reference them through the context
             def from_context(**context):
