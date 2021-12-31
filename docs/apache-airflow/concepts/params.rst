@@ -20,7 +20,7 @@
 Params
 ======
 
-Params how Airflow provides runtime configuration to tasks.
+Params are how Airflow provides runtime configuration to tasks.
 When you trigger a DAG manually, you can modify its Params before the dagrun starts.
 If the user-supplied values don't pass validation, Airflow shows a warning instead of creating the dagrun.
 (For scheduled runs, the default values are used.)
