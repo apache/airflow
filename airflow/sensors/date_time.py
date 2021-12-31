@@ -17,7 +17,7 @@
 # under the License.
 
 import datetime
-from typing import Union
+from typing import Sequence, Union
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -55,7 +55,7 @@ class DateTimeSensor(BaseSensorOperator):
     :type target_time: str or datetime.datetime
     """
 
-    template_fields = ("target_time",)
+    template_fields: Sequence[str] = ("target_time",)
 
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)

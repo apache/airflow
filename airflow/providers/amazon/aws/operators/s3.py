@@ -461,7 +461,7 @@ class S3FileTransformOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('source_s3_key', 'dest_s3_key', 'script_args')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(

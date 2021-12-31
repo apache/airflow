@@ -69,7 +69,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
     def __init__(
         self,

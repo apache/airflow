@@ -20,6 +20,7 @@
 import datetime
 import os
 from glob import glob
+from typing import Sequence
 
 from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
@@ -44,7 +45,7 @@ class FileSensor(BaseSensorOperator):
     :type recursive: bool
     """
 
-    template_fields = ('filepath',)
+    template_fields: Sequence[str] = ('filepath',)
     ui_color = '#91818a'
 
     def __init__(self, *, filepath, fs_conn_id='fs_default', recursive=False, **kwargs):

@@ -41,7 +41,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('stack_name',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#6b9659'
 
     def __init__(self, *, stack_name: str, params: dict, aws_conn_id: str = 'aws_default', **kwargs):
@@ -73,7 +73,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('stack_name',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'
 

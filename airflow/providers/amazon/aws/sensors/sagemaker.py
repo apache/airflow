@@ -95,7 +95,7 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     """
 
     template_fields: Sequence[str] = ('endpoint_name',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, endpoint_name, **kwargs):
         super().__init__(**kwargs)
@@ -132,7 +132,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     """
 
     template_fields: Sequence[str] = ('job_name',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
@@ -169,7 +169,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     """
 
     template_fields: Sequence[str] = ('job_name',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
@@ -206,7 +206,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     """
 
     template_fields: Sequence[str] = ('job_name',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name, print_log=True, **kwargs):
         super().__init__(**kwargs)

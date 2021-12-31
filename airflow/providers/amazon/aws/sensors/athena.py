@@ -59,7 +59,7 @@ class AthenaSensor(BaseSensorOperator):
     SUCCESS_STATES = ('SUCCEEDED',)
 
     template_fields: Sequence[str] = ('query_execution_id',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(

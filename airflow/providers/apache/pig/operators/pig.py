@@ -44,7 +44,7 @@ class PigOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('pig',)
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.pig',
         '.piglatin',
     )

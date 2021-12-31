@@ -150,7 +150,7 @@ class EmrContainerSensor(BaseSensorOperator):
     SUCCESS_STATES = ("COMPLETED",)
 
     template_fields: Sequence[str] = ('virtual_cluster_id', 'job_id')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(
@@ -207,7 +207,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     """
 
     template_fields: Sequence[str] = ('job_flow_id', 'target_states', 'failed_states')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(
         self,
@@ -288,7 +288,7 @@ class EmrStepSensor(EmrBaseSensor):
     """
 
     template_fields: Sequence[str] = ('job_flow_id', 'step_id', 'target_states', 'failed_states')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(
         self,

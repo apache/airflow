@@ -162,7 +162,7 @@ class ADLSToGCSOperator(ADLSListOperator):
             # ADLS and not in Google Cloud Storage
             bucket_name, prefix = _parse_gcs_url(self.dest_gcs)
             existing_files = g_hook.list(bucket_name=bucket_name, prefix=prefix)
-            files = set(files) - set(existing_files)
+            files = list(set(files) - set(existing_files))
 
         if files:
             hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)

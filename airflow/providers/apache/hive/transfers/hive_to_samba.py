@@ -47,7 +47,7 @@ class HiveToSambaOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('hql', 'destination_filepath')
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.hql',
         '.sql',
     )

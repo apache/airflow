@@ -73,7 +73,7 @@ class SalesforceToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("salesforce_query", "s3_bucket_name", "s3_key")
-    template_ext = (".sql",)
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"salesforce_query": "sql"}
 
     def __init__(

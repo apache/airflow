@@ -65,7 +65,7 @@ class DmsCreateTaskOperator(BaseOperator):
         'migration_type',
         'create_task_kwargs',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "table_mappings": "json",
         "create_task_kwargs": "json",
@@ -135,7 +135,7 @@ class DmsDeleteTaskOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers: Dict[str, str] = {}
 
     def __init__(
@@ -175,7 +175,7 @@ class DmsDescribeTasksOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('describe_tasks_kwargs',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers: Dict[str, str] = {'describe_tasks_kwargs': 'json'}
 
     def __init__(
@@ -228,7 +228,7 @@ class DmsStartTaskOperator(BaseOperator):
         'start_replication_task_type',
         'start_task_kwargs',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers = {'start_task_kwargs': 'json'}
 
     def __init__(
@@ -277,7 +277,7 @@ class DmsStopTaskOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers: Dict[str, str] = {}
 
     def __init__(

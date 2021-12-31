@@ -68,7 +68,7 @@ class StackdriverHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
@@ -135,7 +135,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         client = self._get_policy_client()
@@ -157,7 +157,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
@@ -195,7 +195,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
@@ -233,7 +233,7 @@ class StackdriverHook(GoogleBaseHook):
         alerts: str,
         project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
@@ -334,7 +334,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         name: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
@@ -370,7 +370,7 @@ class StackdriverHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
@@ -437,7 +437,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         client = self._get_channel_client()
@@ -461,7 +461,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
@@ -499,7 +499,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
@@ -537,7 +537,7 @@ class StackdriverHook(GoogleBaseHook):
         channels: str,
         project_id: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
         """
@@ -603,7 +603,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         name: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
+        timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
