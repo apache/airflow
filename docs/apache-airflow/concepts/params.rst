@@ -21,7 +21,7 @@ Params
 Params are Airflow's way to provide runtime configuration to tasks when a DAG gets triggered manually.
 To use them, initialize your DAG with a dictionary where the keys are strings with each param's name, and the values are ``Param`` objects.
 
-``Param`` makes use of `json-schema <https://json-schema.org/>`, so one can use the full json-schema specifications mentioned at https://json-schema.org/draft/2020-12/json-schema-validation.html to define the construct of a ``Param`` objects.
+``Param`` makes use of ``json-schema <https://json-schema.org/>``, so one can use the full json-schema specifications mentioned at https://json-schema.org/draft/2020-12/json-schema-validation.html to define the construct of a ``Param`` objects.
 Or, if you want a default value without any validation, you can use literals instead.
 
 .. code-block::
