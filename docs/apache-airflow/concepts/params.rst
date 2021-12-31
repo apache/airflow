@@ -93,7 +93,7 @@ Another way to access your param is via a task's ``context`` kwarg.
 .. code-block::
 
     def print_x(**context):
-        x = context["params"]["x"]
+        print(context["params"]["x"])
 
     PythonOperator(
         task_id="print_x",
