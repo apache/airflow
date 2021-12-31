@@ -48,7 +48,7 @@ class TrinoToMySqlOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator')
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {"sql": "sql", "mysql_preoperator": "sql"}
     ui_color = '#a0e08c'
 

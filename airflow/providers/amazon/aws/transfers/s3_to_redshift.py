@@ -76,7 +76,7 @@ class S3ToRedshiftOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#99e699'
 
     def __init__(

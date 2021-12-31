@@ -63,7 +63,7 @@ class GlueJobOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('script_args',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "script_args": "json",
         "create_job_kwargs": "json",

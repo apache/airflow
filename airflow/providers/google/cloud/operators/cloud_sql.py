@@ -1025,7 +1025,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
 
     # [START gcp_sql_query_template_fields]
     template_fields: Sequence[str] = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     # [END gcp_sql_query_template_fields]
 
     def __init__(

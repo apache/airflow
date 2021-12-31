@@ -19,6 +19,7 @@
 import os
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
+from typing import Sequence
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.context import Context
@@ -42,7 +43,7 @@ class BashSensor(BaseSensorOperator):
     :type output_encoding: str
     """
 
-    template_fields = ('bash_command', 'env')
+    template_fields: Sequence[str] = ('bash_command', 'env')
 
     def __init__(self, *, bash_command, env=None, output_encoding='utf-8', **kwargs):
         super().__init__(**kwargs)

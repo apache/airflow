@@ -45,7 +45,7 @@ class SageMakerBaseOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('config',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers = {'config': 'json'}
     ui_color = '#ededed'
     integer_fields = []

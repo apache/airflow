@@ -379,7 +379,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         'alerts',
         'impersonation_chain',
     )
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
 
     ui_color = "#e5ffcc"
 
@@ -868,7 +868,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         'channels',
         'impersonation_chain',
     )
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
 
     ui_color = "#e5ffcc"
 

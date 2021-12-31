@@ -94,7 +94,7 @@ class MySQLToS3Operator(BaseOperator):
         's3_key',
         'query',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {
         "query": "sql",
         "pd_csv_kwargs": "json",

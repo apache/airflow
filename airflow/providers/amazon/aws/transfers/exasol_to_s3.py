@@ -60,7 +60,7 @@ class ExasolToS3Operator(BaseOperator):
 
     template_fields: Sequence[str] = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
     template_fields_renderers = {"query_or_table": "sql", "query_params": "json", "export_params": "json"}
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(

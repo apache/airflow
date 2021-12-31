@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import NamedTuple
+from typing import NamedTuple, Sequence
 from unittest import mock
 
 import attr
@@ -35,7 +35,7 @@ class MockNamedTuple(NamedTuple):
 class MockOperator(BaseOperator):
     """Operator for testing purposes."""
 
-    template_fields = ("arg1", "arg2")
+    template_fields: Sequence[str] = ("arg1", "arg2")
 
     def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
         super().__init__(**kwargs)

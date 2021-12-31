@@ -170,7 +170,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         'impersonation_chain',
         'labels',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
     def __init__(
@@ -239,7 +239,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         'impersonation_chain',
         'labels',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
     def __init__(
@@ -604,7 +604,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         'query_params',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = BigQueryUIColors.QUERY.value
 
     @property
@@ -2214,7 +2214,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         "job_id",
         "impersonation_chain",
     )
-    template_ext = (".json",)
+    template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
 

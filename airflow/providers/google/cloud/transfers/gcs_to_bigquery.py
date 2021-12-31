@@ -170,7 +170,7 @@ class GCSToBigQueryOperator(BaseOperator):
         'destination_project_dataset_table',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#f0eee4'
 
     def __init__(

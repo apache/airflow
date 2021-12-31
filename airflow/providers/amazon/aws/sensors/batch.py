@@ -37,7 +37,7 @@ class BatchSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = ('job_id',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(

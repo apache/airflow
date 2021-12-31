@@ -156,7 +156,7 @@ class DockerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.sh',
         '.bash',
     )

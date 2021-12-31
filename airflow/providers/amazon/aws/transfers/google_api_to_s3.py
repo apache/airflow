@@ -100,7 +100,7 @@ class GoogleApiToS3Operator(BaseOperator):
         's3_destination_key',
         'google_impersonation_chain',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#cc181e'
 
     def __init__(
