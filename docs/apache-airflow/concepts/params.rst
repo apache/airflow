@@ -114,7 +114,7 @@ You can also add Params to individual tasks.
     )
 
 If there's already a dag param with that name, the task-level default will take precedence over the dag-level default.
-Although a user supplies their own value when the DAG was triggered, that is always used.
+If a user supplies their own value when the DAG was triggered, Airflow ignores all defaults and uses the user's value.
 
 JSON Schema Validation
 ----------------------
