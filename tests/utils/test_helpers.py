@@ -26,6 +26,7 @@ from airflow.utils.helpers import (
     build_airflow_url_with_query,
     exactly_one,
     merge_dicts,
+    prune_dict,
     validate_group_key,
     validate_key,
 )
@@ -262,3 +263,31 @@ class TestHelpers:
     def test_exactly_one_should_fail(self):
         with pytest.raises(ValueError):
             exactly_one([True, False])
+
+    @pytest.mark.parametrize(
+        'mode, expected',
+        [
+            (
+                'strict',
+                {
+                    'b': '',
+                    'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
+                    'd': ['', 0, '1'],
+                    'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
+                },
+            ),
+            (
+                'truthy',
+                {
+                    'c': {'c': 'hi', 'd': ['1']},
+                    'd': ['1'],
+                    'e': [{'c': 'hi', 'd': ['1']}, ['1']],
+                },
+            ),
+        ],
+    )
+    def test_prune_dict(self, mode, expected):
+        l1 = ['', 0, '1', None]
+        d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
+        d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
+        assert prune_dict(d2, mode=mode) == expected

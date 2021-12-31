@@ -62,7 +62,7 @@ class DrillOperator(BaseOperator):
         self.sql = sql
         self.drill_conn_id = drill_conn_id
         self.parameters = parameters
-        self.hook = None
+        self.hook: Optional[DrillHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)

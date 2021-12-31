@@ -36,7 +36,7 @@ from airflow.kubernetes import kube_client
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, XCOM_RETURN_KEY, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.version import version as airflow_version
@@ -367,7 +367,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_volume_mount(self):
-        with mock.patch.object(PodLauncher, 'log') as mock_logger:
+        with mock.patch.object(PodManager, 'log') as mock_logger:
             volume_mount = k8s.V1VolumeMount(
                 name='test-volume', mount_path='/tmp/test_volume', sub_path=None, read_only=False
             )
@@ -573,8 +573,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_secrets(self, mock_client, await_pod_completion_mock, create_pod):
         # GIVEN
@@ -813,9 +813,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ]
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.extract_xcom")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_template_file(self, mock_client, await_pod_completion_mock, create_mock, extract_xcom_mock):
         extract_xcom_mock.return_value = '{}'
@@ -899,8 +899,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         del actual_pod['metadata']['labels']['airflow_version']
         assert expected_dict == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_priority_class_name(self, mock_client, await_pod_completion_mock, create_mock):
         """Test ability to assign priorityClassName to pod"""
@@ -943,7 +943,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 do_xcom_push=False,
             )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     def test_on_kill(self, await_pod_completion_mock):
 
         client = kube_client.get_kube_client(in_cluster=False)
@@ -994,7 +994,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
         # launch pod
         with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion"
+            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion"
         ) as await_pod_completion_mock:
             pod_mock = MagicMock()
 
@@ -1011,7 +1011,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         # should not call `create_pod`, because there's a pod there it should find
         # should use the found pod and patch as "already_checked" (in failure block)
         with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod"
+            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
         ) as create_mock:
             with pytest.raises(AirflowException):
                 k.execute(context)
@@ -1022,7 +1022,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
         with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod"
+            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
         ) as create_mock:
             with pytest.raises(AirflowException):
                 k.execute(context)

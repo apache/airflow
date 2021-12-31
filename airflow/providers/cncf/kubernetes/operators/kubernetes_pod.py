@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLaunchFailedException, PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
+from airflow.settings import pod_mutation_hook
 
 try:
     import airflow.utils.yaml as yaml
@@ -54,7 +55,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
-from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.utils.helpers import validate_key
 from airflow.version import version as airflow_version
 
@@ -148,8 +149,8 @@ class KubernetesPodOperator(BaseOperator):
     :param service_account_name: Name of the service account
     :type service_account_name: str
     :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted.
-        If False (default): do nothing, If True: delete the pod
+        state, or the execution is interrupted. If True (default), delete the
+        pod; if False, leave the pod.
     :type is_delete_operator_pod: bool
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
@@ -225,7 +226,7 @@ class KubernetesPodOperator(BaseOperator):
         node_selector: Optional[dict] = None,
         image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
         service_account_name: Optional[str] = None,
-        is_delete_operator_pod: bool = False,
+        is_delete_operator_pod: bool = True,
         hostnetwork: bool = False,
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         security_context: Optional[Dict] = None,
@@ -346,8 +347,8 @@ class KubernetesPodOperator(BaseOperator):
         return labels
 
     @cached_property
-    def launcher(self) -> pod_launcher.PodLauncher:
-        return pod_launcher.PodLauncher(kube_client=self.client)
+    def pod_manager(self) -> PodManager:
+        return PodManager(kube_client=self.client)
 
     @cached_property
     def client(self) -> CoreV1Api:
@@ -384,21 +385,21 @@ class KubernetesPodOperator(BaseOperator):
             if pod:
                 return pod
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
-        self.launcher.create_pod(pod=pod_request_obj)
+        self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
 
     def await_pod_start(self, pod):
         try:
-            self.launcher.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
+            self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
         except PodLaunchFailedException:
             if self.log_events_on_failure:
-                for event in self.launcher.read_pod_events(pod).items:
+                for event in self.pod_manager.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             raise
 
     def extract_xcom(self, pod):
         """Retrieves xcom value and kills xcom sidecar container"""
-        result = self.launcher.extract_xcom(pod)
+        result = self.pod_manager.extract_xcom(pod)
         self.log.info("xcom result: \n%s", result)
         return json.loads(result)
 
@@ -413,18 +414,18 @@ class KubernetesPodOperator(BaseOperator):
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
-                self.launcher.follow_container_logs(
+                self.pod_manager.follow_container_logs(
                     pod=self.pod,
                     container_name=self.BASE_CONTAINER_NAME,
                 )
             else:
-                self.launcher.await_container_completion(
+                self.pod_manager.await_container_completion(
                     pod=self.pod, container_name=self.BASE_CONTAINER_NAME
                 )
 
             if self.do_xcom_push:
                 result = self.extract_xcom(pod=self.pod)
-            remote_pod = self.launcher.await_pod_completion(self.pod)
+            remote_pod = self.pod_manager.await_pod_completion(self.pod)
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,
@@ -441,7 +442,7 @@ class KubernetesPodOperator(BaseOperator):
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
-                    for event in self.launcher.read_pod_events(pod).items:
+                    for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
             if not self.is_delete_operator_pod:
                 with _suppress(Exception):
@@ -456,7 +457,7 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod):
         if self.is_delete_operator_pod:
             self.log.info("Deleting pod: %s", pod.metadata.name)
-            self.launcher.delete_pod(pod)
+            self.pod_manager.delete_pod(pod)
         else:
             self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
@@ -574,7 +575,17 @@ class KubernetesPodOperator(BaseOperator):
                 'kubernetes_pod_operator': 'True',
             }
         )
+        pod_mutation_hook(pod)
         return pod
+
+    def dry_run(self) -> None:
+        """
+        Prints out the pod definition that would be created by this operator.
+        Does not include labels specific to the task instance (since there isn't
+        one in a dry_run) and excludes all empty elements.
+        """
+        pod = self.build_pod_request_obj()
+        print(yaml.dump(_prune_dict(pod.to_dict(), mode='strict')))
 
 
 class _suppress(AbstractContextManager):
@@ -600,3 +611,53 @@ class _suppress(AbstractContextManager):
             logger = logging.getLogger()
             logger.error(str(excinst), exc_info=True)
         return caught_error
+
+
+def _prune_dict(val: Any, mode='strict'):
+    """
+    Note: this is duplicated from ``airflow.utils.helpers.prune_dict``.  That one should
+    be the one used if possible, but this one is included to avoid having to
+    bump min airflow version.  This function will be removed once the min airflow version
+    is bumped to 2.3.
+
+    Given dict ``val``, returns new dict based on ``val`` with all
+    empty elements removed.
+
+    What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
+    then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
+    will be removed if ``bool(x) is False``.
+    """
+
+    def is_empty(x):
+        if mode == 'strict':
+            return x is None
+        elif mode == 'truthy':
+            return bool(x) is False
+        raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
+
+    if isinstance(val, dict):
+        new_dict = {}
+        for k, v in val.items():
+            if is_empty(v):
+                continue
+            elif isinstance(v, (list, dict)):
+                new_val = _prune_dict(v, mode=mode)
+                if new_val:
+                    new_dict[k] = new_val
+            else:
+                new_dict[k] = v
+        return new_dict
+    elif isinstance(val, list):
+        new_list = []
+        for v in val:
+            if is_empty(v):
+                continue
+            elif isinstance(v, (list, dict)):
+                new_val = _prune_dict(v, mode=mode)
+                if new_val:
+                    new_list.append(new_val)
+            else:
+                new_list.append(v)
+        return new_list
+    else:
+        return val

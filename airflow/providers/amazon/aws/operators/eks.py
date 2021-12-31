@@ -621,6 +621,12 @@ class EksPodOperator(KubernetesPodOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param is_delete_operator_pod: What to do when the pod reaches its final
+        state, or the execution is interrupted. If True, delete the
+        pod; if False, leave the pod.  Current default is False, but this will be
+        changed in the next major release of this provider.
+    :type is_delete_operator_pod: bool
+
     """
 
     template_fields: Sequence[str] = tuple(
@@ -647,6 +653,7 @@ class EksPodOperator(KubernetesPodOperator):
         pod_username: Optional[str] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
+        is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
         if pod_name is None:
@@ -658,6 +665,17 @@ class EksPodOperator(KubernetesPodOperator):
             )
             pod_name = DEFAULT_POD_NAME
 
+        if is_delete_operator_pod is None:
+            warnings.warn(
+                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
+                "Currently the default for this parameter is `False` but in a future release the default "
+                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
+                "set `is_delete_operator_pod=False` explicitly.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            is_delete_operator_pod = False
+
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster
         self.namespace = namespace
@@ -668,6 +686,7 @@ class EksPodOperator(KubernetesPodOperator):
             in_cluster=self.in_cluster,
             namespace=self.namespace,
             name=self.pod_name,
+            is_delete_operator_pod=is_delete_operator_pod,
             **kwargs,
         )
         if pod_username:

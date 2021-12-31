@@ -65,7 +65,7 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
-        self.hook = None
+        self.hook: Optional[PostgresHook] = None
 
     def execute(self, context: 'Context'):
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
