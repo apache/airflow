@@ -36,6 +36,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  =================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
 `746ee587d <https://github.com/apache/airflow/commit/746ee587da485acdc816129fe71df23e4f024e0b>`_  2021-12-31   ``Delete pods by default in KubernetesPodOperator (#20575)``
 `d56ff765e <https://github.com/apache/airflow/commit/d56ff765e15f9fcd582bc6d1ec0e83b0fedf476a>`_  2021-12-30   ``Implement dry_run for KubernetesPodOperator (#20573)``

@@ -41,6 +41,7 @@ Removed the ``OpsegnieAlertHook.execute`` method and replaced it with ``Opsegnie
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.0.1
 .....

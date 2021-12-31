@@ -30,8 +30,8 @@ Breaking changes
 * ``Move pod_mutation_hook call from PodManager to KubernetesPodOperator (#20596)``
 * ``Rename ''PodLauncher'' to ''PodManager'' (#20576)``
 
-.. warning:: Many methods in :class:`~.KubernetesPodOperator` and class:`~.PodLauncher` have been renamed.
-    If you have subclassed :class:`~.KubernetesPodOperator` will need to update your subclass to reflect
+.. warning:: Many methods in ``KubernetesPodOperator`` and ``PodLauncher`` have been renamed.
+    If you have subclassed ``KubernetesPodOperator`` will need to update your subclass to reflect
     the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
 
 Notes on changes KubernetesPodOperator and PodLauncher
@@ -49,33 +49,33 @@ One of the principal goals of the refactor is to clearly separate the "get or cr
 differently depending on whether the operator were to  "attach to an existing pod" (e.g. after a
 worker failure) or "create a new pod" and this resulted in some code duplication and a bit more
 nesting of logic.  With this refactor we encapsulate  the "get or create" step
-into method :meth:`~.KubernetesPodOperator.get_or_create_pod`, and pull the monitoring and XCom logic up
+into method ``KubernetesPodOperator.get_or_create_pod``, and pull the monitoring and XCom logic up
 into the top level of ``execute`` because it can be the same for "attached" pods and "new" pods.
 
-:meth:`~.KubernetesPodOperator.get_or_create_pod` tries first to find an existing pod using labels
-specific to the task instance (see :meth:`~.KubernetesPodOperator.find_pod`).
-If one does not exist it :meth:`creates a pod <~.PodManager.create_pod>`.
+The ``KubernetesPodOperator.get_or_create_pod`` tries first to find an existing pod using labels
+specific to the task instance (see ``KubernetesPodOperator.find_pod``).
+If one does not exist it ``creates a pod <~.PodManager.create_pod>``.
 
 The "waiting" part of execution has three components.  The first step is to wait for the pod to leave the
-``Pending`` phase (:meth:`~.KubernetesPodOperator.await_pod_start`). Next, if configured to do so,
-the operator will :meth:`follow the base container logs <~.KubernetesPodOperator.await_pod_start>`
-and forward these logs to the task logger until the ``base`` container is done. If not configured to harvest the
-logs, the operator will instead :meth:`poll for container completion until done <~.KubernetesPodOperator.await_container_completion>`;
+``Pending`` phase (``~.KubernetesPodOperator.await_pod_start``). Next, if configured to do so,
+the operator will follow the base container logs and forward these logs to the task logger until
+the ``base`` container is done. If not configured to harvest the
+logs, the operator will instead ``KubernetesPodOperator.await_container_completion``
 either way, we must await container completion before harvesting xcom. After (optionally) extracting the xcom
-value from the base container, we :meth:`await pod completion <~.PodManager.await_pod_completion>`.
+value from the base container, we ``await pod completion <~.PodManager.await_pod_completion>``.
 
 Previously, depending on whether the pod was "reattached to" (e.g. after a worker failure) or
 created anew, the waiting logic may have occurred in either ``handle_pod_overlap`` or ``create_new_pod_for_operator``.
 
 After the pod terminates, we execute different cleanup tasks depending on whether the pod terminated successfully.
 
-If the pod terminates *unsuccessfully*, we attempt to :meth:`log the pod events <~.PodLauncher.read_pod_events>`. If
-additionally the task is configured *not* to delete the pod after termination, :meth:`we apply a label <~.KubernetesPodOperator.patch_already_checked>`
+If the pod terminates *unsuccessfully*, we attempt to log the pod events ``PodLauncher.read_pod_events>``. If
+additionally the task is configured *not* to delete the pod after termination, we apply a label ``KubernetesPodOperator.patch_already_checked>``
 indicating that the pod failed and should not be "reattached to" in a retry.  If the task is configured
-to delete its pod, we :meth:`delete it <~.KubernetesPodOperator.process_pod_deletion>`.  Finally,
+to delete its pod, we delete it ``KubernetesPodOperator.process_pod_deletion>``.  Finally,
 we raise an AirflowException to fail the task instance.
 
-If the pod terminates successfully, we :meth:`delete the pod <~.KubernetesPodOperator.process_pod_deletion>`
+If the pod terminates successfully, we delete the pod ``KubernetesPodOperator.process_pod_deletion>``
 (if configured to delete the pod) and push XCom (if configured to push XCom).
 
 Details on method renames, refactors, and deletions
@@ -106,8 +106,12 @@ Other changes in ``pod_manager.py`` (formerly ``pod_launcher.py``):
 
 * Class ``pod_launcher.PodLauncher`` renamed to ``pod_manager.PodManager``
 * Enum-like class ``PodStatus`` is renamed ``PodPhase``, and the values are no longer lower-cased.
-* :func:`airflow.settings.pod_mutation_hook` is no longer called in :meth:`~cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async``. For ``KubernetesPodOperator``, mutation now occurs in ``build_pod_request_obj``.
-* Parameter ``is_delete_operator_pod`` default is changed to ``True`` so that pods are deleted after task completion and not left to accumulate. In practice it seems more common to disable pod deletion only on a temporary basis for debugging purposes and therefore pod deletion is the more sensible default.
+* The ``airflow.settings.pod_mutation_hook`` is no longer called in
+  ``cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async``. For ``KubernetesPodOperator``,
+  mutation now occurs in ``build_pod_request_obj``.
+* Parameter ``is_delete_operator_pod`` default is changed to ``True`` so that pods are deleted after task
+  completion and not left to accumulate. In practice it seems more common to disable pod deletion only on a
+  temporary basis for debugging purposes and therefore pod deletion is the more sensible default.
 
 Features
 ~~~~~~~~
@@ -127,6 +131,7 @@ Bug Fixes
      * ``Use typed Context EVERYWHERE (#20565)``
      * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
      * ``Even more typing in operators (template_fields/ext) (#20608)``
+     * ``Update documentation for provider December 2021 release (#20523)``
 
 2.2.0
 .....

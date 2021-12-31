@@ -39,6 +39,7 @@ Features
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
    * ``Fix mypy errors in Google Cloud provider (#20611)``
    * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 3.4.0
 .....

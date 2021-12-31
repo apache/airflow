@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2021-12-30
+Latest change: 2021-12-31
 
 ================================================================================================  ===========  =======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `a63753764 <https://github.com/apache/airflow/commit/a63753764bce26fd2d13c79fc60df7387b98d424>`_  2021-12-28   ``Rename 'OpsgenieAlertOperator' to 'OpsgenieCreateAlertOperator' (#20514)``

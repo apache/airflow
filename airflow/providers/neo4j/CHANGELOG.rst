@@ -36,6 +36,7 @@ Bug Fixes
    * ``Fix mypy neo4j and influxdb (#20189)``
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.0.2
 .....

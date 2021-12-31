@@ -76,6 +76,7 @@ Misc
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
    * ``Even more typing in operators (template_fields/ext) (#20608)``
    * ``Fix mypy errors in amazon aws transfer (#20590)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.5.0
 .....

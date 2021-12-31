@@ -36,6 +36,7 @@ Features
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
    * ``Fix mypy databricks operator (#20598)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.1.0
 .....

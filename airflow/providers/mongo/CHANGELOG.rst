@@ -33,9 +33,8 @@ Misc
    * ``Fix duplicate changelog entries (#19759)``
    * ``Update documentation for November 2021 provider's release (#19882)``
    * ``Use typed Context EVERYWHERE (#20565)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.2.0
 .....

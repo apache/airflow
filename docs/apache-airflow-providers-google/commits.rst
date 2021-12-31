@@ -43,6 +43,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  =====================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =====================================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `a22d5bd07 <https://github.com/apache/airflow/commit/a22d5bd07696d9cafe10a3e246ea9f3a381585ee>`_  2021-12-31   ``Fix mypy errors in Google Cloud provider (#20611)``
 `4233ebe5c <https://github.com/apache/airflow/commit/4233ebe5cea4862dbf16c9d7c72c4fdd11db9774>`_  2021-12-31   ``Fix setting of project ID in ''provide_authorized_gcloud'' (#20428)``
 `83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``

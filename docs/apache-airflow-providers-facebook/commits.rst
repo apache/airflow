@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.2.0
 .....
 
-Latest change: 2021-12-30
+Latest change: 2021-12-31
 
 ================================================================================================  ===========  =========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `6b70813fe <https://github.com/apache/airflow/commit/6b70813fe301223978b4e833fc55184971c26231>`_  2021-12-30   ``Fix mypy facebook ads hooks (#20589)``
 `2fb5e1d0e <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
 `1570519a9 <https://github.com/apache/airflow/commit/1570519a976dfb9de1aba9c2c0bee169e7ab5ee1>`_  2021-12-14   ``Fix MyPy errors for google.cloud.transfers (#20229)``

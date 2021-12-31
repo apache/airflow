@@ -35,6 +35,7 @@ Bug Fixes
    * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
    * ``Fix MyPy errors for google.cloud.transfers (#20229)``
    * ``Fix mypy facebook ads hooks (#20589)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.1.0
 .....

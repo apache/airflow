@@ -81,6 +81,7 @@ require newer versions of the providers (as specified in the dependencies)
    * ``Fix mypy errors in Google Cloud provider (#20611)``
    * ``Even more typing in operators (template_fields/ext) (#20608)``
    * ``Fix mypy errors in google/cloud/operators/stackdriver (#20601)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 6.2.0
 .....
