@@ -19,14 +19,12 @@ import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
 from random import random  # noqa
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 import dateutil  # noqa
+from pendulum import DateTime
 
 from airflow.macros import hive  # noqa
-
-if TYPE_CHECKING:
-    from pendulum import DateTime
 
 
 def ds_add(ds: str, days: int) -> str:
