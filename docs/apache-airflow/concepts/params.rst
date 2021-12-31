@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _concepts:params:
+
 Params
 ======
 
@@ -26,7 +28,8 @@ If the user-supplied values don't pass validation, Airflow shows a warning inste
 Adding Params to a DAG
 ----------------------
 
-To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``params`` kwarg with a dictionary that maps Param names to a either a class:`~airflow.models.param.Param` or an object indicating the parameter's default value.
+To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``params`` kwarg.
+Use a dictionary that maps Param names to a either a :class:`~airflow.models.param.Param` or an object indicating the parameter's default value.
 
 .. code-block::
 
@@ -42,7 +45,7 @@ To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``pa
 Referencing Params in a Task
 ----------------------------
 
-Params are stored as ``params`` in the :doc:`template context <../templates/templates-ref>`.
+Params are stored as ``params`` in the :ref:`template context <templates-ref>`.
 So you can reference them in a template.
 
 .. code-block::
