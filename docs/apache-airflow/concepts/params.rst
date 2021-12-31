@@ -18,115 +18,128 @@
 Params
 ======
 
-Params are Airflow's way to provide runtime configuration to tasks when a DAG gets triggered manually.
-To use them, initialize your DAG with a dictionary where the keys are strings with each param's name, and the values are ``Param`` objects.
+Params how Airflow provides runtime configuration to tasks.
+When you trigger a DAG manually, you can modify its Params before the dagrun starts.
+If the user-supplied values don't pass validation, Airflow shows a warning instead of creating the dagrun.
+(For scheduled runs, the default values are used.)
 
-``Param`` makes use of ``json-schema <https://json-schema.org/>``, so one can use the full json-schema specifications mentioned at https://json-schema.org/draft/2020-12/json-schema-validation.html to define the construct of a ``Param`` objects.
-Or, if you want a default value without any validation, you can use literals instead.
+Adding Params to a DAG
+----------------------
+
+To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``params`` kwarg with a dictionary that maps Param names to a either a class:`~airflow.models.param.Param` or an object indicating the parameter's default value.
 
 .. code-block::
-   :caption: a simple DAG with a parameter
-        from airflow import DAG
-        from airflow.models.param import Param
-        from airflow.operators.python_operator import PythonOperator
 
-        with DAG(
-            "params",
-            params={"x": Param(5, type="integer", minimum=3),
-                    "y": 6},
-        ) as the_dag:
+    from airflow import DAG
+    from airflow.models.param import Param
 
-            def print_x(**context):
-                print(context["params"]["x"])
+    with DAG(
+        "the_dag",
+        params={"x": Param(5, type="integer", minimum=3),
+                "y": 6},
+    ) as the_dag:
 
-            # prints 5, or whatever the user provided at trigger time
-            PythonOperator(
-                task_id="print_x",
-                python_callable=print_it,
-            )
+Referencing Params in a Task
+----------------------------
 
-Params can also be added to individual tasks.
+Params are stored as ``params`` in the :doc:`template context <../templates/templates-ref>`.
+So you can reference them in a template.
+
+.. code-block::
+
+    PythonOperator(
+        task_id="from_template",
+        op_args=[
+            "{{ params.int_param + 10 }}",
+        ],
+        python_callable=(
+            lambda x: print(x)
+        ),
+    )
+
+By default, Jinja templates create strings, even though Params can be of different types.
+If you're using non-string Params, you might be interested in the ``render_template_as_native_obj`` DAG kwarg.
+
+.. code-block::
+
+    with DAG(
+        "the_dag",
+        params={"x": Param(5, type="integer", minimum=3),
+                "y": 6},
+        render_template_as_native_obj=True
+    ) as the_dag:
+
+
+If ``True``, the true Param type will be provided to your tasks.
+
+.. code-block::
+
+    # prints <class 'str'> by default
+    # prints <class 'int'> if render_template_as_native_obj=True
+    PythonOperator(
+        task_id="template_type",
+        op_args=[
+            "{{ params.int_param + 10 }}",
+        ],
+        python_callable=(
+            lambda x: print(type(x))
+        ),
+    )
+
+Another way to access your param is via a task's ``context`` kwarg.
+
+.. code-block::
+
+    def print_x(**context):
+        x = context["params"]["x"]
+
+    PythonOperator(
+        task_id="print_x",
+        python_callable=print_it,
+    )
+
+Task-level Params
+-----------------
+
+You can also add Params to individual tasks.
+
+.. code-block::
+
+    PythonOperator(
+        task_id="print_x",
+        params={"x": 10},
+        python_callable=print_it,
+    )
+
 If there's already a dag param with that name, the task-level default will take precedence over the dag-level default.
+Although a user supplies their own value when the DAG was triggered, that is always used.
+
+JSON Schema Validation
+----------------------
+
+:class:`~airflow.modules.param.Param` makes use of ``json-schema <https://json-schema.org/>``, so you can use the full json-schema specifications mentioned at https://json-schema.org/draft/2020-12/json-schema-validation.html to define ``Param`` objects.
 
 .. code-block::
-   :caption: tasks can have parameters too
 
-            # prints 10, or whatever the user provided at trigger time
-            PythonOperator(
-                task_id="print_x",
-                params={"x": 10},
-                python_callable=print_it,
-            )
+    with DAG(
+        "my_dag",
+        params={
+            # a int with a default value
+            "int_param": Param(10, type="integer", minimum=0, maximum=20),
 
-When a user manually triggers a dag, they can change the parameters that are provided to the dagrun.
-This can be disabled by setting ``core.dag_run_conf_overrides_params = False``, which will prevent the user from changing the params.
-If the user-supplied values don't pass validation, Airflow will show the user a warning instead of creating the dagrun.
+            # a required param which can be of multiple types
+            "dummy": Param(type=["null", "number", "string"]),
 
-
-You can reference dag params via a templated task argument:
-
-.. code-block::
-   :caption: use a template
-        from airflow import DAG
-        from airflow.models.param import Param
-        from airflow.operators.python import PythonOperator
-
-        with DAG(
-            "my_dag",
-            params={
-                # a int with a default value
-                "int_param": Param(10, type="integer", minimum=0, maximum=20),
-
-                # a required param which can be of multiple types
-                "dummy": Param(type=["null", "number", "string"]),
-
-                # a param which uses json-schema formatting
-                "email": Param(
-                    default="example@example.com",
-                    type="string",
-                    format="idn-email",
-                    minLength=5,
-                    maxLength=255,
-                ),
-            },
-
-            # instead of getting strings from templates, get objects
-            render_template_as_native_obj=True,
-
-        ) as my_dag:
-
-            PythonOperator(
-                task_id="from_template",
-                op_args=[
-                    "{{ params.int_param + 10 }}",
-                ],
-                python_callable=(
-                    lambda x: print(type(x), x)
-                    # '<class 'str'> 20' by default
-                    # '<class 'int'> 20' if render_template_as_native_obj=True
-                ),
-            )
-
-By default, Jinja templates create strings.
-So if you have parameters that aren't strings, and you want to use templated task arguments, you might be interested in the ``render_template_as_native_obj`` DAG kwarg.
-It will allow you to preserve the type of the parameter, even if you manipulate it in a template.
-
-If templates aren't your style, you can access params in via the context.
-
-.. code-block::
-   :caption: use the context kwarg
-
-            # or you can reference them through the context
-            def from_context(**context):
-                int_param = context["params"]["int_param"]
-                print(type(int_param), int_param + 10)
-                # <class 'int'> 20
-
-            PythonOperator(
-                task_id="from_context",
-                python_callable=from_context,
-            )
-
+            # a param which uses json-schema formatting
+            "email": Param(
+                default="example@example.com",
+                type="string",
+                format="idn-email",
+                minLength=5,
+                maxLength=255,
+            ),
+        },
+    ) as my_dag:
 
 .. note::
     As of now, for security reasons, one can not use Param objects derived out of custom classes. We are
