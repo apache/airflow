@@ -285,7 +285,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        inspect_template: Optional[Union[dict, InspectTemplate]] = None,
+        inspect_template: Optional[InspectTemplate] = None,
         template_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

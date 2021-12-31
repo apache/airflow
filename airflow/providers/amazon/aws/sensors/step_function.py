@@ -50,7 +50,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     SUCCESS_STATES = ('SUCCEEDED',)
 
     template_fields: Sequence[str] = ('execution_arn',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(

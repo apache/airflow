@@ -66,7 +66,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     )
 
     template_fields_renderers = {"sql": "sql"}
-    template_ext = (".sql",)
+    template_ext: Sequence[str] = (".sql",)
 
     ui_color = "#a0e08c"
 

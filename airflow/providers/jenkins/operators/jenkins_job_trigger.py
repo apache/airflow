@@ -96,7 +96,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('parameters',)
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
     ui_color = '#f9ec86'
 
     def __init__(

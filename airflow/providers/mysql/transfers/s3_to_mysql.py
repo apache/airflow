@@ -52,7 +52,7 @@ class S3ToMySqlOperator(BaseOperator):
         's3_source_key',
         'mysql_table',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f4a460'
 
     def __init__(

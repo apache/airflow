@@ -92,13 +92,16 @@ class GoogleDriveToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.bucket_name = destination_bucket or bucket_name
         if destination_bucket:
             warnings.warn(
                 "`destination_bucket` is deprecated please use `bucket_name`",
                 DeprecationWarning,
                 stacklevel=2,
             )
+        actual_bucket = destination_bucket or bucket_name
+        if actual_bucket is None:
+            raise RuntimeError("One of the destination_bucket or bucket_name must be set")
+        self.bucket_name: str = actual_bucket
         self.object_name = destination_object or object_name
         if destination_object:
             warnings.warn(

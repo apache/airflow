@@ -132,6 +132,8 @@ class CloudTasksQueueCreateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.queue_name is None:
+                raise RuntimeError("The queue name should be set here!")
             queue = hook.get_queue(
                 location=self.location,
                 project_id=self.project_id,
@@ -210,7 +212,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         queue_name: Optional[str] = None,
-        update_mask: Optional[Union[Dict, FieldMask]] = None,
+        update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: MetaData = (),

@@ -53,7 +53,7 @@ class MySqlOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql', 'parameters')
     template_fields_renderers = {'sql': 'sql', 'parameters': 'json'}
-    template_ext = ('.sql', '.json')
+    template_ext: Sequence[str] = ('.sql', '.json')
     ui_color = '#ededed'
 
     def __init__(

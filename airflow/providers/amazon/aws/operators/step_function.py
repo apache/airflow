@@ -49,7 +49,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('state_machine_arn', 'name', 'input')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(
@@ -98,7 +98,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('execution_arn',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(

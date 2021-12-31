@@ -85,7 +85,7 @@ class BigQueryToGCSOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#e4e6f0'
 
     def __init__(

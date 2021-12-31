@@ -103,7 +103,7 @@ class S3ToHiveOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('s3_key', 'partition', 'hive_table')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#a0e08c'
 
     def __init__(

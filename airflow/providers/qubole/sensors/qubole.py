@@ -33,7 +33,7 @@ class QuboleSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ('data', 'qubole_conn_id')
 
-    template_ext = ('.txt',)
+    template_ext: Sequence[str] = ('.txt',)
 
     def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data

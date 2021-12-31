@@ -60,7 +60,7 @@ class EmrAddStepsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('job_flow_id', 'job_flow_name', 'cluster_states', 'steps')
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {"steps": "json"}
     ui_color = '#f9c915'
 
@@ -281,7 +281,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('job_flow_overrides',)
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
     operator_extra_links = (EmrClusterLink(),)
@@ -340,7 +340,7 @@ class EmrModifyClusterOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('cluster_id', 'step_concurrency_level')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(
@@ -384,7 +384,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('job_flow_id',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):

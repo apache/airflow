@@ -42,7 +42,7 @@ class DruidOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('json_index_file',)
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {'json_index_file': 'json'}
 
     def __init__(

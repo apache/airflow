@@ -72,7 +72,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         "body",
         "impersonation_chain",
     )
-    template_ext = (".json",)
+    template_ext: Sequence[str] = (".json",)
 
     def __init__(
         self,

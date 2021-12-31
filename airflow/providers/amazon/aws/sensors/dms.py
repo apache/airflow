@@ -45,7 +45,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(
         self,
@@ -103,7 +103,7 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)
-    template_ext = ()
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
