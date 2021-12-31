@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
@@ -67,7 +67,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -102,8 +102,8 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -174,7 +174,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -206,8 +206,8 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -264,7 +264,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -296,8 +296,8 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -354,7 +354,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -388,8 +388,8 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         *,
         alerts: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -443,7 +443,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -476,8 +476,8 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         *,
         name: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -550,7 +550,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -586,8 +586,8 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -658,7 +658,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -691,8 +691,8 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -750,7 +750,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -783,8 +783,8 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -843,7 +843,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -877,8 +877,8 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         *,
         channels: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -934,7 +934,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -967,8 +967,8 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         *,
         name: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,

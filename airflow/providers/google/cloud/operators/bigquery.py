@@ -25,7 +25,7 @@ import re
 import uuid
 import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
@@ -620,7 +620,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         sql: Union[str, Iterable],
         destination_dataset_table: Optional[str] = None,
         write_disposition: str = 'WRITE_EMPTY',
-        allow_large_results: Optional[bool] = False,
+        allow_large_results: bool = False,
         flatten_results: Optional[bool] = None,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
@@ -694,7 +694,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
         if isinstance(self.sql, str):
-            job_id = self.hook.run_query(
+            job_id: Union[str, List[str]] = self.hook.run_query(
                 sql=self.sql,
                 destination_dataset_table=self.destination_dataset_table,
                 write_disposition=self.write_disposition,
@@ -1211,10 +1211,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields_bytes_or_string = gcs_hook.download(self.bucket, self.schema_object)
-            if hasattr(schema_fields_bytes_or_string, 'decode'):
-                schema_fields_bytes_or_string = cast(bytes, schema_fields_bytes_or_string).decode("utf-8")
-            schema_fields = json.loads(schema_fields_bytes_or_string)
+            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
         else:
             schema_fields = self.schema_fields
 
@@ -2114,9 +2111,9 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         self,
         *,
         schema_fields_updates: List[Dict[str, Any]],
-        include_policy_tags: Optional[bool] = False,
-        dataset_id: Optional[str] = None,
-        table_id: Optional[str] = None,
+        dataset_id: str,
+        table_id: str,
+        include_policy_tags: bool = False,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,

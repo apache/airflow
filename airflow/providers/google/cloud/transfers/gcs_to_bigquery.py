@@ -341,12 +341,16 @@ class GCSToBigQueryOperator(BaseOperator):
             escaped_table_name = f'`{self.destination_project_dataset_table}`'
 
         if self.max_id_key:
-            cursor.execute(f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}')
+            select_command = f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}'
+            cursor.execute(select_command)
             row = cursor.fetchone()
-            max_id = row[0] if row[0] else 0
-            self.log.info(
-                'Loaded BQ data with max %s.%s=%s',
-                self.destination_project_dataset_table,
-                self.max_id_key,
-                max_id,
-            )
+            if row:
+                max_id = row[0] if row[0] else 0
+                self.log.info(
+                    'Loaded BQ data with max %s.%s=%s',
+                    self.destination_project_dataset_table,
+                    self.max_id_key,
+                    max_id,
+                )
+            else:
+                raise RuntimeError(f"The f{select_command} returned no rows!")

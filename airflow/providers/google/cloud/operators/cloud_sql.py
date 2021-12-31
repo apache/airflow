@@ -22,7 +22,7 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -1044,7 +1044,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.autocommit = autocommit
         self.parameters = parameters
-        self.gcp_connection = None
+        self.gcp_connection: Optional[Connection] = None
 
     def _execute_query(
         self, hook: CloudSQLDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]
