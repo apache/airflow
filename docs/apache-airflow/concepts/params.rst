@@ -60,7 +60,6 @@ So you can reference them in a template.
         ),
     )
 
-By default, Jinja templates create strings, even though Params can be of different types.
 If you're using non-string Params, you might be interested in the ``render_template_as_native_obj`` DAG kwarg.
 
 .. code-block::
@@ -73,7 +72,8 @@ If you're using non-string Params, you might be interested in the ``render_templ
     ) as the_dag:
 
 
-If ``True``, the true Param type will be provided to your tasks.
+Even though Params can use a variety of types, the default behavior of templates is to provide your task with a string.
+You can change this by setting``render_template_as_native_obj=True`` while initializing the :class:`~airflow.models.dag.DAG`.
 
 .. code-block::
 
@@ -147,3 +147,9 @@ JSON Schema Validation
 .. note::
     As of now, for security reasons, one can not use Param objects derived out of custom classes. We are
     planning to have a registration system for custom Param classes, just like we've for Operator ExtraLinks.
+
+Disabling Runtime Param Modification
+------------------------------------
+
+The ability to update params while triggering a DAG depends on the flag ``core.dag_run_conf_overrides_params``.
+Setting this config to ``False`` will effectively turn your default params into constants.
