@@ -456,22 +456,18 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                             process_line_callback=process_line_callback,
                         )
                     if dataflow_job_name and self.dataflow_config.location:
-                        if self.dataflow_config.multiple_jobs:
-                            self.dataflow_hook.wait_for_done(
-                                job_name=dataflow_job_name,
-                                location=self.dataflow_config.location,
-                                job_id=self.dataflow_job_id,
-                                multiple_jobs=self.dataflow_config.multiple_jobs,
-                                project_id=self.dataflow_config.project_id,
-                            )
-                        else:
-                            self.dataflow_hook.wait_for_done(
-                                job_name=dataflow_job_name,
-                                location=self.dataflow_config.location,
-                                job_id=self.dataflow_job_id,
-                                project_id=self.dataflow_config.project_id,
-                            )
-
+                        multiple_jobs = (
+                            self.dataflow_config.multiple_jobs
+                            if self.dataflow_config.multiple_jobs
+                            else False
+                        )
+                        self.dataflow_hook.wait_for_done(
+                            job_name=dataflow_job_name,
+                            location=self.dataflow_config.location,
+                            job_id=self.dataflow_job_id,
+                            multiple_jobs=multiple_jobs,
+                            project_id=self.dataflow_config.project_id,
+                        )
             else:
                 self.beam_hook.start_java_pipeline(
                     variables=pipeline_options,
