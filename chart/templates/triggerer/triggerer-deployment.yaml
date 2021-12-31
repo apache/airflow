@@ -95,7 +95,7 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
             - name: config
-              mountPath: { { template "airflow_config_path" . } }
+              mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
           args:
