@@ -2121,6 +2121,11 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         " adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
         "snowflake",
     ),
+    (
+        "You have an incompatible version of 'pyarrow' installed (6.0.1), please install a version that"
+        " adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
 }
