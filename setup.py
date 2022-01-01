@@ -589,6 +589,7 @@ devel_only = [
     'pytest-httpx',
     'requests_mock',
     'semver',
+    'twine',
     'wheel',
     'yamllint',
 ]
