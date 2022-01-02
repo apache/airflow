@@ -227,7 +227,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=5.2,>=5.2.1',
+    'celery~=5.2,>=5.2.3',
     'flower~=1.0.0',
 ]
 cgroups = [
