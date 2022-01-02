@@ -416,6 +416,9 @@ function initialization::initialize_image_build_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
+    SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
+    export SKIP_TWINE_CHECK
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.4"}

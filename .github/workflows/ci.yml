@@ -578,6 +578,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
+          SKIP_TWINE_CHECK: "true"
           PACKAGE_FORMAT: "wheel"
 
   prepare-test-provider-packages-sdist:
