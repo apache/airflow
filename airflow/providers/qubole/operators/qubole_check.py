@@ -168,7 +168,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
             QuboleOperator and SQLValueCheckOperator are template-supported.
     """
 
-    template_fields = set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields)
+    template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
