@@ -110,18 +110,6 @@ are updated, run it in non-interactive mode:
 ./breeze --non-interactive prepare-provider-documentation [packages]
 ```
 
-When you run the command and documentation generation is successful you will get a command that you can run to
-create GitHub issue where you will be tracking status of tests for the providers you release.
-
-You can also trigger automated execution of the issue by running:
-
-```shell script
-./breeze --non-interactive --generate-providers-issue prepare-provider-documentation [packages]
-```
-
-Once you release packages, you should create the issue with the content specified and link to it in
-the email sent to the devlist.
-
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
@@ -352,8 +340,18 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create GitHub issue with the content generated via prepare-provider-documentation or manual
-execution of the script above. You will use link to that issue in the next step.
+Create a GitHub issue with the content generated via manual
+execution of the script below. You will use link to that issue in the next step. You need a GITHUB_TOKEN
+set as your environment variable.
+
+You can also pass the token as `--github-token` option in the script.
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+```
+
+You can also generate the token by following
+[this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
 
 ## Prepare voting email for Providers release candidate
 

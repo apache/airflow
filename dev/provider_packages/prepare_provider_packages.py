@@ -87,18 +87,19 @@ Initial version of the provider.
 HTTPS_REMOTE = "apache-https-for-providers"
 HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
 
-MY_DIR_PATH = os.path.dirname(__file__)
-SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir))
-AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
-PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
-DOCUMENTATION_PATH = os.path.join(SOURCE_DIR_PATH, "docs")
-TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
-GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
-GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
+MY_DIR_PATH = Path(__file__).parent
+SOURCE_DIR_PATH = MY_DIR_PATH.parent.parent
+AIRFLOW_PATH = SOURCE_DIR_PATH / "airflow"
+DIST_PATH = SOURCE_DIR_PATH / "dist"
+PROVIDERS_PATH = AIRFLOW_PATH / "providers"
+DOCUMENTATION_PATH = SOURCE_DIR_PATH / "docs"
+TARGET_PROVIDER_PACKAGES_PATH = SOURCE_DIR_PATH / "provider_packages"
+GENERATED_AIRFLOW_PATH = TARGET_PROVIDER_PACKAGES_PATH / "airflow"
+GENERATED_PROVIDERS_PATH = GENERATED_AIRFLOW_PATH / "providers"
 
-PROVIDER_RUNTIME_DATA_SCHEMA_PATH = os.path.join(SOURCE_DIR_PATH, "airflow", "provider_info.schema.json")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = SOURCE_DIR_PATH / "airflow" / "provider_info.schema.json"
 
-sys.path.insert(0, SOURCE_DIR_PATH)
+sys.path.insert(0, str(SOURCE_DIR_PATH))
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
@@ -508,7 +509,7 @@ def find_all_entities(
     :param ancestor_match: type of the object the method looks for
     :param expected_class_name_pattern: regexp of class name pattern to expect
     :param unexpected_class_name_patterns: set of regexp of class name pattern that are not expected
-    :param exclude_class_type: exclude class of this type (Sensor are also Operators so
+    :param exclude_class_type: exclude class of this type (Sensor are also Operators, so
            they should be excluded from the list)
     :param false_positive_class_names: set of class names that are wrongly recognised as badly named
     """
@@ -554,7 +555,7 @@ def find_all_entities(
 
 def convert_classes_to_table(entity_type: EntityType, entities: List[str], full_package_name: str) -> str:
     """
-    Converts new entities tp a markdown table.
+    Converts new entities to a Markdown table.
 
     :param entity_type: entity type to convert to markup
     :param entities: list of  entities
@@ -575,7 +576,7 @@ def get_details_about_classes(
     full_package_name: str,
 ) -> EntityTypeSummary:
     """
-    Get details about entities..
+    Get details about entities.
 
     :param entity_type: type of entity (Operators, Hooks etc.)
     :param entities: set of entities found
@@ -620,7 +621,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
     """
-    Provides markdown link for the class passed as parameter.
+    Provides a Markdown link for the class passed as parameter.
 
     :param base_package: base package to strip from most names
     :param class_name: name of the class
@@ -735,7 +736,7 @@ def render_template(
     keep_trailing_newline: bool = False,
 ) -> str:
     """
-    Renders template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+    Renders template based on its name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
     :param template_name: name of the template to use
     :param context: Jinja2 context
     :param extension: Target file extension
@@ -794,7 +795,7 @@ def convert_git_changes_to_table(
     version: str, changes: str, base_url: str, markdown: bool = True
 ) -> Tuple[str, List[Change]]:
     """
-    Converts list of changes from it's string form to markdown/RST table and array of change information
+    Converts list of changes from its string form to markdown/RST table and array of change information
 
     The changes are in the form of multiple lines where each line consists of:
     FULL_COMMIT_HASH SHORT_COMMIT_HASH COMMIT_DATE COMMIT_SUBJECT
@@ -804,7 +805,7 @@ def convert_git_changes_to_table(
     :param version: Version from which the changes are
     :param changes: list of changes in a form of multiple-line string
     :param base_url: base url for the commit URL
-    :param markdown: if True, markdown format is used else rst
+    :param markdown: if True, Markdown format is used else rst
     :return: formatted table + list of changes (starting from the latest)
     """
     from tabulate import tabulate
@@ -842,9 +843,9 @@ def convert_git_changes_to_table(
 
 def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool = True) -> str:
     """
-    Converts PIP requirement list to a markdown table.
+    Converts PIP requirement list to a Markdown table.
     :param requirements: requirements list
-    :param markdown: if True, markdown format is used else rst
+    :param markdown: if True, Markdown format is used else rst
     :return: formatted table
     """
     from tabulate import tabulate
@@ -869,9 +870,9 @@ def convert_cross_package_dependencies_to_table(
     markdown: bool = True,
 ) -> str:
     """
-    Converts cross-package dependencies to a markdown table
+    Converts cross-package dependencies to a Markdown table
     :param cross_package_dependencies: list of cross-package dependencies
-    :param markdown: if True, markdown format is used else rst
+    :param markdown: if True, Markdown format is used else rst
     :return: formatted table
     """
     from tabulate import tabulate
@@ -1014,11 +1015,11 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     Make sure that apache remote exist in git. We need to take a log from the apache
     repository - not locally.
 
-    Also the local repo might be shallow so we need to unshallow it.
+    Also, the local repo might be shallow, so we need to un-shallow it.
 
     This will:
     * check if the remote exists and add if it does not
-    * check if the local repo is shallow, mark it to be unshallowed in this case
+    * check if the local repo is shallow, mark it to un-shallow in this case
     * fetch from the remote including all tags and overriding local tags in case they are set differently
 
     :param git_update: If the git remote already exists, should we try to update it
@@ -1068,7 +1069,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     if is_shallow_repo:
         if verbose:
             console.print(
-                "This will also unshallow the repository, "
+                "This will also un-shallow the repository, "
                 "making all history available and increasing storage!"
             )
         fetch_command.append("--unshallow")
@@ -1599,7 +1600,7 @@ def update_setup_files(
     version_suffix: str,
 ):
     """
-    Updates generated setup.cfg/setup.py/manifest.in/provider_info) for packages
+    Updates generated setup.cfg/setup.py/manifest.in/provider_info for packages
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
@@ -2215,7 +2216,7 @@ def verify_provider_classes():
         imported_classes, warns = import_all_classes(
             provider_ids=provider_ids,
             print_imports=True,
-            paths=[PROVIDERS_PATH],
+            paths=[str(PROVIDERS_PATH)],
             prefix="airflow.providers.",
         )
         total = 0
@@ -2455,12 +2456,43 @@ class ProviderPRInfo(NamedTuple):
     pr_list: List[PullRequestOrIssue]
 
 
+def is_package_in_dist(dist_files: List[str], package: str) -> bool:
+    """Check if package has been prepared in dist folder."""
+    for file in dist_files:
+        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
+            f'apache-airflow-providers-{package.replace(".","-")}'
+        ):
+            return True
+    return False
+
+
 @cli.command()
-@click.option('--github-token', envvar='GITHUB_TOKEN')
+@click.option(
+    '--github-token',
+    envvar='GITHUB_TOKEN',
+    help=textwrap.dedent(
+        """
+      Github token used to authenticate.
+      You can set omit it if you have GITHUB_TOKEN env variable set.
+      Can be generated with:
+      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
+    ),
+)
 @click.option('--suffix', default='rc1')
+@click.option(
+    '--only-available-in-dist',
+    is_flag=True,
+    help='Only consider package ids with packages prepared in the dist folder',
+)
 @click.option('--excluded-pr-list', type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @argument_package_ids
-def generate_issue_content(package_ids: List[str], github_token: str, suffix: str, excluded_pr_list: str):
+def generate_issue_content(
+    package_ids: List[str],
+    github_token: str,
+    suffix: str,
+    only_available_in_dist: bool,
+    excluded_pr_list: str,
+):
     if not package_ids:
         package_ids = get_all_providers()
     """Generates content for issue to test the release."""
@@ -2471,8 +2503,16 @@ def generate_issue_content(package_ids: List[str], github_token: str, suffix: st
             excluded_prs = []
         all_prs: Set[int] = set()
         provider_prs: Dict[str, List[int]] = {}
+        if only_available_in_dist:
+            files_in_dist = os.listdir(str(DIST_PATH))
+        prepared_package_ids = []
         for package_id in package_ids:
-            console.print(f"Extracting PRs for provider {package_id}")
+            if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
+                console.print(f"Extracting PRs for provider {package_id}")
+                prepared_package_ids.append(package_id)
+            else:
+                console.print(f"Skipping extracting PRs for provider {package_id} as it is missing in dist")
+                continue
             prs = get_prs_for_package(package_id)
             provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
             all_prs.update(provider_prs[package_id])
@@ -2498,7 +2538,7 @@ def generate_issue_content(package_ids: List[str], github_token: str, suffix: st
                 progress.advance(task)
         interesting_providers: Dict[str, ProviderPRInfo] = {}
         non_interesting_providers: Dict[str, ProviderPRInfo] = {}
-        for package_id in package_ids:
+        for package_id in prepared_package_ids:
             pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
             provider_details = get_provider_details(package_id)
             if pull_request_list:
