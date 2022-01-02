@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-02T13:46:23Z
+# This constraints file was automatically generated on 2022-01-02T15:33:53Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -414,7 +414,7 @@ sphinx-airflow-theme==0.0.6
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
 sphinx-copybutton==0.4.0
-sphinx-jinja==1.2.1
+sphinx-jinja==1.3.0
 sphinx-rtd-theme==1.0.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
