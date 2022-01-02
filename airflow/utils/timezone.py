@@ -17,7 +17,7 @@
 # under the License.
 #
 import datetime as dt
-from typing import TYPE_CHECKING, Optional, Union, overload
+from typing import Optional, Union, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
@@ -27,9 +27,6 @@ from airflow.settings import TIMEZONE
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.tz.timezone('UTC')
-
-if TYPE_CHECKING:
-    pass
 
 
 def is_localized(value):
@@ -103,6 +100,11 @@ def convert_to_utc(value):
 
 @overload
 def make_aware(value: None, timezone: Optional[dt.tzinfo] = None) -> None:
+    ...
+
+
+@overload
+def make_aware(value: DateTime, timezone: Optional[dt.tzinfo] = None) -> DateTime:
     ...
 
 
@@ -199,11 +201,16 @@ def coerce_datetime(v: None) -> None:
 
 
 @overload
-def coerce_datetime(v: dt.datetime) -> dt.datetime:
+def coerce_datetime(v: DateTime) -> DateTime:
     ...
 
 
-def coerce_datetime(v: Optional[dt.datetime]) -> Optional[dt.datetime]:
+@overload
+def coerce_datetime(v: dt.datetime) -> DateTime:
+    ...
+
+
+def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
     """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
