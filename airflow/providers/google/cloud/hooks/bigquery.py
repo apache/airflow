@@ -164,6 +164,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         return "bigquery://"
 
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        connection = self.get_connection(self.gcp_conn_id)
+        credentials_path = json.loads(connection.extra).get("extra__google_cloud_platform__key_path")
+        if credentials_path is None:
+            raise AirflowException("For now, we only support instantiating SQLAlchemy engine by using extra__google_cloud_platform__key_path")
+        return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
+
     @staticmethod
     def _resolve_table_reference(
         table_resource: Dict[str, Any],
