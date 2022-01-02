@@ -68,7 +68,6 @@ FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE
-
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8

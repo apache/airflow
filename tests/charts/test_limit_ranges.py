@@ -14,20 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  airflow:
-    stdin_open: true  # docker run -i
-    tty: true  # docker run -t
-    # We need to mount files and directories individually because some files
-    # such apache_airflow.egg-info should not be mounted from host
-    # we only mount those files, so that it makes sense to edit while developing
-    # or those that might be useful to see in the host as output of the
-    # tests (such as logs)
-    volumes:
-      - ../../../.bash_aliases:/root/.bash_aliases:cached
-      - ../../../.bash_history:/root/.bash_history:cached
-      - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../tmp:/tmp:cached
-      - ../../../:/opt/airflow:cached
+
+import unittest
+
+import jmespath
+
+from tests.charts.helm_template_generator import render_chart
+
+
+class LimitRangesTest(unittest.TestCase):
+    def test_limit_ranges_template(self):
+        docs = render_chart(
+            values={"limits": [{"max": {"cpu": "500m"}, "min": {"min": "200m"}, "type": "Container"}]},
+            show_only=["templates/limitrange.yaml"],
+        )
+        assert "LimitRange" == jmespath.search("kind", docs[0])
+        assert "500m" == jmespath.search("spec.limits[0].max.cpu", docs[0])
+
+    def test_limit_ranges_are_not_added_by_default(self):
+        docs = render_chart(show_only=["templates/limitrange.yaml"])
+        assert docs == []

@@ -14,20 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  airflow:
-    stdin_open: true  # docker run -i
-    tty: true  # docker run -t
-    # We need to mount files and directories individually because some files
-    # such apache_airflow.egg-info should not be mounted from host
-    # we only mount those files, so that it makes sense to edit while developing
-    # or those that might be useful to see in the host as output of the
-    # tests (such as logs)
-    volumes:
-      - ../../../.bash_aliases:/root/.bash_aliases:cached
-      - ../../../.bash_history:/root/.bash_history:cached
-      - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../tmp:/tmp:cached
-      - ../../../:/opt/airflow:cached
+import json
+import unittest
+from pathlib import Path
+
+import yaml
+from jsonschema import validate
+
+CHART_DIR = Path(__file__).parent / ".." / ".." / "chart"
+
+
+class ChartQualityTest(unittest.TestCase):
+    def test_values_validate_schema(self):
+        values = yaml.safe_load((CHART_DIR / "values.yaml").read_text())
+        schema = json.loads((CHART_DIR / "values.schema.json").read_text())
+
+        # Add extra restrictions just for the tests to make sure
+        # we don't forget to update the schema if we add a new property
+        schema["additionalProperties"] = False
+        schema["minProperties"] = len(schema["properties"].keys())
+
+        # shouldn't raise
+        validate(instance=values, schema=schema)

@@ -598,7 +598,7 @@ function build_images::build_prod_images() {
             "--cache-from=${AIRFLOW_PROD_IMAGE}:cache"
         )
     else
-        echo
+        echod
         echo  "${COLOR_RED}ERROR: The ${DOCKER_CACHE} cache is unknown  ${COLOR_RESET}"
         echo
         echo

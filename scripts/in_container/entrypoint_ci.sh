@@ -157,24 +157,26 @@ mkdir -p /usr/lib/google-cloud-sdk/bin
 touch /usr/lib/google-cloud-sdk/bin/gcloud
 ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
 
-# Set up ssh keys
-echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
-    >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
+if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
+    # Set up ssh keys
+    echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
+        >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-chmod 600 ~/.ssh/*
+    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+    ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
+    chmod 600 ~/.ssh/*
 
-# SSH Service
-sudo service ssh restart >/dev/null 2>&1
+    # SSH Service
+    sudo service ssh restart >/dev/null 2>&1
 
-# Sometimes the server is not quick enough to load the keys!
-while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
-    echo "Not all keys yet loaded by the server"
-    sleep 0.05
-done
+    # Sometimes the server is not quick enough to load the keys!
+    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        echo "Not all keys yet loaded by the server"
+        sleep 0.05
+    done
 
-ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+fi
 
 # shellcheck source=scripts/in_container/configure_environment.sh
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
@@ -283,11 +285,12 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("chart/tests")
+    HELM_CHART_TESTS=("tests/charts")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
+        "${HELM_CHART_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
