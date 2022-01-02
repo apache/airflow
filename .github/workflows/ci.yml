@@ -1225,8 +1225,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
-    # Only run it for direct pushes and scheduled builds
-    if: github.event_name == 'push' || github.event_name == 'schedule'
+    if: needs.build-info.outputs.upgradeToNewerDependencies != 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1263,20 +1262,26 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
-      # only actually push it when we are in apache/airflow repository
+      # only actually checkout and push it when we are in apache/airflow repository
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v2
-        if: github.repository == 'apache/airflow'
+        if: >
+          github.repository == 'apache/airflow' &&
+          (github.event_name == 'push' || github.event_name == 'schedule')
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: false
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
-        if: github.repository == 'apache/airflow'
+        if: >
+          github.repository == 'apache/airflow' &&
+          (github.event_name == 'push' || github.event_name == 'schedule')
       - name: "Push changes"
         uses: ./.github/actions/github-push-action
-        if: github.repository == 'apache/airflow'
+        if: >
+          github.repository == 'apache/airflow' &&
+          (github.event_name == 'push' || github.event_name == 'schedule')
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
