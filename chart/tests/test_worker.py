@@ -200,10 +200,10 @@ class WorkerTest(unittest.TestCase):
             docs[0],
         )
 
-    def test_should_create_valid_affinity_tolerations_and_node_selector_override(self):
+    def test_affinity_tolerations_and_node_selector_precedence(self):
+        """When given both global and worker affinity etc, worker affinity etc is used"""
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "workers": {
                     "affinity": {
                         "nodeAffinity": {
@@ -221,7 +221,7 @@ class WorkerTest(unittest.TestCase):
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
-                    "nodeSelector": {"diskType": "ssd"},
+                    "nodeSelector": {"type": "ssd"},
                 },
                 "affinity": {
                     "nodeAffinity": {
@@ -229,7 +229,7 @@ class WorkerTest(unittest.TestCase):
                             "nodeSelectorTerms": [
                                 {
                                     "matchExpressions": [
-                                        {"key": "bar", "operator": "In", "values": ["true"]},
+                                        {"key": "not-me", "operator": "In", "values": ["true"]},
                                     ]
                                 }
                             ]
@@ -237,15 +237,14 @@ class WorkerTest(unittest.TestCase):
                     }
                 },
                 "tolerations": [
-                    {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                 ],
-                "nodeSelector": {"type": "user-node"},
+                "nodeSelector": {"type": "not-me"},
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "StatefulSet" == jmespath.search("kind", docs[0])
-        assert "bar" == jmespath.search(
+        assert "foo" == jmespath.search(
             "spec.template.spec.affinity.nodeAffinity."
             "requiredDuringSchedulingIgnoredDuringExecution."
             "nodeSelectorTerms[0]."
@@ -253,11 +252,11 @@ class WorkerTest(unittest.TestCase):
             "key",
             docs[0],
         )
-        assert "user-node" == jmespath.search(
+        assert "ssd" == jmespath.search(
             "spec.template.spec.nodeSelector.type",
             docs[0],
         )
-        assert "static-pods" == jmespath.search(
+        assert "dynamic-pods" == jmespath.search(
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )

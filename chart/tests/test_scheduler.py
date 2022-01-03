@@ -145,6 +145,67 @@ class SchedulerTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_affinity_tolerations_and_node_selector_precedence(self):
+        """When given both global and scheduler affinity etc, scheduler affinity etc is used"""
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"type": "ssd"},
+                },
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "tolerations": [
+                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "not-me"},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "foo" == jmespath.search(
+            "spec.template.spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.type",
+            docs[0],
+        )
+        assert "dynamic-pods" == jmespath.search(
+            "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
+
     def test_should_create_default_affinity(self):
         docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
 

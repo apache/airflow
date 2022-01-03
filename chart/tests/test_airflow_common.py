@@ -93,6 +93,59 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
+    def test_global_affinity_tolerations_and_node_selector(self):
+        """
+        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        """
+        k8s_objects = render_chart(
+            values={
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "tolerations": [
+                    {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "user-node"},
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/flower/flower-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+
+        assert 5 == len(k8s_objects)
+
+        for k8s_object in k8s_objects:
+            assert "foo" == jmespath.search(
+                "spec.template.spec.affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                k8s_object,
+            )
+            assert "user-node" == jmespath.search(
+                "spec.template.spec.nodeSelector.type",
+                k8s_object,
+            )
+            assert "static-pods" == jmespath.search(
+                "spec.template.spec.tolerations[0].key",
+                k8s_object,
+            )
+
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
         [
