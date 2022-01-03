@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-03T04:25:24Z
+# This constraints file was automatically generated on 2022-01-03T15:33:27Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -370,7 +370,7 @@ python-jose==3.3.0
 python-ldap==3.4.0
 python-nvd3==0.15.0
 python-slugify==4.0.1
-python-telegram-bot==13.9
+python-telegram-bot==13.10
 python3-openid==3.2.0
 pytz-deprecation-shim==0.1.0.post0
 pytz==2021.3
@@ -414,7 +414,7 @@ sphinx-airflow-theme==0.0.6
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
 sphinx-copybutton==0.4.0
-sphinx-jinja==1.3.0
+sphinx-jinja==1.4.0
 sphinx-rtd-theme==1.0.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
@@ -493,7 +493,7 @@ websocket-client==1.2.3
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.124.0
+yandexcloud==0.125.0
 yarl==1.7.2
 zdesk==2.7.1
 zict==2.0.0
