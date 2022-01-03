@@ -129,7 +129,7 @@ hence Webserver does not need access to DAG files, so ``git-sync`` sidecar is no
 Mounting DAGs from an externally populated PVC
 ----------------------------------------------
 
-In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required DAGs. (this won't be handled by the chart) You can pass in the name of the volume claim to the chart.
+In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required DAGs (this won't be handled by the chart). You pass in the name of the volume claim to the chart:
 
 .. code-block:: bash
 
