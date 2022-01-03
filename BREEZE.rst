@@ -1146,10 +1146,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
     shell                                    [Default] Enters interactive shell in the container
     build-docs                               Builds documentation in the container
     build-image                              Builds CI or Production docker image
+    prepare-build-cache                      Prepares CI or Production build cache
     cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
     generate-constraints                     Generates pinned constraint files
-    push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
     prepare-airflow-packages                 Prepares airflow packages
     setup-autocomplete                       Sets up autocomplete for breeze
@@ -1254,10 +1254,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
            '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
 
         Choosing whether to force pull images or force build the image:
-            '--force-build-image', '--force-pull-image'
-
-        Checking if the base python image has been updated:
-            '--check-if-base-python-image-updated'
+            '--force-build-image'
 
         You can also pass '--production-image' flag to build production image rather than CI image.
 
@@ -1299,17 +1296,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces building of the local docker images. The images are rebuilt
           automatically for the first time or when changes are detected in
           package-related files, but you can force it using this flag.
-
-  -P, --force-pull-images
-          Forces pulling of images from GitHub Container Registry before building to populate cache.
-          The images are pulled by default only for the first time you run the
-          environment, later the locally build images are used as cache.
-
-  --check-if-base-python-image-updated
-          Checks if Python base image from DockerHub has been updated vs the current python base
-          image we store in GitHub Container Registry. Python images are updated regularly with
-          security fixes, this switch will check if a new one has been released and will pull and
-          prepare a new base python based on the latest one.
 
   --cleanup-docker-context-files
           Removes whl and tar.gz files created in docker-context-files before running the command.
@@ -1458,6 +1444,74 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
+  Detailed usage for command: prepare-build-cache
+
+
+  breeze prepare-build-cache [FLAGS]
+
+        Prepares build cache (CI or production) without entering the container. You can pass
+        additional options to this command, such as:
+
+        Choosing python version:
+          '--python'
+
+        You can also pass '--production-image' flag to build production image rather than CI image.
+
+        For GitHub repository, the '--github-repository' can be used to choose repository
+        to pull/push images. Cleanup docker context files and pull cache are forced. This command
+        requires buildx to be installed.
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9
+
+  -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
+          Uses different version of Airflow when building PROD image.
+
+                 2.0.2 2.0.1 2.0.0 wheel sdist
+
+  -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
+          Installs Airflow directly from reference in GitHub when building PROD image.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
+
+  --installation-method INSTALLATION_METHOD
+          Method of installing Airflow in PROD image - either from the sources ('.')
+          or from package 'apache-airflow' to install from PyPI.
+          Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  -I, --production-image
+          Use production image for entering the environment and builds (not for tests).
+
+  -g, --github-repository GITHUB_REPOSITORY
+          GitHub repository used to pull, push images.
+          Default: apache/airflow.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
   Detailed usage for command: cleanup-image
 
 
@@ -1542,61 +1596,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  3.7 3.8 3.9
-
-  -v, --verbose
-          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
-          debugging - when you run breeze with --verbose flags you will be able to see the commands
-          executed under the hood and copy&paste them to your terminal to debug them more easily.
-
-          Note that you can further increase verbosity and see all the commands executed by breeze
-          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
-
-  --dry-run-docker
-          Only show docker commands to execute instead of actually executing them. The docker
-          commands are printed in yellow color.
-
-
-  ####################################################################################################
-
-
-  Detailed usage for command: push-image
-
-
-  breeze push_image [FLAGS]
-
-        Pushes images to GitHub registry.
-
-        You can add --github-repository to push to a different repository/organisation.
-        You can add --github-image-id <COMMIT_SHA> in case you want to push image with specific
-        SHA tag.
-        You can also add --production-image flag to switch to production image (default is CI one)
-
-        Examples:
-
-        'breeze push-image' or
-        'breeze push-image --production-image' - to push production image or
-        'breeze push-image \
-              --github-repository user/airflow' - to push to your user's fork
-        'breeze push-image \
-              --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - to push with COMMIT_SHA
-
-  Flags:
-
-  -g, --github-repository GITHUB_REPOSITORY
-          GitHub repository used to pull, push images.
-          Default: apache/airflow.
-
-
-
-
-  -s, --github-image-id COMMIT_SHA
-          <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
-          to be able to easily find the image for particular CI runs. Once you know the
-          <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
-          automatically pull and use that image so that you can easily reproduce a problem
-          that occurred in CI.
-
-          Default: latest.
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1902,17 +1901,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces building of the local docker images. The images are rebuilt
           automatically for the first time or when changes are detected in
           package-related files, but you can force it using this flag.
-
-  -P, --force-pull-images
-          Forces pulling of images from GitHub Container Registry before building to populate cache.
-          The images are pulled by default only for the first time you run the
-          environment, later the locally build images are used as cache.
-
-  --check-if-base-python-image-updated
-          Checks if Python base image from DockerHub has been updated vs the current python base
-          image we store in GitHub Container Registry. Python images are updated regularly with
-          security fixes, this switch will check if a new one has been released and will pull and
-          prepare a new base python based on the latest one.
 
   --cleanup-docker-context-files
           Removes whl and tar.gz files created in docker-context-files before running the command.
@@ -2497,17 +2485,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces building of the local docker images. The images are rebuilt
           automatically for the first time or when changes are detected in
           package-related files, but you can force it using this flag.
-
-  -P, --force-pull-images
-          Forces pulling of images from GitHub Container Registry before building to populate cache.
-          The images are pulled by default only for the first time you run the
-          environment, later the locally build images are used as cache.
-
-  --check-if-base-python-image-updated
-          Checks if Python base image from DockerHub has been updated vs the current python base
-          image we store in GitHub Container Registry. Python images are updated regularly with
-          security fixes, this switch will check if a new one has been released and will pull and
-          prepare a new base python based on the latest one.
 
   --cleanup-docker-context-files
           Removes whl and tar.gz files created in docker-context-files before running the command.
