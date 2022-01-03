@@ -289,7 +289,7 @@ flask_appbuilder_authlib = [
     'authlib',
 ]
 github = [
-    'PyGithub>=1.55',
+    'pygithub',
 ]
 google = [
     'PyOpenSSL',
