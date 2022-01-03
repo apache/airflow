@@ -33,9 +33,10 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.models import SlaMiss, errors
+from airflow.models import errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.slamiss import SlaMiss
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import (
@@ -149,8 +150,8 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         try:
             # redirect stdout/stderr to log
-            with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                StreamLogWriter(log, logging.WARN)
+            with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(  # type: ignore
+                StreamLogWriter(log, logging.WARN)  # type: ignore
             ), Stats.timer() as timer:
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
@@ -574,7 +575,7 @@ class DagFileProcessor(LoggingMixin):
                 if isinstance(request, TaskCallbackRequest):
                     self._execute_task_callbacks(dagbag, request)
                 elif isinstance(request, SlaCallbackRequest):
-                    self.manage_slas(dagbag.dags.get(request.dag_id))
+                    self.manage_slas(dagbag.dags[request.dag_id])
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
             except Exception:

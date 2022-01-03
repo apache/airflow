@@ -1564,7 +1564,7 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             self.log.exception("Failed when executing execute callback")
 
-    def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
+    def _run_finished_callback(self, error: Optional[Union[str, BaseException]] = None) -> None:
         """
         Call callback defined for finished state change.
 
@@ -1764,7 +1764,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure_with_callback(
         self,
-        error: Union[str, Exception],
+        error: Optional[Union[str, BaseException]] = None,
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         session=NEW_SESSION,
