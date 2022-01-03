@@ -41,6 +41,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagBag, DagModel, Pool, TaskInstance
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -3494,6 +3495,12 @@ class TestSchedulerJob:
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
+
+    @pytest.fixture(autouse=True, scope='function')
+    def clean_listener(self):
+        get_listener_manager().clear()
+        yield
+        get_listener_manager().clear()
 
 
 @pytest.mark.xfail(reason="Work out where this goes")

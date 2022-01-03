@@ -61,6 +61,12 @@ class AirflowTestOnLoadExceptionPlugin(AirflowPlugin):
 """
 
 
+@pytest.fixture(autouse=True, scope='module')
+def clean_plugins():
+    yield
+    get_listener_manager().clear()
+
+
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
@@ -360,6 +366,11 @@ class TestPluginsManager:
 
             assert get_listener_manager().has_listeners()
             assert get_listener_manager().pm.get_plugins().pop().__class__.__name__ == "PluginListener"
+
+    @pytest.fixture(autouse=True)
+    def clear_listeners(self):
+        yield
+        get_listener_manager().clear()
 
 
 class TestPluginsDirectorySource:

@@ -15,12 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-
 import pluggy
 import pytest as pytest
-
-os.environ["AIRFLOW__CORE__EXECUTE_LISTENERS_ON_SCHEDULER"] = "True"
 
 from airflow import AirflowException
 from airflow.listeners.events import register_task_instance_state_events
