@@ -27,7 +27,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.microsoft.psrp.operators.psrp import PSRPOperator
+from airflow.providers.microsoft.psrp.operators.psrp import PsrpOperator
 from airflow.settings import json
 
 CONNECTION_ID = "conn_id"
@@ -39,14 +39,14 @@ class ExecuteParameter(NamedTuple):
     expected_parameters: Optional[Dict[str, Any]]
 
 
-class TestPSRPOperator(TestCase):
+class TestPsrpOperator(TestCase):
     def test_no_command_or_powershell(self):
         exception_msg = "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
         with pytest.raises(ValueError, match=exception_msg):
-            PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID)
+            PsrpOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID)
 
     def test_cmdlet_task_id_default(self):
-        operator = PSRPOperator(cmdlet='Invoke-Foo', psrp_conn_id=CONNECTION_ID)
+        operator = PsrpOperator(cmdlet='Invoke-Foo', psrp_conn_id=CONNECTION_ID)
         assert operator.task_id == 'Invoke-Foo'
 
     @parameterized.expand(
@@ -63,12 +63,12 @@ class TestPSRPOperator(TestCase):
             )
         )
     )
-    @patch(f"{PSRPOperator.__module__}.PSRPHook")
+    @patch(f"{PsrpOperator.__module__}.PsrpHook")
     def test_execute(self, parameter, had_errors, hook):
         kwargs = {parameter.name: "foo"}
         if parameter[2]:
             kwargs["parameters"] = parameter.expected_parameters
-        op = PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID, **kwargs)
+        op = PsrpOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID, **kwargs)
         hook = hook.return_value.__enter__.return_value
         ps = hook.invoke().__enter__.return_value
         ps.output = [json.dumps("<output>")]
@@ -88,14 +88,14 @@ class TestPSRPOperator(TestCase):
             ]
 
     def test_securestring_sandboxed(self):
-        op = PSRPOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
+        op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
         template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
         with pytest.raises(AirflowException):
             template.render()
 
     @patch.object(BaseOperator, "get_template_env")
     def test_securestring_native(self, get_template_env):
-        op = PSRPOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
+        op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
         get_template_env.return_value = NativeEnvironment()
         template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
         rendered = template.render()

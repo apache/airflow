@@ -37,7 +37,7 @@ INFORMATIONAL_RECORD_LEVEL_MAP = {
 }
 
 
-class PSRPHook(BaseHook):
+class PsrpHook(BaseHook):
     """
     Hook for PowerShell Remoting Protocol execution.
 

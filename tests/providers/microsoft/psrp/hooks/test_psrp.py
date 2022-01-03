@@ -28,7 +28,7 @@ from pytest import raises
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
+from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 
 CONNECTION_ID = "conn_id"
 DUMMY_STACKTRACE = [
@@ -103,7 +103,7 @@ def mock_powershell_factory():
 
 
 @patch(
-    f"{PSRPHook.__module__}.{PSRPHook.__name__}.get_connection",
+    f"{PsrpHook.__module__}.{PsrpHook.__name__}.get_connection",
     new=lambda _, conn_id: Connection(
         conn_id=conn_id,
         login='username',
@@ -111,16 +111,16 @@ def mock_powershell_factory():
         host='remote_host',
     ),
 )
-@patch(f"{PSRPHook.__module__}.WSMan")
-@patch(f"{PSRPHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
-@patch(f"{PSRPHook.__module__}.RunspacePool")
-class TestPSRPHook(TestCase):
+@patch(f"{PsrpHook.__module__}.WSMan")
+@patch(f"{PsrpHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
+@patch(f"{PsrpHook.__module__}.RunspacePool")
+class TestPsrpHook(TestCase):
     def test_get_conn(self, runspace_pool, powershell, ws_man):
-        hook = PSRPHook(CONNECTION_ID)
+        hook = PsrpHook(CONNECTION_ID)
         assert hook.get_conn() is runspace_pool.return_value
 
     def test_get_conn_unexpected_extra(self, runspace_pool, powershell, ws_man):
-        hook = PSRPHook(CONNECTION_ID)
+        hook = PsrpHook(CONNECTION_ID)
         conn = hook.get_connection(CONNECTION_ID)
 
         def get_connection(*args):
@@ -140,7 +140,7 @@ class TestPSRPHook(TestCase):
             method = getattr(call, method_name)
             assert not (logging ^ (method(*args) in logger.method_calls))
 
-        with PSRPHook(
+        with PsrpHook(
             CONNECTION_ID, logging=logging, runspace_options=runspace_options, wsman_options=wsman_options
         ) as hook, patch.object(type(hook), "log") as logger:
             try:
@@ -176,17 +176,17 @@ class TestPSRPHook(TestCase):
         assert runspace_pool.call_args == call(ws_man.return_value, connection_name='foo')
 
     def test_invoke_cmdlet(self, *mocks):
-        with PSRPHook(CONNECTION_ID, logging=False) as hook:
+        with PsrpHook(CONNECTION_ID, logging=False) as hook:
             ps = hook.invoke_cmdlet('foo', bar="1", baz="2")
             assert [call('foo', use_local_scope=None)] == ps.add_cmdlet.mock_calls
             assert [call({'bar': '1', 'baz': '2'})] == ps.add_parameters.mock_calls
 
     def test_invoke_powershell(self, *mocks):
-        with PSRPHook(CONNECTION_ID, logging=False) as hook:
+        with PsrpHook(CONNECTION_ID, logging=False) as hook:
             ps = hook.invoke_powershell('foo')
             assert call('foo') in ps.add_script.mock_calls
 
     def test_invoke_local_context(self, *mocks):
-        hook = PSRPHook(CONNECTION_ID, logging=False)
+        hook = PsrpHook(CONNECTION_ID, logging=False)
         ps = hook.invoke_powershell('foo')
         assert call('foo') in ps.add_script.mock_calls

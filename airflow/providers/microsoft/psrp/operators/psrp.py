@@ -23,7 +23,7 @@ from pypsrp.serializer import TaggedValue
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
+from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
 from airflow.utils.helpers import exactly_one
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class PSRPOperator(BaseOperator):
+class PsrpOperator(BaseOperator):
     """PowerShell Remoting Protocol operator.
 
     Use one of the 'command', 'cmdlet', or 'powershell' arguments.
@@ -102,7 +102,7 @@ class PSRPOperator(BaseOperator):
         self.wsman_options = wsman_options
 
     def execute(self, context: "Context") -> List[Any]:
-        with PSRPHook(
+        with PsrpHook(
             self.conn_id,
             logging=self.logging,
             runspace_options=self.runspace_options,
