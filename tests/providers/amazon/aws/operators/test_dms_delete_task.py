@@ -18,7 +18,7 @@ import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
-from airflow.providers.amazon.aws.operators.dms_delete_task import DmsDeleteTaskOperator
+from airflow.providers.amazon.aws.operators.dms import DmsDeleteTaskOperator
 
 TASK_ARN = 'test_arn'
 TASK_DATA = {

@@ -212,7 +212,6 @@ class _DataflowJobsController(LoggingMixin):
         self._jobs: Optional[List[dict]] = None
         self.drain_pipeline = drain_pipeline
         self._wait_until_finished = wait_until_finished
-        self._jobs: Optional[List[dict]] = None
 
     def is_job_running(self) -> bool:
         """
@@ -1064,7 +1063,7 @@ class DataflowHook(GoogleBaseHook):
                 DeprecationWarning,
                 stacklevel=3,
             )
-            on_new_job_id_callback(job.get("id"))
+            on_new_job_id_callback(job["id"])
 
         if on_new_job_callback:
             on_new_job_callback(job)

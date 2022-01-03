@@ -105,7 +105,8 @@ integrations:
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/redshift.rst
+      - /docs/apache-airflow-providers-amazon/operators/redshift_sql.rst
+      - /docs/apache-airflow-providers-amazon/operators/redshift_cluster.rst
     tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
@@ -183,6 +184,7 @@ operators:
       - airflow.providers.amazon.aws.operators.datasync
   - integration-name: AWS Database Migration Service
     python-modules:
+      - airflow.providers.amazon.aws.operators.dms
       - airflow.providers.amazon.aws.operators.dms_create_task
       - airflow.providers.amazon.aws.operators.dms_delete_task
       - airflow.providers.amazon.aws.operators.dms_describe_tasks
@@ -201,12 +203,14 @@ operators:
       - airflow.providers.amazon.aws.operators.eks
   - integration-name: Amazon EMR
     python-modules:
+      - airflow.providers.amazon.aws.operators.emr
       - airflow.providers.amazon.aws.operators.emr_add_steps
       - airflow.providers.amazon.aws.operators.emr_create_job_flow
       - airflow.providers.amazon.aws.operators.emr_modify_cluster
       - airflow.providers.amazon.aws.operators.emr_terminate_job_flow
   - integration-name: Amazon EMR on EKS
     python-modules:
+      - airflow.providers.amazon.aws.operators.emr
       - airflow.providers.amazon.aws.operators.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
@@ -224,6 +228,7 @@ operators:
       - airflow.providers.amazon.aws.operators.s3_file_transform
       - airflow.providers.amazon.aws.operators.s3_list
       - airflow.providers.amazon.aws.operators.s3_list_prefixes
+      - airflow.providers.amazon.aws.operators.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_base
@@ -244,9 +249,12 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
+      - airflow.providers.amazon.aws.operators.step_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
+      - airflow.providers.amazon.aws.operators.redshift_sql
+      - airflow.providers.amazon.aws.operators.redshift_cluster
 
 sensors:
   - integration-name: Amazon Athena
@@ -261,6 +269,7 @@ sensors:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms_task
+      - airflow.providers.amazon.aws.sensors.dms
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
@@ -270,11 +279,13 @@ sensors:
       - airflow.providers.amazon.aws.sensors.eks
   - integration-name: Amazon EMR
     python-modules:
+      - airflow.providers.amazon.aws.sensors.emr
       - airflow.providers.amazon.aws.sensors.emr_base
       - airflow.providers.amazon.aws.sensors.emr_job_flow
       - airflow.providers.amazon.aws.sensors.emr_step
   - integration-name: Amazon EMR on EKS
     python-modules:
+      - airflow.providers.amazon.aws.sensors.emr
       - airflow.providers.amazon.aws.sensors.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
@@ -287,11 +298,13 @@ sensors:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.sensors.redshift
+      - airflow.providers.amazon.aws.sensors.redshift_cluster
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.sensors.s3_key
       - airflow.providers.amazon.aws.sensors.s3_keys_unchanged
       - airflow.providers.amazon.aws.sensors.s3_prefix
+      - airflow.providers.amazon.aws.sensors.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker_base
@@ -305,6 +318,7 @@ sensors:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function_execution
+      - airflow.providers.amazon.aws.sensors.step_function
 
 hooks:
   - integration-name: Amazon Athena
@@ -365,6 +379,8 @@ hooks:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.hooks.redshift
+      - airflow.providers.amazon.aws.hooks.redshift_sql
+      - airflow.providers.amazon.aws.hooks.redshift_cluster
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
@@ -451,9 +467,10 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
-  - airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+  - airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
 
 extra-links:
+  - airflow.providers.amazon.aws.operators.emr.EmrClusterLink
   - airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink
 
 connection-types:
@@ -463,7 +480,7 @@ connection-types:
     connection-type: aws
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
-  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
 
 secrets-backends:

@@ -120,6 +120,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
+from airflow.utils.timezone import td_format
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -136,6 +137,11 @@ from airflow.www.widgets import AirflowModelListWidget
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
+LINECHART_X_AXIS_TICKFORMAT = (
+    "function (d, i) { let xLabel;"
+    "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
+    "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
+)
 
 
 def truncate_task_duration(task_duration):
@@ -1656,7 +1662,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def delete(self):
         """Deletes DAG."""
-        from airflow.api.common.experimental import delete_dag
+        from airflow.api.common import delete_dag
         from airflow.exceptions import DagNotFound
 
         dag_id = request.values.get('dag_id')
@@ -2561,10 +2567,20 @@ class Airflow(AirflowBaseView):
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="lineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
         cum_chart = nvd3.lineChart(
-            name="cumLineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="cumLineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
 
         y_points = defaultdict(list)
@@ -2690,8 +2706,9 @@ class Airflow(AirflowBaseView):
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart",
-            x_is_date=True,
-            y_axis_format='d',
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
             chart_attr=self.line_chart_attr,
         )
@@ -2767,7 +2784,12 @@ class Airflow(AirflowBaseView):
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="lineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
         y_points = {}
         x_points = {}
@@ -4039,9 +4061,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         start_date = self.get('start_date')
 
-        difference = '0.0'
+        difference = '0s'
         if start_date and end_date:
-            difference = str(end_date - start_date)
+            difference = td_format(end_date - start_date)
 
         return difference
 
@@ -4255,7 +4277,7 @@ class TaskRescheduleModelView(AirflowModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {
@@ -4411,7 +4433,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {

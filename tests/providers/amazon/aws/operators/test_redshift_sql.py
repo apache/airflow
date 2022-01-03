@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,12 +21,12 @@ from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
-from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
+from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 
 
 class TestRedshiftSQLOperator(unittest.TestCase):
     @parameterized.expand([(True, ('a', 'b')), (False, ('c', 'd'))])
-    @mock.patch("airflow.providers.amazon.aws.operators.redshift.RedshiftSQLOperator.get_hook")
+    @mock.patch("airflow.providers.amazon.aws.operators.redshift_sql.RedshiftSQLOperator.get_hook")
     def test_redshift_operator(self, test_autocommit, test_parameters, mock_get_hook):
         hook = MagicMock()
         mock_run = hook.run

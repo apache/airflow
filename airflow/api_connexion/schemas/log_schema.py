@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 from marshmallow import Schema, fields
 
@@ -30,7 +30,7 @@ class LogResponseObject(NamedTuple):
     """Log Response Object"""
 
     content: str
-    continuation_token: str
+    continuation_token: Optional[str]
 
 
 logs_schema = LogsSchema()

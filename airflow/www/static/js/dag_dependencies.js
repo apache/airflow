@@ -200,7 +200,10 @@ const renderGraph = () => {
 
   // Set edges
   edges.forEach((edge) => {
-    g.setEdge(edge.u, edge.v);
+    g.setEdge(edge.u, edge.v, {
+      curve: d3.curveBasis,
+      arrowheadClass: 'arrowhead',
+    });
   });
 
   innerSvg.call(render, g);

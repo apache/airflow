@@ -27,10 +27,10 @@ RedshiftSQLOperator
 Overview
 --------
 
-Use the :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
+Use the :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift_sql>` to execute
 statements against an Amazon Redshift cluster.
 
-:class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftSQLOperator>` works together with
+:class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift_sql.RedshiftSQLOperator>` works together with
 :class:`RedshiftSQLHook <airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook>` to establish
 connections with Amazon Redshift.
 
@@ -41,7 +41,7 @@ example_redshift.py
 Purpose
 """""""
 
-This is a basic example dag for using :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>`
+This is a basic example dag for using :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift_sql>`
 to execute statements against an Amazon Redshift cluster.
 
 Create a table

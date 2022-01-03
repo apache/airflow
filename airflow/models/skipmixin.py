@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class SkipMixin(LoggingMixin):
         dag_run: "DagRun",
         execution_date: "DateTime",
         tasks: Sequence["BaseOperator"],
-        session: "Session",
+        session: "Session" = NEW_SESSION,
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -124,7 +124,7 @@ class SkipMixin(LoggingMixin):
                 value={XCOM_SKIPMIXIN_SKIPPED: [d.task_id for d in tasks]},
                 task_id=task_id,
                 dag_id=dag_run.dag_id,
-                execution_date=dag_run.execution_date,
+                run_id=dag_run.run_id,
                 session=session,
             )
 

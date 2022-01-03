@@ -20,7 +20,7 @@
 from typing import Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
+from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
 
 class SnsPublishOperator(BaseOperator):
@@ -62,7 +62,7 @@ class SnsPublishOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context):
-        sns = AwsSnsHook(aws_conn_id=self.aws_conn_id)
+        sns = SnsHook(aws_conn_id=self.aws_conn_id)
 
         self.log.info(
             'Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s',

@@ -40,11 +40,11 @@ from functools import lru_cache
 from os.path import dirname, relpath
 from pathlib import Path
 from shutil import copyfile
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type, Union
 
 import click
 import jsonschema
-from github import Github, PullRequest, UnknownObjectException
+from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
 from rich.progress import Progress
@@ -1286,7 +1286,7 @@ def get_all_changes_for_package(
     provider_package_id: str,
     source_provider_package_path: str,
     verbose: bool,
-) -> Tuple[bool, Optional[List[List[Change]]], str]:
+) -> Tuple[bool, Optional[Union[List[List[Change]], Change]], str]:
     """
     Retrieves all changes for the package.
     :param versions: list of versions
@@ -1576,7 +1576,14 @@ def update_release_notes(
             return False
         else:
             if interactive and confirm("Are those changes documentation-only?"):
-                mark_latest_changes_as_documentation_only(provider_details, latest_change)
+                if isinstance(latest_change, Change):
+                    mark_latest_changes_as_documentation_only(provider_details, latest_change)
+                else:
+                    raise ValueError(
+                        "Expected only one change to be present to mark changes "
+                        f"in provider {provider_package_id} as docs-only. "
+                        f"Received {len(latest_change)}."
+                    )
             return False
 
     jinja_context["DETAILED_CHANGES_RST"] = changes
@@ -1773,7 +1780,7 @@ def get_all_providers() -> List[str]:
     return list(PROVIDERS_REQUIREMENTS.keys())
 
 
-def verify_provider_package(provider_package_id: str) -> str:
+def verify_provider_package(provider_package_id: str) -> None:
     """
     Verifies if the provider package is good.
     :param provider_package_id: package id to verify
@@ -2137,8 +2144,21 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
     ' got 216 from PyObject',
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.step_function`.",
     'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.',
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.dms`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.dms`.",
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.',
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
+    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
+    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
 }
 
 
@@ -2398,9 +2418,12 @@ def get_prs_for_package(package_id: str) -> List[int]:
     return prs
 
 
+PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
+
+
 class ProviderPRInfo(NamedTuple):
     provider_details: ProviderPackageDetails
-    pr_list: List[PullRequest.PullRequest]
+    pr_list: List[PullRequestOrIssue]
 
 
 @cli.command()
@@ -2426,7 +2449,7 @@ def generate_issue_content(package_ids: List[str], github_token: str, suffix: st
             all_prs.update(provider_prs[package_id])
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
-        pull_requests: Dict[int, PullRequest.PullRequest] = {}
+        pull_requests: Dict[int, PullRequestOrIssue] = {}
         with Progress(console=console) as progress:
             task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
             pr_list = list(all_prs)

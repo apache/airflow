@@ -16,13 +16,15 @@
 # under the License.
 """Handler that integrates with Stackdriver"""
 import logging
-from typing import Collection, Dict, List, Optional, Tuple, Type
+import sys
+from typing import Collection, Dict, List, Optional, Tuple, Type, Union
 from urllib.parse import urlencode
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth.credentials import Credentials
 from google.cloud import logging as gcp_logging
@@ -136,7 +138,9 @@ class StackdriverTaskHandler(logging.Handler):
     @cached_property
     def _transport(self) -> Transport:
         """Object responsible for sending data to Stackdriver"""
-        return self.transport_type(self._client, self.name)
+        # The Transport object is badly defined (no init) but in the docs client/name as constructor
+        # arguments are a requirement for any class that derives from Transport class, hence ignore:
+        return self.transport_type(self._client, self.name)  # type: ignore[call-arg]
 
     def emit(self, record: logging.LogRecord) -> None:
         """Actually log the specified logging record.
@@ -170,7 +174,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def read(
         self, task_instance: TaskInstance, try_number: Optional[int] = None, metadata: Optional[Dict] = None
-    ) -> Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]:
+    ) -> Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, Union[str, bool]]]]:
         """
         Read logs of given task instance from Stackdriver logging.
 
@@ -206,7 +210,7 @@ class StackdriverTaskHandler(logging.Handler):
 
         messages, end_of_log, next_page_token = self._read_logs(log_filter, next_page_token, all_pages)
 
-        new_metadata = {"end_of_log": end_of_log}
+        new_metadata: Dict[str, Union[str, bool]] = {"end_of_log": end_of_log}
 
         if next_page_token:
             new_metadata['next_page_token'] = next_page_token

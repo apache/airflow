@@ -359,3 +359,8 @@ class TestBaseChartTest(unittest.TestCase):
             'accessMode must be one of the following: "ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"'
             in ex_ctx.exception.stderr.decode()
         )
+
+    @parameterized.expand(["abc", "123", "123abc", "123-abc"])
+    def test_namespace_names(self, namespace):
+        """Test various namespace names to make sure they render correctly in templates"""
+        render_chart(namespace=namespace)

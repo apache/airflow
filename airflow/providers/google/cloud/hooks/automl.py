@@ -17,19 +17,26 @@
 # under the License.
 #
 """This module contains a Google AutoML hook."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+import sys
+from typing import Dict, Optional, Sequence, Tuple, Union
 
-try:
+from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
+    ListColumnSpecsPager,
+    ListDatasetsPager,
+    ListTableSpecsPager,
+)
+
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.automl_v1beta1 import (
     AutoMlClient,
     BatchPredictInputConfig,
     BatchPredictOutputConfig,
-    ColumnSpec,
     Dataset,
     ExamplePayload,
     ImageObjectDetectionModelDeploymentMetadata,
@@ -37,7 +44,6 @@ from google.cloud.automl_v1beta1 import (
     Model,
     PredictionServiceClient,
     PredictResponse,
-    TableSpec,
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -129,7 +135,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         return client.create_model(
-            request={'parent': parent, 'model': model}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'parent': parent, 'model': model},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -338,13 +347,13 @@ class CloudAutoMLHook(GoogleBaseHook):
         table_spec_id: str,
         location: str,
         project_id: str,
-        field_mask: Union[dict, FieldMask] = None,
+        field_mask: Optional[Union[dict, FieldMask]] = None,
         filter_: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> ColumnSpec:
+    ) -> ListColumnSpecsPager:
         """
         Lists column specs in a table spec.
 
@@ -428,7 +437,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.get_model(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         return result
 
@@ -466,14 +478,17 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.delete_model(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         return result
 
     def update_dataset(
         self,
         dataset: Union[dict, Dataset],
-        update_mask: Union[dict, FieldMask] = None,
+        update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -513,7 +528,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         model_id: str,
         location: str,
         project_id: str,
-        image_detection_metadata: Union[ImageObjectDetectionModelDeploymentMetadata, dict] = None,
+        image_detection_metadata: Optional[Union[ImageObjectDetectionModelDeploymentMetadata, dict]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -571,7 +586,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> List[TableSpec]:
+    ) -> ListTableSpecsPager:
         """
         Lists table specs in a dataset_id.
 
@@ -622,7 +637,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Dataset:
+    ) -> ListDatasetsPager:
         """
         Lists datasets in a project.
 
@@ -648,7 +663,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         result = client.list_datasets(
-            request={'parent': parent}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'parent': parent},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         return result
 
@@ -686,6 +704,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
         result = client.delete_dataset(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         return result

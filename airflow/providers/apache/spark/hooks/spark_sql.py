@@ -17,7 +17,7 @@
 # under the License.
 #
 import subprocess
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
@@ -83,14 +83,17 @@ class SparkSqlHook(BaseHook):
         yarn_queue: Optional[str] = None,
     ) -> None:
         super().__init__()
+        options: Dict = {}
+        conn: Optional[Connection] = None
 
         try:
-            conn: "Optional[Connection]" = self.get_connection(conn_id)
+            conn = self.get_connection(conn_id)
         except AirflowNotFoundException:
             conn = None
-            options = {}
+            options: Dict = {}
         else:
-            options = conn.extra_dejson
+            if conn:
+                options = conn.extra_dejson
 
         # Set arguments to values set in Connection if not explicitly provided.
         if master is None:

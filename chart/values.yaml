@@ -32,6 +32,12 @@ kubeVersionOverride: ""
 uid: 50000
 gid: 0
 
+# Default security context for airflow
+securityContext: {}
+#  runAsUser: 50000
+#  fsGroup: 0
+#  runAsGroup: 0
+
 # Airflow home directory
 # Used for mount paths
 airflowHome: /opt/airflow
@@ -114,13 +120,20 @@ ingress:
     # The hostname for the web Ingress (Deprecated - renamed to `ingress.web.hosts`)
     host: ""
 
-    # The hostnames for the web Ingress
+    # The hostnames or hosts configuration for the web Ingress
     hosts: []
+    # - name: ""
+    #   # configs for web Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the web Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
 
     # The Ingress Class for the web Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""
 
-    # configs for web Ingress TLS
+    # configs for web Ingress TLS (Deprecated - renamed to `ingress.web.hosts[*].tls`)
     tls:
       # Enable TLS termination for the web Ingress
       enabled: false
@@ -147,13 +160,19 @@ ingress:
     # The hostname for the flower Ingress (Deprecated - renamed to `ingress.flower.hosts`)
     host: ""
 
-    # The hostnames for the flower Ingress
+    # The hostnames or hosts configuration for the flower Ingress
     hosts: []
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the flower Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
 
     # The Ingress Class for the flower Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""
 
-    # configs for web Ingress TLS
+    # configs for flower Ingress TLS (Deprecated - renamed to `ingress.flower.hosts[*].tls`)
     tls:
       # Enable TLS termination for the flower Ingress
       enabled: false
@@ -392,6 +411,12 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -536,6 +561,12 @@ scheduler:
   # (when not using LocalExecutor and workers.persistence)
   strategy: ~
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -615,6 +646,12 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -625,6 +662,13 @@ createUserJob:
 
     # Annotations to add to create user kubernetes service account.
     annotations: {}
+
+  # Launch additional containers into user creation job
+  extraContainers: []
+
+  # Mount additional volumes into user creation job
+  extraVolumes: []
+  extraVolumeMounts: []
 
   nodeSelector: {}
   affinity: {}
@@ -648,6 +692,12 @@ migrateDatabaseJob:
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -669,6 +719,11 @@ migrateDatabaseJob:
 
   # Launch additional containers into database migration job
   extraContainers: []
+
+  # Mount additional volumes into database migration job
+  extraVolumes: []
+  extraVolumeMounts: []
+
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -712,6 +767,12 @@ webserver:
 
   # Allow overriding Update Strategy for Webserver
   strategy: ~
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
 
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
@@ -836,6 +897,12 @@ triggerer:
     # Annotations to add to triggerer kubernetes service account.
     annotations: {}
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -910,6 +977,12 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -972,6 +1045,12 @@ statsd:
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 65534
+  #  fsGroup: 0
+  #  runAsGroup: 0
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -1088,6 +1167,10 @@ pgbouncer:
   # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
   extraIni: ~
 
+  # Mount additional volumes into pgbouncer.
+  extraVolumes: []
+  extraVolumeMounts: []
+
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
@@ -1103,6 +1186,7 @@ pgbouncer:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    sslmode: "disable"
 
 # Configuration for the redis provisioned by the chart
 redis:
@@ -1232,6 +1316,11 @@ cleanup:
 
     # Annotations to add to cleanup cronjob kubernetes service account.
     annotations: {}
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  runAsGroup: 0
 
 # Configuration for postgresql subchart
 # Not recommended for production
@@ -1404,6 +1493,12 @@ dags:
     wait: 60
     containerName: git-sync
     uid: 65533
+
+    # When not set, the values defined in the global securityContext will be used
+    securityContext: {}
+    #  runAsUser: 65533
+    #  runAsGroup: 0
+
     extraVolumeMounts: []
     env: []
     resources: {}

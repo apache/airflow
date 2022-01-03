@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context
+from airflow.utils.context import Context, context_copy_partial
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -172,7 +172,7 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
 
@@ -210,7 +210,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         branch = super().execute(context)
         # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
         if isinstance(branch, str):
@@ -242,7 +242,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
@@ -398,9 +398,9 @@ class PythonVirtualenvOperator(PythonOperator):
                 self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = context.copy_only(serializable_keys)
+        serializable_context = context_copy_partial(context, serializable_keys)
         return super().execute(context=serializable_context)
 
     def execute_callable(self):

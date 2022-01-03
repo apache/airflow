@@ -254,7 +254,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip install .
+      - run: pip install -e .
       - run: python3 -m pytest -n auto --color=yes
 
   tests-ui:
@@ -1180,7 +1180,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
 
   tests-helm-executor-upgrade:
-    timeout-minutes: 50
+    timeout-minutes: 80
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]

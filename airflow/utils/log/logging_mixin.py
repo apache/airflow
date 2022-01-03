@@ -19,6 +19,7 @@ import abc
 import logging
 import re
 import sys
+from io import IOBase
 from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
@@ -72,8 +73,7 @@ class ExternalLoggingMixin:
         """Return whether handler is able to support external links."""
 
 
-# TODO: Formally inherit from io.IOBase
-class StreamLogWriter:
+class StreamLogWriter(IOBase):
     """Allows to redirect stdout and stderr to logger"""
 
     encoding: None = None

@@ -206,7 +206,7 @@ class SSHOperator(BaseOperator):
         return agg_stdout
 
     def execute(self, context=None) -> Union[bytes, str]:
-        result = None
+        result: Union[bytes, str]
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 

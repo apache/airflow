@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ads Reporting hooks"""
+import sys
 import time
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from facebook_business.adobjects.adaccount import AdAccount
@@ -107,7 +108,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     def bulk_facebook_report(
         self,
-        params: Dict[str, Any],
+        params: Optional[Dict[str, Any]],
         fields: List[str],
         sleep_time: int = 5,
     ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:

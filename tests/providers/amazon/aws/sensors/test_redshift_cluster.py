@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
 import unittest
 
 import boto3
 
-from airflow.providers.amazon.aws.sensors.redshift import AwsRedshiftClusterSensor
+from airflow.providers.amazon.aws.sensors.redshift_cluster import AwsRedshiftClusterSensor
 
 try:
     from moto import mock_redshift

@@ -23,6 +23,7 @@
 {{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
 {{- $affinity := or .Values.affinity .Values.workers.affinity }}
 {{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -95,9 +96,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
-      securityContext:
-        runAsUser: {{ .Values.uid }}
-        fsGroup: {{ .Values.gid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -112,7 +111,7 @@ spec:
           command:
             - chown
             - -R
-            - "{{ .Values.uid }}:{{ .Values.gid }}"
+            - "{{ include "airflowSecurityContextIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
           securityContext:
             runAsUser: 0
