@@ -55,16 +55,16 @@ tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
 
 tmux split-window -v
 tmux select-pane -t 1
-tmux send-keys 'airflow scheduler' C-m
+tmux send-keys 'opentelemetry-instrument airflow scheduler' C-m
 
 tmux split-window -h
 tmux select-pane -t 2
-tmux send-keys 'airflow webserver' C-m
+tmux send-keys 'opentelemetry-instrument airflow webserver' C-m
 
 if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
     tmux select-pane -t 0
     tmux split-window -h
-    tmux send-keys 'airflow triggerer' C-m
+    tmux send-keys 'opentelemetry-instrument airflow triggerer' C-m
 fi
 
 # Attach Session, on the Main window

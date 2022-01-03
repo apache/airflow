@@ -77,16 +77,33 @@ services:
       - VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
       - VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN}
       - WHEEL_VERSION=${WHEEL_VERSION}
+      - TRACES_EXPORTER=jaeger_thrift
+      - OTEL_SERVICE_NAME=airflow-service
+      - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - /dev/urandom:/dev/random # Required to get non-blocking entropy source
     ports:
       - "${SSH_PORT}:22"
       - "${WEBSERVER_HOST_PORT}:8080"
       - "${FLOWER_HOST_PORT}:5555"
     cap_add:
       - SYS_PTRACE
+
+  jaeger:
+    image: "jaegertracing/all-in-one:latest"
+    container_name: jaeger
+    ports:
+      - 5775:5775
+      - 6831:6831
+      - 6832:6832
+      - 5778:5778
+      - 16686:16686
+      - 14268:14268
+      - 14250:14250
+      - 9411:9411
 volumes:
   sqlite-db-volume:
   postgres-db-volume:
