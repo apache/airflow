@@ -227,7 +227,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip install --editable ./dev/breeze
+      - run: pip3 install --editable ./dev/breeze
       - run: python3 -m pytest -n auto --color=yes
       - name: "Free space"
         run: freespace
@@ -306,7 +306,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip install --editable ./dev/breeze
+      - run: pip3 install --editable ./dev/breeze
       - run: python3 -m pytest ./dev/breeze -n auto --color=yes
       - name: "Free space"
         run: freespace
