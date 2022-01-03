@@ -373,17 +373,6 @@ class SchedulerJob(BaseJob):
                     continue
 
                 pool_total = pools[pool]["total"]
-                if task_instance.pool_slots > pool_total:
-                    self.log.warning(
-                        "Not executing %s. Requested pool slots (%s) are greater than "
-                        "total pool slots: '%s' for pool: %s.",
-                        task_instance,
-                        task_instance.pool_slots,
-                        pool_total,
-                        pool,
-                    )
-                    continue
-
                 open_slots = pools[pool]["open"]
 
                 num_ready = len(task_instances)
@@ -410,6 +399,19 @@ class SchedulerJob(BaseJob):
                         num_starving_tasks_total += num_unhandled
                         starved_pools.add(pool_name)
                         break
+
+                    if task_instance.pool_slots > pool_total:
+                        self.log.warning(
+                            "Not executing %s. Requested pool slots (%s) are greater than "
+                            "total pool slots: '%s' for pool: %s.",
+                            task_instance,
+                            task_instance.pool_slots,
+                            pool_total,
+                            pool,
+                        )
+
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
 
                     # Check to make sure that the task max_active_tasks of the DAG hasn't been
                     # reached.
