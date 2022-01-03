@@ -99,6 +99,8 @@ class TestAirflowCommon:
         """
         k8s_objects = render_chart(
             values={
+                "cleanup": {"enabled": True},
+                "pgbouncer": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -118,33 +120,38 @@ class TestAirflowCommon:
                 "nodeSelector": {"type": "user-node"},
             },
             show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
                 "templates/flower/flower-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
             ],
         )
 
-        assert 5 == len(k8s_objects)
+        assert 11 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
+            if k8s_object["kind"] == "CronJob":
+                podSpec = jmespath.search("spec.jobTemplate.spec.template.spec", k8s_object)
+            else:
+                podSpec = jmespath.search("spec.template.spec", k8s_object)
+
             assert "foo" == jmespath.search(
-                "spec.template.spec.affinity.nodeAffinity."
+                "affinity.nodeAffinity."
                 "requiredDuringSchedulingIgnoredDuringExecution."
                 "nodeSelectorTerms[0]."
                 "matchExpressions[0]."
                 "key",
-                k8s_object,
+                podSpec,
             )
-            assert "user-node" == jmespath.search(
-                "spec.template.spec.nodeSelector.type",
-                k8s_object,
-            )
-            assert "static-pods" == jmespath.search(
-                "spec.template.spec.tolerations[0].key",
-                k8s_object,
-            )
+            assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
+            assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
 
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
