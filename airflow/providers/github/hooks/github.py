@@ -20,9 +20,9 @@
 
 from typing import Dict
 
-from github import Github
+from github import Github as GithubClient, PaginatedList
+
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 
 
 class GithubHook(BaseHook):
@@ -42,52 +42,42 @@ class GithubHook(BaseHook):
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.connection = None
         self.github_conn_id = conn_id
-        self.connection = kwargs.pop("connection", None)
         self.client = None
-        self.extras: Dict = {}
-        self.uri = None
-        self.org_name = None
 
-    def get_client(self, uri, token, base_url=DEFAULT_BASE_URL):
-        return Github(login_or_token=token, base_url)
-
-
-    def get_conn(self) -> Github:
+    def get_conn(self) -> GithubClient:
         """
         Function that initiates a new Github connection
         with token and hostname name
         """
-        self.connection = self.get_connection(self.github_conn_id)
-        self.extras = self.connection.extra_dejson.copy()
-
-        self.uri = self.get_uri(self.connection)
-        self.log.info('URI: %s', self.uri)
-
         if self.client is not None:
             return self.client
 
-        token = self.connection.extra_dejson.get('token')
-        self.org_name = self.connection.extra_dejson.get('org_name')
+        self.connection = self.get_connection(self.github_conn_id)
+        access_token = self.connection.password
 
-        self.log.info('URI: %s', self.uri)
-        self.log.info('Organization: %s', self.org_name)
+        # self.log.info('Organization: %s', self.org_name)
 
-        self.client = self.get_client(self.uri, token, self.org_name)
-
+        self.client = GithubClient(login_or_token=access_token)
         return self.client
+
+    def find_repos(self) -> PaginatedList:
+        """Function to get bucket id by name."""
+        repos = self.client.get_repos()
+        return repos
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'login'],
+            "hidden_fields": ['schema', 'port', 'host', 'login', 'extra'],
             "relabeling": {
-                'host': 'Github Url(Optional)',
+                # 'host': 'Github Enterprise Url',
                 'password': 'Github Access Token',
             },
             "placeholders": {
-                'host': 'https://{hostname}/api/v3, Use for Github Enterprise ',
+                # 'host': 'https://{hostname}/api/v3',
                 'password': 'token credentials auth',
             },
         }

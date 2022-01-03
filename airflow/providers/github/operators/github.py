@@ -23,7 +23,7 @@ from airflow.providers.github.hooks.github import GithubHook
 
 class GithubOperator(BaseOperator):
     """
-    Executes sql code in a specific Github database
+    Executes Github Operations
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -36,20 +36,15 @@ class GithubOperator(BaseOperator):
     :type github_conn_id: str
     """
 
-    template_fields = ['sql']
-
     def __init__(
         self,
         *,
-        sql: str,
         github_conn_id: str = 'github_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.github_conn_id = github_conn_id
-        self.sql = sql
 
-    def execute(self, context: Dict) -> None:
-        self.log.info('Executing: %s', self.sql)
-        self.hook = GithubHook(conn_id=self.github_conn_id)
-        self.hook.query(self.sql)
+    # def execute(self, context: Dict) -> None:
+    #     self.hook = GithubHook(conn_id=self.github_conn_id)
+    #     self.hook.query(self.sql)
