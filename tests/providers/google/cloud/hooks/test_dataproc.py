@@ -493,7 +493,7 @@ class TestDataprocHook(unittest.TestCase):
             mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
             mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
         ]
-        mock_get_job.assert_has_calls(calls,any_order=False)
+        mock_get_job.assert_has_calls(calls, any_order=False)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job"))
     def test_wait_for_job_deprecation_warning(self, mock_get_job):
@@ -514,7 +514,7 @@ class TestDataprocHook(unittest.TestCase):
                 mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
                 mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
             ]
-            mock_get_job.assert_has_calls(calls,any_order=False)
+            mock_get_job.assert_has_calls(calls, any_order=False)
             assert warning_message == str(warnings[0].message)
 
         with pytest.raises(TypeError):

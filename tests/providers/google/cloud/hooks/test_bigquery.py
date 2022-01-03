@@ -212,7 +212,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.running_job_id = running_job_id
         self.hook.cancel_query()
 
-        mock_poll_job_complete.assert_has_calls(mock.call(running_job_id), mock.call(running_job_id),any_order=False)
+        mock_poll_job_complete.assert_has_calls(
+            mock.call(running_job_id), mock.call(running_job_id), any_order=False
+        )
         mock_client.assert_called_once_with(project_id=PROJECT_ID, location=None)
         mock_client.return_value.cancel_job.assert_called_once_with(job_id=running_job_id)
 
