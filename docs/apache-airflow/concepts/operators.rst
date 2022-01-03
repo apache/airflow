@@ -208,3 +208,21 @@ In this case, ``order_data`` argument is passed: ``{"1001": 301.27, "1002": 433.
 Airflow uses Jinja's `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_
 when ``render_template_as_native_obj`` is set to ``True``.
 With ``NativeEnvironment``, rendering a template produces a native Python type.
+
+.. _concepts:reserved-keywords:
+
+Reserved params keyword
+-----------------------
+
+In Apache Airflow 2.3.3 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
+If you upgrade your environment and get the following error
+
+.. code-block:: python
+  Broken DAG: [/opt/airflow/dags/ImamRefresh_DAG.py] Traceback (most recent call last):
+  File "/home/airflow/airflow_venv/lib64/python3.6/site-packages/airflow/serialization/serialized_objects.py", line 574, in serialize_operator
+    serialize_op['params'] = cls._serialize_params_dict(op.params)
+  File "/home/airflow/airflow_venv/lib64/python3.6/site-packages/airflow/serialization/serialized_objects.py", line 447, in _serialize_params_dict
+    if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
+  AttributeError: 'str' object has no attribute '__module__'
+
+change name from ``params`` in your operators. 
