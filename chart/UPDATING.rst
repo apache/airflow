@@ -60,7 +60,7 @@ Default ``KubernetesExecutor`` worker affinity removed
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Previously a default affinity was added to ``KubernetesExecutor`` workers to spread the workers out across nodes. This default affinity is no
-longer set as, in general, there is no reason to spread task-specific workers across nodes.
+longer set because, in general, there is no reason to spread task-specific workers across nodes.
 
 Changes in webserver and flower ``NetworkPolicy`` default ports
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
