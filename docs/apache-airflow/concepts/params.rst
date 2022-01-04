@@ -38,8 +38,10 @@ Use a dictionary that maps Param names to a either a :class:`~airflow.models.par
 
     with DAG(
         "the_dag",
-        params={"x": Param(5, type="integer", minimum=3),
-                "y": 6},
+        params={
+            "x": Param(5, type="integer", minimum=3),
+            "y": 6
+        },
     ) as the_dag:
 
 Referencing Params in a Task
