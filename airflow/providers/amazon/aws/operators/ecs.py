@@ -545,7 +545,7 @@ class ECSTaskLogFetcher(EcsTaskLogFetcher):
         super().__init__(*args, **kwargs)
 
 
-class ECSProtocol(EcsProtocol, Protocol):
+class ECSProtocol(EcsProtocol):
     """
     This class is deprecated.
     Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.
