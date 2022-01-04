@@ -394,10 +394,66 @@ class PodTemplateFileTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_affinity_tolerations_and_node_selector_precedence(self):
+        """When given both global and worker affinity etc, worker affinity etc is used"""
+        expected_affinity = {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchExpressions": [
+                                {"key": "foo", "operator": "In", "values": ["true"]},
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+        docs = render_chart(
+            values={
+                "workers": {
+                    "affinity": expected_affinity,
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"type": "ssd"},
+                },
+                "affinity": {
+                    "nodeAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "weight": 1,
+                                "preference": {
+                                    "matchExpressions": [
+                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                },
+                "tolerations": [
+                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "not-me"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert expected_affinity == jmespath.search("spec.affinity", docs[0])
+        assert "ssd" == jmespath.search(
+            "spec.nodeSelector.type",
+            docs[0],
+        )
+        tolerations = jmespath.search("spec.tolerations", docs[0])
+        assert 1 == len(tolerations)
+        assert "dynamic-pods" == tolerations[0]["key"]
+
     def test_should_not_create_default_affinity(self):
         docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
 
-        assert jmespath.search("spec.template.spec.affinity", docs[0]) is None
+        assert {} == jmespath.search("spec.affinity", docs[0])
 
     def test_should_add_fsgroup_to_the_pod_template(self):
         docs = render_chart(
