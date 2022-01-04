@@ -306,6 +306,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
         pod; if False, leave the pod.  Current default is False, but this will be
         changed in the next major release of this provider.
     :type is_delete_operator_pod: bool
+    :param in_cluster: Run kubernetes client with in_cluster configuration. This parameter is
+        for backward compatibility. No need to change this parameter from default now.
+    :type in_cluster: bool
     """
 
     template_fields: Sequence[str] = tuple(
@@ -323,6 +326,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         regional: bool = False,
         is_delete_operator_pod: Optional[bool] = None,
+        in_cluster: bool = False,
         **kwargs,
     ) -> None:
         if is_delete_operator_pod is None:
@@ -335,8 +339,16 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
             is_delete_operator_pod = False
+        if in_cluster:
+            warnings.warn(
+                f"You should not set parameter `in_cluster` `True` in class {self.__class__.__name__}. "
+                "This operator uses Google Service Account(GSA) not Kubernetes Service Account(KSA)."
+                "If you can use KSA with in_cluster `True`, you should use KubernetesPodOperator directly.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
-        super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
+        super().__init__(is_delete_operator_pod=is_delete_operator_pod, in_cluster=in_cluster, **kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
