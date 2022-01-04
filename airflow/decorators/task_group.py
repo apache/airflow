@@ -82,10 +82,8 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
     mapped_kwargs: Dict[str, Any] = attr.ib(factory=dict)
     """kwargs for the decorated function"""
 
-    _invoked: bool = attr.ib(init=False, default=False, repr=False)
-
     def __call__(self, *args, **kwargs):
-        raise RuntimeError("Mapped @task_group's cannot be called. Use `.map` and `.partial` instead")
+        raise RuntimeError("A mapped @task_group cannot be called. Use `.map` and `.partial` instead")
 
     def _make_task_group(self, **kwargs) -> MappedTaskGroup:
         tg = MappedTaskGroup(**kwargs)
@@ -94,20 +92,26 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
         return tg
 
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
+        if self.partial_kwargs:
+            raise RuntimeError("Already a partial task group")
         self.partial_kwargs.update(kwargs)
         return self
 
     def map(self, **kwargs) -> R:
-        self.mapped_kwargs.update(kwargs)
+        if self.mapped_kwargs:
+            raise RuntimeError("Already a mapped task group")
+        self.mapped_kwargs = kwargs
 
         call_kwargs = self.partial_kwargs.copy()
-        call_kwargs.update({k: object() for k in self.mapped_kwargs})
+        duplicated_keys = set(call_kwargs).intersection(kwargs)
+        if duplicated_keys:
+            raise RuntimeError(f"Cannot map partial arguments: {', '.join(sorted(duplicated_keys))}")
+        call_kwargs.update({k: object() for k in kwargs})
 
-        self._invoked = True
         return super().__call__(**call_kwargs)
 
     def __del__(self):
-        if not self._invoked:
+        if not self.mapped_kwargs:
             warnings.warn(f"Partial task group {self.function.__name__} was never mapped!")
 
 

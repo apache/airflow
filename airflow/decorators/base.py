@@ -291,10 +291,10 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     def partial(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> "_TaskDecorator[T, OperatorSubclass]":
+        if self.kwargs:
+            raise RuntimeError("Already a partial task")
         self._validate_arg_names("partial", kwargs, {'task_id'})
-        partial_kwargs = self.kwargs.copy()
-        partial_kwargs.update(kwargs)
-        return attr.evolve(self, kwargs=partial_kwargs)
+        return attr.evolve(self, kwargs=kwargs)
 
 
 def task_decorator_factory(

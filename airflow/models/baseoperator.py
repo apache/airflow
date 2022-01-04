@@ -1724,9 +1724,9 @@ class MappedOperator(DAGNode):
 
         :return: ``self`` for easier method chaining
         """
-        mapped_kwargs = self.mapped_kwargs.copy()
-        mapped_kwargs.update(kwargs)
-        return attr.evolve(self, mapped_kwargs=mapped_kwargs)
+        if self.mapped_kwargs:
+            raise RuntimeError("Already a mapped task")
+        return attr.evolve(self, mapped_kwargs=kwargs)
 
     @property
     def roots(self) -> List["MappedOperator"]:
