@@ -90,9 +90,9 @@ spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ if $affinity }}
+{{- if $affinity }}
 {{ toYaml $affinity | indent 8 }}
-{{ else }}
+{{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
@@ -101,7 +101,7 @@ spec:
                   matchLabels:
                     component: webserver
                 topologyKey: "kubernetes.io/hostname"
-{{ end }}
+{{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always

@@ -76,9 +76,9 @@ spec:
       nodeSelector:
         {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
-      {{ if $affinity }}
+      {{- if $affinity }}
         {{- toYaml $affinity | nindent 8 }}
-      {{ else }}
+      {{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
@@ -87,7 +87,7 @@ spec:
                   matchLabels:
                     component: triggerer
                 topologyKey: "kubernetes.io/hostname"
-      {{ end }}
+      {{- end }}
       tolerations:
         {{- toYaml $tolerations | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
