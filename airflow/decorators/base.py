@@ -19,7 +19,20 @@ import functools
 import inspect
 import re
 from inspect import signature
-from typing import Any, Callable, Collection, Dict, Mapping, Optional, Sequence, Type, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Type,
+    TypeVar,
+    cast,
+)
 
 import attr
 
@@ -193,6 +206,7 @@ class OperatorWrapper(Generic[T, OperatorSubclass]):
 
     :meta private:
     """
+
     function: T = attr.ib(validator=attr.validators.is_callable())
     operator_class: Type[BaseOperator]
     multiple_outputs: bool = attr.ib()
