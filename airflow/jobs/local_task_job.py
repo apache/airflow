@@ -29,7 +29,6 @@ from airflow.listeners.events import register_task_instance_state_events
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.plugins_manager import integrate_listener_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
@@ -74,11 +73,10 @@ class LocalTaskJob(BaseJob):
         # terminate multiple times
         self.terminating = False
 
-        self._enable_task_listeners()
-
         super().__init__(*args, **kwargs)
 
     def _execute(self):
+        self._enable_task_listeners()
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -303,6 +301,5 @@ class LocalTaskJob(BaseJob):
         Check if we have any registered listeners, then register sqlalchemy hooks for
         TI state change if we do.
         """
-        integrate_listener_plugins()
-        if get_listener_manager().has_listeners():
+        if get_listener_manager().has_listeners:
             register_task_instance_state_events()

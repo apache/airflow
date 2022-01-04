@@ -228,15 +228,6 @@
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/plugins"
-    - name: execute_listeners_on_scheduler
-      description: |
-        Whether listeners execute also on scheduler, instead just on workers.
-        It could introduce performance penalty, if having a lot of plugins, or
-        if listener code does heavy operations.
-      default: "False"
-      example: ~
-      version_added: 2.3.0
-      type: boolean
     - name: execute_tasks_new_python_interpreter
       description: |
         Should tasks be executed via forking of the parent process ("False",

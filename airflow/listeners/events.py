@@ -27,7 +27,7 @@ _is_listening = False
 
 
 def register_task_instance_state_events():
-    logger = logging.getLogger()
+    logger = logging.getLogger(__name__)
     global _is_listening
 
     def on_task_instance_state_session_flush(session, flush_context):
@@ -35,7 +35,7 @@ def register_task_instance_state_events():
         Listens for session.flush() events that modify TaskInstance's state, and notify listeners that listen
         for that event. Doing it this way enable us to be stateless in the SQLAlchemy event listener.
         """
-        if not get_listener_manager().has_listeners():
+        if not get_listener_manager().has_listeners:
             return
         for state in flush_context.states:
             if isinstance(state.object, TaskInstance) and session.is_modified(
@@ -43,7 +43,7 @@ def register_task_instance_state_events():
             ):
                 added, unchanged, deleted = flush_context.get_attribute_history(state, 'state')
 
-                logger.warning(
+                logger.debug(
                     "session flush listener: added %s unchanged %s deleted %s - %s",
                     added,
                     unchanged,

@@ -362,15 +362,13 @@ class TestPluginsManager:
 
         with mock.patch('airflow.plugins_manager.plugins', []):
             plugins_manager.load_plugins_from_plugin_directory()
-            plugins_manager.integrate_listener_plugins()
+            get_listener_manager()
 
-            assert get_listener_manager().has_listeners()
-            assert get_listener_manager().pm.get_plugins().pop().__class__.__name__ == "PluginListener"
-
-    @pytest.fixture(autouse=True)
-    def clear_listeners(self):
-        yield
-        get_listener_manager().clear()
+            assert get_listener_manager().has_listeners
+            assert (
+                get_listener_manager().pm.get_plugins().pop().__name__
+                == "tests.listeners.test_empty_listener"
+            )
 
 
 class TestPluginsDirectorySource:

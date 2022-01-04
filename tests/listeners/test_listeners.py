@@ -15,50 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pluggy
 import pytest as pytest
 
 from airflow import AirflowException
+from airflow.listeners import hookimpl
 from airflow.listeners.events import register_task_instance_state_events
-from airflow.listeners.listener import Listener, get_listener_manager
+from airflow.listeners.listener import get_listener_manager
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+from tests.listeners import test_full_listener, test_partial_listener, test_throwing_listener
 
 DAG_ID = "test_listener_dag"
 TASK_ID = "test_listener_task"
 EXECUTION_DATE = timezone.utcnow()
-
-
-hookimpl = pluggy.HookimplMarker("airflow")
-
-
-class CollectingListener(Listener):
-    def __init__(self):
-        self.states = []
-
-
-class PartialListener(CollectingListener):
-    @hookimpl
-    def on_task_instance_running(self, previous_state, task_instance, session):
-        self.states.append(State.RUNNING)
-
-
-class FullListener(PartialListener):
-    @hookimpl
-    def on_task_instance_success(self, previous_state, task_instance, session):
-        self.states.append(State.SUCCESS)
-
-    @hookimpl
-    def on_task_instance_failed(self, previous_state, task_instance, session):
-        self.states.append(State.FAILED)
-
-
-class ThrowingListener(Listener):
-    @hookimpl
-    def on_task_instance_running(self, previous_state, task_instance, session):
-        raise RuntimeError()
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -73,68 +44,65 @@ def clean_listener_manager():
     yield
     lm = get_listener_manager()
     lm.clear()
+    test_full_listener.state = []
 
 
 @provide_session
 def test_listener_gets_calls(create_task_instance, session=None):
     lm = get_listener_manager()
-    listener = FullListener()
-    lm.add_listener(listener)
+    lm.add_listener(test_full_listener)
 
     ti = create_task_instance(session=session, state=State.QUEUED)
     ti.run()
 
-    assert len(listener.states) == 2
-    assert listener.states == [State.RUNNING, State.SUCCESS]
+    assert len(test_full_listener.state) == 2
+    assert test_full_listener.state == [State.RUNNING, State.SUCCESS]
 
 
 @provide_session
 def test_listener_gets_only_subscribed_calls(create_task_instance, session=None):
     lm = get_listener_manager()
-    listener = PartialListener()
-    lm.add_listener(listener)
+    lm.add_listener(test_partial_listener)
 
     ti = create_task_instance(session=session, state=State.QUEUED)
     ti.run()
 
-    assert len(listener.states) == 1
-    assert listener.states == [State.RUNNING]
+    assert len(test_partial_listener.state) == 1
+    assert test_partial_listener.state == [State.RUNNING]
 
 
 @provide_session
 def test_listener_throws_exceptions(create_task_instance, session=None):
     lm = get_listener_manager()
-    listener = ThrowingListener()
-    lm.add_listener(listener)
+    lm.add_listener(test_throwing_listener)
 
     with pytest.raises(RuntimeError):
         ti = create_task_instance(session=session, state=State.QUEUED)
-        ti.run()
-
-
-def test_listener_needs_to_subclass_listener():
-    lm = get_listener_manager()
-
-    class Dummy:
-        @hookimpl
-        def on_task_instance_running(self, previous_state, task_instance, session):
-            pass
-
-    lm.add_listener(Dummy())
-    assert not lm.has_listeners()
+        ti._run_raw_task()
 
 
 @provide_session
 def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session=None):
     lm = get_listener_manager()
-    listener = FullListener()
-    lm.add_listener(listener)
+    lm.add_listener(test_full_listener)
 
     with pytest.raises(AirflowException):
         ti = create_task_instance_of_operator(
             BashOperator, dag_id=DAG_ID, execution_date=EXECUTION_DATE, task_id=TASK_ID, bash_command="exit 1"
         )
-        ti.run()
+        ti._run_raw_task()
 
-    assert len(listener.states) == 2
-    assert listener.states == [State.RUNNING, State.FAILED]
+    assert test_full_listener.state == [State.FAILED]
+    assert len(test_full_listener.state) == 1
+
+
+def test_non_module_listener_is_not_registered():
+    class NotAListener:
+        @hookimpl
+        def on_task_instance_running(self, previous_state, task_instance, session):
+            pass
+
+    lm = get_listener_manager()
+    lm.add_listener(NotAListener())
+
+    assert not lm.has_listeners

@@ -15,6 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from pluggy import HookimplMarker
 
-hookimpl = HookimplMarker("airflow")
+from airflow.listeners import hookimpl
+
+
+@hookimpl
+def on_task_instance_success(previous_state, task_instance, session):
+    raise RuntimeError()

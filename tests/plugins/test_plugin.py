@@ -23,13 +23,14 @@ from airflow.executors.base_executor import BaseExecutor
 
 # Importing base classes that we need to derive
 from airflow.hooks.base import BaseHook
-from airflow.listeners.listener import Listener
+from airflow.listeners.spec import hookspec
 from airflow.models.baseoperator import BaseOperator
 
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base import BaseSensorOperator
 from airflow.timetables.interval import CronDataIntervalTimetable
+from tests.listeners import test_empty_listener
 from tests.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -60,8 +61,10 @@ class PluginExecutor(BaseExecutor):
     pass
 
 
-class PluginListener(Listener):
-    pass
+class PluginListener:
+    @hookspec
+    def on_task_instance_running(self, previous_state, task_instance, session):
+        pass
 
 
 # Will show up under airflow.macros.test_plugin.plugin_macro
@@ -127,7 +130,7 @@ class AirflowTestPlugin(AirflowPlugin):
     ]
     operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
     timetables = [CustomCronDataIntervalTimetable]
-    listeners = [PluginListener]
+    listeners = [test_empty_listener]
 
 
 class MockPluginA(AirflowPlugin):

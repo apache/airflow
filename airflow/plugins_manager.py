@@ -40,7 +40,7 @@ from airflow.utils.module_loading import as_importable_string
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
-    from airflow.listeners.listener import Listener
+    from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
@@ -157,8 +157,13 @@ class AirflowPlugin:
     # A list of timetable classes that can be used for DAG scheduling.
     timetables: List[Type["Timetable"]] = []
 
+<<<<<<< HEAD
     # A list of listener modules implementing pluggy contract
     listeners: List[ModuleType] = []
+=======
+    # A list of listener functions implementing pluggy contract
+    listeners: List[Any] = []
+>>>>>>> 55e3bd524 (listeners: remove explicit class requirements, code review)
 
     @classmethod
     def validate(cls):
@@ -465,22 +470,18 @@ def integrate_macros_plugins() -> None:
             setattr(macros, plugin.name, macros_module)
 
 
-def integrate_listener_plugins() -> None:
+def integrate_listener_plugins(listener_manager: "ListenerManager") -> None:
     global plugins
     global macros_modules
 
-    from airflow.listeners.listener import get_listener_manager
-
     ensure_plugins_loaded()
-
-    listener_manager = get_listener_manager()
 
     for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
         for listener in plugin.listeners:
-            listener_manager.add_listener(listener())
+            listener_manager.add_listener(listener)
 
 
 def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[str, Any]]:
@@ -506,8 +507,11 @@ def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[
                     info[attr] = [
                         f'<{as_importable_string(d.__class__)} object>' for d in getattr(plugin, attr)
                     ]
-                elif attr in ('macros', 'timetables', 'hooks', 'executors', 'listeners'):
+                elif attr in ('macros', 'timetables', 'hooks', 'executors'):
                     info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
+                elif attr == 'listeners':
+                    # listeners are always modules
+                    info[attr] = [d.__name__ for d in getattr(plugin, attr)]
                 elif attr == 'appbuilder_views':
                     info[attr] = [
                         {**d, 'view': as_importable_string(d['view'].__class__) if 'view' in d else None}

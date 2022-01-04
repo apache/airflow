@@ -32,7 +32,7 @@ Interface
 ---------
 
 To create a listener you will need to derive the
-``airflow.listeners.Listener`` class and implement the ``hookimpls`` for
+create python module, import ``airflow.listeners.hookimpl`` and implement the ``hookimpls`` for
 events you want to be notified at.
 
 Right now Airflow exposes TaskInstance state change events.

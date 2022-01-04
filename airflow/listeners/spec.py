@@ -22,28 +22,28 @@ from pluggy import HookspecMarker
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.models import TaskInstance
-    from airflow.utils.state import State
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.state import TaskInstanceState
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
 def on_task_instance_running(
-    previous_state: "State", task_instance: "TaskInstance", session: Optional["Session"]
+    previous_state: "TaskInstanceState", task_instance: "TaskInstance", session: Optional["Session"]
 ):
     """Called when task state changes to RUNNING. Previous_state can be State.NONE."""
 
 
 @hookspec
 def on_task_instance_success(
-    previous_state: "State", task_instance: "TaskInstance", session: Optional["Session"]
+    previous_state: "TaskInstanceState", task_instance: "TaskInstance", session: Optional["Session"]
 ):
     """Called when task state changes to SUCCESS. Previous_state can be State.NONE."""
 
 
 @hookspec
 def on_task_instance_failed(
-    previous_state: "State", task_instance: "TaskInstance", session: Optional["Session"]
+    previous_state: "TaskInstanceState", task_instance: "TaskInstance", session: Optional["Session"]
 ):
     """Called when task state changes to FAIL. Previous_state can be State.NONE."""
