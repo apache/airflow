@@ -118,7 +118,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.timezone import td_format
 from airflow.version import version
