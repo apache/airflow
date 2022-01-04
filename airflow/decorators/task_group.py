@@ -136,6 +136,7 @@ def task_group(
 ) -> Callable[[F], F]:
     ...
 
+
 # This covers the @task_group case (no parentheses).
 @overload
 def task_group(python_callable: F) -> F:
