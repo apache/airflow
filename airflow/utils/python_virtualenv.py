@@ -118,6 +118,7 @@ def write_python_script(
         to a native Python object
     """
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
+    template_env: jinja2.Environment
     if render_template_as_native_obj:
         template_env = jinja2.nativetypes.NativeEnvironment(
             loader=template_loader, undefined=jinja2.StrictUndefined

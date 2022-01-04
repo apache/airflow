@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 6.3.0
   - 6.2.0
   - 6.1.0
   - 6.0.0
@@ -257,6 +258,10 @@ integrations:
   - integration-name: Google API Python Client
     external-doc-url: https://github.com/googleapis/google-api-python-client/
     logo: /integration-logos/gcp/Google-API-Python-Client.png
+    tags: [google]
+  - integration-name: Google Calendar
+    external-doc-url: https://calendar.google.com/
+    logo: /integration-logos/gcp/Google-Calendar.png
     tags: [google]
   - integration-name: Google Campaign Manager
     external-doc-url: https://developers.google.com/doubleclick-advertisers
@@ -641,6 +646,9 @@ hooks:
   - integration-name: Google Search Ads 360
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.search_ads
+  - integration-name: Google Calendar
+    python-modules:
+      - airflow.providers.google.suite.hooks.calendar
   - integration-name: Google Drive
     python-modules:
       - airflow.providers.google.suite.hooks.drive
@@ -801,6 +809,8 @@ extra-links:
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
+  facebook: apache-airlfow-providers-facebook>=2.2.0
+  amazon: apache-airlfow-providers-facebook>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

@@ -48,7 +48,7 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
-class Context(TypedDict, total=False):
+class Context(TypedDict):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG

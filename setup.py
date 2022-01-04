@@ -227,7 +227,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=5.1,>=5.1.2',
+    'celery>=5.2.3',
     'flower~=1.0.0',
 ]
 cgroups = [
@@ -589,6 +589,7 @@ devel_only = [
     'pytest-httpx',
     'requests_mock',
     'semver',
+    'twine',
     'wheel',
     'yamllint',
 ]

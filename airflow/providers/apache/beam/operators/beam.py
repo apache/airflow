@@ -251,7 +251,7 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
-            if is_dataflow:
+            if is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
                     self.beam_hook.start_python_pipeline(
                         variables=formatted_pipeline_options,
@@ -263,12 +263,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                         process_line_callback=process_line_callback,
                     )
 
-                self.dataflow_hook.wait_for_done(
-                    job_name=dataflow_job_name,
-                    location=self.dataflow_config.location,
-                    job_id=self.dataflow_job_id,
-                    multiple_jobs=False,
-                )
+                if dataflow_job_name and self.dataflow_config.location:
+                    self.dataflow_hook.wait_for_done(
+                        job_name=dataflow_job_name,
+                        location=self.dataflow_config.location,
+                        job_id=self.dataflow_job_id,
+                        multiple_jobs=False,
+                    )
 
             else:
                 self.beam_hook.start_python_pipeline(
@@ -420,7 +421,7 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-            if is_dataflow:
+            if is_dataflow and self.dataflow_hook:
                 is_running = False
                 if self.dataflow_config.check_if_running != CheckJobRunning.IgnoreJob:
                     is_running = (
@@ -454,14 +455,19 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                             job_class=self.job_class,
                             process_line_callback=process_line_callback,
                         )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=dataflow_job_name,
-                        location=self.dataflow_config.location,
-                        job_id=self.dataflow_job_id,
-                        multiple_jobs=self.dataflow_config.multiple_jobs,
-                        project_id=self.dataflow_config.project_id,
-                    )
-
+                    if dataflow_job_name and self.dataflow_config.location:
+                        multiple_jobs = (
+                            self.dataflow_config.multiple_jobs
+                            if self.dataflow_config.multiple_jobs
+                            else False
+                        )
+                        self.dataflow_hook.wait_for_done(
+                            job_name=dataflow_job_name,
+                            location=self.dataflow_config.location,
+                            job_id=self.dataflow_job_id,
+                            multiple_jobs=multiple_jobs,
+                            project_id=self.dataflow_config.project_id,
+                        )
             else:
                 self.beam_hook.start_java_pipeline(
                     variables=pipeline_options,
