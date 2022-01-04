@@ -489,6 +489,12 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
     To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup, but note that you will now be responsible for ensuring every single task and group has a unique ID of its own.
 
 
+While TaskGroups and SubDAGs are both used to create repeating patterns, depending on your use case, one may be better
+than the other. The SubDagOperator launches a DAG as a separate entity from the original graph. This design pattern
+offers flexibility to create SubDAGs with different schedulers and executors at the cost of greater complexity and
+maintenance burden. TaskGroups creates a UI grouping concept on the same original DAG which simplifies logic and
+maintenance for less flexibility.
+
 .. _concepts:edge-labels:
 
 Edge Labels
@@ -582,12 +588,14 @@ Note that SubDAG operators should contain a factory method that returns a DAG ob
     :start-after: [START subdag]
     :end-before: [END subdag]
 
+
 This SubDAG can then be referenced in your main DAG file:
 
 .. exampleinclude:: /../../airflow/example_dags/example_subdag_operator.py
     :language: python
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
+
 
 You can zoom into a :class:`~airflow.operators.subdag.SubDagOperator` from the graph view of the main DAG to show the tasks contained within the SubDAG:
 
@@ -607,6 +615,8 @@ See ``airflow/example_dags`` for a demonstration.
 
 Note that :doc:`pools` are *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so
 resources could be consumed by SubdagOperators beyond any limits you may have set.
+
+For a comparision of SubDAGs and TaskGroup, see the :ref:`TaskGroup <concepts:taskgroup>` section.
 
 
 Packaging DAGs
