@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-04T04:37:58Z
+# This constraints file was automatically generated on 2022-01-04T13:08:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -251,7 +251,7 @@ jwcrypto==1.0
 keyring==23.5.0
 kombu==5.2.3
 krb5==0.2.0
-kubernetes==11.0.0
+kubernetes==21.7.0
 kylinpy==2.8.4
 lazy-object-proxy==1.4.3
 ldap3==2.9.1
