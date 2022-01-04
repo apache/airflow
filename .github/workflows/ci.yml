@@ -250,8 +250,8 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
+      - run: python -m pytest ./dev/breeze -n auto --color=yes
 
   tests-ui:
     timeout-minutes: 10
@@ -331,8 +331,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
         if: |
@@ -365,8 +364,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
         if: |
@@ -409,8 +407,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
         if: |
@@ -459,8 +456,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -573,8 +569,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -633,8 +628,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -688,8 +682,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -743,8 +736,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -809,8 +801,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -938,8 +929,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -1000,8 +990,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -1071,8 +1060,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -1171,8 +1159,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
         if: |
@@ -1237,8 +1224,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Get all PROD images"
@@ -1300,8 +1286,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Get all PROD images"
@@ -1374,8 +1359,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: >
@@ -1475,8 +1459,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip3 install --editable ./dev/breeze
-      - run: python3 -m pytest ./dev/breeze -n auto --color=yes
+      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:latest"
