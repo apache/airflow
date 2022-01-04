@@ -518,12 +518,12 @@ workers:
   # default worker affinity is:
   #  podAntiAffinity:
   #    preferredDuringSchedulingIgnoredDuringExecution:
-  #      - weight: 100
-  #        podAffinityTerm:
-  #          labelSelector:
-  #            matchLabels:
-  #              component: worker
-  #          topologyKey: "kubernetes.io/hostname"
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: worker
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
   # hostAliases to use in worker pods.
   # See:
@@ -630,12 +630,12 @@ scheduler:
   # default scheduler affinity is:
   #  podAntiAffinity:
   #    preferredDuringSchedulingIgnoredDuringExecution:
-  #      - weight: 100
-  #        podAffinityTerm:
-  #          labelSelector:
-  #            matchLabels:
-  #              component: scheduler
-  #          topologyKey: "kubernetes.io/hostname"
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: scheduler
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}
@@ -870,12 +870,12 @@ webserver:
   # default webserver affinity is:
   #  podAntiAffinity:
   #    preferredDuringSchedulingIgnoredDuringExecution:
-  #      - weight: 100
-  #        podAffinityTerm:
-  #          labelSelector:
-  #            matchLabels:
-  #              component: webserver
-  #          topologyKey: "kubernetes.io/hostname"
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: webserver
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}
@@ -952,12 +952,12 @@ triggerer:
   # default triggerer affinity is:
   #  podAntiAffinity:
   #    preferredDuringSchedulingIgnoredDuringExecution:
-  #      - weight: 100
-  #        podAffinityTerm:
-  #          labelSelector:
-  #            matchLabels:
-  #              component: triggerer
-  #          topologyKey: "kubernetes.io/hostname"
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: triggerer
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}

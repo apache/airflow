@@ -98,12 +98,12 @@ spec:
 {{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    component: scheduler
-                topologyKey: "kubernetes.io/hostname"
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: scheduler
+              topologyKey: kubernetes.io/hostname
+            weight: 100
 {{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
