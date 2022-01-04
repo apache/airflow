@@ -540,7 +540,7 @@ class BatchClientHook(AwsBaseHook):
         return uniform(delay / 3, delay)
 
 
-class AwsBatchProtocol(BatchProtocol, Protocol):
+class AwsBatchProtocol(BatchProtocol):
     """
     This class is deprecated.
     Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.
