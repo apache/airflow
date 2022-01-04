@@ -23,8 +23,9 @@ from freezegun import freeze_time
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import TaskReschedule
+from airflow.models.xcom import XCom
 from airflow.operators.dummy import DummyOperator
-from airflow.sensors.base import BaseSensorOperator, poke_mode_only
+from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -46,6 +47,16 @@ class DummySensor(BaseSensorOperator):
 
     def poke(self, context: Context):
         return self.return_value
+
+
+class DummySensorWithXcomValue(BaseSensorOperator):
+    def __init__(self, return_value=False, xcom_value=None, **kwargs):
+        super().__init__(**kwargs)
+        self.xcom_value = xcom_value
+        self.return_value = return_value
+
+    def poke(self, context: Context):
+        return PokeReturnValue(self.return_value, self.xcom_value)
 
 
 class TestBaseSensor:
@@ -78,7 +89,10 @@ class TestBaseSensor:
                 kwargs[timeout] = 0
 
             with dag_maker(TEST_DAG_ID):
-                sensor = DummySensor(task_id=task_id, return_value=return_value, **kwargs)
+                if "xcom_value" in kwargs:
+                    sensor = DummySensorWithXcomValue(task_id=task_id, return_value=return_value, **kwargs)
+                else:
+                    sensor = DummySensor(task_id=task_id, return_value=return_value, **kwargs)
 
                 dummy_op = DummyOperator(task_id=DUMMY_OP)
                 sensor >> dummy_op
@@ -606,6 +620,41 @@ class TestBaseSensor:
         with freeze_time(date8), pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
         assert_ti_state(4, 4, State.FAILED)
+
+    def test_sensor_with_xcom(self, make_sensor):
+        xcom_value = "TestValue"
+        sensor, dr = make_sensor(True, xcom_value=xcom_value)
+
+        self._run(sensor)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.SUCCESS
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+        actual_xcom_value = XCom.get_one(
+            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
+        )
+        assert actual_xcom_value == xcom_value
+
+    def test_sensor_with_xcom_fails(self, make_sensor):
+        xcom_value = "TestValue"
+        sensor, dr = make_sensor(False, xcom_value=xcom_value)
+
+        with pytest.raises(AirflowSensorTimeout):
+            self._run(sensor)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.FAILED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+        actual_xcom_value = XCom.get_one(
+            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
+        )
+        assert actual_xcom_value is None
 
 
 @poke_mode_only
