@@ -214,7 +214,7 @@ With ``NativeEnvironment``, rendering a template produces a native Python type.
 Reserved params keyword
 -----------------------
 
-In Apache Airflow 2.3.3 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
+In Apache Airflow 2.2.0 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
 If you upgrade your environment and get the following error
 
 .. code-block:: python
