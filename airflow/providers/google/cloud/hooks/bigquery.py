@@ -189,6 +189,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "and extra__google_cloud_platform__keyfile_dict"
             )
 
+    def get_records(self, sql, parameters=None):
+        if self.location is None:
+            raise AirflowException("Need to specify 'location' to use BigQueryHook.get_records()")
+        return super().get_records(sql, parameters=parameters)
+
     @staticmethod
     def _resolve_table_reference(
         table_resource: Dict[str, Any],
@@ -2579,11 +2584,6 @@ class BigQueryBaseCursor(LoggingMixin):
             stacklevel=3,
         )
         return self.hook.run_query(*args, **kwargs)
-    
-    def get_records(self, sql, parameters=None):
-        if self.location is None:
-            raise Exception("Need to specify location when instantiating BigQueryHook, otherwise it would result in Job Not Found error!")
-        return super().get_records()
 
 
 class BigQueryCursor(BigQueryBaseCursor):
