@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator, ECSProtocol as NewECSProtocol  # noqa
+from airflow.providers.amazon.aws.operators.ecs import EcsOperator, EcsProtocol
 from airflow.typing_compat import Protocol, runtime_checkable
 
 warnings.warn(
@@ -29,16 +29,32 @@ warnings.warn(
 )
 
 
+class ECSOperator(EcsOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.amazon.aws.operators.ecs.EcsOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
 @runtime_checkable
-class ECSProtocol(NewECSProtocol, Protocol):
-    """This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`."""
+class ECSProtocol(EcsProtocol, Protocol):
+    """This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.EcsProtocol`."""
 
     # A Protocol cannot be instantiated
 
     def __new__(cls, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`.""",
+            Please use `airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.""",
             DeprecationWarning,
             stacklevel=2,
         )

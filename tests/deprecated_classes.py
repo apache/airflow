@@ -1064,7 +1064,7 @@ OPERATORS = [
         'airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
+        'airflow.providers.amazon.aws.operators.ecs.EcsOperator',
         'airflow.contrib.operators.ecs_operator.ECSOperator',
     ),
     (
