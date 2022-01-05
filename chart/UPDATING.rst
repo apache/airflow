@@ -67,6 +67,11 @@ Changes in webserver and flower ``NetworkPolicy`` default ports
 
 The defaults for ``webserver.networkPolicy.ingress.ports`` and ``flower.networkPolicy.ingress.ports`` moved away from using named ports to numerical ports to avoid issues with OpenShift.
 
+Increase default ``livenessProbe`` ``timeoutSeconds`` for scheduler and triggerer
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default timeout for the scheduler and triggerer ``livenessProbe`` has been increased from 10 seconds to 20 seconds.
+
 Airflow Helm Chart 1.3.0
 ------------------------
 
