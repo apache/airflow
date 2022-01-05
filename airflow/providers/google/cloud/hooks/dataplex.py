@@ -30,7 +30,26 @@ API_KEY = os.environ.get("GCP_API_KEY", "INVALID API KEY")
 
 
 class DataplexHook(GoogleBaseHook):
-    """Hook for Google Dataplex."""
+    """
+    Hook for Google Dataplex.
+
+    :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
+        request must have  domain-wide delegation enabled.
+    :type delegate_to: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
+    """
 
     _conn = None  # type: Optional[Resource]
 

@@ -16,7 +16,10 @@
 # under the License.
 
 """This module contains Google Dataplex sensors."""
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
@@ -88,8 +91,8 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
-        self.log.info(f"Waiting for task {self.dataplex_task_id} to be {TaskState.ACTIVE}")
+    def poke(self, context: "Context") -> bool:
+        self.log.info("Waiting for task %s to be %s", self.dataplex_task_id, TaskState.ACTIVE)
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -108,6 +111,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         if task_status == TaskState.DELETING:
             raise AirflowException(f"Task is going to be deleted {self.dataplex_task_id}")
 
-        self.log.info(f"Current status of the Dataplex task {self.dataplex_task_id} => {task_status}")
+        self.log.info("Current status of the Dataplex task %s => %s", self.dataplex_task_id, task_status)
 
         return task_status == TaskState.ACTIVE

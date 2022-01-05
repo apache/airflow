@@ -17,7 +17,10 @@
 
 """This module contains Google Dataplex operators."""
 from time import sleep
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
@@ -104,14 +107,14 @@ class DataplexCreateTaskOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: "Context") -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info(f"Creating Dataplex task {self.dataplex_task_id}")
+        self.log.info("Creating Dataplex task %s", self.dataplex_task_id)
 
         try:
             operation = hook.create_task(
@@ -123,16 +126,16 @@ class DataplexCreateTaskOperator(BaseOperator):
                 validate_only=self.validate_only,
             )
             if not self.asynchronous:
-                self.log.info(f"Waiting for Dataplex task {self.dataplex_task_id} to be created")
+                self.log.info("Waiting for Dataplex task %s to be created", self.dataplex_task_id)
                 task = hook.wait_for_operation(operation)
-                self.log.info(f"Task {self.dataplex_task_id} created successfully")
+                self.log.info("Task %s created successfully", self.dataplex_task_id)
             else:
-                self.log.info(f"Is operation done already? {operation['done']}")
+                self.log.info("Is operation done already? %s", operation['done'])
                 return operation
         except HttpError as err:
             if err.resp.status not in (409, '409'):
                 raise
-            self.log.info(f"Task {self.dataplex_task_id} already exists")
+            self.log.info("Task %s already exists", self.dataplex_task_id)
             # Wait for task to be ready
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
                 task = hook.get_task(
@@ -203,14 +206,14 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: "Context") -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info(f"Deleting Dataplex task {self.dataplex_task_id}")
+        self.log.info("Deleting Dataplex task %s", self.dataplex_task_id)
 
         operation = hook.delete_task(
             project_id=self.project_id,
@@ -219,7 +222,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
             dataplex_task_id=self.dataplex_task_id,
         )
         hook.wait_for_operation(operation)
-        self.log.info(f"Dataplex task {self.dataplex_task_id} deleted successfully!")
+        self.log.info("Dataplex task %s deleted successfully!", self.dataplex_task_id)
 
 
 class DataplexListTasksOperator(BaseOperator):
@@ -301,14 +304,14 @@ class DataplexListTasksOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: "Context") -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info(f"Listing Dataplex tasks from lake {self.lake_id}")
+        self.log.info("Listing Dataplex tasks from lake %s", self.lake_id)
 
         tasks = hook.list_tasks(
             project_id=self.project_id,
@@ -377,14 +380,14 @@ class DataplexGetTaskOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: "Context") -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info(f"Retrieving Dataplex task {self.dataplex_task_id}")
+        self.log.info("Retrieving Dataplex task %s", self.dataplex_task_id)
 
         task = hook.get_task(
             project_id=self.project_id,
