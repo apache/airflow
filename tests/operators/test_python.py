@@ -823,9 +823,8 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_templated_requirements_file(self):
         def f():
-            import pkg_resources
-
-            assert pkg_resources.get_distribution('funcsigs').version == '1.0.2'
+            import funcsigs
+            assert funcsigs.__version__ == '1.0.2'
 
         self._run_as_operator(
             f,
