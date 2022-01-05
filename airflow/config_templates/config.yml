@@ -471,7 +471,7 @@
     - name: remote_log_conn_id
       description: |
         Users must supply an Airflow connection id that provides access to the storage
-        location.
+        location. Note: This is only used for reading logs, not writing logs
       version_added: 2.0.0
       type: string
       example: ~
@@ -1303,6 +1303,13 @@
       type: integer
       example: ~
       default: "3"
+    - name: warn_deployment_exposure
+      description: |
+        Boolean for displaying warning for publicly viewable deployment
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "True"
 
 - name: email
   description: |

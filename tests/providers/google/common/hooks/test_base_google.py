@@ -742,12 +742,12 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
                 # Do nothing
                 pass
 
-        mock_check_output.has_calls(
+        mock_check_output.assert_has_calls(
             [
                 mock.call(['gcloud', 'config', 'set', 'auth/client_id', 'CLIENT_ID']),
                 mock.call(['gcloud', 'config', 'set', 'auth/client_secret', 'CLIENT_SECRET']),
-                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
                 mock.call(['gcloud', 'auth', 'activate-refresh-token', 'CLIENT_ID', 'REFRESH_TOKEN']),
+                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
             ],
             any_order=False,
         )

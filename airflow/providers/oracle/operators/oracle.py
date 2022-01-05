@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OracleOperator(BaseOperator):
@@ -40,8 +43,8 @@ class OracleOperator(BaseOperator):
     :type autocommit: bool
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -59,7 +62,7 @@ class OracleOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         if self.sql:
@@ -79,7 +82,7 @@ class OracleStoredProcedureOperator(BaseOperator):
     :type parameters: dict or iterable
     """
 
-    template_fields = ('procedure',)
+    template_fields: Sequence[str] = ('procedure',)
     ui_color = '#ededed'
 
     def __init__(
@@ -95,7 +98,7 @@ class OracleStoredProcedureOperator(BaseOperator):
         self.procedure = procedure
         self.parameters = parameters
 
-    def execute(self, context) -> Optional[Union[List, Dict]]:
+    def execute(self, context: 'Context') -> Optional[Union[List, Dict]]:
         self.log.info('Executing: %s', self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

@@ -607,6 +607,7 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterState'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':

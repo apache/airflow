@@ -15,11 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BatchSensor(BaseSensorOperator):
@@ -33,8 +36,8 @@ class BatchSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['job_id']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_id',)
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(
@@ -51,7 +54,7 @@ class BatchSensor(BaseSensorOperator):
         self.region_name = region_name
         self.hook: Optional[AwsBatchClientHook] = None
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         job_description = self.get_hook().get_job_description(self.job_id)
         state = job_description['status']
 

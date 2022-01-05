@@ -98,7 +98,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
         """
         Cancels a build in progress.
@@ -124,9 +124,11 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start cancelling build: %s.", id_)
 
         build = client.cancel_build(
-            request={'project_id': project_id, 'id': id_}, retry=retry, timeout=timeout, metadata=metadata
+            request={'project_id': project_id, 'id': id_},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-
         self.log.info("Build has been cancelled: %s.", id_)
 
         return build
@@ -139,7 +141,7 @@ class CloudBuildHook(GoogleBaseHook):
         wait: bool = True,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
         """
         Starts a build with the specified configuration.
@@ -192,7 +194,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> BuildTrigger:
         """
         Creates a new BuildTrigger.
@@ -236,7 +238,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a BuildTrigger by its project ID and trigger ID.
@@ -275,7 +277,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
         """
         Returns information about a previously requested build.
@@ -301,7 +303,10 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrieving build: %s.", id_)
 
         build = client.get_build(
-            request={'project_id': project_id, 'id': id_}, retry=retry, timeout=timeout, metadata=metadata
+            request={'project_id': project_id, 'id': id_},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         self.log.info("Build has been retrieved: %s.", id_)
@@ -315,7 +320,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> BuildTrigger:
         """
         Returns information about a BuildTrigger.
@@ -360,7 +365,7 @@ class CloudBuildHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[BuildTrigger]:
         """
         Lists existing BuildTriggers.
@@ -417,7 +422,7 @@ class CloudBuildHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Build]:
         """
         Lists previously requested builds.
@@ -475,7 +480,7 @@ class CloudBuildHook(GoogleBaseHook):
         wait: bool = True,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
         """
         Creates a new build based on the specified build. This method creates a new build
@@ -504,7 +509,10 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start retrying build: %s.", id_)
 
         operation = client.retry_build(
-            request={'project_id': project_id, 'id': id_}, retry=retry, timeout=timeout, metadata=metadata
+            request={'project_id': project_id, 'id': id_},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         id_ = self._get_build_id_from_operation(Operation)
@@ -527,7 +535,7 @@ class CloudBuildHook(GoogleBaseHook):
         wait: bool = True,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
         """
         Runs a BuildTrigger at a particular source revision.
@@ -583,7 +591,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> BuildTrigger:
         """
         Updates a BuildTrigger by its project ID and trigger ID.

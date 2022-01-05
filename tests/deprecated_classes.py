@@ -252,6 +252,10 @@ HOOKS = [
         'airflow.contrib.hooks.aws_logs_hook.AwsLogsHook',
     ),
     (
+        'airflow.providers.amazon.aws.hooks.emr.EmrContainerHook',
+        'airflow.providers.amazon.aws.hooks.emr_containers.EMRContainerHook',
+    ),
+    (
         'airflow.providers.amazon.aws.hooks.emr.EmrHook',
         'airflow.contrib.hooks.emr_hook.EmrHook',
     ),
@@ -340,7 +344,7 @@ HOOKS = [
         'airflow.contrib.hooks.jira_hook.JiraHook',
     ),
     (
-        'airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook',
+        'airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook',
         'airflow.contrib.hooks.opsgenie_alert_hook.OpsgenieAlertHook',
     ),
     (
@@ -1132,31 +1136,59 @@ OPERATORS = [
         'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
     ),
     (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
         'airflow.providers.amazon.aws.operators.sagemaker_base.SageMakerBaseOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointConfigOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker_endpoint_config.SageMakerEndpointConfigOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker_endpoint.SageMakerEndpointOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker_model.SageMakerModelOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker_training.SageMakerTrainingOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker_transform.SageMakerTransformOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker_tuning.SageMakerTuningOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
         'airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.sagemaker_endpoint_config.SageMakerEndpointConfigOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointConfigOperator',
         'airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.sagemaker_endpoint.SageMakerEndpointOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointOperator',
         'airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.sagemaker_model.SageMakerModelOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator',
         'airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.sagemaker_training.SageMakerTrainingOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator',
         'airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.sagemaker_transform.SageMakerTransformOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator',
         'airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.sagemaker_tuning.SageMakerTuningOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator',
         'airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator',
     ),
     (
@@ -1272,7 +1304,7 @@ OPERATORS = [
         'airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator',
     ),
     (
-        'airflow.providers.opsgenie.operators.opsgenie_alert.OpsgenieAlertOperator',
+        'airflow.providers.opsgenie.operators.opsgenie.OpsgenieCreateAlertOperator',
         'airflow.contrib.operators.opsgenie_alert_operator.OpsgenieAlertOperator',
     ),
     (
@@ -1611,19 +1643,35 @@ SENSORS = [
         'airflow.contrib.sensors.emr_step_sensor.EmrStepSensor',
     ),
     (
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
         'airflow.providers.amazon.aws.sensors.sagemaker_base.SageMakerBaseSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEndpointSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker_endpoint.SageMakerEndpointSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTransformSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker_transform.SageMakerTransformSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTuningSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker_tuning.SageMakerTuningSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
         'airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.sagemaker_endpoint.SageMakerEndpointSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEndpointSensor',
         'airflow.contrib.sensors.sagemaker_endpoint_sensor.SageMakerEndpointSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.sagemaker_transform.SageMakerTransformSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTransformSensor',
         'airflow.contrib.sensors.sagemaker_transform_sensor.SageMakerTransformSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.sagemaker_tuning.SageMakerTuningSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTuningSensor',
         'airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor',
     ),
     (

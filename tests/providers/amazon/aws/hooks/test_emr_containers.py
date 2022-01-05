@@ -20,7 +20,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -29,9 +29,9 @@ SUBMIT_JOB_SUCCESS_RETURN = {
 }
 
 
-class TestEMRContainerHook(unittest.TestCase):
+class TestEmrContainerHook(unittest.TestCase):
     def setUp(self):
-        self.emr_containers = EMRContainerHook(virtual_cluster_id='vc1234')
+        self.emr_containers = EmrContainerHook(virtual_cluster_id='vc1234')
 
     def test_init(self):
         assert self.emr_containers.aws_conn_id == 'aws_default'

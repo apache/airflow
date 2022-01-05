@@ -23,13 +23,16 @@ import gzip
 import os
 import tempfile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Dict, Optional, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToHiveOperator(BaseOperator):
@@ -99,8 +102,8 @@ class S3ToHiveOperator(BaseOperator):
     :type select_expression: str
     """
 
-    template_fields = ('s3_key', 'partition', 'hive_table')
-    template_ext = ()
+    template_fields: Sequence[str] = ('s3_key', 'partition', 'hive_table')
+    template_ext: Sequence[str] = ()
     ui_color = '#a0e08c'
 
     def __init__(
@@ -145,7 +148,7 @@ class S3ToHiveOperator(BaseOperator):
         if self.check_headers and not (self.field_dict is not None and self.headers):
             raise AirflowException("To check_headers provide field_dict and headers")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         # Downloading file from S3
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)

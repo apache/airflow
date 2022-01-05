@@ -221,5 +221,5 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param resource_name: of the media that is being downloaded.
         :type resource_name: str
         """
-        request = self.get_conn_to_display_video().media().download_media(resource_name=resource_name)
+        request = self.get_conn_to_display_video().media().download_media(resourceName=resource_name)
         return request

@@ -227,7 +227,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=5.1,>=5.1.2',
+    'celery>=5.2.3',
     'flower~=1.0.0',
 ]
 cgroups = [
@@ -238,8 +238,7 @@ cloudant = [
 ]
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
-    'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
+    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
@@ -382,7 +381,7 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0, <12.0.0',
+    'kubernetes>=3.0.0',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
@@ -392,7 +391,8 @@ ldap = [
 leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<3.0.0',
-    'pymongo>=3.6.0',
+    # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
+    'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
     'pymssql~=2.1,>=2.1.5',
@@ -404,6 +404,9 @@ mysql = [
 neo4j = ['neo4j>=4.2.1']
 odbc = [
     'pyodbc',
+]
+opsgenie = [
+    'opsgenie-sdk>=2.1.5',
 ]
 oracle = [
     'cx_Oracle>=5.1.2',
@@ -526,6 +529,7 @@ mypy_dependencies = [
     'types-boto',
     'types-certifi',
     'types-croniter',
+    'types-Deprecated',
     'types-docutils',
     'types-freezegun',
     'types-paramiko',
@@ -585,6 +589,7 @@ devel_only = [
     'pytest-httpx',
     'requests_mock',
     'semver',
+    'twine',
     'wheel',
     'yamllint',
 ]
@@ -640,7 +645,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
-    'opsgenie': http_provider,
+    'opsgenie': opsgenie,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
@@ -868,7 +873,7 @@ EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
 def sort_extras_requirements() -> Dict[str, List[str]]:
     """
-    For Python 3.6+ the dictionary order remains when keys() are retrieved.
+    The dictionary order remains when keys() are retrieved.
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """

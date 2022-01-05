@@ -217,7 +217,7 @@ class TestCore:
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_op(self, dag_maker):
-        def test_py_op(templates_dict, ds, **kwargs):
+        def test_py_op(templates_dict, ds):
             if not templates_dict['ds'] == ds:
                 raise Exception("failure")
 
@@ -245,10 +245,6 @@ class TestCore:
         assert context['ds'] == '2015-01-01'
         assert context['ds_nodash'] == '20150101'
 
-        # next_ds is 2015-01-02 as the dag schedule is daily.
-        assert context['next_ds'] == '2015-01-02'
-        assert context['next_ds_nodash'] == '20150102'
-
         assert context['ts'] == '2015-01-01T00:00:00+00:00'
         assert context['ts_nodash'] == '20150101T000000'
         assert context['ts_nodash_with_tz'] == '20150101T000000+0000'
@@ -258,6 +254,8 @@ class TestCore:
 
         # Test deprecated fields.
         expected_deprecated_fields = [
+            ("next_ds", "2015-01-02"),
+            ("next_ds_nodash", "20150102"),
             ("prev_ds", "2014-12-31"),
             ("prev_ds_nodash", "20141231"),
             ("yesterday_ds", "2014-12-31"),
@@ -266,14 +264,17 @@ class TestCore:
             ("tomorrow_ds_nodash", "20150102"),
         ]
         for key, expected_value in expected_deprecated_fields:
-            message = (
+            message_beginning = (
                 f"Accessing {key!r} from the template is deprecated and "
                 f"will be removed in a future version."
             )
             with pytest.deprecated_call() as recorder:
                 value = str(context[key])  # Simulate template evaluation to trigger warning.
             assert value == expected_value
-            assert [str(m.message) for m in recorder] == [message]
+
+            recorded_message = [str(m.message) for m in recorder]
+            assert len(recorded_message) == 1
+            assert recorded_message[0].startswith(message_beginning)
 
     def test_bad_trigger_rule(self, dag_maker):
         with pytest.raises(AirflowException):
@@ -337,8 +338,10 @@ class TestCore:
         context = ti.get_template_context()
 
         # next_ds should be the execution date for manually triggered runs
-        assert context['next_ds'] == execution_ds
-        assert context['next_ds_nodash'] == execution_ds_nodash
+        with pytest.deprecated_call():
+            assert context['next_ds'] == execution_ds
+        with pytest.deprecated_call():
+            assert context['next_ds_nodash'] == execution_ds_nodash
 
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.

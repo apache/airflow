@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Union
+from typing import TYPE_CHECKING, Any, List, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class VerticaOperator(BaseOperator):
@@ -33,8 +36,8 @@ class VerticaOperator(BaseOperator):
         Template reference are recognized by str ending in '.sql'
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#b4e0ff'
 
     def __init__(
@@ -44,7 +47,7 @@ class VerticaOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.sql = sql
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         hook.run(sql=self.sql)

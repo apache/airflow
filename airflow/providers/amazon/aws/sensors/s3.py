@@ -19,13 +19,18 @@
 
 import os
 import re
+import sys
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
 from urllib.parse import urlparse
 
-try:
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
@@ -64,7 +69,7 @@ class S3KeySensor(BaseSensorOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
 
     def __init__(
         self,
@@ -85,7 +90,7 @@ class S3KeySensor(BaseSensorOperator):
         self.verify = verify
         self.hook: Optional[S3Hook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
 
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)
@@ -167,7 +172,7 @@ class S3KeySizeSensor(S3KeySensor):
         super().__init__(**kwargs)
         self.check_fn_user = check_fn
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         if super().poke(context=context) is False:
             return False
 
@@ -191,7 +196,7 @@ class S3KeySizeSensor(S3KeySensor):
         response = paginator.paginate(
             Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
-        keys = []
+        keys: List = []
         for page in response:
             if 'Contents' in page:
                 _temp = [k for k in page['Contents'] if isinstance(k.get('Size', None), (int, float))]
@@ -251,7 +256,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     :type allow_delete: bool
     """
 
-    template_fields = ('bucket_name', 'prefix')
+    template_fields: Sequence[str] = ('bucket_name', 'prefix')
 
     def __init__(
         self,
@@ -352,7 +357,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             return False
         return False
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))
 
 
@@ -387,7 +392,7 @@ class S3PrefixSensor(BaseSensorOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('prefix', 'bucket_name')
+    template_fields: Sequence[str] = ('prefix', 'bucket_name')
 
     def __init__(
         self,
@@ -408,7 +413,7 @@ class S3PrefixSensor(BaseSensorOperator):
         self.verify = verify
         self.hook: Optional[S3Hook] = None
 
-    def poke(self, context: Dict[str, Any]):
+    def poke(self, context: 'Context'):
         self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
         return all(self._check_for_prefix(prefix) for prefix in self.prefix)
 

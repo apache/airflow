@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
+from airflow.utils.context import Context
 
 
 def parse_boolean(val: str) -> Union[str, bool]:
@@ -123,8 +124,8 @@ class SQLCheckOperator(BaseSQLOperator):
     :type database: str
     """
 
-    template_fields: Iterable[str] = ("sql",)
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
     )
@@ -136,7 +137,7 @@ class SQLCheckOperator(BaseSQLOperator):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
 
-    def execute(self, context=None):
+    def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
         records = self.get_db_hook().get_first(self.sql)
 
@@ -177,14 +178,14 @@ class SQLValueCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
-    template_fields = (
+    template_fields: Sequence[str] = (
         "sql",
         "pass_value",
-    )  # type: Iterable[str]
-    template_ext = (
+    )
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
-    )  # type: Iterable[str]
+    )
     ui_color = "#fff7e6"
 
     def __init__(
@@ -288,8 +289,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields: Iterable[str] = ("sql1", "sql2")
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ("sql1", "sql2")
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
     )
@@ -417,11 +418,11 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     :type max_threshold: numeric or str
     """
 
-    template_fields = ("sql", "min_threshold", "max_threshold")
-    template_ext = (
+    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold")
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
-    )  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -504,8 +505,8 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     :type parameters: mapping or iterable
     """
 
-    template_fields = ("sql",)
-    template_ext = (".sql",)
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 
@@ -526,7 +527,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         self.log.info(
             "Executing: %s (with parameters %s) with connection: %s",
             self.sql,

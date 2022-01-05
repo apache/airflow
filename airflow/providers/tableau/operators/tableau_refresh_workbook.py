@@ -15,10 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.tableau.operators.tableau import TableauOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 warnings.warn(
     """This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.""",
@@ -68,7 +72,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         self.tableau_conn_id = tableau_conn_id
         self.check_interval = check_interval
 
-    def execute(self, context: dict) -> str:
+    def execute(self, context: 'Context') -> str:
         """
         Executes the Tableau Extract Refresh and pushes the job id to xcom.
 

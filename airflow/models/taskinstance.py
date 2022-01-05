@@ -99,6 +99,7 @@ from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.email import send_email
+from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -1844,14 +1845,14 @@ class TaskInstance(Base, LoggingMixin):
 
         @cache
         def get_yesterday_ds() -> str:
-            return (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
+            return (logical_date - timedelta(1)).strftime('%Y-%m-%d')
 
         def get_yesterday_ds_nodash() -> str:
             return get_yesterday_ds().replace('-', '')
 
         @cache
         def get_tomorrow_ds() -> str:
-            return (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
+            return (logical_date + timedelta(1)).strftime('%Y-%m-%d')
 
         def get_tomorrow_ds_nodash() -> str:
             return get_tomorrow_ds().replace('-', '')
@@ -1859,18 +1860,15 @@ class TaskInstance(Base, LoggingMixin):
         @cache
         def get_next_execution_date() -> Optional[pendulum.DateTime]:
             # For manually triggered dagruns that aren't run on a schedule,
-            # next/previous execution dates don't make sense, and should be set
+            # the "next" execution date doesn't make sense, and should be set
             # to execution date for consistency with how execution_date is set
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                next_execution_date = dag_run.execution_date
-            else:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", DeprecationWarning)
-                    next_execution_date = dag.following_schedule(self.execution_date)
-            if next_execution_date is None:
+                return logical_date
+            next_info = dag.next_dagrun_info(data_interval, restricted=False)
+            if next_info is None:
                 return None
-            return timezone.coerce_datetime(next_execution_date)
+            return timezone.coerce_datetime(next_info.logical_date)
 
         def get_next_ds() -> Optional[str]:
             execution_date = get_next_execution_date()
@@ -1886,11 +1884,15 @@ class TaskInstance(Base, LoggingMixin):
 
         @cache
         def get_prev_execution_date():
+            # For manually triggered dagruns that aren't run on a schedule,
+            # the "previous" execution date doesn't make sense, and should be set
+            # to execution date for consistency with how execution_date is set
+            # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                return timezone.coerce_datetime(self.execution_date)
+                return logical_date
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                return dag.previous_schedule(self.execution_date)
+                return dag.previous_schedule(logical_date)
 
         @cache
         def get_prev_ds() -> Optional[str]:
@@ -2023,7 +2025,7 @@ class TaskInstance(Base, LoggingMixin):
         sanitized_pod = ApiClient().sanitize_for_serialization(pod)
         return sanitized_pod
 
-    def get_email_subject_content(self, exception):
+    def get_email_subject_content(self, exception: BaseException) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
         # Reuse it for smart sensor to send default email alert
@@ -2050,18 +2052,18 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
+        # This function is called after changing the state from State.RUNNING,
+        # so we need to subtract 1 from self.try_number here.
+        current_try_number = self.try_number - 1
+        additional_context = {
+            "exception": exception,
+            "exception_html": exception_html,
+            "try_number": current_try_number,
+            "max_tries": self.max_tries,
+        }
+
         if use_default:
-            jinja_context = {'ti': self}
-            # This function is called after changing the state
-            # from State.RUNNING so need to subtract 1 from self.try_number.
-            jinja_context.update(
-                dict(
-                    exception=exception,
-                    exception_html=exception_html,
-                    try_number=self.try_number - 1,
-                    max_tries=self.max_tries,
-                )
-            )
+            jinja_context = {"ti": self, **additional_context}
             jinja_env = jinja2.Environment(
                 loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
             )
@@ -2071,24 +2073,15 @@ class TaskInstance(Base, LoggingMixin):
 
         else:
             jinja_context = self.get_template_context()
-
-            jinja_context.update(
-                dict(
-                    exception=exception,
-                    exception_html=exception_html,
-                    try_number=self.try_number - 1,
-                    max_tries=self.max_tries,
-                )
-            )
-
+            jinja_context.update(additional_context)
             jinja_env = self.task.get_template_env()
 
-            def render(key, content):
+            def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
                     path = conf.get('email', key)
                     with open(path) as f:
                         content = f.read()
-                return jinja_env.from_string(content).render(**jinja_context)
+                return render_template_to_string(jinja_env.from_string(content), jinja_context)
 
             subject = render('subject_template', default_subject)
             html_content = render('html_content_template', default_html_content)
@@ -2366,6 +2359,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.job.base_job import BaseJob
+    from airflow.jobs.base_job import BaseJob
 
     TaskInstance.queued_by_job = relationship(BaseJob)

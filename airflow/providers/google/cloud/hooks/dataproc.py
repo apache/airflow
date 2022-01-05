@@ -69,7 +69,7 @@ class DataProcJobBuilder:
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
-    def add_labels(self, labels: dict) -> None:
+    def add_labels(self, labels: Optional[dict] = None) -> None:
         """
         Set labels for Dataproc job.
 
@@ -79,17 +79,17 @@ class DataProcJobBuilder:
         if labels:
             self.job["job"]["labels"].update(labels)
 
-    def add_variables(self, variables: List[str]) -> None:
+    def add_variables(self, variables: Optional[Dict] = None) -> None:
         """
         Set variables for Dataproc job.
 
         :param variables: Variables for the job query.
-        :type variables: List[str]
+        :type variables: Dict
         """
         if variables is not None:
             self.job["job"][self.job_type]["script_variables"] = variables
 
-    def add_args(self, args: List[str]) -> None:
+    def add_args(self, args: Optional[List[str]] = None) -> None:
         """
         Set args for Dataproc job.
 
@@ -99,12 +99,12 @@ class DataProcJobBuilder:
         if args is not None:
             self.job["job"][self.job_type]["args"] = args
 
-    def add_query(self, query: List[str]) -> None:
+    def add_query(self, query: str) -> None:
         """
-        Set query uris for Dataproc job.
+        Set query for Dataproc job.
 
-        :param query: URIs for the job queries.
-        :type query: List[str]
+        :param query: query for the job.
+        :type query: str
         """
         self.job["job"][self.job_type]["query_list"] = {'queries': [query]}
 
@@ -117,7 +117,7 @@ class DataProcJobBuilder:
         """
         self.job["job"][self.job_type]["query_file_uri"] = query_uri
 
-    def add_jar_file_uris(self, jars: List[str]) -> None:
+    def add_jar_file_uris(self, jars: Optional[List[str]] = None) -> None:
         """
         Set jars uris for Dataproc job.
 
@@ -127,7 +127,7 @@ class DataProcJobBuilder:
         if jars is not None:
             self.job["job"][self.job_type]["jar_file_uris"] = jars
 
-    def add_archive_uris(self, archives: List[str]) -> None:
+    def add_archive_uris(self, archives: Optional[List[str]] = None) -> None:
         """
         Set archives uris for Dataproc job.
 
@@ -137,7 +137,7 @@ class DataProcJobBuilder:
         if archives is not None:
             self.job["job"][self.job_type]["archive_uris"] = archives
 
-    def add_file_uris(self, files: List[str]) -> None:
+    def add_file_uris(self, files: Optional[List[str]] = None) -> None:
         """
         Set file uris for Dataproc job.
 
@@ -147,7 +147,7 @@ class DataProcJobBuilder:
         if files is not None:
             self.job["job"][self.job_type]["file_uris"] = files
 
-    def add_python_file_uris(self, pyfiles: List[str]) -> None:
+    def add_python_file_uris(self, pyfiles: Optional[List[str]] = None) -> None:
         """
         Set python file uris for Dataproc job.
 
@@ -157,7 +157,7 @@ class DataProcJobBuilder:
         if pyfiles is not None:
             self.job["job"][self.job_type]["python_file_uris"] = pyfiles
 
-    def set_main(self, main_jar: Optional[str], main_class: Optional[str]) -> None:
+    def set_main(self, main_jar: Optional[str] = None, main_class: Optional[str] = None) -> None:
         """
         Set Dataproc main class.
 

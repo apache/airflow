@@ -1271,7 +1271,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1474,7 +1474,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1541,7 +1541,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1632,7 +1632,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
 
   ####################################################################################################
@@ -1827,7 +1827,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1896,7 +1896,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2193,22 +2193,23 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
-                 base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
-                 build build-providers-dependencies chart-schema-lint capitalized-breeze
-                 changelog-duplicates check-apache-license check-builtin-literals
+                 autoflake base-operator bats-tests bats-in-container-tests black blacken-docs
+                 boring-cyborg build build-providers-dependencies chart-schema-lint
+                 capitalized-breeze changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
                  fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 pre-commit-hook-names pretty-format-json provide-create-sessions
-                 providers-changelogs providers-init-file providers-subpackages-init-file
-                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
-                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
-                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file update-versions
+                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
+                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
+                 provide-create-sessions providers-changelogs providers-init-file
+                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
+                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
+                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 update-supported-versions update-versions vendor-k8s-json-schema
                  verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
@@ -2305,7 +2306,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   ****************************************************************************************************
    Choose backend to run for Airflow

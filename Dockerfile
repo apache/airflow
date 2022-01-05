@@ -199,8 +199,9 @@ ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
 
-RUN if [[ -f /docker-context-files/.pypirc ]]; then \
-        cp /docker-context-files/.pypirc /root/.pypirc; \
+RUN if [[ -f /docker-context-files/pip.conf ]]; then \
+        mkdir -p /root/.config/pip; \
+        cp /docker-context-files/pip.conf /root/.config/pip/pip.conf; \
     fi
 
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
@@ -238,10 +239,9 @@ ARG INSTALL_FROM_PYPI="true"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
 # * certifi<2021.0.0 required to keep snowflake happy
-# * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
 # * google-ads<14.0.1 required to prevent updating google-python-api>=2.0.0
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \

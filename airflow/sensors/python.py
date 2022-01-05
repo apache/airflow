@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.context import Context
@@ -46,14 +46,14 @@ class PythonSensor(BaseSensorOperator):
     :type templates_dict: dict of str
     """
 
-    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
 
     def __init__(
         self,
         *,
         python_callable: Callable,
         op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict] = None,
         **kwargs,
     ):

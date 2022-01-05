@@ -16,13 +16,17 @@
 # under the License.
 
 import warnings
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 AVAILABLE_METHODS = ['APPEND', 'REPLACE', 'UPSERT']
 
@@ -71,8 +75,8 @@ class S3ToRedshiftOperator(BaseOperator):
     :type upsert_keys: List[str]
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
-    template_ext = ()
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
+    template_ext: Sequence[str] = ()
     ui_color = '#99e699'
 
     def __init__(
@@ -130,7 +134,7 @@ class S3ToRedshiftOperator(BaseOperator):
                     {copy_options};
         """
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
 
@@ -147,6 +151,8 @@ class S3ToRedshiftOperator(BaseOperator):
         copy_destination = f'#{self.table}' if self.method == 'UPSERT' else destination
 
         copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
+
+        sql: Union[list, str]
 
         if self.method == 'REPLACE':
             sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]

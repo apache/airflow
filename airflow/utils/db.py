@@ -55,6 +55,7 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
@@ -720,6 +721,21 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
+@provide_session
+def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
+    """Synchronize log template configs with table.
+
+    This checks if the last row fully matches the current config values, and
+    insert a new row if not.
+    """
+    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+    filename = conf.get("logging", "log_filename_template")
+    prefix = conf.get("logging", "task_log_prefix_template")
+    if stored and stored.filename == filename and stored.task_prefix == prefix:
+        return
+    session.merge(LogTemplate(filename=filename, task_prefix=prefix))
+
+
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table
@@ -733,7 +749,6 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
     if dups:
         yield (
             'Seems you have non unique conn_id in connection table.\n'
@@ -756,7 +771,6 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
 
     if n_nulls:
         yield (
@@ -996,6 +1010,7 @@ def upgradedb(session: Session = NEW_SESSION):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
+    synchronize_log_template()
 
 
 @provide_session

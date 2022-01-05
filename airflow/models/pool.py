@@ -196,7 +196,7 @@ class Pool(Base):
         }
 
     @provide_session
-    def occupied_slots(self, session: Session):
+    def occupied_slots(self, session: Session = NEW_SESSION):
         """
         Get the number of slots used by running/queued tasks at the moment.
 
@@ -214,7 +214,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def running_slots(self, session: Session):
+    def running_slots(self, session: Session = NEW_SESSION):
         """
         Get the number of slots used by running tasks at the moment.
 
@@ -232,7 +232,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def queued_slots(self, session: Session):
+    def queued_slots(self, session: Session = NEW_SESSION):
         """
         Get the number of slots used by queued tasks at the moment.
 

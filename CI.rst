@@ -662,7 +662,7 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.6", "3.7", "3.8", "3.9"].
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
 * <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
   commit from the tip of the branch used for the PR.
 

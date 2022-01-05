@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives import serialization
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection
 from snowflake.connector.util_text import split_statements
+from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.hooks.dbapi import DbApiHook
@@ -222,11 +223,13 @@ class SnowflakeHook(DbApiHook):
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: Dict) -> str:
-        uri = (
-            'snowflake://{user}:{password}@{account}.{region}/{database}/{schema}'
-            '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
+        return URL(
+            **{
+                k: v
+                for k, v in conn_params.items()
+                if v and k not in ['session_parameters', 'insecure_mode', 'private_key']
+            }
         )
-        return uri.format(**conn_params)
 
     def get_conn(self) -> SnowflakeConnection:
         """Returns a snowflake.connection object"""
@@ -246,6 +249,10 @@ class SnowflakeHook(DbApiHook):
         if 'insecure_mode' in conn_params:
             engine_kwargs.setdefault('connect_args', dict())
             engine_kwargs['connect_args']['insecure_mode'] = True
+        for key in ['session_parameters', 'private_key']:
+            if conn_params.get(key):
+                engine_kwargs.setdefault('connect_args', dict())
+                engine_kwargs['connect_args'][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
     def set_autocommit(self, conn, autocommit: Any) -> None:

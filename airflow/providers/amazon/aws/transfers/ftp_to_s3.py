@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ftp.hooks.ftp import FTPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class FTPToS3Operator(BaseOperator):
@@ -64,7 +67,7 @@ class FTPToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
+    template_fields: Sequence[str] = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
 
     def __init__(
         self,
@@ -79,7 +82,7 @@ class FTPToS3Operator(BaseOperator):
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: str = None,
+        acl_policy: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -94,8 +97,8 @@ class FTPToS3Operator(BaseOperator):
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
-        self.s3_hook = None
-        self.ftp_hook = None
+        self.s3_hook: Optional[S3Hook] = None
+        self.ftp_hook: Optional[FTPHook] = None
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
@@ -114,7 +117,7 @@ class FTPToS3Operator(BaseOperator):
             )
             self.log.info(f'File upload to {s3_file_key}')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
         self.s3_hook = S3Hook(self.aws_conn_id)
 
@@ -129,12 +132,13 @@ class FTPToS3Operator(BaseOperator):
                 if self.ftp_filenames == '*':
                     files = list_dir
                 else:
-                    files = list(filter(lambda file: self.ftp_filenames in file, list_dir))
+                    ftp_filename: str = self.ftp_filenames
+                    files = list(filter(lambda f: ftp_filename in f, list_dir))
 
                 for file in files:
                     self.log.info(f'Moving file {file}')
 
-                    if self.s3_filenames:
+                    if self.s3_filenames and isinstance(self.s3_filenames, str):
                         filename = file.replace(self.ftp_filenames, self.s3_filenames)
                     else:
                         filename = file

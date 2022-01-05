@@ -2819,6 +2819,10 @@ class DagModel(Base):
             self.dag_id, session=session, include_externally_triggered=include_externally_triggered
         )
 
+    def get_is_paused(self, *, session: Optional[Session] = None) -> bool:
+        """Provide interface compatibility to 'DAG'."""
+        return self.is_paused
+
     @staticmethod
     @provide_session
     def get_paused_dag_ids(dag_ids: List[str], session: Session = NEW_SESSION) -> Set[str]:
