@@ -77,7 +77,7 @@ services:
       - VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
       - VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN}
       - WHEEL_VERSION=${WHEEL_VERSION}
-      - TRACES_EXPORTER=jaeger_thrift
+      - OTEL_TRACES_EXPORTER=jaeger_thrift
       - OTEL_SERVICE_NAME=airflow-service
       - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
 
@@ -91,6 +91,8 @@ services:
       - "${FLOWER_HOST_PORT}:5555"
     cap_add:
       - SYS_PTRACE
+    depends_on:
+      - jaeger
 
   jaeger:
     image: "jaegertracing/all-in-one:latest"
