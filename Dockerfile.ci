@@ -90,7 +90,6 @@ RUN mkdir -pv /usr/share/man/man1 \
            locales  \
            netcat \
            nodejs \
-           python2 \
            rsync \
            sasl2-bin \
            sudo \
@@ -123,7 +122,6 @@ ARG RUNTIME_APT_DEPS="\
       krb5-user \
       ldap-utils \
       less \
-      libpython2.7-stdlib \
       lsb-release \
       net-tools \
       openssh-client \

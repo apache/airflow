@@ -817,19 +817,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         with pytest.raises(CalledProcessError):
             self._run_as_operator(f)
 
-    def test_python_2(self):
-        def f():
-            {}.iteritems()
-
-        self._run_as_operator(f, python_version=2, requirements=['dill'])
-
-    def test_python_2_7(self):
-        def f():
-            {}.iteritems()
-            return True
-
-        self._run_as_operator(f, python_version='2.7', requirements=['dill'])
-
     def test_python_3(self):
         def f():
             import sys
@@ -842,25 +829,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             raise Exception
 
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
-
-    @staticmethod
-    def _invert_python_major_version():
-        if sys.version_info[0] == 2:
-            return 3
-        else:
-            return 2
-
-    def test_wrong_python_version_with_op_args(self):
-        def f():
-            pass
-
-        version = self._invert_python_major_version()
-
-        with pytest.raises(AirflowException):
-            self._run_as_operator(f, python_version=version, op_args=[1])
-
-        with pytest.raises(AirflowException):
-            self._run_as_operator(f, python_version=version, op_kwargs={"arg": 1})
 
     def test_without_dill(self):
         def f(a):
@@ -875,7 +843,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
 
-        self._run_as_operator(f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+        self._run_as_operator(f, string_args=[1, 2, 1])
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
