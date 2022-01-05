@@ -711,30 +711,6 @@ def test_task_instance_set_state_failure(admin_client, action):
 
 
 @pytest.mark.parametrize(
-    "action",
-    ["clear", "set_success", "set_failed", "set_running", "set_skipped"],
-    ids=["clear", "success", "failed", "running", "skipped"],
-)
-def test_set_task_instance_action_permission_denied(session, client_ti_without_dag_edit, action):
-    task_id = "runme_0"
-
-    # Set the state to success for clearing.
-    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
-    ti_q.update({"state": State.SUCCESS})
-    session.commit()
-
-    # Send a request to clear.
-    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
-    expected_message = f"Access denied for dag_id {ti_q.one().dag_id}"
-    resp = client_ti_without_dag_edit.post(
-        "/taskinstance/action_post",
-        data={"action": action, "rowid": [rowid]},
-        follow_redirects=True,
-    )
-    check_content_in_response(expected_message, resp)
-
-
-@pytest.mark.parametrize(
     "task_search_tuples",
     [
         [("example_xcom", "bash_push"), ("example_bash_operator", "run_this_last")],
