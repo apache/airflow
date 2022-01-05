@@ -278,7 +278,7 @@ def test_trigger_bad_respawn(session):
             if getattr(job.runner, 'loop_count', 0) >= 2:
                 break
         else:
-            pytest.fail("did not observe 2 loops in the job thread")
+            pytest.fail("did not observe 2 loops in the runner thread")
     finally:
         job.runner.stop = True
         job.runner.join()
