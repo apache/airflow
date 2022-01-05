@@ -42,7 +42,7 @@ task_group_sig = signature(TaskGroup.__init__)
 class TaskGroupDecorator(Generic[R]):
     """:meta private:"""
 
-    function: Callable[..., R] = attr.ib(validator=attr.validators.is_callable())
+    function: Callable[..., Optional[R]] = attr.ib(validator=attr.validators.is_callable())
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
     """kwargs for the TaskGroup"""
 
@@ -62,9 +62,24 @@ class TaskGroupDecorator(Generic[R]):
         return TaskGroup(**kwargs)
 
     def __call__(self, *args, **kwargs) -> R:
-        with self._make_task_group(add_suffix_on_collision=True, **self.kwargs):
+        with self._make_task_group(add_suffix_on_collision=True, **self.kwargs) as task_group:
             # Invoke function to run Tasks inside the TaskGroup
-            return self.function(*args, **kwargs)
+            retval = self.function(*args, **kwargs)
+
+        # If the task-creating function returns a task, forward the return value
+        # so dependencies bind to it. This is equivalent to
+        #   with TaskGroup(...) as tg:
+        #       t2 = task_2(task_1())
+        #   start >> t2 >> end
+        if retval is not None:
+            return retval
+
+        # Otherwise return the task group as a whole, equivalent to
+        #   with TaskGroup(...) as tg:
+        #       task_1()
+        #       task_2()
+        #   start >> tg >> end
+        return task_group
 
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).partial(**kwargs)
