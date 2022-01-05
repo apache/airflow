@@ -47,8 +47,8 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
     def test_add_dill(self):
         @task.virtualenv(use_dill=True, system_site_packages=False)
         def f():
+            """Ensure dill is correctly installed."""
             import dill  # noqa: F401
-            import lazy_object_proxy  # noqa: F401
 
         with self.dag:
             ret = f()

@@ -744,8 +744,8 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_add_dill(self):
         def f():
+            """Ensure dill is correctly installed."""
             import dill  # noqa: F401
-            import lazy_object_proxy  # noqa: F401
 
         self._run_as_operator(f, use_dill=True, system_site_packages=False)
 
