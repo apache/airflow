@@ -346,7 +346,7 @@ function filename_to_python_module() {
 }
 
 function import_all_provider_classes() {
-    group_start "Import all Airflow classes"
+    group_start "Import all Provider classes"
     # We have to move to a directory where "airflow" is
     unset PYTHONPATH
     # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
@@ -358,9 +358,13 @@ function import_all_provider_classes() {
     PROVIDER_PATHS=$(
         python3 <<EOF 2>/dev/null
 import airflow.providers;
+from pathlib import Path
 path=airflow.providers.__path__
 for p in path._path:
     print(p)
+    for subdir in Path(p).iterdir():
+        if subdir.is_dir() and not (subdir / "provider.yaml").exists():
+            print(subdir)
 EOF
     )
     export PROVIDER_PATHS
