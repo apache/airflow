@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -24,6 +24,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SnowflakeToSlackOperator(BaseOperator):
@@ -67,8 +70,8 @@ class SnowflakeToSlackOperator(BaseOperator):
     :type slack_token: Optional[str]
     """
 
-    template_fields = ['sql', 'slack_message']
-    template_ext = ['.sql', '.jinja', '.j2']
+    template_fields: Sequence[str] = ('sql', 'slack_message')
+    template_ext: Sequence[str] = ('.sql', '.jinja', '.j2')
     template_fields_renderers = {"slack_message": "jinja"}
     times_rendered = 0
 
@@ -149,7 +152,7 @@ class SnowflakeToSlackOperator(BaseOperator):
         self._do_render_template_fields(self, fields_to_render, context, jinja_env, set())
         self.times_rendered += 1
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         if not isinstance(self.sql, str):
             raise AirflowException("Expected 'sql' parameter should be a string.")
         if self.sql is None or self.sql.strip() == "":

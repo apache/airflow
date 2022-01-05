@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
-class OpsgenieAlertOperator(BaseOperator):
+
+class OpsgenieCreateAlertOperator(BaseOperator):
     """
     This operator allows you to post alerts to Opsgenie.
     Accepts a connection that has an Opsgenie API key as the connection's password.
@@ -34,7 +37,7 @@ class OpsgenieAlertOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:OpsgenieAlertOperator`
+        :ref:`howto/operator:OpsgenieCreateAlertOperator`
 
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
     :type opsgenie_conn_id: str
@@ -70,7 +73,7 @@ class OpsgenieAlertOperator(BaseOperator):
     :type note: str
     """
 
-    template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
+    template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
     def __init__(
         self,
@@ -138,7 +141,91 @@ class OpsgenieAlertOperator(BaseOperator):
                 payload[key] = val
         return payload
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Call the OpsgenieAlertHook to post message"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.create_alert(self._build_opsgenie_payload())
+
+
+class OpsgenieCloseAlertOperator(BaseOperator):
+    """
+    This operator allows you to close alerts to Opsgenie.
+    Accepts a connection that has an Opsgenie API key as the connection's password.
+    This operator sets the domain to conn_id.host, and if not set will default
+    to ``https://api.opsgenie.com``.
+
+    Each Opsgenie API key can be pre-configured to a team integration.
+    You can override these defaults in this operator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpsgenieCloseAlertOperator`
+
+    :param opsgenie_conn_id: The name of the Opsgenie connection to use
+    :type opsgenie_conn_id: str
+    :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
+    :type identifier: str
+    :param identifier_type: Type of the identifier that is provided as an in-line parameter.
+        Possible values are 'id', 'alias' or 'tiny'
+    :type identifier_type: str
+    :param user: display name of the request owner
+    :type user: str
+    :param note: additional note that will be added while creating the alert
+    :type note: str
+    :param source: source field of the alert. Default value is IP address of the incoming request
+    :type source: str
+    :param close_alert_kwargs: additional params to pass
+    :type close_alert_kwargs: dict
+    """
+
+    def __init__(
+        self,
+        *,
+        identifier: str,
+        opsgenie_conn_id: str = 'opsgenie_default',
+        identifier_type: Optional[str] = None,
+        user: Optional[str] = None,
+        note: Optional[str] = None,
+        source: Optional[str] = None,
+        close_alert_kwargs: Optional[dict] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.opsgenie_conn_id = opsgenie_conn_id
+        self.identifier = identifier
+        self.identifier_type = identifier_type
+        self.user = user
+        self.note = note
+        self.source = source
+        self.close_alert_kwargs = close_alert_kwargs
+        self.hook: Optional[OpsgenieAlertHook] = None
+
+    def _build_opsgenie_close_alert_payload(self) -> Dict[str, Any]:
+        """
+        Construct the Opsgenie JSON payload. All relevant parameters are combined here
+        to a valid Opsgenie JSON payload.
+
+        :return: Opsgenie close alert payload (dict) to send
+        """
+        payload = {}
+
+        for key in [
+            "user",
+            "note",
+            "source",
+        ]:
+            val = getattr(self, key)
+            if val:
+                payload[key] = val
+        return payload
+
+    def execute(self, context: 'Context') -> None:
+        """Call the OpsgenieAlertHook to close alert"""
+        self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
+        self.hook.close_alert(
+            identifier=self.identifier,
+            identifier_type=self.identifier_type,
+            payload=self._build_opsgenie_close_alert_payload(),
+            kwargs=self.close_alert_kwargs,
+        )

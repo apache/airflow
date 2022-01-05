@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Container, Mapping, Optional, Union, Mapping
+from typing import Any, Container, Mapping, Optional, Union
 
 from pendulum import DateTime
 
@@ -48,7 +48,7 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
-class Context(TypedDict, total=False):
+class Context(TypedDict):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG

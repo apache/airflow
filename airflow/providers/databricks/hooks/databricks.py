@@ -22,6 +22,7 @@ This hook enable the submitting and running of jobs to the Databricks platform. 
 operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
+import sys
 import time
 from time import sleep
 from typing import Dict
@@ -34,6 +35,12 @@ from requests.auth import AuthBase
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -143,11 +150,10 @@ class DatabricksHook(BaseHook):
         self.retry_delay = retry_delay
         self.aad_tokens: Dict[str, dict] = {}
         self.aad_timeout_seconds = 10
-        self.databricks_conn = self.get_connection(self.databricks_conn_id)
-        if 'host' in self.databricks_conn.extra_dejson:
-            self.host = self._parse_host(self.databricks_conn.extra_dejson['host'])
-        else:
-            self.host = self._parse_host(self.databricks_conn.host)
+
+    @cached_property
+    def databricks_conn(self) -> Connection:
+        return self.get_connection(self.databricks_conn_id)
 
     @staticmethod
     def _parse_host(host: str) -> str:
@@ -278,7 +284,7 @@ class DatabricksHook(BaseHook):
         """
         try:
             jsn = requests.get(
-                AZURE_METADATA_SERVICE_TOKEN_URL,
+                AZURE_METADATA_SERVICE_INSTANCE_URL,
                 params={"api-version": "2021-02-01"},
                 headers={"Metadata": "true"},
                 timeout=2,
@@ -305,7 +311,12 @@ class DatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        url = f'https://{self.host}/{endpoint}'
+        if 'host' in self.databricks_conn.extra_dejson:
+            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+        else:
+            host = self._parse_host(self.databricks_conn.host)
+
+        url = f'https://{host}/{endpoint}'
 
         aad_headers = self._get_aad_headers()
         headers = {**USER_AGENT_HEADER.copy(), **aad_headers}

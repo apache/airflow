@@ -1304,7 +1304,7 @@ OPERATORS = [
         'airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator',
     ),
     (
-        'airflow.providers.opsgenie.operators.opsgenie.OpsgenieAlertOperator',
+        'airflow.providers.opsgenie.operators.opsgenie.OpsgenieCreateAlertOperator',
         'airflow.contrib.operators.opsgenie_alert_operator.OpsgenieAlertOperator',
     ),
     (

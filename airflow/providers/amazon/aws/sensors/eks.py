@@ -17,7 +17,7 @@
 #
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
@@ -27,6 +27,10 @@ from airflow.providers.amazon.aws.hooks.eks import (
     NodegroupStates,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 DEFAULT_CONN_ID = "aws_default"
 
@@ -71,7 +75,7 @@ class EksClusterStateSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = ("cluster_name", "target_state", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -94,7 +98,7 @@ class EksClusterStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -133,7 +137,13 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "fargate_profile_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "fargate_profile_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -158,7 +168,7 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -199,7 +209,13 @@ class EksNodegroupStateSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "nodegroup_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "nodegroup_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -224,7 +240,7 @@ class EksNodegroupStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,

@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google PubSub operators."""
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import (
@@ -32,6 +32,9 @@ from google.cloud.pubsub_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PubSubCreateTopicOperator(BaseOperator):
@@ -117,11 +120,11 @@ class PubSubCreateTopicOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
 
     def __init__(
@@ -166,7 +169,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -332,13 +335,13 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'subscription',
         'subscription_project_id',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
 
     def __init__(
@@ -412,7 +415,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> str:
+    def execute(self, context: 'Context') -> str:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -513,11 +516,11 @@ class PubSubDeleteTopicOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#cb4335'
 
     def __init__(
@@ -556,7 +559,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -645,11 +648,11 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'subscription',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#cb4335'
 
     def __init__(
@@ -688,7 +691,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -770,12 +773,12 @@ class PubSubPublishMessageOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'topic',
         'messages',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
 
     def __init__(
@@ -808,7 +811,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -877,11 +880,11 @@ class PubSubPullOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'subscription',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -906,7 +909,7 @@ class PubSubPullOperator(BaseOperator):
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> list:
+    def execute(self, context: 'Context') -> list:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

@@ -16,7 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import Any, Dict, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -60,7 +64,7 @@ class EmrBaseSensor(BaseSensorOperator):
         self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         response = self.get_emr_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -145,8 +149,8 @@ class EmrContainerSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ("COMPLETED",)
 
-    template_fields = ['virtual_cluster_id', 'job_id']
-    template_ext = ()
+    template_fields: Sequence[str] = ('virtual_cluster_id', 'job_id')
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(
@@ -166,7 +170,7 @@ class EmrContainerSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
         self.max_retries = max_retries
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         state = self.hook.poll_query_status(self.job_id, self.max_retries, self.poll_interval)
 
         if state in self.FAILURE_STATES:
@@ -202,8 +206,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields = ['job_flow_id', 'target_states', 'failed_states']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_flow_id', 'target_states', 'failed_states')
+    template_ext: Sequence[str] = ()
 
     def __init__(
         self,
@@ -283,8 +287,8 @@ class EmrStepSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_flow_id', 'step_id', 'target_states', 'failed_states')
+    template_ext: Sequence[str] = ()
 
     def __init__(
         self,

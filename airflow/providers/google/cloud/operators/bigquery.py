@@ -25,7 +25,7 @@ import re
 import uuid
 import warnings
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
@@ -37,6 +37,10 @@ from airflow.models.xcom import XCom
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
@@ -160,13 +164,13 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     :type labels: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'gcp_conn_id',
         'impersonation_chain',
         'labels',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
     def __init__(
@@ -228,14 +232,14 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     :type labels: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'gcp_conn_id',
         'pass_value',
         'impersonation_chain',
         'labels',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
     def __init__(
@@ -312,7 +316,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     :type labels: dict
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'table',
         'gcp_conn_id',
         'sql1',
@@ -420,7 +424,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'max_results',
@@ -463,7 +467,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> list:
+    def execute(self, context: 'Context') -> list:
         self.log.info(
             'Fetching Data from %s.%s max results: %s', self.dataset_id, self.table_id, self.max_results
         )
@@ -593,14 +597,14 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'destination_dataset_table',
         'labels',
         'query_params',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = BigQueryUIColors.QUERY.value
 
     @property
@@ -616,7 +620,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         sql: Union[str, Iterable],
         destination_dataset_table: Optional[str] = None,
         write_disposition: str = 'WRITE_EMPTY',
-        allow_large_results: Optional[bool] = False,
+        allow_large_results: bool = False,
         flatten_results: Optional[bool] = None,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
@@ -679,7 +683,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.hook = None  # type: Optional[BigQueryHook]
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         if self.hook is None:
             self.log.info('Executing: %s', self.sql)
             self.hook = BigQueryHook(
@@ -690,7 +694,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
         if isinstance(self.sql, str):
-            job_id = self.hook.run_query(
+            job_id: Union[str, List[str]] = self.hook.run_query(
                 sql=self.sql,
                 destination_dataset_table=self.destination_dataset_table,
                 write_disposition=self.write_disposition,
@@ -876,7 +880,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type exists_ok: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'project_id',
@@ -933,7 +937,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.exists_ok = exists_ok
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -1075,7 +1079,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'source_objects',
         'schema_object',
@@ -1188,7 +1192,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -1207,10 +1211,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields_bytes_or_string = gcs_hook.download(self.bucket, self.schema_object)
-            if hasattr(schema_fields_bytes_or_string, 'decode'):
-                schema_fields_bytes_or_string = cast(bytes, schema_fields_bytes_or_string).decode("utf-8")
-            schema_fields = json.loads(schema_fields_bytes_or_string)
+            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
         else:
             schema_fields = self.schema_fields
 
@@ -1282,7 +1283,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
             dag=dag)
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1319,7 +1320,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
         bq_hook = BigQueryHook(
@@ -1383,7 +1384,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 dag=dag)
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'dataset_reference',
@@ -1427,7 +1428,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1482,7 +1483,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1506,7 +1507,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1551,7 +1552,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1577,7 +1578,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1628,7 +1629,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1660,7 +1661,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1718,7 +1719,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'project_id',
@@ -1750,7 +1751,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1809,7 +1810,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'project_id',
         'impersonation_chain',
@@ -1838,7 +1839,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1892,7 +1893,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'deletion_dataset_table',
         'impersonation_chain',
     )
@@ -1928,7 +1929,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Deleting: %s', self.deletion_dataset_table)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1979,7 +1980,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_resource',
         'impersonation_chain',
@@ -2019,7 +2020,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
         hook = BigQueryHook(
             bigquery_conn_id=self.gcp_conn_id,
@@ -2096,7 +2097,7 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'schema_fields_updates',
         'dataset_id',
         'table_id',
@@ -2110,9 +2111,9 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         self,
         *,
         schema_fields_updates: List[Dict[str, Any]],
-        include_policy_tags: Optional[bool] = False,
-        dataset_id: Optional[str] = None,
-        table_id: Optional[str] = None,
+        dataset_id: str,
+        table_id: str,
+        include_policy_tags: bool = False,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -2129,7 +2130,7 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -2205,12 +2206,12 @@ class BigQueryInsertJobOperator(BaseOperator):
     :type cancel_on_kill: bool
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "configuration",
         "job_id",
         "impersonation_chain",
     )
-    template_ext = (".json",)
+    template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
 

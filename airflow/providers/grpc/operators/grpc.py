@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GrpcOperator(BaseOperator):
@@ -49,7 +52,7 @@ class GrpcOperator(BaseOperator):
     :type log_response: boolean
     """
 
-    template_fields = ('stub_class', 'call_func', 'data')
+    template_fields: Sequence[str] = ('stub_class', 'call_func', 'data')
     template_fields_renderers = {"data": "py"}
 
     def __init__(
@@ -84,7 +87,7 @@ class GrpcOperator(BaseOperator):
             custom_connection_func=self.custom_connection_func,
         )
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = self._get_grpc_hook()
         self.log.info("Calling gRPC service")
 

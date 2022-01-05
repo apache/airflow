@@ -17,7 +17,7 @@
 # under the License.
 
 """This module contains AWS S3 to Snowflake operator."""
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -71,7 +71,7 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type session_parameters: dict
     """
 
-    template_fields = ("s3_keys",)
+    template_fields: Sequence[str] = ("s3_keys",)
     template_fields_renderers = {"s3_keys": "json"}
 
     def __init__(

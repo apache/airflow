@@ -26,7 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterable, List, NewType, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NewType, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -35,6 +35,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 NotSetType = NewType('NotSetType', object)
 NOT_SET = NotSetType(object())
@@ -93,14 +96,14 @@ class CassandraToGCSOperator(BaseOperator):
     :type query_timeout: float | None
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'cql',
         'bucket',
         'filename',
         'schema_filename',
         'impersonation_chain',
     )
-    template_ext = ('.cql',)
+    template_ext: Sequence[str] = ('.cql',)
     ui_color = '#a0e08c'
 
     def __init__(
@@ -169,7 +172,7 @@ class CassandraToGCSOperator(BaseOperator):
         'VarcharType': 'STRING',
     }
 
-    def execute(self, context: Dict[str, str]):
+    def execute(self, context: 'Context'):
         hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
 
         query_extra = {}

@@ -85,7 +85,7 @@ class CreateNodegroupParams(TypedDict):
 class TestEksCreateClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
         # Parameters which are needed to create a cluster.
-        self.create_cluster_params: ClusterParams = dict(
+        self.create_cluster_params: ClusterParams = dict(  # type: ignore
             cluster_name=CLUSTER_NAME,
             cluster_role_arn=ROLE_ARN[1],
             resources_vpc_config=RESOURCES_VPC_CONFIG[1],
@@ -101,7 +101,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
     def nodegroup_setUp(self) -> None:
         # Parameters which are added to the cluster parameters
         # when creating both the cluster and nodegroup together.
-        self.base_nodegroup_params: NodeGroupParams = dict(
+        self.base_nodegroup_params: NodeGroupParams = dict(  # type: ignore
             nodegroup_name=NODEGROUP_NAME,
             nodegroup_role_arn=NODEROLE_ARN[1],
         )
@@ -122,7 +122,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
     def fargate_profile_setUp(self) -> None:
         # Parameters which are added to the cluster parameters
         # when creating both the cluster and Fargate profile together.
-        self.base_fargate_profile_params: BaseFargateProfileParams = dict(
+        self.base_fargate_profile_params: BaseFargateProfileParams = dict(  # type: ignore
             fargate_profile_name=FARGATE_PROFILE_NAME,
             fargate_pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             fargate_selectors=SELECTORS[1],
@@ -180,7 +180,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
 
 class TestEksCreateFargateProfileOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.create_fargate_profile_params: CreateFargateProfileParams = dict(
+        self.create_fargate_profile_params: CreateFargateProfileParams = dict(  # type: ignore
             cluster_name=CLUSTER_NAME,
             pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             selectors=SELECTORS[1],
@@ -202,7 +202,7 @@ class TestEksCreateFargateProfileOperator(unittest.TestCase):
 
 class TestEksCreateNodegroupOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.create_nodegroup_params: CreateNodegroupParams = dict(
+        self.create_nodegroup_params: CreateNodegroupParams = dict(  # type: ignore
             cluster_name=CLUSTER_NAME,
             nodegroup_name=NODEGROUP_NAME,
             nodegroup_subnets=SUBNET_IDS,

@@ -20,13 +20,16 @@
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class VerticaToHiveOperator(BaseOperator):
@@ -65,8 +68,8 @@ class VerticaToHiveOperator(BaseOperator):
     :type hive_cli_conn_id: str
     """
 
-    template_fields = ('sql', 'partition', 'hive_table')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#b4e0ff'
 
     def __init__(
@@ -110,7 +113,7 @@ class VerticaToHiveOperator(BaseOperator):
         }
         return type_map.get(vertica_type, 'STRING')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 

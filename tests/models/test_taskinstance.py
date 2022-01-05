@@ -30,6 +30,7 @@ import pytest
 from freezegun import freeze_time
 
 from airflow import models, settings
+from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -1633,6 +1634,30 @@ class TestTaskInstance:
         context = ti.get_template_context()
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    def test_tempalte_with_custom_timetable_deprecated_context(self, create_task_instance):
+        ti = create_task_instance(
+            start_date=DEFAULT_DATE,
+            timetable=AfterWorkdayTimetable(),
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.datetime(2021, 9, 6),
+            data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
+        )
+        context = ti.get_template_context()
+        with pytest.deprecated_call():
+            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=timezone.TIMEZONE)
+        with pytest.deprecated_call():
+            assert context["next_ds"] == "2021-09-07"
+        with pytest.deprecated_call():
+            assert context["next_ds_nodash"] == "20210907"
+        with pytest.deprecated_call():
+            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=timezone.TIMEZONE)
+        with pytest.deprecated_call():
+            assert context["prev_ds"] is None, "Does not make sense for custom timetable"
+        with pytest.deprecated_call():
+            assert context["prev_ds_nodash"] is None, "Does not make sense for custom timetable"
+        with pytest.deprecated_call():
+            assert context["prev_execution_date"] is None, "Does not make sense for custom timetable"
 
     def test_execute_callback(self, create_task_instance):
         called = False

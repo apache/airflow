@@ -18,11 +18,14 @@
 """This module contains Google Ad to GCS operators."""
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleAdsListAccountsOperator(BaseOperator):
@@ -65,7 +68,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type api_version: Optional[str]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "bucket",
         "object_name",
         "impersonation_chain",
@@ -92,7 +95,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
 
-    def execute(self, context: dict) -> str:
+    def execute(self, context: 'Context') -> str:
         uri = f"gs://{self.bucket}/{self.object_name}"
 
         ads_hook = GoogleAdsHook(

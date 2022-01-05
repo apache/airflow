@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -42,7 +42,12 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     :type factory_name: str
     """
 
-    template_fields = ("azure_data_factory_conn_id", "resource_group_name", "factory_name", "run_id")
+    template_fields: Sequence[str] = (
+        "azure_data_factory_conn_id",
+        "resource_group_name",
+        "factory_name",
+        "run_id",
+    )
 
     ui_color = "#50e6ff"
 

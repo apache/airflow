@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-echo "${COLOR_BLUE}Disable swap${COLOR_RESET}"
-sudo swapoff -a
-sudo rm -f /swapfile
+"""adding index for dag_id in job
 
-echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
-sudo apt clean || true
+Revision ID: 587bdf053233
+Revises: f9da662e7089
+Create Date: 2021-12-14 10:20:12.482940
 
-echo "${COLOR_BLUE}Pruning docker${COLOR_RESET}"
-docker_v system prune --all --force --volumes
+"""
 
-echo "${COLOR_BLUE}Free disk space  ${COLOR_RESET}"
-df -h
+from alembic import op
 
-# always logout from the docker registry - this is necessary as we can have an expired token from
-# previous job!.
-docker_v logout "ghcr.io"
+# revision identifiers, used by Alembic.
+revision = '587bdf053233'
+down_revision = 'f9da662e7089'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    """Apply adding index for dag_id in job"""
+    op.create_index('idx_job_dag_id', 'job', ['dag_id'], unique=False)
+
+
+def downgrade():
+    """Unapply adding index for dag_id in job"""
+    op.drop_index('idx_job_dag_id', table_name='job')

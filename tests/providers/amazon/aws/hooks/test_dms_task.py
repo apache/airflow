@@ -17,6 +17,7 @@
 
 import json
 import unittest
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -55,12 +56,15 @@ MOCK_TASK_RESPONSE_DATA = {
     'ReplicationTaskArn': MOCK_TASK_ARN,
     'Status': 'creating',
 }
-MOCK_DESCRIBE_RESPONSE = {'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA]}
-MOCK_DESCRIBE_RESPONSE_WITH_MARKER = {'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA], 'Marker': 'marker'}
-MOCK_CREATE_RESPONSE = {'ReplicationTask': MOCK_TASK_RESPONSE_DATA}
-MOCK_START_RESPONSE = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'starting'}}
-MOCK_STOP_RESPONSE = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'stopping'}}
-MOCK_DELETE_RESPONSE = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'deleting'}}
+MOCK_DESCRIBE_RESPONSE: Dict[str, Any] = {'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA]}
+MOCK_DESCRIBE_RESPONSE_WITH_MARKER: Dict[str, Any] = {
+    'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA],
+    'Marker': 'marker',
+}
+MOCK_CREATE_RESPONSE: Dict[str, Any] = {'ReplicationTask': MOCK_TASK_RESPONSE_DATA}
+MOCK_START_RESPONSE: Dict[str, Any] = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'starting'}}
+MOCK_STOP_RESPONSE: Dict[str, Any] = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'stopping'}}
+MOCK_DELETE_RESPONSE: Dict[str, Any] = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'deleting'}}
 
 
 class TestDmsHook(unittest.TestCase):

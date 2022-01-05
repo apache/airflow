@@ -192,7 +192,7 @@ class PostgresHook(DbApiHook):
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
             cluster_identifier = conn.extra_dejson.get('cluster-identifier', conn.host.split('.')[0])
-            session, endpoint_url = aws_hook._get_credentials()
+            session, endpoint_url = aws_hook._get_credentials(region_name=None)
             client = session.client(
                 "redshift",
                 endpoint_url=endpoint_url,

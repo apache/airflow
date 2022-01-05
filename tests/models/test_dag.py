@@ -27,7 +27,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from unittest import mock
 from unittest.mock import patch
 
@@ -548,7 +548,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = template_file
-            task.template_fields = ('test_field',)
+            task.template_fields: Sequence[str] = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -566,7 +566,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = [template_file, 'some_string']
-            task.template_fields = ('test_field',)
+            task.template_fields: Sequence[str] = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 

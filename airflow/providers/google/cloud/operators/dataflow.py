@@ -21,7 +21,7 @@ import re
 import warnings
 from contextlib import ExitStack
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -32,6 +32,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CheckJobRunning(Enum):
@@ -135,7 +138,7 @@ class DataflowConfiguration:
     :type check_if_running: CheckJobRunning
     """
 
-    template_fields = ["job_name", "location"]
+    template_fields: Sequence[str] = ("job_name", "location")
 
     def __init__(
         self,
@@ -344,7 +347,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     """
 
-    template_fields = ["options", "jar", "job_name"]
+    template_fields: Sequence[str] = ("options", "jar", "job_name")
     ui_color = "#0273d4"
 
     def __init__(
@@ -361,7 +364,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         poll_sleep: int = 10,
         job_class: Optional[str] = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-        multiple_jobs: Optional[bool] = None,
+        multiple_jobs: bool = False,
         cancel_timeout: Optional[int] = 10 * 60,
         wait_until_finished: Optional[bool] = None,
         **kwargs,
@@ -398,7 +401,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
@@ -614,7 +617,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             https://cloud.google.com/dataflow/docs/templates/executing-templates
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "template",
         "job_name",
         "options",
@@ -624,7 +627,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
-    ]
+    )
     ui_color = "#0273d4"
 
     def __init__(
@@ -664,7 +667,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -767,7 +770,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     :type wait_until_finished: Optional[bool]
     """
 
-    template_fields = ["body", "location", "project_id", "gcp_conn_id"]
+    template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
 
     def __init__(
         self,
@@ -794,7 +797,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.job = None
         self.hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -867,14 +870,14 @@ class DataflowStartSqlJobOperator(BaseOperator):
     :type drain_pipeline: bool
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "job_name",
         "query",
         "options",
         "location",
         "project_id",
         "gcp_conn_id",
-    ]
+    )
 
     def __init__(
         self,
@@ -901,7 +904,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.job = None
         self.hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1049,7 +1052,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :type wait_until_finished: Optional[bool]
     """
 
-    template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
+    template_fields: Sequence[str] = ("options", "dataflow_default_options", "job_name", "py_file")
 
     def __init__(
         self,
@@ -1104,7 +1107,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the python dataflow job."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(

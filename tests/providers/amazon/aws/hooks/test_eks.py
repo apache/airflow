@@ -18,6 +18,7 @@
 #
 import sys
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
 from unittest import mock
@@ -124,9 +125,7 @@ def cluster_builder():
                 inputs=ClusterInputs, cluster_name=self.existing_cluster_name
             )
 
-    def _execute(
-        count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EksHook, ClusterTestDataFactory]:
+    def _execute(count: int = 1, minimal: bool = True) -> Tuple[EksHook, ClusterTestDataFactory]:
         return eks_hook, ClusterTestDataFactory(count=count, minimal=minimal)
 
     mock_eks().start()
@@ -173,9 +172,7 @@ def fargate_profile_builder(cluster_builder):
                 fargate_profile_name=self.existing_fargate_profile_name,
             )
 
-    def _execute(
-        count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EksHook, FargateProfileTestDataFactory]:
+    def _execute(count: int = 1, minimal: bool = True) -> Tuple[EksHook, FargateProfileTestDataFactory]:
         return eks_hook, FargateProfileTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -217,9 +214,7 @@ def nodegroup_builder(cluster_builder):
                 nodegroup_name=self.existing_nodegroup_name,
             )
 
-    def _execute(
-        count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EksHook, NodegroupTestDataFactory]:
+    def _execute(count: int = 1, minimal: bool = True) -> Tuple[EksHook, NodegroupTestDataFactory]:
         return eks_hook, NodegroupTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -280,7 +275,7 @@ class TestEksHooks:
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
-                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)
+                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -311,7 +306,7 @@ class TestEksHooks:
     def test_create_cluster_generates_valid_cluster_created_timestamp(self, cluster_builder) -> None:
         _, generated_test_data = cluster_builder()
 
-        result_time: str = generated_test_data.cluster_describe_output[ClusterAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.cluster_describe_output[ClusterAttributes.CREATED_AT]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -441,7 +436,7 @@ class TestEksHooks:
             eks_hook.create_nodegroup(
                 clusterName=non_existent_cluster_name,
                 nodegroupName=non_existent_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),
+                **dict(NodegroupInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -464,7 +459,7 @@ class TestEksHooks:
             eks_hook.create_nodegroup(
                 clusterName=generated_test_data.cluster_name,
                 nodegroupName=generated_test_data.existing_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),
+                **dict(NodegroupInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -493,7 +488,7 @@ class TestEksHooks:
                 eks_hook.create_nodegroup(
                     clusterName=generated_test_data.cluster_name,
                     nodegroupName=non_existent_nodegroup_name,
-                    **dict(NodegroupInputs.REQUIRED),
+                    **dict(NodegroupInputs.REQUIRED),  # type: ignore
                 )
 
         assert_client_error_exception_thrown(
@@ -528,7 +523,7 @@ class TestEksHooks:
     def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
-        result_time: str = generated_test_data.nodegroup_describe_output[NodegroupAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.nodegroup_describe_output[NodegroupAttributes.CREATED_AT]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -536,7 +531,7 @@ class TestEksHooks:
     def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
-        result_time: str = generated_test_data.nodegroup_describe_output[NodegroupAttributes.MODIFIED_AT]
+        result_time: datetime = generated_test_data.nodegroup_describe_output[NodegroupAttributes.MODIFIED_AT]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -813,7 +808,7 @@ class TestEksHooks:
             eks_hook.create_fargate_profile(
                 clusterName=non_existent_cluster_name,
                 fargateProfileName=non_existent_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),
+                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -833,7 +828,7 @@ class TestEksHooks:
             eks_hook.create_fargate_profile(
                 clusterName=generated_test_data.cluster_name,
                 fargateProfileName=generated_test_data.existing_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),
+                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -862,7 +857,7 @@ class TestEksHooks:
                 eks_hook.create_fargate_profile(
                     clusterName=generated_test_data.cluster_name,
                     fargateProfileName=non_existent_fargate_profile_name,
-                    **dict(FargateProfileInputs.REQUIRED),
+                    **dict(FargateProfileInputs.REQUIRED),  # type: ignore
                 )
 
         assert_client_error_exception_thrown(
@@ -897,7 +892,9 @@ class TestEksHooks:
     def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
         _, generated_test_data = fargate_profile_builder()
 
-        result_time: str = generated_test_data.fargate_describe_output[FargateProfileAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.fargate_describe_output[
+            FargateProfileAttributes.CREATED_AT
+        ]
 
         assert iso_date(result_time) == FROZEN_TIME
 

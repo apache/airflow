@@ -81,6 +81,8 @@ class StandaloneCommand:
             command=["triggerer"],
             env=env,
         )
+
+        self.web_server_port = conf.getint('webserver', 'WEB_SERVER_PORT', fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()
@@ -206,7 +208,11 @@ class StandaloneCommand:
         Detects when all Airflow components are ready to serve.
         For now, it's simply time-based.
         """
-        return self.port_open(8080) and self.job_running(SchedulerJob) and self.job_running(TriggererJob)
+        return (
+            self.port_open(self.web_server_port)
+            and self.job_running(SchedulerJob)
+            and self.job_running(TriggererJob)
+        )
 
     def port_open(self, port):
         """

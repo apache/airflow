@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Vision operators."""
-from typing import Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import enums
@@ -25,6 +25,9 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
@@ -73,7 +76,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
     """
 
     # [START gcp_video_intelligence_detect_labels_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_uri",
         "output_uri",
         "gcp_conn_id",
@@ -106,7 +109,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVideoIntelligenceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -172,7 +175,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
     """
 
     # [START gcp_video_intelligence_detect_explicit_content_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_uri",
         "output_uri",
         "gcp_conn_id",
@@ -205,7 +208,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVideoIntelligenceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -271,7 +274,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
     """
 
     # [START gcp_video_intelligence_detect_video_shots_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "input_uri",
         "output_uri",
         "gcp_conn_id",
@@ -304,7 +307,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudVideoIntelligenceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
