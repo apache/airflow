@@ -103,7 +103,7 @@ function install_airflow_and_providers_from_docker_context_files(){
 # without dependencies. This is extremely useful in case you want to install via pip-download
 # method on air-gaped system where you do not want to download any dependencies from remote hosts
 # which is a requirement for serious installations
-install_all_other_packages_from_docker_context_files() {
+function install_all_other_packages_from_docker_context_files() {
     echo
     echo Force re-installing all other package from local files without dependencies
     echo

@@ -17,13 +17,11 @@
 # under the License.
 set -euo pipefail
 
-test -v INSTALL_MYSQL_CLIENT
-test -v INSTALL_MSSQL_CLIENT
-test -v AIRFLOW_REPO
-test -v AIRFLOW_BRANCH
-test -v AIRFLOW_PIP_VERSION
-
-set -x
+: "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+: "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
+: "${AIRFLOW_REPO:?Should be set}"
+: "${AIRFLOW_BRANCH:?Should be set}"
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 function common::get_airflow_version_specification() {
     if [[ -z ${AIRFLOW_VERSION_SPECIFICATION}
@@ -40,7 +38,6 @@ function common::override_pip_version_if_needed() {
         fi
     fi
 }
-
 
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location

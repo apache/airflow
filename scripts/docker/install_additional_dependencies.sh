@@ -18,10 +18,10 @@
 # shellcheck disable=SC2086
 set -euo pipefail
 
-test -v UPGRADE_TO_NEWER_DEPENDENCIES
-test -v ADDITIONAL_PYTHON_DEPS
-test -v EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
-test -v AIRFLOW_PIP_VERSION
+: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
+: "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
+: "${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS:?Should be set}"
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
