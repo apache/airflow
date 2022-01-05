@@ -187,7 +187,6 @@ def test_trigger_lifecycle(session):
 
 
 @pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
-@pytest.mark.xfail(reason="this is a bug documented in issue #18392")
 def test_trigger_bad_respawn(session):
     """
     Triggers are queued for creation by TriggerJob.load_triggers.
