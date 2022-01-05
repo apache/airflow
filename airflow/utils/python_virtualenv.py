@@ -83,19 +83,18 @@ def prepare_virtualenv(
     requirements: List[str] = None,
     requirements_file_path: str = None,
 ) -> str:
-    """
-    Creates a virtual environment and installs the additional python packages
+    """Creates a virtual environment and installs the additional python packages.
 
-    :param venv_directory: The path for directory where the environment will be created
+    :param venv_directory: The path for directory where the environment will be created.
     :type venv_directory: str
-    :param python_bin: Path for python binary
+    :param python_bin: Path to the Python executable.
     :type python_bin: str
     :param system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
     :type system_site_packages: bool
-    :param requirements: List of additional python packages
+    :param requirements: List of additional python packages.
     :type requirements: List[str]
-    :param requirements_file_path: Path to the requirements.txt file
+    :param requirements_file_path: Path to the ``requirements.txt`` file.
     :type requirements_file_path: str
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str

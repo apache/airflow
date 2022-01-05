@@ -285,10 +285,9 @@ class PythonVirtualenvOperator(PythonOperator):
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
     :type python_callable: function
-    :param requirements: Either a list of requirements or
-        a templating-supported requirements.txt file
-        as specified in a pip install command
-    :type requirements: Union[list[str], str]
+    :param requirements: Either a list of requirement strings, or a (templated)
+        "requirements file" as specified by pip.
+    :type requirements: list[str] | str
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
     :type python_version: Optional[Union[str, int, float]]
