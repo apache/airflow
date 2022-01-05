@@ -3130,6 +3130,15 @@ components:
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
+        states:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific states.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
         execution_date_gte:
           type: string
           format: date-time
