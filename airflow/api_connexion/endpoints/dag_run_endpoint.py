@@ -149,6 +149,7 @@ def get_dag_runs(
     execution_date_lte: Optional[str] = None,
     end_date_gte: Optional[str] = None,
     end_date_lte: Optional[str] = None,
+    state: Optional[List[str]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     order_by: str = "id",
@@ -164,6 +165,9 @@ def get_dag_runs(
     else:
         query = query.filter(DagRun.dag_id == dag_id)
 
+    if state:
+        query = query.filter(DagRun.state.in_(state))
+
     dag_run, total_entries = _fetch_dag_runs(
         query,
         end_date_gte=end_date_gte,
@@ -176,7 +180,6 @@ def get_dag_runs(
         offset=offset,
         order_by=order_by,
     )
-
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
 
 
@@ -204,6 +207,10 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     else:
         query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
 
+    states = data.get("states")
+    if states:
+        query = query.filter(DagRun.state.in_(states))
+
     dag_runs, total_entries = _fetch_dag_runs(
         query,
         end_date_gte=data["end_date_gte"],
@@ -216,6 +223,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
         offset=data["page_offset"],
         order_by=data.get("order_by", "id"),
     )
+
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
