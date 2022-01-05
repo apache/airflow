@@ -19,7 +19,6 @@ set -euo pipefail
 
 test -v INSTALL_MYSQL_CLIENT
 test -v INSTALL_MSSQL_CLIENT
-test -v AIRFLOW_INSTALL_USER_FLAG
 test -v AIRFLOW_REPO
 test -v AIRFLOW_BRANCH
 test -v AIRFLOW_PIP_VERSION
@@ -59,4 +58,10 @@ function common::get_constraints_location() {
         python_version="$(python --version 2>/dev/stdout | cut -d " " -f 2 | cut -d "." -f 1-2)"
         AIRFLOW_CONSTRAINTS_LOCATION="${constraints_base}/${AIRFLOW_CONSTRAINTS}-${python_version}.txt"
     fi
+}
+
+function common::show_pip_version_and_location() {
+   echo "PATH=${PATH}"
+   echo "pip on path: $(which pip)"
+   echo "Using pip: $(pip --version)"
 }
