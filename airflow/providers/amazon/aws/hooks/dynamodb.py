@@ -64,13 +64,13 @@ class DynamoDBHook(AwsBaseHook):
 
 class AwsDynamoDBHook(DynamoDBHook):
     """
-    This hook is deprecated.
+    This class is deprecated.
     Please use :class:`airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This hook is deprecated. "
+            "This class is deprecated. "
             "Please use :class:`airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook`.",
             DeprecationWarning,
             stacklevel=2,
