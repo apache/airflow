@@ -173,7 +173,9 @@ class S3Hook(AwsBaseHook):
         :return: the bucket object to the bucket name.
         :rtype: boto3.S3.Bucket
         """
-        session, endpoint_url = self._get_credentials()
+        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
+        # break compatibility, so we set it explicitly to None.
+        session, endpoint_url = self._get_credentials(region_name=None)
         s3_resource = session.resource(
             "s3",
             endpoint_url=endpoint_url,
@@ -346,7 +348,9 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-        session, endpoint_url = self._get_credentials()
+        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
+        # break compatibility, so we set it explicitly to None.
+        session, endpoint_url = self._get_credentials(region_name=None)
         s3_resource = session.resource(
             "s3",
             endpoint_url=endpoint_url,

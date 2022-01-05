@@ -22,6 +22,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class SqlSensor(BaseSensorOperator):
@@ -92,7 +93,7 @@ class SqlSensor(BaseSensorOperator):
             )
         return hook
 
-    def poke(self, context):
+    def poke(self, context: Context):
         hook = self._get_hook()
 
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)

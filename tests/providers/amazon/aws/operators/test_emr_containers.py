@@ -23,8 +23,8 @@ import pytest
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.providers.amazon.aws.operators.emr_containers import EMRContainerOperator
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
+from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -35,13 +35,13 @@ SUBMIT_JOB_SUCCESS_RETURN = {
 GENERATED_UUID = '800647a9-adda-4237-94e6-f542c85fa55b'
 
 
-class TestEMRContainerOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.hooks.emr_containers.EMRContainerHook')
+class TestEmrContainerOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.amazon.aws.hooks.emr.EmrContainerHook')
     def setUp(self, emr_hook_mock):
         configuration.load_test_config()
 
         self.emr_hook_mock = emr_hook_mock
-        self.emr_container = EMRContainerOperator(
+        self.emr_container = EmrContainerOperator(
             task_id='start_job',
             name='test_emr_job',
             virtual_cluster_id='vzw123456',
@@ -53,8 +53,8 @@ class TestEMRContainerOperator(unittest.TestCase):
             client_request_token=GENERATED_UUID,
         )
 
-    @mock.patch.object(EMRContainerHook, 'submit_job')
-    @mock.patch.object(EMRContainerHook, 'check_query_status')
+    @mock.patch.object(EmrContainerHook, 'submit_job')
+    @mock.patch.object(EmrContainerHook, 'check_query_status')
     def test_execute_without_failure(
         self,
         mock_check_query_status,
@@ -72,7 +72,7 @@ class TestEMRContainerOperator(unittest.TestCase):
         assert self.emr_container.release_label == '6.3.0-latest'
 
     @mock.patch.object(
-        EMRContainerHook,
+        EmrContainerHook,
         'check_query_status',
         side_effect=['PENDING', 'PENDING', 'SUBMITTED', 'RUNNING', 'COMPLETED'],
     )
@@ -88,9 +88,9 @@ class TestEMRContainerOperator(unittest.TestCase):
             assert self.emr_container.execute(None) == 'job123456'
             assert mock_check_query_status.call_count == 5
 
-    @mock.patch.object(EMRContainerHook, 'submit_job')
-    @mock.patch.object(EMRContainerHook, 'check_query_status')
-    @mock.patch.object(EMRContainerHook, 'get_job_failure_reason')
+    @mock.patch.object(EmrContainerHook, 'submit_job')
+    @mock.patch.object(EmrContainerHook, 'check_query_status')
+    @mock.patch.object(EmrContainerHook, 'get_job_failure_reason')
     def test_execute_with_failure(
         self, mock_get_job_failure_reason, mock_check_query_status, mock_submit_job
     ):
@@ -105,7 +105,7 @@ class TestEMRContainerOperator(unittest.TestCase):
         assert 'Error: CLUSTER_UNAVAILABLE - Cluster EKS eks123456 does not exist.' in str(ctx.value)
 
     @mock.patch.object(
-        EMRContainerHook,
+        EmrContainerHook,
         'check_query_status',
         side_effect=['PENDING', 'PENDING', 'SUBMITTED', 'RUNNING', 'COMPLETED'],
     )
@@ -117,7 +117,7 @@ class TestEMRContainerOperator(unittest.TestCase):
         emr_session_mock.client.return_value = emr_client_mock
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
-        timeout_container = EMRContainerOperator(
+        timeout_container = EmrContainerOperator(
             task_id='start_job',
             name='test_emr_job',
             virtual_cluster_id='vzw123456',

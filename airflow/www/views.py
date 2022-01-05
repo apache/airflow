@@ -25,6 +25,7 @@ import re
 import socket
 import sys
 import traceback
+import warnings
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
@@ -38,12 +39,10 @@ import markupsafe
 import nvd3
 import sqlalchemy as sqla
 from flask import (
-    Markup,
     Response,
     abort,
     before_render_template,
     current_app,
-    escape,
     flash,
     g,
     jsonify,
@@ -78,6 +77,7 @@ from flask_appbuilder.security.views import (
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
+from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
@@ -118,8 +118,9 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
+from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -136,6 +137,11 @@ from airflow.www.widgets import AirflowModelListWidget
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
+LINECHART_X_AXIS_TICKFORMAT = (
+    "function (d, i) { let xLabel;"
+    "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
+    "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
+)
 
 
 def truncate_task_duration(task_duration):
@@ -782,6 +788,29 @@ class Airflow(AirflowBaseView):
                 # Second segment is a version marker that we don't need to show.
                 yield segments[2], table_name
 
+        if (
+            permissions.ACTION_CAN_ACCESS_MENU,
+            permissions.RESOURCE_ADMIN_MENU,
+        ) in user_permissions and conf.getboolean("webserver", "warn_deployment_exposure"):
+            robots_file_access_count = (
+                session.query(Log)
+                .filter(Log.event == "robots")
+                .filter(Log.dttm > (utcnow() - timedelta(days=7)))
+                .count()
+            )
+            if robots_file_access_count > 0:
+                flash(
+                    Markup(
+                        'Recent requests have been made to /robots.txt. '
+                        'This indicates that this deployment may be accessible to the public internet. '
+                        'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
+                        'airflow.cfg. Read more about web deployment security <a href='
+                        f'"{get_docs_url("security/webserver.html")}">'
+                        'here</a>'
+                    ),
+                    "warning",
+                )
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
@@ -1319,7 +1348,7 @@ class Airflow(AirflowBaseView):
                 return jsonify(message=message, metadata=metadata)
 
             metadata['download_logs'] = True
-            attachment_filename = task_log_reader.render_log_filename(ti, try_number)
+            attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,
@@ -1468,7 +1497,10 @@ class Airflow(AirflowBaseView):
             ti_attrs: Optional[List[Tuple[str, Any]]] = None
         else:
             ti.refresh_from_task(task)
-            all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
+            # Some fields on TI are deprecated, but we don't want those warnings here.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
             ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
 
         attr_renderers = wwwutils.get_attr_renderer()
@@ -1656,7 +1688,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def delete(self):
         """Deletes DAG."""
-        from airflow.api.common.experimental import delete_dag
+        from airflow.api.common import delete_dag
         from airflow.exceptions import DagNotFound
 
         dag_id = request.values.get('dag_id')
@@ -2561,10 +2593,20 @@ class Airflow(AirflowBaseView):
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="lineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
         cum_chart = nvd3.lineChart(
-            name="cumLineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="cumLineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
 
         y_points = defaultdict(list)
@@ -2690,8 +2732,9 @@ class Airflow(AirflowBaseView):
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart",
-            x_is_date=True,
-            y_axis_format='d',
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
             chart_attr=self.line_chart_attr,
         )
@@ -2767,7 +2810,12 @@ class Airflow(AirflowBaseView):
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+            name="lineChart",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
         y_points = {}
         x_points = {}
@@ -3162,14 +3210,6 @@ class DagFilter(BaseFilter):
         if current_app.appbuilder.sm.has_all_dags_access():
             return query
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        return query.filter(self.model.dag_id.in_(filter_dag_ids))
-
-
-class DagEditFilter(BaseFilter):
-    """Filter using DagIDs"""
-
-    def apply(self, query, func):
-        filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
@@ -4030,7 +4070,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     base_order = ('execution_date', 'desc')
 
-    base_filters = [['dag_id', DagEditFilter, lambda: []]]
+    base_filters = [['dag_id', DagFilter, lambda: []]]
 
     edit_form = DagRunEditForm
 
@@ -4039,9 +4079,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         start_date = self.get('start_date')
 
-        difference = '0.0'
+        difference = '0s'
         if start_date and end_date:
-            difference = str(end_date - start_date)
+            difference = td_format(end_date - start_date)
 
         return difference
 
@@ -4255,7 +4295,7 @@ class TaskRescheduleModelView(AirflowModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {
@@ -4319,17 +4359,11 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         'list': 'read',
-        'action_clear': 'edit',
         'action_muldelete': 'delete',
-        'action_set_running': 'edit',
-        'action_set_failed': 'edit',
-        'action_set_success': 'edit',
-        'action_set_retry': 'edit',
     }
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
@@ -4397,7 +4431,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     base_order = ('job_id', 'asc')
 
-    base_filters = [['dag_id', DagEditFilter, lambda: []]]
+    base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def log_url_formatter(self):
         """Formats log URL."""
@@ -4411,7 +4445,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         duration = self.get('duration')
         if end_date and duration:
-            return timedelta(seconds=duration)
+            return td_format(timedelta(seconds=duration))
         return None
 
     formatters_columns = {
@@ -4506,6 +4540,14 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('set_skipped', "Set state to 'skipped'", '', single=False)
+    @action_has_dag_edit_access
+    def action_set_skipped(self, tis):
+        """Set state to skipped."""
+        self.set_task_instance_state(tis, TaskInstanceState.SKIPPED)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -4852,22 +4894,14 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
 
-    pass
-
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
-
-    pass
 
 
 class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
     """Customize permission names for FAB's builtin UserOIDModelView."""
 
-    pass
-
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
-
-    pass

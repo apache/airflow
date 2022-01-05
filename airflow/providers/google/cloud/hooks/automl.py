@@ -17,19 +17,26 @@
 # under the License.
 #
 """This module contains a Google AutoML hook."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+import sys
+from typing import Dict, Optional, Sequence, Tuple, Union
 
-try:
+from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
+    ListColumnSpecsPager,
+    ListDatasetsPager,
+    ListTableSpecsPager,
+)
+
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.automl_v1beta1 import (
     AutoMlClient,
     BatchPredictInputConfig,
     BatchPredictOutputConfig,
-    ColumnSpec,
     Dataset,
     ExamplePayload,
     ImageObjectDetectionModelDeploymentMetadata,
@@ -37,11 +44,10 @@ from google.cloud.automl_v1beta1 import (
     Model,
     PredictionServiceClient,
     PredictResponse,
-    TableSpec,
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class CloudAutoMLHook(GoogleBaseHook):
@@ -96,9 +102,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         model: Union[dict, Model],
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         retry: Optional[Retry] = None,
     ) -> Operation:
         """
@@ -129,7 +135,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         return client.create_model(
-            request={'parent': parent, 'model': model}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'parent': parent, 'model': model},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -139,11 +148,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         input_config: Union[dict, BatchPredictInputConfig],
         output_config: Union[dict, BatchPredictOutputConfig],
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         params: Optional[Dict[str, str]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Perform a batch prediction. Unlike the online `Predict`, batch
@@ -190,7 +199,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -200,11 +209,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         model_id: str,
         payload: Union[dict, ExamplePayload],
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         params: Optional[Dict[str, str]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> PredictResponse:
         """
         Perform an online prediction. The prediction result will be directly
@@ -240,7 +249,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             request={'name': name, 'payload': payload, 'params': params},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -249,10 +258,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         dataset: Union[dict, Dataset],
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Dataset:
         """
         Creates a dataset.
@@ -282,7 +291,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             request={'parent': parent, 'dataset': dataset},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -292,10 +301,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         dataset_id: str,
         location: str,
         input_config: Union[dict, InputConfig],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Imports data into a dataset. For Tables this method can only be called on an empty Dataset.
@@ -327,7 +336,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             request={'name': name, 'input_config': input_config},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -337,14 +346,14 @@ class CloudAutoMLHook(GoogleBaseHook):
         dataset_id: str,
         table_spec_id: str,
         location: str,
-        project_id: str,
-        field_mask: Union[dict, FieldMask] = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        field_mask: Optional[Union[dict, FieldMask]] = None,
         filter_: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> ColumnSpec:
+        metadata: Sequence[Tuple[str, str]] = (),
+    ) -> ListColumnSpecsPager:
         """
         Lists column specs in a table spec.
 
@@ -390,7 +399,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             request={'parent': parent, 'field_mask': field_mask, 'filter': filter_, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -399,10 +408,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         model_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Model:
         """
         Gets a AutoML model.
@@ -428,7 +437,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.get_model(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -437,10 +449,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         model_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Model:
         """
         Deletes a AutoML model.
@@ -466,17 +478,20 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/models/{model_id}"
         result = client.delete_model(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
     def update_dataset(
         self,
         dataset: Union[dict, Dataset],
-        update_mask: Union[dict, FieldMask] = None,
+        update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Dataset:
         """
         Updates a dataset.
@@ -503,7 +518,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             request={'dataset': dataset, 'update_mask': update_mask},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -512,11 +527,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         model_id: str,
         location: str,
-        project_id: str,
-        image_detection_metadata: Union[ImageObjectDetectionModelDeploymentMetadata, dict] = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        image_detection_metadata: Optional[Union[ImageObjectDetectionModelDeploymentMetadata, dict]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deploys a model. If a model is already deployed, deploying it with the same parameters
@@ -557,7 +572,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -570,8 +585,8 @@ class CloudAutoMLHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> List[TableSpec]:
+        metadata: Sequence[Tuple[str, str]] = (),
+    ) -> ListTableSpecsPager:
         """
         Lists table specs in a dataset_id.
 
@@ -610,7 +625,7 @@ class CloudAutoMLHook(GoogleBaseHook):
             request={'parent': parent, 'filter': filter_, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return result
 
@@ -621,8 +636,8 @@ class CloudAutoMLHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Dataset:
+        metadata: Sequence[Tuple[str, str]] = (),
+    ) -> ListDatasetsPager:
         """
         Lists datasets in a project.
 
@@ -648,7 +663,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         result = client.list_datasets(
-            request={'parent': parent}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'parent': parent},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -660,7 +678,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a dataset and all of its contents.
@@ -686,6 +704,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
         result = client.delete_dataset(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result

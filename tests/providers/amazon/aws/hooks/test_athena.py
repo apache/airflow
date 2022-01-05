@@ -18,7 +18,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 
 MOCK_DATA = {
     'query': 'SELECT * FROM TEST_TABLE',
@@ -47,15 +47,15 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
 }
 
 
-class TestAWSAthenaHook(unittest.TestCase):
+class TestAthenaHook(unittest.TestCase):
     def setUp(self):
-        self.athena = AWSAthenaHook(sleep_time=0)
+        self.athena = AthenaHook(sleep_time=0)
 
     def test_init(self):
         assert self.athena.aws_conn_id == 'aws_default'
         assert self.athena.sleep_time == 0
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_query_without_token(self, mock_conn):
         mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
         result = self.athena.run_query(
@@ -72,7 +72,7 @@ class TestAWSAthenaHook(unittest.TestCase):
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         assert result == MOCK_DATA['query_execution_id']
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_run_query_with_token(self, mock_conn):
         mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
         result = self.athena.run_query(
@@ -91,20 +91,20 @@ class TestAWSAthenaHook(unittest.TestCase):
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         assert result == MOCK_DATA['query_execution_id']
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_query_results_with_non_succeeded_query(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
         result = self.athena.get_query_results(query_execution_id=MOCK_DATA['query_execution_id'])
         assert result is None
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_query_results_with_default_params(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
         self.athena.get_query_results(query_execution_id=MOCK_DATA['query_execution_id'])
         expected_call_params = {'QueryExecutionId': MOCK_DATA['query_execution_id'], 'MaxResults': 1000}
         mock_conn.return_value.get_query_results.assert_called_with(**expected_call_params)
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_query_results_with_next_token(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
         self.athena.get_query_results(
@@ -117,13 +117,13 @@ class TestAWSAthenaHook(unittest.TestCase):
         }
         mock_conn.return_value.get_query_results.assert_called_with(**expected_call_params)
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_paginator_with_non_succeeded_query(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
         result = self.athena.get_query_results_paginator(query_execution_id=MOCK_DATA['query_execution_id'])
         assert result is None
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_paginator_with_default_params(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
         self.athena.get_query_results_paginator(query_execution_id=MOCK_DATA['query_execution_id'])
@@ -133,7 +133,7 @@ class TestAWSAthenaHook(unittest.TestCase):
         }
         mock_conn.return_value.get_paginator.return_value.paginate.assert_called_with(**expected_call_params)
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_paginator_with_pagination_config(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
         self.athena.get_query_results_paginator(
@@ -152,14 +152,14 @@ class TestAWSAthenaHook(unittest.TestCase):
         }
         mock_conn.return_value.get_paginator.return_value.paginate.assert_called_with(**expected_call_params)
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_poll_query_when_final(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
         result = self.athena.poll_query_status(query_execution_id=MOCK_DATA['query_execution_id'])
         mock_conn.return_value.get_query_execution.assert_called_once()
         assert result == 'SUCCEEDED'
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_poll_query_with_timeout(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
         result = self.athena.poll_query_status(
@@ -168,7 +168,7 @@ class TestAWSAthenaHook(unittest.TestCase):
         mock_conn.return_value.get_query_execution.assert_called_once()
         assert result == 'RUNNING'
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AthenaHook, 'get_conn')
     def test_hook_get_output_location(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA['query_execution_id'])

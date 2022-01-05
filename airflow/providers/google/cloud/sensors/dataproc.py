@@ -19,7 +19,7 @@
 # pylint: disable=C0302
 import time
 import warnings
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
@@ -27,6 +27,9 @@ from google.cloud.dataproc_v1.types import JobStatus
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataprocJobSensor(BaseSensorOperator):
@@ -48,7 +51,7 @@ class DataprocJobSensor(BaseSensorOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'region', 'dataproc_job_id')
+    template_fields: Sequence[str] = ('project_id', 'region', 'dataproc_job_id')
     ui_color = '#f0eee4'
 
     def __init__(
@@ -56,7 +59,7 @@ class DataprocJobSensor(BaseSensorOperator):
         *,
         project_id: str,
         dataproc_job_id: str,
-        region: str = None,
+        region: Optional[str] = None,
         location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         wait_timeout: Optional[int] = None,
@@ -79,16 +82,16 @@ class DataprocJobSensor(BaseSensorOperator):
         self.dataproc_job_id = dataproc_job_id
         self.region = region
         self.wait_timeout = wait_timeout
-        self.start_sensor_time = None
+        self.start_sensor_time: Optional[float] = None
 
-    def execute(self, context: Dict):
+    def execute(self, context: "Context") -> None:
         self.start_sensor_time = time.monotonic()
         super().execute(context)
 
     def _duration(self):
         return time.monotonic() - self.start_sensor_time
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         if self.wait_timeout:
             try:

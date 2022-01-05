@@ -242,7 +242,7 @@ function install_released_airflow_version() {
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow==${version}"
+    pip install "apache-airflow==${version}"
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -301,6 +301,20 @@ function install_all_provider_packages_from_sdist() {
     pip install /dist/apache-airflow-*providers-*.tar.gz
 }
 
+function twine_check_provider_packages_from_wheels() {
+    echo
+    echo "Twine check of all provider packages from wheels"
+    echo
+    twine check /dist/apache_airflow*providers_*.whl
+}
+
+function twine_check_provider_packages_from_sdist() {
+    echo
+    echo "Twine check all provider packages from sdist"
+    echo
+    twine check /dist/apache-airflow-*providers-*.tar.gz
+}
+
 function setup_provider_packages() {
     export PACKAGE_TYPE="regular"
     export PACKAGE_PREFIX_UPPERCASE=""
@@ -318,7 +332,7 @@ function setup_provider_packages() {
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     group_end
 }
 
@@ -332,7 +346,7 @@ function filename_to_python_module() {
 }
 
 function import_all_provider_classes() {
-    group_start "Import all Airflow classes"
+    group_start "Import all Provider classes"
     # We have to move to a directory where "airflow" is
     unset PYTHONPATH
     # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
@@ -344,9 +358,13 @@ function import_all_provider_classes() {
     PROVIDER_PATHS=$(
         python3 <<EOF 2>/dev/null
 import airflow.providers;
+from pathlib import Path
 path=airflow.providers.__path__
 for p in path._path:
     print(p)
+    for subdir in Path(p).iterdir():
+        if subdir.is_dir() and not (subdir / "provider.yaml").exists():
+            print(subdir)
 EOF
     )
     export PROVIDER_PATHS

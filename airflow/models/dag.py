@@ -1287,9 +1287,10 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         if self.render_template_as_native_obj:
-            env = NativeEnvironment(**jinja_env_options)
+            env_class: Any = NativeEnvironment
         else:
-            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)  # type: ignore
+            env_class = airflow.templates.SandboxedEnvironment
+        env: jinja2.Environment = env_class(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
@@ -1631,12 +1632,12 @@ class DAG(LoggingMixin):
         self,
         task_id: str,
         execution_date: datetime,
-        state: State,
-        upstream: Optional[bool] = False,
-        downstream: Optional[bool] = False,
-        future: Optional[bool] = False,
-        past: Optional[bool] = False,
-        commit: Optional[bool] = True,
+        state: TaskInstanceState,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        commit: bool = True,
         session=NEW_SESSION,
     ) -> List[TaskInstance]:
         """
@@ -1648,7 +1649,7 @@ class DAG(LoggingMixin):
         :param execution_date: execution_date of the TaskInstance
         :type execution_date: datetime
         :param state: State to set the TaskInstance to
-        :type state: State
+        :type state: TaskInstanceState
         :param upstream: Include all upstream tasks of the given task_id
         :type upstream: bool
         :param downstream: Include all downstream tasks of the given task_id
@@ -1897,7 +1898,7 @@ class DAG(LoggingMixin):
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in tis)
             question = (
-                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
+                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
             ).format(count=count, ti_list=ti_list)
             do_it = utils.helpers.ask_yesno(question)
 
@@ -1954,7 +1955,7 @@ class DAG(LoggingMixin):
             return 0
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in all_tis)
-            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
+            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
@@ -1981,12 +1982,11 @@ class DAG(LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k not in ('user_defined_macros', 'user_defined_filters', 'params', '_log'):
+            if k not in ('user_defined_macros', 'user_defined_filters', '_log'):
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
-        result.params = self.params
         if hasattr(self, '_log'):
             result._log = self._log
         return result
@@ -2481,6 +2481,7 @@ class DAG(LoggingMixin):
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
+            orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2727,6 +2728,9 @@ class DagModel(Base):
     default_view = Column(String(25))
     # Schedule interval
     schedule_interval = Column(Interval)
+    # Timetable/Schedule Interval description
+    timetable_description = Column(String(1000), nullable=True)
+
     # Tags for view filter
     tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
@@ -2814,6 +2818,10 @@ class DagModel(Base):
         return get_last_dagrun(
             self.dag_id, session=session, include_externally_triggered=include_externally_triggered
         )
+
+    def get_is_paused(self, *, session: Optional[Session] = None) -> bool:
+        """Provide interface compatibility to 'DAG'."""
+        return self.is_paused
 
     @staticmethod
     @provide_session
@@ -2961,7 +2969,7 @@ class DagModel(Base):
 def dag(*dag_args, **dag_kwargs):
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
-    Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
+    Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
 
     :param dag_args: Arguments for DAG object
     :type dag_args: Any
@@ -3021,6 +3029,7 @@ if STATICA_HACK:  # pragma: no cover
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
+    """:sphinx-autoapi-skip:"""
 
 
 class DagContext:

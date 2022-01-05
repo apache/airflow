@@ -88,7 +88,7 @@ You can also use Jinja templating with nested fields, as long as these nested fi
 .. code-block:: python
 
     class MyDataReader:
-        template_fields = ["path"]
+        template_fields: Sequence[str] = ("path",)
 
         def __init__(self, my_path):
             self.path = my_path
@@ -110,7 +110,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
 .. code-block:: python
 
     class MyDataTransformer:
-        template_fields = ["reader"]
+        template_fields: Sequence[str] = ("reader",)
 
         def __init__(self, my_reader):
             self.reader = my_reader
@@ -119,7 +119,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
 
 
     class MyDataReader:
-        template_fields = ["path"]
+        template_fields: Sequence[str] = ("path",)
 
         def __init__(self, my_path):
             self.path = my_path

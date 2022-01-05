@@ -192,7 +192,7 @@ class PostgresHook(DbApiHook):
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
             cluster_identifier = conn.extra_dejson.get('cluster-identifier', conn.host.split('.')[0])
-            session, endpoint_url = aws_hook._get_credentials()
+            session, endpoint_url = aws_hook._get_credentials(region_name=None)
             client = session.client(
                 "redshift",
                 endpoint_url=endpoint_url,
@@ -211,13 +211,13 @@ class PostgresHook(DbApiHook):
             token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
-    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> List[str]:
+    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> Optional[List[str]]:
         """
         Helper method that returns the table primary key
 
         :param table: Name of the target table
         :type table: str
-        :param table: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default
         :type table: str
         :return: Primary key columns list
         :rtype: List[str]

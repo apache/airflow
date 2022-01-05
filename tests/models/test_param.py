@@ -267,3 +267,7 @@ class TestDagParamRuntime:
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == 'test'
+
+    def test_param_non_json_serializable(self):
+        with pytest.warns(DeprecationWarning, match='The use of non-json-serializable params is deprecated'):
+            Param(default={0, 1, 2})

@@ -22,9 +22,10 @@ import os
 import sys
 import time
 from tempfile import gettempdir
-from typing import Iterable
+from typing import Any, Callable, Iterable, List, Tuple
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
+from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.configuration import conf
@@ -54,10 +55,11 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import create_session, provide_session  # noqa: F401
+from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
 from airflow.version import version
 
 log = logging.getLogger(__name__)
@@ -68,7 +70,7 @@ def _format_airflow_moved_table_name(source_table, version):
 
 
 @provide_session
-def merge_conn(conn, session=None):
+def merge_conn(conn, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
@@ -76,7 +78,7 @@ def merge_conn(conn, session=None):
 
 
 @provide_session
-def add_default_pool_if_not_exists(session=None):
+def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
@@ -89,7 +91,7 @@ def add_default_pool_if_not_exists(session=None):
 
 
 @provide_session
-def create_default_connections(session=None):
+def create_default_connections(session: Session = NEW_SESSION):
     """Create default Airflow connections."""
     merge_conn(
         Connection(
@@ -593,7 +595,7 @@ def create_default_connections(session=None):
 
 
 @provide_session
-def initdb(session=None):
+def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
     upgradedb(session=session)
 
@@ -692,9 +694,9 @@ def check_and_run_migrations():
 
     if sys.stdout.isatty() and verb:
         print()
-        question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure?"
+        question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
         try:
-            answer = helpers.prompt_with_timeout(question, timeout=4)
+            answer = helpers.prompt_with_timeout(question, timeout=4, default=False)
             if answer:
                 try:
                     db_command()
@@ -703,8 +705,8 @@ def check_and_run_migrations():
                     print(error)
                     print(
                         "You still have unapplied migrations. "
-                        "You may need to {verb} the database by running `airflow db {command_name}`",
-                        f"Make sure the command is run using airflow version {version}.",
+                        f"You may need to {verb} the database by running `airflow db {command_name}`. ",
+                        f"Make sure the command is run using Airflow version {version}.",
                         file=sys.stderr,
                     )
                     sys.exit(1)
@@ -712,14 +714,29 @@ def check_and_run_migrations():
             pass
     elif source_heads != db_heads:
         print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}` ."
-            f"Make sure the command is run using airflow version {version}.",
+            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
+            f"Make sure the command is run using Airflow version {version}.",
             file=sys.stderr,
         )
         sys.exit(1)
 
 
-def check_conn_id_duplicates(session=None) -> Iterable[str]:
+@provide_session
+def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
+    """Synchronize log template configs with table.
+
+    This checks if the last row fully matches the current config values, and
+    insert a new row if not.
+    """
+    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+    filename = conf.get("logging", "log_filename_template")
+    prefix = conf.get("logging", "task_log_prefix_template")
+    if stored and stored.filename == filename and stored.task_prefix == prefix:
+        return
+    session.merge(LogTemplate(filename=filename, task_prefix=prefix))
+
+
+def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table
 
@@ -732,7 +749,6 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
     if dups:
         yield (
             'Seems you have non unique conn_id in connection table.\n'
@@ -742,7 +758,7 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
         )
 
 
-def check_conn_type_null(session=None) -> Iterable[str]:
+def check_conn_type_null(session: Session) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
 
@@ -755,7 +771,6 @@ def check_conn_type_null(session=None) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
 
     if n_nulls:
         yield (
@@ -778,7 +793,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def _move_dangling_run_data_to_new_table(session, source_table: "Table", target_table_name: str):
+def _move_dangling_run_data_to_new_table(session: Session, source_table: "Table", target_table_name: str):
     where_clause = "where dag_id is null or run_id is null or execution_date is null"
     _move_dangling_table(session, source_table, target_table_name, where_clause)
 
@@ -840,7 +855,7 @@ def _move_dangling_table(session, source_table: "Table", target_table_name: str,
             )
 
 
-def check_run_id_null(session) -> Iterable[str]:
+def check_run_id_null(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -882,15 +897,17 @@ def _move_dangling_task_data_to_new_table(session, source_table: "Table", target
     _move_dangling_table(session, source_table, target_table_name, where_clause)
 
 
-def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
+def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun = [TaskInstance, TaskReschedule]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
     for model in models_to_dagrun + [DagRun]:
         try:
-            metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
+            metadata.reflect(
+                only=[model.__tablename__], extend_existing=True, resolve_fks=False  # type: ignore
+            )
         except exc.InvalidRequestError:
             # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
             # version
@@ -910,7 +927,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
     for model in models_to_dagrun:
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
-        source_table = metadata.tables.get(model.__tablename__)
+        source_table = metadata.tables.get(model.__tablename__)  # type: ignore
         if source_table is None:
             continue
 
@@ -950,26 +967,29 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
 
 
 @provide_session
-def _check_migration_errors(session=None) -> Iterable[str]:
+def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     """
     :session: session of the sqlalchemy
     :rtype: list[str]
     """
-    for check_fn in (
+    check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
         check_task_tables_without_matching_dagruns,
-    ):
+    )
+    for check_fn in check_functions:
         yield from check_fn(session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
 
 
 @provide_session
-def upgradedb(session=None):
+def upgradedb(session: Session = NEW_SESSION):
     """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is critical assertion.")
     from alembic import command
 
     config = _get_alembic_config()
@@ -990,11 +1010,14 @@ def upgradedb(session=None):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
+    synchronize_log_template()
 
 
 @provide_session
-def resetdb(session=None):
+def resetdb(session: Session = NEW_SESSION):
     """Clear out the database"""
+    if not settings.engine:
+        raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
@@ -1054,7 +1077,7 @@ def drop_flask_models(connection):
 
 
 @provide_session
-def check(session=None):
+def check(session: Session = NEW_SESSION):
     """
     Checks if the database works.
 
@@ -1081,7 +1104,7 @@ class DBLocks(enum.IntEnum):
 
 
 @contextlib.contextmanager
-def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
+def create_global_lock(session: Session, lock: DBLocks, lock_timeout=1800):
     """Contextmanager that will create and teardown a global db lock."""
     conn = session.get_bind().connect()
     dialect = conn.dialect
@@ -1107,3 +1130,18 @@ def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
         elif dialect.name == 'mssql':
             # TODO: make locking work for MSSQL
             pass
+
+
+def get_sqla_model_classes():
+    """
+    Get all SQLAlchemy class mappers.
+
+    SQLAlchemy < 1.4 does not support registry.mappers so we use
+    try/except to handle it.
+    """
+    from airflow.models.base import Base
+
+    try:
+        return [mapper.class_ for mapper in Base.registry.mappers]
+    except AttributeError:
+        return Base._decl_class_registry.values()

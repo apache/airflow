@@ -42,7 +42,6 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/cncf/kubernetes/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
-    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -60,7 +59,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 2.2.0
+Release: 3.0.0
 
 Provider package
 ----------------

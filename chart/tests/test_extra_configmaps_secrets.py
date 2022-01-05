@@ -18,6 +18,7 @@
 import textwrap
 import unittest
 from base64 import b64encode
+from unittest import mock
 
 import yaml
 
@@ -76,6 +77,14 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
                 stringData: |
                   MY_SECRET_3: "MY_SECRET_3"
                   MY_SECRET_4: "MY_SECRET_4"
+              "{{ .Release.Name }}-other-secrets-with-type":
+                type: kubernetes.io/dockerconfigjson
+                data: |
+                  MY_SECRET_5: {{ printf "MY_SECRET_5" | b64enc }}
+                  MY_SECRET_6: {{ printf "MY_SECRET_6" | b64enc }}
+                stringData: |
+                  MY_SECRET_7: "MY_SECRET_7"
+                  MY_SECRET_8: "MY_SECRET_8"
             """
         )
         values = yaml.safe_load(values_str)
@@ -87,6 +96,7 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         all_expected_keys = [
             ("Secret", f"{RELEASE_NAME}-airflow-connections"),
             ("Secret", f"{RELEASE_NAME}-other-secrets"),
+            ("Secret", f"{RELEASE_NAME}-other-secrets-with-type"),
         ]
         assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
 
@@ -96,15 +106,45 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
                 "MY_SECRET_1": b64encode(b"MY_SECRET_1").decode("utf-8"),
                 "MY_SECRET_2": b64encode(b"MY_SECRET_2").decode("utf-8"),
             },
+            {
+                "MY_SECRET_5": b64encode(b"MY_SECRET_5").decode("utf-8"),
+                "MY_SECRET_6": b64encode(b"MY_SECRET_6").decode("utf-8"),
+            },
         ]
 
         all_expected_string_data = [
             {"AIRFLOW_CON_GCP": "gcp_connection_string"},
             {"MY_SECRET_3": "MY_SECRET_3", "MY_SECRET_4": "MY_SECRET_4"},
+            {"MY_SECRET_7": "MY_SECRET_7", "MY_SECRET_8": "MY_SECRET_8"},
         ]
-        for expected_key, expected_data, expected_string_data in zip(
-            all_expected_keys, all_expected_data, all_expected_string_data
+        all_expected_types = [None, None, "kubernetes.io/dockerconfigjson"]
+        for expected_key, expected_data, expected_string_data, expected_type in zip(
+            all_expected_keys, all_expected_data, all_expected_string_data, all_expected_types
         ):
             configmap_obj = k8s_objects_by_key[expected_key]
+            if expected_type:
+                assert configmap_obj["type"] == expected_type
+            else:
+                assert "type" not in configmap_obj
             assert configmap_obj["data"] == expected_data
             assert configmap_obj["stringData"] == expected_string_data
+
+    def test_extra_configmaps_secrets_labels(self):
+        k8s_objects = render_chart(
+            name=RELEASE_NAME,
+            values={
+                "labels": {"label1": "value1", "label2": "value2"},
+                "extraSecrets": {"{{ .Release.Name }}-extra-secret-1": {"stringData": "data: secretData"}},
+                "extraConfigMaps": {"{{ .Release.Name }}-extra-configmap-1": {"data": "data: configData"}},
+            },
+            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+        )
+        expected_labels = {
+            "label1": "value1",
+            "label2": "value2",
+            "release": RELEASE_NAME,
+            "heritage": "Helm",
+            "chart": mock.ANY,
+        }
+        for k8s_object in k8s_objects:
+            assert k8s_object['metadata']['labels'] == expected_labels

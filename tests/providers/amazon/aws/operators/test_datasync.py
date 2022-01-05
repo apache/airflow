@@ -23,8 +23,8 @@ from moto import mock_datasync
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
-from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
+from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
@@ -42,11 +42,11 @@ CREATE_TASK_KWARGS = {"Options": {"VerifyMode": "NONE", "Atime": "NONE"}}
 UPDATE_TASK_KWARGS = {"Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}}
 
 MOCK_DATA = {
-    "task_id": "test_aws_datasync_task_operator",
-    "create_task_id": "test_aws_datasync_create_task_operator",
-    "get_task_id": "test_aws_datasync_get_tasks_operator",
-    "update_task_id": "test_aws_datasync_update_task_operator",
-    "delete_task_id": "test_aws_datasync_delete_task_operator",
+    "task_id": "test_datasync_task_operator",
+    "create_task_id": "test_datasync_create_task_operator",
+    "get_task_id": "test_datasync_get_tasks_operator",
+    "update_task_id": "test_datasync_update_task_operator",
+    "delete_task_id": "test_datasync_delete_task_operator",
     "source_location_uri": SOURCE_LOCATION_URI,
     "destination_location_uri": DESTINATION_LOCATION_URI,
     "create_task_kwargs": CREATE_TASK_KWARGS,
@@ -66,8 +66,8 @@ MOCK_DATA = {
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class AWSDataSyncTestCaseBase(unittest.TestCase):
+@mock.patch.object(DataSyncHook, "get_conn")
+class DataSyncTestCaseBase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.datasync = None
@@ -111,18 +111,18 @@ class AWSDataSyncTestCaseBase(unittest.TestCase):
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
+@mock.patch.object(DataSyncHook, "get_conn")
+class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
     def set_up_operator(
         self,
-        task_id="test_aws_datasync_create_task_operator",
+        task_id="test_datasync_create_task_operator",
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
         allow_random_location_choice=False,
     ):
         # Create operator
-        self.datasync = AWSDataSyncOperator(
+        self.datasync = DataSyncOperator(
             task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
@@ -322,18 +322,18 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
+@mock.patch.object(DataSyncHook, "get_conn")
+class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
     def set_up_operator(
         self,
-        task_id="test_aws_datasync_get_tasks_operator",
+        task_id="test_datasync_get_tasks_operator",
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
         allow_random_task_choice=False,
     ):
         # Create operator
-        self.datasync = AWSDataSyncOperator(
+        self.datasync = DataSyncOperator(
             task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
@@ -515,21 +515,21 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
+@mock.patch.object(DataSyncHook, "get_conn")
+class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.datasync = None
 
     def set_up_operator(
-        self, task_id="test_aws_datasync_update_task_operator", task_arn="self", update_task_kwargs="default"
+        self, task_id="test_datasync_update_task_operator", task_arn="self", update_task_kwargs="default"
     ):
         if task_arn == "self":
             task_arn = self.task_arn
         if update_task_kwargs == "default":
             update_task_kwargs = {"Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}}
         # Create operator
-        self.datasync = AWSDataSyncOperator(
+        self.datasync = DataSyncOperator(
             task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,
@@ -617,13 +617,13 @@ class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
-    def set_up_operator(self, task_id="test_aws_datasync_task_operator", task_arn="self"):
+@mock.patch.object(DataSyncHook, "get_conn")
+class TestDataSyncOperator(DataSyncTestCaseBase):
+    def set_up_operator(self, task_id="test_datasync_task_operator", task_arn="self"):
         if task_arn == "self":
             task_arn = self.task_arn
         # Create operator
-        self.datasync = AWSDataSyncOperator(
+        self.datasync = DataSyncOperator(
             task_id=task_id,
             dag=self.dag,
             wait_interval_seconds=0,
@@ -693,7 +693,7 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    @mock.patch.object(AWSDataSyncHook, "wait_for_task_execution")
+    @mock.patch.object(DataSyncHook, "wait_for_task_execution")
     def test_failed_task(self, mock_wait, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -708,7 +708,7 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    @mock.patch.object(AWSDataSyncHook, "wait_for_task_execution")
+    @mock.patch.object(DataSyncHook, "wait_for_task_execution")
     def test_killed_task(self, mock_wait, mock_get_conn):
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -771,13 +771,13 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class TestAWSDataSyncOperatorDelete(AWSDataSyncTestCaseBase):
-    def set_up_operator(self, task_id="test_aws_datasync_delete_task_operator", task_arn="self"):
+@mock.patch.object(DataSyncHook, "get_conn")
+class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
+    def set_up_operator(self, task_id="test_datasync_delete_task_operator", task_arn="self"):
         if task_arn == "self":
             task_arn = self.task_arn
         # Create operator
-        self.datasync = AWSDataSyncOperator(
+        self.datasync = DataSyncOperator(
             task_id=task_id,
             dag=self.dag,
             task_arn=task_arn,

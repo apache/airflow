@@ -105,12 +105,14 @@ def render_chart(
     show_only=None,
     chart_dir=None,
     kubernetes_version=DEFAULT_KUBERNETES_VERSION,
+    namespace=None,
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
     values = values or {}
     chart_dir = chart_dir or sys.path[0]
+    namespace = namespace or "default"
     with NamedTemporaryFile() as tmp_file:
         content = yaml.dump(values)
         tmp_file.write(content.encode())
@@ -120,10 +122,12 @@ def render_chart(
             "template",
             name,
             chart_dir,
-            '--values',
+            "--values",
             tmp_file.name,
-            '--kube-version',
+            "--kube-version",
             kubernetes_version,
+            "--namespace",
+            namespace,
         ]
         if show_only:
             for i in show_only:

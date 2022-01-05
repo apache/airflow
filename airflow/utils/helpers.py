@@ -15,17 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import re
 import signal
 import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    MutableMapping,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 from urllib import parse
 
-from flask import url_for
-from jinja2 import Template
+import flask
+import jinja2
+import jinja2.nativetypes
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -80,25 +94,25 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     return output
 
 
-def ask_yesno(question: str) -> bool:
-    """Helper to get yes / no answer from user."""
+def ask_yesno(question: str, default: Optional[bool] = None) -> bool:
+    """Helper to get a yes or no answer from the user."""
     yes = {'yes', 'y'}
     no = {'no', 'n'}
 
-    done = False
     print(question)
-    while not done:
+    while True:
         choice = input().lower()
+        if choice == "" and default is not None:
+            return default
         if choice in yes:
             return True
-        elif choice in no:
+        if choice in no:
             return False
-        else:
-            print("Please respond by yes or no.")
+        print("Please respond with y/yes or n/no.")
 
 
-def prompt_with_timeout(question: str, timeout: int):
-    """Ask user a question and timeout after timeout"""
+def prompt_with_timeout(question: str, timeout: int, default: Optional[bool] = None) -> bool:
+    """Ask the user a question and timeout if they don't respond"""
 
     def handler(signum, frame):
         raise AirflowException(f"Timeout {timeout}s reached")
@@ -106,7 +120,7 @@ def prompt_with_timeout(question: str, timeout: int):
     signal.signal(signal.SIGALRM, handler)
     signal.alarm(timeout)
     try:
-        return ask_yesno(question)
+        return ask_yesno(question, default)
     finally:
         signal.alarm(0)
 
@@ -157,10 +171,10 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string):
+def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional[jinja2.Template]]:
     """Parses Jinja template string."""
     if "{{" in template_string:  # jinja mode
-        return None, Template(template_string)
+        return None, jinja2.Template(template_string)
     else:
         return template_string, None
 
@@ -179,7 +193,7 @@ def render_log_filename(ti: "TaskInstance", try_number, filename_template) -> st
     if filename_jinja_template:
         jinja_context = ti.get_template_context()
         jinja_context['try_number'] = try_number
-        return filename_jinja_template.render(**jinja_context)
+        return render_template_to_string(filename_jinja_template, jinja_context)
 
     return filename_template.format(
         dag_id=ti.dag_id,
@@ -242,5 +256,102 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     view = conf.get('webserver', 'dag_default_view').lower()
-    url = url_for(f"Airflow.{view}")
+    url = flask.url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+# The 'template' argument is typed as Any because the jinja2.Template is too
+# dynamic to be effectively type-checked.
+def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
+    """Render a Jinja2 template with given Airflow context.
+
+    The default implementation of ``jinja2.Template.render()`` converts the
+    input context into dict eagerly many times, which triggers deprecation
+    messages in our custom context class. This takes the implementation apart
+    and retain the context mapping without resolving instead.
+
+    :param template: A Jinja2 template to render.
+    :param context: The Airflow task context to render the template with.
+    :param native: If set to *True*, render the template into a native type. A
+        DAG can enable this with ``render_template_as_native_obj=True``.
+    :returns: The render result.
+    """
+    context = copy.copy(context)
+    env = template.environment
+    if template.globals:
+        context.update((k, v) for k, v in template.globals.items() if k not in context)
+    try:
+        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+    except Exception:
+        env.handle_exception()  # Rewrite traceback to point to the template.
+    if native:
+        return jinja2.nativetypes.native_concat(nodes)
+    return "".join(nodes)
+
+
+def render_template_to_string(template: jinja2.Template, context: MutableMapping[str, Any]) -> str:
+    """Shorthand to ``render_template(native=False)`` with better typing support."""
+    return render_template(template, context, native=False)
+
+
+def render_template_as_native(template: jinja2.Template, context: MutableMapping[str, Any]) -> Any:
+    """Shorthand to ``render_template(native=True)`` with better typing support."""
+    return render_template(template, context, native=True)
+
+
+def exactly_one(*args) -> bool:
+    """
+    Returns True if exactly one of *args is "truthy", and False otherwise.
+
+    If user supplies an iterable, we raise ValueError and force them to unpack.
+    """
+    if is_container(args[0]):
+        raise ValueError(
+            "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
+        )
+    return sum(map(bool, args)) == 1
+
+
+def prune_dict(val: Any, mode='strict'):
+    """
+    Given dict ``val``, returns new dict based on ``val`` with all
+    empty elements removed.
+
+    What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
+    then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
+    will be removed if ``bool(x) is False``.
+    """
+
+    def is_empty(x):
+        if mode == 'strict':
+            return x is None
+        elif mode == 'truthy':
+            return bool(x) is False
+        raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
+
+    if isinstance(val, dict):
+        new_dict = {}
+        for k, v in val.items():
+            if is_empty(v):
+                continue
+            elif isinstance(v, (list, dict)):
+                new_val = prune_dict(v, mode=mode)
+                if new_val:
+                    new_dict[k] = new_val
+            else:
+                new_dict[k] = v
+        return new_dict
+    elif isinstance(val, list):
+        new_list = []
+        for v in val:
+            if is_empty(v):
+                continue
+            elif isinstance(v, (list, dict)):
+                new_val = prune_dict(v, mode=mode)
+                if new_val:
+                    new_list.append(new_val)
+            else:
+                new_list.append(v)
+        return new_list
+    else:
+        return val

@@ -16,15 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Pub/Sub Hook."""
+import sys
 import warnings
 from base64 import b64decode
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 from uuid import uuid4
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
@@ -40,7 +42,7 @@ from google.cloud.pubsub_v1.types import (
 )
 from googleapiclient.errors import HttpError
 
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.version import version
 
 
@@ -95,7 +97,7 @@ class PubSubHook(GoogleBaseHook):
         self,
         topic: str,
         messages: List[dict],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """
         Publishes messages to a Pub/Sub topic.
@@ -162,14 +164,14 @@ class PubSubHook(GoogleBaseHook):
     def create_topic(
         self,
         topic: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_exists: bool = False,
         labels: Optional[Dict[str, str]] = None,
         message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
         kms_key_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Creates a Pub/Sub topic, if it does not already exist.
@@ -226,7 +228,7 @@ class PubSubHook(GoogleBaseHook):
                 },
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata or (),
+                metadata=metadata,
             )
         except AlreadyExists:
             self.log.warning('Topic already exists: %s', topic)
@@ -241,11 +243,11 @@ class PubSubHook(GoogleBaseHook):
     def delete_topic(
         self,
         topic: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a Pub/Sub topic if it exists.
@@ -290,7 +292,7 @@ class PubSubHook(GoogleBaseHook):
     def create_subscription(
         self,
         topic: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         subscription: Optional[str] = None,
         subscription_project_id: Optional[str] = None,
         ack_deadline_secs: int = 10,
@@ -306,7 +308,7 @@ class PubSubHook(GoogleBaseHook):
         retry_policy: Optional[Union[dict, RetryPolicy]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
         """
         Creates a Pub/Sub subscription, if it does not already exist.
@@ -422,7 +424,7 @@ class PubSubHook(GoogleBaseHook):
                 },
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata or (),
+                metadata=metadata,
             )
         except AlreadyExists:
             self.log.warning('Subscription already exists: %s', subscription_path)
@@ -438,11 +440,11 @@ class PubSubHook(GoogleBaseHook):
     def delete_subscription(
         self,
         subscription: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a Pub/Sub subscription, if it exists.
@@ -476,7 +478,7 @@ class PubSubHook(GoogleBaseHook):
                 request={"subscription": subscription_path},
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata or (),
+                metadata=metadata,
             )
 
         except NotFound:
@@ -493,11 +495,11 @@ class PubSubHook(GoogleBaseHook):
         self,
         subscription: str,
         max_messages: int,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[ReceivedMessage]:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
@@ -544,7 +546,7 @@ class PubSubHook(GoogleBaseHook):
                 },
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata or (),
+                metadata=metadata,
             )
             result = getattr(response, 'received_messages', [])
             self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
@@ -561,7 +563,7 @@ class PubSubHook(GoogleBaseHook):
         messages: Optional[List[ReceivedMessage]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Acknowledges the messages associated with the ``ack_ids`` from Pub/Sub subscription.
@@ -606,7 +608,7 @@ class PubSubHook(GoogleBaseHook):
                 request={"subscription": subscription_path, "ack_ids": ack_ids},
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata or (),
+                metadata=metadata,
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(

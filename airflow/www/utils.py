@@ -23,11 +23,12 @@ from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
-from flask import Markup, Response, request, url_for
+from flask import Response, request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -331,11 +332,10 @@ def datetime_html(dttm: Optional[DateTime]) -> str:
     as_iso = dttm.isoformat() if dttm else ''
     if not as_iso:
         return Markup('')
-    dttm = as_iso
-    if timezone.utcnow().isoformat()[:4] == dttm[:4]:
-        dttm = dttm[5:]
+    if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
+        as_iso = as_iso[5:]
     # The empty title will be replaced in JS code when non-UTC dates are displayed
-    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, dttm)
+    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso)
 
 
 def json_f(attr_name):

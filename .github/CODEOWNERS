@@ -16,8 +16,7 @@
 /airflow/executors/kubernetes_executor.py @dstandish @jedcunningham
 
 # Helm Chart
-/chart/ @dimberman @ashb @kaxil @jedcunningham
-
+/chart/ @dstandish @jedcunningham
 
 # Docs
 /docs/ @mik-laj @vikramkoka

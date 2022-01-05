@@ -31,7 +31,9 @@ This DAG relies on the following OS environment variables:
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict
 
+import yaml
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
@@ -99,7 +101,7 @@ create_build_from_storage_body = {
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body = {
+create_build_from_repo_body: Dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "main"}},
     "steps": [
         {
@@ -189,7 +191,7 @@ with models.DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=GCP_PROJECT_ID,
-        build=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
+        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'example_cloud_build.yaml').read_text()),
         params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]

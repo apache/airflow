@@ -1082,7 +1082,7 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
             if zombies:
-                self.log.info("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+                self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
             self._last_zombie_query_time = timezone.utcnow()
             for ti, file_loc in zombies:
@@ -1091,7 +1091,7 @@ class DagFileProcessorManager(LoggingMixin):
                     simple_task_instance=SimpleTaskInstance(ti),
                     msg=f"Detected {ti} as zombie",
                 )
-                self.log.info("Detected zombie job: %s", request)
+                self.log.error("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)
                 Stats.incr('zombies_killed')
 

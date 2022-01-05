@@ -184,8 +184,7 @@ def task_instance_mutation_hook(task_instance):
 def pod_mutation_hook(pod):
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
-    before they are passed to the Kubernetes client by the ``PodLauncher``
-    for scheduling.
+    before they are passed to the Kubernetes client for scheduling.
 
     To define a pod mutation hook, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``pod_mutation_hook`` function.
@@ -194,6 +193,21 @@ def pod_mutation_hook(pod):
     This could be used, for instance, to add sidecar or init containers
     to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
     """
+
+
+def get_airflow_context_vars(context):
+    """
+    This setting allows getting the airflow context vars, which are key value pairs.
+    They are then injected to default airflow context vars, which in the end are
+    available as environment variables when running tasks
+    dag_id, task_id, execution_date, dag_run_id, try_number are reserved keys.
+    To define it, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``get_airflow_context_vars`` function.
+
+    :param context: The context for the task_instance of interest.
+    :type context: dict
+    """
+    return {}
 
 
 def configure_vars():

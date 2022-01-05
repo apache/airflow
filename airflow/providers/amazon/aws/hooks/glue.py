@@ -17,13 +17,14 @@
 # under the License.
 
 import time
+import warnings
 from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsGlueJobHook(AwsBaseHook):
+class GlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue - create job, trigger, crawler
 
@@ -100,7 +101,7 @@ class AwsGlueJobHook(AwsBaseHook):
 
     def get_iam_execution_role(self) -> Dict:
         """:return: iam role for job execution"""
-        session, endpoint_url = self._get_credentials(self.region_name)
+        session, endpoint_url = self._get_credentials(region_name=self.region_name)
         iam_client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
 
         try:
@@ -222,3 +223,19 @@ class AwsGlueJobHook(AwsBaseHook):
             except Exception as general_error:
                 self.log.error("Failed to create aws glue job, error: %s", general_error)
                 raise
+
+
+class AwsGlueJobHook(GlueJobHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

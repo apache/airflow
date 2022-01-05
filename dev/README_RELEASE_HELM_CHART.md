@@ -65,6 +65,26 @@ commits between the last release, `1.1.0`, and `main`:
 git log --oneline helm-chart/1.1.0..main --pretty='format:- %s' -- chart/ docs/helm-chart/
 ```
 
+### Add changelog annotations to `Chart.yaml`
+
+Once the changelog has been built, run the script to generate the changelog annotations.
+
+```shell
+./dev/chart/build_changelog_annotations.py
+```
+
+Verify the output looks right (only entries from this release), then put them in `Chart.yaml`, for example:
+
+```yaml
+annotations:
+  artifacthub.io/changes: |
+    - kind: added
+      description: Add resources for `cleanup` and `createuser` jobs
+      links:
+        - name: "#19263"
+          url: https://github.com/apache/airflow/pull/19263
+```
+
 ## Build RC artifacts
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against,

@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google BigQuery Data Transfer Service sensor."""
-from typing import Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
@@ -66,7 +69,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
     :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "run_id",
         "transfer_config_id",
         "expected_statuses",
@@ -86,7 +89,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -106,7 +109,9 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         result = set()
         for state in states:
             if isinstance(state, str):
-                result.add(TransferState[state.upper()])
+                # The proto.Enum type is indexable (via MetaClass and aliased) but MyPy is not able to
+                # infer this https://github.com/python/mypy/issues/8968
+                result.add(TransferState[state.upper()])  # type: ignore[misc]
             elif isinstance(state, int):
                 result.add(TransferState(state))
             elif isinstance(state, TransferState):
@@ -119,7 +124,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
                 )
         return result
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

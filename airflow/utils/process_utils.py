@@ -20,14 +20,19 @@
 import errno
 import logging
 import os
-import pty
 import select
 import shlex
 import signal
 import subprocess
 import sys
-import termios
-import tty
+
+from airflow.utils.platform import IS_WINDOWS
+
+if not IS_WINDOWS:
+    import tty
+    import termios
+    import pty
+
 from contextlib import contextmanager
 from typing import Dict, List
 

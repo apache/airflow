@@ -16,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import sys
 from typing import Collection, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.client_info import ClientInfo
-from google.cloud import storage
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow import version
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id

@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -exuo pipefail
+set -euo pipefail
 function install_mssql_client() {
     echo
     echo Installing mssql client
     echo
-    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
+    curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
+    curl --silent https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
     apt-get update -yqq
     apt-get upgrade -yqq
     ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends msodbcsql17 mssql-tools

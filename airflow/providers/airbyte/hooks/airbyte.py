@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -46,12 +46,12 @@ class AirbyteHook(HttpHook):
     ERROR = "error"
     INCOMPLETE = "incomplete"
 
-    def __init__(self, airbyte_conn_id: str = "airbyte_default", api_version: Optional[str] = "v1") -> None:
+    def __init__(self, airbyte_conn_id: str = "airbyte_default", api_version: str = "v1") -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
 
     def wait_for_job(
-        self, job_id: str, wait_seconds: Optional[float] = 3, timeout: Optional[float] = 3600
+        self, job_id: Union[str, int], wait_seconds: float = 3, timeout: Optional[float] = 3600
     ) -> None:
         """
         Helper method which polls a job to check if it finishes.
@@ -71,7 +71,7 @@ class AirbyteHook(HttpHook):
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)
             try:
-                job = self.get_job(job_id=job_id)
+                job = self.get_job(job_id=(int(job_id)))
                 state = job.json()["job"]["status"]
             except AirflowException as err:
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)

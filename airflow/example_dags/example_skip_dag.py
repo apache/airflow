@@ -23,6 +23,7 @@ from datetime import datetime
 from airflow import DAG
 from airflow.exceptions import AirflowSkipException
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.context import Context
 from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -32,7 +33,7 @@ class DummySkipOperator(DummyOperator):
 
     ui_color = '#e8b7e4'
 
-    def execute(self, context):
+    def execute(self, context: Context):
         raise AirflowSkipException
 
 
