@@ -514,15 +514,16 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: worker
-            topologyKey: "kubernetes.io/hostname"
+  affinity: {}
+  # default worker affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: worker
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
   # hostAliases to use in worker pods.
   # See:
@@ -625,15 +626,16 @@ scheduler:
 
   # Select certain nodes for airflow scheduler pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: scheduler
-            topologyKey: "kubernetes.io/hostname"
+  affinity: {}
+  # default scheduler affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: scheduler
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}
@@ -864,15 +866,16 @@ webserver:
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: webserver
-            topologyKey: "kubernetes.io/hostname"
+  affinity: {}
+  # default webserver affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: webserver
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}
@@ -945,15 +948,16 @@ triggerer:
 
   # Select certain nodes for airflow triggerer pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: triggerer
-            topologyKey: "kubernetes.io/hostname"
+  affinity: {}
+  # default triggerer affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: triggerer
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}

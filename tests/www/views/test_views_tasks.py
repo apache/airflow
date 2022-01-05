@@ -667,8 +667,9 @@ def test_task_instance_clear_failure(admin_client):
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
+        ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry"],
+    ids=["running", "failed", "success", "retry", "skipped"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -695,6 +696,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
         "set_failed",
         "set_success",
         "set_retry",
+        "set_skipped",
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
@@ -710,8 +712,8 @@ def test_task_instance_set_state_failure(admin_client, action):
 
 @pytest.mark.parametrize(
     "action",
-    ["clear", "set_success", "set_failed", "set_running"],
-    ids=["clear", "success", "failed", "running"],
+    ["clear", "set_success", "set_failed", "set_running", "set_skipped"],
+    ids=["clear", "success", "failed", "running", "skipped"],
 )
 def test_set_task_instance_action_permission_denied(session, client_ti_without_dag_edit, action):
     task_id = "runme_0"
