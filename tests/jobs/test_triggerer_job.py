@@ -16,29 +16,56 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import asyncio
 import datetime
+import os
 import sys
+import tempfile
 import time
+from pathlib import Path
+from threading import Thread
 
 import pytest
 
-from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import Trigger
+from airflow.jobs.triggerer_job import TriggererJob, TriggerRunner
+from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.operators.dummy import DummyOperator
+from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+
+class TimeDeltaTrigger_(TimeDeltaTrigger):
+    def __init__(self, delta, filename):
+        super().__init__(delta=delta)
+        self.filename = filename
+        self.delta = delta
+
+    async def run(self):
+        with open(self.filename, 'at') as f:
+            f.write('hi\n')
+        async for event in super().run():
+            yield event
+
+    def serialize(self):
+        return (
+            "tests.jobs.test_triggerer_job.TimeDeltaTrigger_",
+            {"delta": self.delta, "filename": self.filename},
+        )
 
 
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
+    clear_db_dags()
     yield  # Test runs here
+    clear_db_dags()
     clear_db_runs()
 
 
@@ -157,6 +184,108 @@ def test_trigger_lifecycle(session):
     finally:
         # We always have to stop the runner
         job.runner.stop = True
+
+
+@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
+@pytest.mark.xfail(reason="this is a bug documented in issue #18392")
+def test_trigger_bad_respawn(session):
+    """
+    Triggers are queued for creation by TriggerJob.load_triggers.
+    There is a race condition where multiple triggers will be created unnecessarily.
+    What happens is the runner completes the trigger and purges from the "running" list.
+    Then job.load_triggers is called and it looks like the trigger is not running but should,
+    so it queues it again.
+    The scenario is as follows:
+        1. job.load_triggers (trigger now queued)
+        2. runner.create_triggers (trigger now running)
+        3. job.handle_events (trigger still appears running so don't update state)
+        4. runner.cleanup_finished_triggers (removes trigger from "running" set
+        5. job.load_triggers (trigger does not appear running so requeued)
+        6. runner.create_triggers (trigger created again)
+
+    """
+    path = Path(tempfile.tempdir, 'test_trigger_bad_respawn.txt')
+    if path.exists():
+        os.remove(path)
+
+    class TriggerRunner_(TriggerRunner):
+        async def wait_for_job_method_count(self, method, count):
+            for _ in range(30):
+                await asyncio.sleep(0.1)
+                if getattr(self, f'{method}_count', 0) >= count:
+                    break
+            else:
+                pytest.fail(f"did not observe count {count} in job method {method}")
+
+        async def create_triggers(self):
+            """
+            On first run, wait for job.load_triggers to make sure they are queued
+            """
+            if getattr(self, 'loop_count', 0) == 0:
+                await self.wait_for_job_method_count('load_triggers', 1)
+            await super().create_triggers()
+            self.loop_count = getattr(self, 'loop_count', 0) + 1
+
+        async def cleanup_finished_triggers(self):
+            """On loop 1, make sure that job.handle_events was already called"""
+            if self.loop_count == 1:
+                await self.wait_for_job_method_count('handle_events', 1)
+            await super().cleanup_finished_triggers()
+
+    class TriggererJob_(TriggererJob):
+        def wait_for_runner_loop(self, runner_loop_count):
+            for _ in range(30):
+                time.sleep(0.1)
+                if getattr(self.runner, 'call_count', 0) >= runner_loop_count:
+                    break
+            else:
+                pytest.fail("did not observe 2 loops in the runner thread")
+
+        def load_triggers(self):
+            """On second run, make sure that runner has called create_triggers in its second loop"""
+            super().load_triggers()
+            self.runner.load_triggers_count = getattr(self.runner, 'load_triggers_count', 0) + 1
+            if self.runner.load_triggers_count == 2:
+                self.wait_for_runner_loop(runner_loop_count=2)
+
+        def handle_events(self):
+            super().handle_events()
+            self.runner.handle_events_count = getattr(self.runner, 'handle_events_count', 0) + 1
+
+    trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
+    trigger_orm = Trigger.from_object(trigger)
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+
+    dag = DagModel(dag_id='test-dag')
+    dag_run = DagRun(dag.dag_id, run_id='abc', run_type='none')
+    ti = TaskInstance(PythonOperator(task_id='dummy-task', python_callable=print), run_id=dag_run.run_id)
+    ti.dag_id = dag.dag_id
+    ti.trigger_id = 1
+    session.add(dag)
+    session.add(dag_run)
+    session.add(ti)
+
+    session.commit()
+
+    job = TriggererJob_()
+    job.runner = TriggerRunner_()
+    thread = Thread(target=job._execute)
+    thread.start()
+    try:
+        for _ in range(40):
+            time.sleep(0.1)
+            # ready to evaluate after 2 loops
+            if getattr(job.runner, 'loop_count', 0) >= 2:
+                break
+        else:
+            pytest.fail("did not observe 2 loops in the job thread")
+    finally:
+        job.runner.stop = True
+        job.runner.join()
+        thread.join()
+    instances = path.read_text().splitlines()
+    assert len(instances) == 1
 
 
 @pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
