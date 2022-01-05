@@ -197,9 +197,9 @@ def test_trigger_bad_respawn(session):
     The scenario is as follows:
         1. job.load_triggers (trigger now queued)
         2. runner.create_triggers (trigger now running)
-        3. job.handle_events (trigger still appears running so don't update state)
-        4. runner.cleanup_finished_triggers (removes trigger from "running" set
-        5. job.load_triggers (trigger does not appear running so requeued)
+        3. job.handle_events (trigger still appears running so state not updated in DB)
+        4. runner.cleanup_finished_triggers (trigger completed at this point; trigger from "running" set)
+        5. job.load_triggers (trigger not running, but also not purged from DB, so it is queued again)
         6. runner.create_triggers (trigger created again)
 
     """
@@ -208,6 +208,8 @@ def test_trigger_bad_respawn(session):
         os.remove(path)
 
     class TriggerRunner_(TriggerRunner):
+        """We do some waiting for main thread looping"""
+
         async def wait_for_job_method_count(self, method, count):
             for _ in range(30):
                 await asyncio.sleep(0.1)
@@ -232,6 +234,8 @@ def test_trigger_bad_respawn(session):
             await super().cleanup_finished_triggers()
 
     class TriggererJob_(TriggererJob):
+        """We do some waiting for runner thread looping (and track calls in job thread)"""
+
         def wait_for_runner_loop(self, runner_loop_count):
             for _ in range(30):
                 time.sleep(0.1)
