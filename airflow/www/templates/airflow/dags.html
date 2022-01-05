@@ -19,7 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
-{% from 'airflow/_messages.html' import message %}
+{% from 'airflow/_messages.html' import show_message %}
 
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
@@ -50,26 +50,27 @@
 
 {% block messages %}
   {% for m in dashboard_alerts %}
-    {{ message(m.message, m.category) }}
+    {{ show_message(m.message, m.category) }}
   {% endfor %}
   {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
-    {% call message(category='error', dismissable=false) %}
+    {% call show_message(category='error', dismissible=false) %}
       Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
       metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
       to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
-      the <code>{{ moved_table_name }}</code> table to dismiss this warning.
+      the <code>{{ moved_table_name }}</code> table to dismiss this warning. Read more about it
+      in <a href={{ get_docs_url("installation/upgrading.html") }}><b>Upgrading</b></a>.
     {% endcall %}
   {% endfor %}
   {{ super() }}
   {% if sqlite_warning | default(true) %}
-    {% call message(category='warning', dismissable=false)  %}
-      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing
+    {% call show_message(category='warning', dismissible=false)  %}
+      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing.
       We recommend using Postgres or MySQL.
       <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
   {% if sequential_executor_warning | default(false) %}
-    {% call message(category='warning', dismissable=false)  %}
+    {% call show_message(category='warning', dismissible=false)  %}
       Do not use <b>SequentialExecutor</b> in production.
       <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
@@ -145,16 +146,17 @@
               <tr><td colspan="10">No results</td></tr>
             {% endif %}
             {% for dag in dags %}
+            {% set dag_is_paused = dag.get_is_paused() %}
               <tr>
                 <td style="padding-right:0;">
                   {% if dag.can_edit %}
                     {% set switch_tooltip = 'Pause/Unpause DAG' %}
                   {% else %}
-                    {% set switch_tooltip = 'DAG is Paused' if dag.is_paused else 'DAG is Active' %}
+                    {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
                   {% endif %}
                   <label class="switch-label{{' disabled' if not dag.can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
                     <input class="switch-input"  id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}" type="checkbox"
-                           {{ " checked" if not dag.is_paused else "" }}
+                           {{ " checked" if not dag_is_paused else "" }}
                            {{ " disabled" if not dag.can_edit else "" }}>
                     <span class="switch" aria-hidden="true"></span>
                   </label>
@@ -191,6 +193,9 @@
                   <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}">
                     {{ dag.schedule_interval }}
                   </a>
+                  {% if dag is defined and dag.timetable_description %}
+                      <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Schedule: {{ dag.timetable_description|string }}">info</span>
+                  {% endif %}
                 </td>
                 <td id="last-run-{{ dag.safe_dag_id }}" class="text-nowrap latest_dag_run">
                   {{ loading_dots(classes='js-loading-last-run text-muted') }}

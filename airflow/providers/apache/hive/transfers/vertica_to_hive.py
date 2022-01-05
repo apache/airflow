@@ -16,16 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module contains operator to move data from Vertica to Hive."""
+"""This module contains an operator to move data from Vertica to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class VerticaToHiveOperator(BaseOperator):
@@ -62,26 +66,25 @@ class VerticaToHiveOperator(BaseOperator):
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
     :type hive_cli_conn_id: str
-
     """
 
-    template_fields = ('sql', 'partition', 'hive_table')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#b4e0ff'
 
     def __init__(
         self,
         *,
-        sql,
-        hive_table,
-        create=True,
-        recreate=False,
-        partition=None,
-        delimiter=chr(1),
-        vertica_conn_id='vertica_default',
-        hive_cli_conn_id='hive_cli_default',
-        **kwargs,
-    ):
+        sql: str,
+        hive_table: str,
+        create: bool = True,
+        recreate: bool = False,
+        partition: Optional[Dict] = None,
+        delimiter: str = chr(1),
+        vertica_conn_id: str = 'vertica_default',
+        hive_cli_conn_id: str = 'hive_cli_default',
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table
@@ -110,7 +113,7 @@ class VerticaToHiveOperator(BaseOperator):
         }
         return type_map.get(vertica_type, 'STRING')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 

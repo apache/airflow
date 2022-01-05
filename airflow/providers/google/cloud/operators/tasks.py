@@ -21,7 +21,7 @@ This module contains various Google Cloud Tasks operators
 which allow you to perform basic operations using
 Cloud Tasks queues/tasks.
 """
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
@@ -31,12 +31,20 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
 MetaData = Sequence[Tuple[str, str]]
 
 
 class CloudTasksQueueCreateOperator(BaseOperator):
     """
     Creates a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueCreateOperator`
 
     :param location: The location name in which the queue will be created.
     :type location: str
@@ -74,7 +82,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task_queue",
         "project_id",
         "location",
@@ -92,7 +100,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         queue_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -108,7 +116,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -124,6 +132,8 @@ class CloudTasksQueueCreateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.queue_name is None:
+                raise RuntimeError("The queue name should be set here!")
             queue = hook.get_queue(
                 location=self.location,
                 project_id=self.project_id,
@@ -139,6 +149,10 @@ class CloudTasksQueueCreateOperator(BaseOperator):
 class CloudTasksQueueUpdateOperator(BaseOperator):
     """
     Updates a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueUpdateOperator`
 
     :param task_queue: The task queue to update.
         This method creates the queue if it does not exist and updates the queue if
@@ -181,7 +195,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task_queue",
         "project_id",
         "location",
@@ -198,10 +212,10 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         queue_name: Optional[str] = None,
-        update_mask: Union[Dict, FieldMask] = None,
+        update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -218,7 +232,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -239,6 +253,10 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
 class CloudTasksQueueGetOperator(BaseOperator):
     """
     Gets a queue from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueGetOperator`
 
     :param location: The location name in which the queue was created.
     :type location: str
@@ -271,7 +289,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -287,7 +305,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -302,7 +320,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -321,6 +339,10 @@ class CloudTasksQueueGetOperator(BaseOperator):
 class CloudTasksQueuesListOperator(BaseOperator):
     """
     Lists queues from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuesListOperator`
 
     :param location: The location name in which the queues were created.
     :type location: str
@@ -356,7 +378,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "gcp_conn_id",
@@ -372,7 +394,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -388,7 +410,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -408,6 +430,10 @@ class CloudTasksQueuesListOperator(BaseOperator):
 class CloudTasksQueueDeleteOperator(BaseOperator):
     """
     Deletes a queue from Cloud Tasks, even if it has tasks in it.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueDeleteOperator`
 
     :param location: The location name in which the queue will be deleted.
     :type location: str
@@ -438,7 +464,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -454,7 +480,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -469,7 +495,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -487,6 +513,10 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
 class CloudTasksQueuePurgeOperator(BaseOperator):
     """
     Purges a queue by deleting all of its tasks from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuePurgeOperator`
 
     :param location: The location name in which the queue will be purged.
     :type location: str
@@ -519,7 +549,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -535,7 +565,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -550,7 +580,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -569,6 +599,10 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
 class CloudTasksQueuePauseOperator(BaseOperator):
     """
     Pauses a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuePauseOperator`
 
     :param location: The location name in which the queue will be paused.
     :type location: str
@@ -601,7 +635,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -617,7 +651,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -632,7 +666,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -651,6 +685,10 @@ class CloudTasksQueuePauseOperator(BaseOperator):
 class CloudTasksQueueResumeOperator(BaseOperator):
     """
     Resumes a queue in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueResumeOperator`
 
     :param location: The location name in which the queue will be resumed.
     :type location: str
@@ -683,7 +721,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -699,7 +737,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -714,7 +752,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -733,6 +771,10 @@ class CloudTasksQueueResumeOperator(BaseOperator):
 class CloudTasksTaskCreateOperator(BaseOperator):
     """
     Creates a task in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskCreateOperator`
 
     :param location: The location name in which the task will be created.
     :type location: str
@@ -774,7 +816,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task",
         "project_id",
         "location",
@@ -792,10 +834,10 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         task: Union[Dict, Task],
         project_id: Optional[str] = None,
         task_name: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -813,7 +855,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -835,6 +877,10 @@ class CloudTasksTaskCreateOperator(BaseOperator):
 class CloudTasksTaskGetOperator(BaseOperator):
     """
     Gets a task from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskGetOperator`
 
     :param location: The location name in which the task was created.
     :type location: str
@@ -872,7 +918,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "task_name",
@@ -888,10 +934,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -908,7 +954,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -929,6 +975,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
 class CloudTasksTasksListOperator(BaseOperator):
     """
     Lists the tasks in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTasksListOperator`
 
     :param location: The location name in which the tasks were created.
     :type location: str
@@ -967,7 +1017,7 @@ class CloudTasksTasksListOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Task]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "project_id",
@@ -981,11 +1031,11 @@ class CloudTasksTasksListOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1002,7 +1052,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1023,6 +1073,10 @@ class CloudTasksTasksListOperator(BaseOperator):
 class CloudTasksTaskDeleteOperator(BaseOperator):
     """
     Deletes a task from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskDeleteOperator`
 
     :param location: The location name in which the task will be deleted.
     :type location: str
@@ -1055,7 +1109,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "task_name",
@@ -1073,7 +1127,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1089,7 +1143,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1108,6 +1162,10 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
 class CloudTasksTaskRunOperator(BaseOperator):
     """
     Forces to run a task in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskRunOperator`
 
     :param location: The location name in which the task was created.
     :type location: str
@@ -1145,7 +1203,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "queue_name",
         "task_name",
@@ -1161,10 +1219,10 @@ class CloudTasksTaskRunOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional = None,
+        response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1181,7 +1239,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

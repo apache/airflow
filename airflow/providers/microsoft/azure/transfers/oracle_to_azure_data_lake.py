@@ -18,13 +18,16 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
+from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):
@@ -55,7 +58,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :type quoting: str
     """
 
-    template_fields = ('filename', 'sql', 'sql_params')
+    template_fields: Sequence[str] = ('filename', 'sql', 'sql_params')
     template_fields_renderers = {"sql_params": "py"}
     ui_color = '#e08c8c'
 
@@ -101,7 +104,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 

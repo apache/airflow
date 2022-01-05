@@ -31,8 +31,10 @@ import string
 import subprocess
 import time
 import uuid
+from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
+from tempfile import gettempdir
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
@@ -498,7 +500,12 @@ class CloudSqlProxyRunner(LoggingMixin):
             )
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
-        response = httpx.get(download_url, allow_redirects=True)
+        # httpx has a breaking API change (follow_redirects vs allow_redirects)
+        # and this should work with both versions (cf. issue #20088)
+        if "follow_redirects" in signature(httpx.get).parameters.keys():
+            response = httpx.get(download_url, follow_redirects=True)
+        else:
+            response = httpx.get(download_url, allow_redirects=True)  # type: ignore[call-arg]
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, 'wb') as file:
@@ -506,7 +513,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         if response.status_code != 200:
             raise AirflowException(
                 "The cloud-sql-proxy could not be downloaded. "
-                f"Status code = {response.status_code}. Reason = {response.reason}"
+                f"Status code = {response.status_code}. Reason = {response.reason_phrase}"
             )
 
         self.log.info("Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path)
@@ -768,7 +775,7 @@ class CloudSQLDatabaseHook(BaseHook):
 
     @staticmethod
     def _get_bool(val: Any) -> bool:
-        if val == 'False':
+        if val == 'False' or val is False:
             return False
         return True
 
@@ -838,12 +845,12 @@ class CloudSQLDatabaseHook(BaseHook):
         can be close to 60 characters and there is a limitation in
         length of socket path to around 100 characters in total.
         We append project/location/instance to it later and postgres
-        appends its own prefix, so we chose a shorter "/tmp/[8 random characters]"
+        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]"
         """
         random.seed()
         while True:
-            candidate = "/tmp/" + ''.join(
-                random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
+            candidate = os.path.join(
+                gettempdir(), ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
             )
             if not os.path.exists(candidate):
                 return candidate

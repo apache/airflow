@@ -51,7 +51,7 @@ Package apache-airflow-providers-pagerduty
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 2.0.1
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -62,7 +62,7 @@ are in ``airflow.providers.pagerduty`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-pagerduty``
 
 PIP requirements

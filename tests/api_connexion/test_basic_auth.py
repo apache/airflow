@@ -75,6 +75,7 @@ class TestBasicAuth:
                     "running_slots": 0,
                     "queued_slots": 0,
                     "open_slots": 128,
+                    "description": "Default pool",
                 },
             ],
             "total_entries": 1,

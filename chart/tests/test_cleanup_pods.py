@@ -158,3 +158,44 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
         )
         assert ["Helm"] == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
+
+    def test_should_set_labels_to_jobs_from_cronjob(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "labels": {"project": "airflow"},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "airflow-cleanup-pods",
+            "release": "RELEASE-NAME",
+            "project": "airflow",
+        } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+
+    def test_cleanup_resources_are_configurable(self):
+        resources = {
+            "requests": {
+                "cpu": "128m",
+                "memory": "256Mi",
+            },
+            "limits": {
+                "cpu": "256m",
+                "memory": "512Mi",
+            },
+        }
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "resources": resources,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert resources == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
+        )

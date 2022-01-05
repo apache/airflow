@@ -23,7 +23,7 @@ from airflow.providers.alibaba.cloud.operators.oss import OSSCreateBucketOperato
 with DAG(
     dag_id='oss_bucket_dag',
     start_date=datetime(2021, 1, 1),
-    default_args={'region': 'your region', 'bucket_name': 'your bucket'},
+    default_args={'bucket_name': 'your bucket', 'region': 'your region'},
     max_active_runs=1,
     tags=['example'],
     catchup=False,

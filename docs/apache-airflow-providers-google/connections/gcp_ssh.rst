@@ -50,8 +50,7 @@ Extra (optional)
     * ``extra__google_cloud_platform__zone`` - The zone of the Compute Engine instance.
     * ``extra__google_cloud_platform__use_internal_ip`` - Whether to connect using internal IP.
     * ``extra__google_cloud_platform__use_iap_tunnel`` - Whether to connect through IAP tunnel.
-    * ``extra__google_cloud_platform__use_oslogin`` - Whether to manage keys using OsLogin API. If false,
-        keys are managed using instance metadata.
+    * ``extra__google_cloud_platform__use_oslogin`` - Whether to manage keys using OsLogin API. If false, keys are managed using instance metadata.
     * ``extra__google_cloud_platform__expire_time`` - The maximum amount of time in seconds before the private key expires.
 
 

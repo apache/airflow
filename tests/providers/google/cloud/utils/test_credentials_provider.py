@@ -21,6 +21,7 @@ import re
 import unittest
 from io import StringIO
 from unittest import mock
+from unittest.mock import ANY
 from uuid import uuid4
 
 import pytest
@@ -267,12 +268,52 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             'connection using JSON Dict'
         ] == cm.output
 
+    @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
+    @mock.patch('google.oauth2.service_account.Credentials.from_service_account_info')
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
+    def test_get_credentials_and_project_id_with_key_secret_name(
+        self, mock_secret_manager_client, mock_from_service_account_info, mock_default
+    ):
+        mock_secret_manager_client.return_value.is_valid_secret_name.return_value = True
+        mock_secret_manager_client.return_value.get_secret.return_value = (
+            "{\"type\":\"service_account\",\"project_id\":\"pid\","
+            "\"private_key_id\":\"pkid\","
+            "\"private_key\":\"payload\"}"
+        )
+
+        get_credentials_and_project_id(key_secret_name="secret name")
+        mock_from_service_account_info.assert_called_once_with(
+            {
+                'type': 'service_account',
+                'project_id': 'pid',
+                'private_key_id': 'pkid',
+                'private_key': 'payload',
+            },
+            scopes=ANY,
+        )
+
+    @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
+    def test_get_credentials_and_project_id_with_key_secret_name_when_key_is_invalid(
+        self, mock_secret_manager_client, mock_default
+    ):
+        mock_secret_manager_client.return_value.is_valid_secret_name.return_value = True
+        mock_secret_manager_client.return_value.get_secret.return_value = ""
+
+        with pytest.raises(
+            AirflowException,
+            match=re.escape('Key data read from GCP Secret Manager is not valid JSON.'),
+        ):
+            get_credentials_and_project_id(key_secret_name="secret name")
+
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
         self,
     ):
         with pytest.raises(
             AirflowException,
-            match=re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.'),
+            match=re.escape(
+                'The `keyfile_dict`, `key_path`, and `key_secret_name` fieldsare all mutually exclusive.'
+            ),
         ):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
 

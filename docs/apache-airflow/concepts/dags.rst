@@ -37,18 +37,20 @@ Declaring a DAG
 There are three ways to declare a DAG - either you can use a context manager,
 which will add the DAG to anything inside it implicitly::
 
-    with DAG("my_dag_name") as dag:
+    with DAG(
+        "my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+    ) as dag:
         op = DummyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
-    my_dag = DAG("my_dag_name")
+    my_dag = DAG("my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
     op = DummyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
-    @dag(start_date=days_ago(2))
+    @dag(start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
     def generate_dag():
         op = DummyOperator(task_id="task")
 
@@ -193,16 +195,19 @@ Otherwise, you must pass it into each Operator with ``dag=``.
 Default Arguments
 -----------------
 
-Often, many Operators inside a DAG need the same set of default arguments (such as their ``start_date``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it::
+Often, many Operators inside a DAG need the same set of default arguments (such as their ``retries``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it::
 
-    default_args = {
-        'start_date': datetime(2016, 1, 1),
-        'owner': 'airflow'
-    }
 
-    with DAG('my_dag', default_args=default_args) as dag:
-        op = DummyOperator(task_id='dummy')
-        print(op.owner)  # "airflow"
+
+    with DAG(
+        dag_id='my_dag',
+        start_date=datetime(2016, 1, 1),
+        schedule_interval='@daily',
+        catchup=False,
+        default_args={'retries': 2},
+    ) as dag:
+        op = BashOperator(task_id='dummy', bash_command='Hello World!')
+        print(op.retries)  # 2
 
 
 .. _concepts:dag-decorator:
@@ -462,12 +467,18 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 
 TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
-    with DAG(dag_id='dag1', default_args={'start_date': datetime(2016, 1, 1), 'owner': 'dag'}):
-        with TaskGroup('group1', default_args={'owner': 'group'}):
+    with DAG(
+        dag_id='dag1',
+        start_date=datetime(2016, 1, 1),
+        schedule_interval="@daily",
+        catchup=False,
+        default_args={'retries': 1},
+    ):
+        with TaskGroup('group1', default_args={'retries': 3}):
             task1 = DummyOperator(task_id='task1')
-            task2 = DummyOperator(task_id='task2', owner='task2')
-            print(task1.owner) # "group"
-            print(task2.owner) # "task2"
+            task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
+            print(task1.retries) # 3
+            print(task2.retries) # 2
 
 If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group.py`` example DAG that comes with Airflow.
 
@@ -537,7 +548,9 @@ This is especially useful if your tasks are built dynamically from configuration
     ### My great DAG
     """
 
-    dag = DAG("my_dag", default_args=default_args)
+    dag = DAG(
+        "my_dag", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+    )
     dag.doc_md = __doc__
 
     t = BashOperator("foo", dag=dag)
@@ -615,6 +628,35 @@ Note that packaged DAGs come with some caveats:
 * They will be inserted into Python's ``sys.path`` and importable by any other code in the Airflow process, so ensure the package names don't clash with other packages already installed on your system.
 
 In general, if you have a complex set of compiled dependencies and modules, you are likely better off using the Python ``virtualenv`` system and installing the necessary packages on your target systems with ``pip``.
+
+``.airflowignore``
+------------------
+
+A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
+Each line in ``.airflowignore`` specifies a regular expression pattern,
+and directories or files whose names (not DAG id) match any of the patterns
+would be ignored (under the hood, ``Pattern.search()`` is used to match the pattern).
+Overall it works like a ``.gitignore`` file.
+Use the ``#`` character to indicate a comment; all characters
+on a line following a ``#`` will be ignored.
+
+``.airflowignore`` file should be put in your ``DAG_FOLDER``.
+For example, you can prepare a ``.airflowignore`` file with content
+
+.. code-block::
+
+    project_a
+    tenant_[\d]
+
+Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
+(If a directory's name matches any of the patterns, this directory and all its subfolders
+would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+
+The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
+You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+would only be applicable for that subfolder.
 
 DAG Dependencies
 ================

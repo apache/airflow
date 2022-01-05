@@ -26,7 +26,8 @@ from zipfile import ZipFile
 import pytest
 
 from airflow import settings
-from airflow.configuration import conf
+from airflow.configuration import TEST_DAGS_FOLDER, conf
+from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
@@ -196,6 +197,45 @@ class TestDagFileProcessor:
         dag_file_processor.manage_slas(dag=dag, session=session)
 
         sla_callback.assert_not_called()
+
+    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, dag_maker):
+        """
+        Test that the dag file processor does not try to insert already existing item into the database
+        """
+        session = settings.Session()
+
+        # Create dag with a start of 2 days ago, but an sla of 1 day
+        # ago so we'll already have an sla_miss on the books
+        test_start_date = days_ago(2)
+        with dag_maker(
+            dag_id='test_sla_miss',
+            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
+        ) as dag:
+            task = DummyOperator(task_id='dummy')
+
+        dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
+
+        # Create a TaskInstance for two days ago
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='success')
+        session.merge(ti)
+        session.flush()
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor.manage_slas(dag=dag, session=session)
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+            )
+            .count()
+        )
+        assert sla_miss_count == 1
+        # Now call manage_slas and see that it runs without errors
+        # because of existing SlaMiss above.
+        # Since this is run often, it's possible that it runs before another
+        # ti is successful thereby trying to insert a duplicate record.
+        dag_file_processor.manage_slas(dag=dag, session=session)
 
     def test_dag_file_processor_sla_miss_callback_exception(self, create_dummy_dag):
         """
@@ -442,6 +482,32 @@ class TestDagFileProcessor:
             assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
             session.rollback()
 
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
+    def test_dag_model_has_import_error_is_true_when_import_error_exists(self, tmpdir, session):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py")
+        temp_dagfile = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+        with open(dag_file) as main_dag, open(temp_dagfile, 'w') as next_dag:
+            for line in main_dag:
+                next_dag.write(line)
+        # first we parse the dag
+        self._process_file(temp_dagfile, session)
+        # assert DagModel.has_import_errors is false
+        dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
+        assert not dm.has_import_errors
+        # corrupt the file
+        with open(temp_dagfile, 'a') as file:
+            file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+
+        self._process_file(temp_dagfile, session)
+        import_errors = session.query(errors.ImportError).all()
+
+        assert len(import_errors) == 1
+        import_error = import_errors[0]
+        assert import_error.filename == temp_dagfile
+        assert import_error.stacktrace
+        dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
+        assert dm.has_import_errors
+
     def test_no_import_errors_with_parseable_dag(self, tmpdir):
         parseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
 
@@ -658,3 +724,52 @@ class TestDagFileProcessor:
         dags = session.query(DagModel).all()
         assert [dag.dag_id for dag in dags if dag.is_active] == ['test_only_dummy_tasks']
         assert [dag.dag_id for dag in dags if not dag.is_active] == ['missing_dag']
+
+
+class TestProcessorAgent:
+    @pytest.fixture(autouse=True)
+    def per_test(self):
+        self.processor_agent = None
+        yield
+        if self.processor_agent:
+            self.processor_agent.end()
+
+    def test_error_when_waiting_in_async_mode(self, tmp_path):
+        self.processor_agent = DagFileProcessorAgent(
+            dag_directory=str(tmp_path),
+            max_runs=1,
+            processor_timeout=datetime.timedelta(1),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+        self.processor_agent.start()
+        with pytest.raises(RuntimeError, match="wait_until_finished should only be called in sync_mode"):
+            self.processor_agent.wait_until_finished()
+
+    def test_default_multiprocessing_behaviour(self, tmp_path):
+        self.processor_agent = DagFileProcessorAgent(
+            dag_directory=str(tmp_path),
+            max_runs=1,
+            processor_timeout=datetime.timedelta(1),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=False,
+        )
+        self.processor_agent.start()
+        self.processor_agent.run_single_parsing_loop()
+        self.processor_agent.wait_until_finished()
+
+    @conf_vars({("core", "mp_start_method"): "spawn"})
+    def test_spawn_multiprocessing_behaviour(self, tmp_path):
+        self.processor_agent = DagFileProcessorAgent(
+            dag_directory=str(tmp_path),
+            max_runs=1,
+            processor_timeout=datetime.timedelta(1),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=False,
+        )
+        self.processor_agent.start()
+        self.processor_agent.run_single_parsing_loop()
+        self.processor_agent.wait_until_finished()

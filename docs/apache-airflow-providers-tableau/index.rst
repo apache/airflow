@@ -54,7 +54,7 @@ Package apache-airflow-providers-tableau
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 2.1.1
+Release: 2.1.3
 
 Provider package
 ----------------
@@ -65,7 +65,7 @@ are in ``airflow.providers.tableau`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-tableau``
 
 PIP requirements

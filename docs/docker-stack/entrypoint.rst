@@ -102,11 +102,11 @@ is executed. Then it loops until the the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
-Waits for celery broker connection
+Waits for Celery broker connection
 ----------------------------------
 
 In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``
-commands are used the entrypoint will wait until the celery broker DB connection is available.
+commands are used the entrypoint will wait until the Celery broker DB connection is available.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until connection to the host/port specified can be established
@@ -182,7 +182,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
         Commands:
           cheat-sheet    Display cheat sheet
           info           Show information about current Airflow and environment
-          kerberos       Start a kerberos ticket renewer
+          kerberos       Start a Kerberos ticket renewer
           plugins        Dump information about loaded plugins
           rotate-fernet-key
                          Rotate encrypted connection credentials and variables
@@ -206,7 +206,7 @@ propagation (See the next chapter).
 
 .. code-block:: Dockerfile
 
-    FROM airflow::2.3.0.dev0
+    FROM airflow:2.3.0.dev0
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
@@ -250,15 +250,15 @@ Similarly to custom entrypoint, it can be added to the image by extending it.
 
 .. code-block:: Dockerfile
 
-    FROM airflow::2.3.0.dev0
+    FROM airflow:2.3.0.dev0
     COPY my_after_entrypoint_script.sh /
 
-
-And then you can run this script by running the command:
+Build your image and then you can run this script by running the command:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "/my_after_entrypoint_script.sh"
+  docker build . --tag my-image:0.0.1
+  docker run -it my-image:0.0.1 bash -c "/my_after_entrypoint_script.sh"
 
 
 Signal propagation

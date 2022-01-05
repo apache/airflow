@@ -217,3 +217,9 @@ pip-wheel-metadata
 # Dev files
 /dev/packages.txt
 /dev/Dockerfile.pmc
+
+# Generated UI licenses
+licenses/LICENSES-ui.txt
+
+# Packaged Breeze2 on Windows
+/Breeze2.exe

@@ -182,33 +182,52 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
 
 
-class TestKubernetesExecutor(unittest.TestCase):
+class TestKubernetesExecutor:
     """
     Tests if an ApiException from the Kube Client will cause the task to
     be rescheduled.
     """
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         self.kubernetes_executor = KubernetesExecutor()
         self.kubernetes_executor.job_id = "5"
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'
+    )
+    @pytest.mark.parametrize(
+        'status, should_requeue',
+        [
+            pytest.param(403, True, id='403 Forbidden'),
+            pytest.param(12345, True, id='12345 fake-unhandled-reason'),
+            pytest.param(422, False, id='422 Unprocessable Entity'),
+            pytest.param(400, False, id='400 BadRequest'),
+        ],
+    )
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
-    def test_run_next_exception(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+    def test_run_next_exception_requeue(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
+    ):
+        """
+        When pod scheduling fails with either reason 'Forbidden', or any reason not yet
+        handled in the relevant try-except block, the task should stay in the ``task_queue``
+        and be attempted on a subsequent executor sync.  When reason is 'Unprocessable Entity'
+        or 'BadRequest', the task should be failed without being re-queued.
+
+        Note on error scenarios:
+
+        - 403 Forbidden will be returned when your request exceeds namespace quota.
+        - 422 Unprocessable Entity is returned when your parameters are valid but unsupported
+            e.g. limits lower than requests.
+        - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
+
+        """
         import sys
 
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
-        # When a quota is exceeded this is the ApiException we get
-        response = HTTPResponse(
-            body='{"kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure", '
-            '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
-            'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
-            '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}'
-        )
-        response.status = 403
-        response.reason = "Forbidden"
+        response = HTTPResponse(body='{"message": "any message"}', status=status)
 
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
@@ -225,24 +244,30 @@ class TestKubernetesExecutor(unittest.TestCase):
             kubernetes_executor.start()
             # Execute a task while the Api Throws errors
             try_number = 1
+            task_instance_key = ('dag', 'task', 'run_id', try_number)
             kubernetes_executor.execute_async(
-                key=('dag', 'task', 'run_id', try_number),
+                key=task_instance_key,
                 queue=None,
                 command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
             )
             kubernetes_executor.sync()
-            kubernetes_executor.sync()
 
-            assert mock_kube_client.create_namespaced_pod.called
-            assert not kubernetes_executor.task_queue.empty()
+            assert mock_kube_client.create_namespaced_pod.call_count == 1
 
-            # Disable the ApiException
-            mock_kube_client.create_namespaced_pod.side_effect = None
+            if should_requeue:
+                assert not kubernetes_executor.task_queue.empty()
 
-            # Execute the task without errors should empty the queue
-            kubernetes_executor.sync()
-            assert mock_kube_client.create_namespaced_pod.called
-            assert kubernetes_executor.task_queue.empty()
+                # Disable the ApiException
+                mock_kube_client.create_namespaced_pod.side_effect = None
+
+                # Execute the task without errors should empty the queue
+                mock_kube_client.create_namespaced_pod.reset_mock()
+                kubernetes_executor.sync()
+                assert mock_kube_client.create_namespaced_pod.called
+                assert kubernetes_executor.task_queue.empty()
+            else:
+                assert kubernetes_executor.task_queue.empty()
+                assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.sync')
@@ -279,7 +304,9 @@ class TestKubernetesExecutor(unittest.TestCase):
         assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
 
     @pytest.mark.execution_timeout(10)
-    @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'
+    )
     @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.run_pod_async')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
@@ -659,6 +686,61 @@ class TestKubernetesExecutor(unittest.TestCase):
             sentinel='foo',
         )
         mock_delete_pod.assert_called_once_with('foo90', 'anothernamespace')
+
+    def test_clear_not_launched_queued_tasks_not_launched(self, dag_maker, create_dummy_dag, session):
+        """If a pod isn't found for a TI, reset the state to scheduled"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
+
+        create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 1
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti.refresh_from_db()
+        assert ti.state == State.SCHEDULED
+        assert mock_kube_client.list_namespaced_pod.call_count == 2
+        mock_kube_client.list_namespaced_pod.assert_any_call(
+            "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+        )
+        # also check that we fall back to execution_date if we didn't find the pod with run_id
+        execution_date_label = pod_generator.datetime_to_label_safe_datestring(ti.execution_date)
+        mock_kube_client.list_namespaced_pod.assert_called_with(
+            "default",
+            label_selector=(
+                f"dag_id=test_clear,task_id=task1,airflow-worker=1,execution_date={execution_date_label}"
+            ),
+        )
+
+    def test_clear_not_launched_queued_tasks_launched(self, dag_maker, create_dummy_dag, session):
+        """Leave the state alone if a pod already exists"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=["something"])
+
+        create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 1
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti.refresh_from_db()
+        assert ti.state == State.QUEUED
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+        )
 
 
 class TestKubernetesJobWatcher(unittest.TestCase):

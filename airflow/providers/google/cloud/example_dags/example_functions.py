@@ -41,6 +41,8 @@ https://airflow.apache.org/concepts.html#variables
 """
 
 import os
+from datetime import datetime
+from typing import Any, Dict
 
 from airflow import models
 from airflow.providers.google.cloud.operators.functions import (
@@ -48,7 +50,6 @@ from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,
 )
-from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
@@ -72,7 +73,7 @@ body = {"name": FUNCTION_NAME, "entryPoint": GCF_ENTRYPOINT, "runtime": GCF_RUNT
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args = {'owner': 'airflow'}
+default_args: Dict[str, Any] = {'retries': 3}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
@@ -94,7 +95,8 @@ with models.DAG(
     'example_gcp_function',
     default_args=default_args,
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcf_deploy]

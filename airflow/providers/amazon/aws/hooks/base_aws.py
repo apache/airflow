@@ -27,6 +27,7 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
+import sys
 import warnings
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple, Union
@@ -40,9 +41,9 @@ from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from slugify import slugify
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from dateutil.tz import tzlocal
@@ -60,8 +61,8 @@ class _SessionFactory(LoggingMixin):
         self.region_name = region_name
         self.config = config
         self.extra_config = self.conn.extra_dejson
-        self.basic_session = None
-        self.role_arn = None
+        self.basic_session: Optional[boto3.session.Session] = None
+        self.role_arn: Optional[str] = None
 
     def create_session(self) -> boto3.session.Session:
         """Create AWS session."""
@@ -127,7 +128,9 @@ class _SessionFactory(LoggingMixin):
                 method="sts-assume-role",
             )
         session = botocore.session.get_session()
-        session._credentials = credentials  # pylint: disable=protected-access
+        session._credentials = credentials
+        if self.basic_session is None:
+            raise RuntimeError("The basic session should be created here!")
         region_name = self.basic_session.region_name
         session.set_config_variable("region", region_name)
         return boto3.session.Session(botocore_session=session, **session_kwargs)
@@ -137,16 +140,25 @@ class _SessionFactory(LoggingMixin):
         assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
         sts_session = self.basic_session
         if assume_role_method == 'assume_role':
+            if sts_session is None:
+                raise RuntimeError(
+                    "Session should be initialized when refresh credentials with assume_role is used!"
+                )
             sts_client = sts_session.client("sts", config=self.config)
             sts_response = self._assume_role(sts_client=sts_client)
         elif assume_role_method == 'assume_role_with_saml':
+            if sts_session is None:
+                raise RuntimeError(
+                    "Session should be initialized when refresh "
+                    "credentials with assume_role_with_saml is used!"
+                )
             sts_client = sts_session.client("sts", config=self.config)
             sts_response = self._assume_role_with_saml(sts_client=sts_client)
         else:
             raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
         sts_response_http_status = sts_response['ResponseMetadata']['HTTPStatusCode']
         if not sts_response_http_status == 200:
-            raise Exception(f'sts_response_http_status={sts_response_http_status}')
+            raise RuntimeError(f'sts_response_http_status={sts_response_http_status}')
         credentials = sts_response['Credentials']
         expiry_time = credentials.get('Expiration').isoformat()
         self.log.info(f'New credentials expiry_time:{expiry_time}')
@@ -305,6 +317,8 @@ class _SessionFactory(LoggingMixin):
     def _get_web_identity_credential_fetcher(
         self,
     ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
+        if self.basic_session is None:
+            raise Exception("Session should be set where identity is fetched!")
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get('assume_role_with_web_identity_federation')
@@ -439,7 +453,7 @@ class AwsBaseHook(BaseHook):
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name)
+        session, endpoint_url = self._get_credentials(region_name=region_name)
 
         if client_type:
             warnings.warn(
@@ -464,7 +478,7 @@ class AwsBaseHook(BaseHook):
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name)
+        session, endpoint_url = self._get_credentials(region_name=region_name)
 
         if resource_type:
             warnings.warn(
@@ -491,9 +505,9 @@ class AwsBaseHook(BaseHook):
         :rtype: Union[boto3.client, boto3.resource]
         """
         if self.client_type:
-            return self.get_client_type(self.client_type, region_name=self.region_name)
+            return self.get_client_type(region_name=self.region_name)
         elif self.resource_type:
-            return self.get_resource_type(self.resource_type, region_name=self.region_name)
+            return self.get_resource_type(region_name=self.region_name)
         else:
             # Rare possibility - subclasses have not specified a client_type or resource_type
             raise NotImplementedError('Could not get boto3 connection!')
@@ -513,7 +527,7 @@ class AwsBaseHook(BaseHook):
 
     def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
         """Get the underlying boto3.session."""
-        session, _ = self._get_credentials(region_name)
+        session, _ = self._get_credentials(region_name=region_name)
         return session
 
     def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
@@ -522,24 +536,27 @@ class AwsBaseHook(BaseHook):
 
         This contains the following authentication attributes: access_key, secret_key and token.
         """
-        session, _ = self._get_credentials(region_name)
+        session, _ = self._get_credentials(region_name=region_name)
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
         return session.get_credentials().get_frozen_credentials()
 
-    def expand_role(self, role: str) -> str:
+    def expand_role(self, role: str, region_name: Optional[str] = None) -> str:
         """
         If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
         If IAM role is already an IAM role ARN, no change is made.
 
         :param role: IAM role name or ARN
+        :param region_name: Optional region name to get credentials for
         :return: IAM role ARN
         """
         if "/" in role:
             return role
         else:
-            return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
+            session, endpoint_url = self._get_credentials(region_name=region_name)
+            _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+            return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):

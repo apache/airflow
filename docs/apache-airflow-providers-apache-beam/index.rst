@@ -52,7 +52,7 @@ Package apache-airflow-providers-apache-beam
 `Apache Beam <https://beam.apache.org/>`__.
 
 
-Release: 3.0.1
+Release: 3.1.0
 
 Provider package
 ----------------
@@ -63,7 +63,7 @@ are in ``airflow.providers.apache.beam`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-beam``
 
 PIP requirements
@@ -101,7 +101,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-beam 3.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.0.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-beam 3.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.0.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-beam 3.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-beam 3.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.1.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/apache/beam/CHANGELOG.rst

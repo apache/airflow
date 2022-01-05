@@ -56,18 +56,21 @@ def init_dagruns(app, reset_dagruns):
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_xcom").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -255,33 +258,11 @@ def test_rendered_k8s_without_k8s(admin_client):
     assert 404 == resp.status_code
 
 
-@pytest.mark.parametrize(
-    "test_str, expected_text",
-    [
-        ("hello\nworld", r'\"conf\":{\"abc\":\"hello\\nworld\"}'),
-        ("hello'world", r'\"conf\":{\"abc\":\"hello\\u0027world\"}'),
-        ("<script>", r'\"conf\":{\"abc\":\"\\u003cscript\\u003e\"}'),
-        ("\"", r'\"conf\":{\"abc\":\"\\\"\"}'),
-    ],
-)
-def test_escape_in_tree_view(app, admin_client, test_str, expected_text):
-    app.dag_bag.get_dag('test_tree_view').create_dagrun(
-        execution_date=DEFAULT_DATE,
-        start_date=timezone.utcnow(),
-        run_type=DagRunType.MANUAL,
-        state=State.RUNNING,
-        conf={"abc": test_str},
-    )
-
-    url = 'tree?dag_id=test_tree_view'
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(expected_text, resp)
-
-
 def test_dag_details_trigger_origin_tree_view(app, admin_client):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -297,6 +278,7 @@ def test_dag_details_trigger_origin_graph_view(app, admin_client):
     app.dag_bag.get_dag('test_graph_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -477,10 +459,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39 state."
     assert not re.search(msg, resp.get_data(as_text=True))
 
 
@@ -509,10 +488,7 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39; state."
     assert re.search(msg, resp.get_data(as_text=True))
 
 
@@ -691,8 +667,9 @@ def test_task_instance_clear_failure(admin_client):
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
+        ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry"],
+    ids=["running", "failed", "success", "retry", "skipped"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -719,6 +696,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
         "set_failed",
         "set_success",
         "set_retry",
+        "set_skipped",
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
@@ -734,8 +712,8 @@ def test_task_instance_set_state_failure(admin_client, action):
 
 @pytest.mark.parametrize(
     "action",
-    ["clear", "set_success", "set_failed", "set_running"],
-    ids=["clear", "success", "failed", "running"],
+    ["clear", "set_success", "set_failed", "set_running", "set_skipped"],
+    ids=["clear", "success", "failed", "running", "skipped"],
 )
 def test_set_task_instance_action_permission_denied(session, client_ti_without_dag_edit, action):
     task_id = "runme_0"

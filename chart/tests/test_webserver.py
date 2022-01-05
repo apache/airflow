@@ -137,6 +137,24 @@ class WebserverDeploymentTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    @parameterized.expand(
+        [
+            ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
+            ("2.1.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
+            ("1.10.2", ["python", "-c"]),
+        ],
+    )
+    def test_wait_for_migration_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        # Don't test the full string, just the length of the expect matches
+        actual = jmespath.search("spec.template.spec.initContainers[0].args", docs[0])
+        assert expected_arg == actual[: len(expected_arg)]
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
@@ -208,6 +226,62 @@ class WebserverDeploymentTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_affinity_tolerations_and_node_selector_precedence(self):
+        """When given both global and webserver affinity etc, webserver affinity etc is used"""
+        expected_affinity = {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchExpressions": [
+                                {"key": "foo", "operator": "In", "values": ["true"]},
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "affinity": expected_affinity,
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"type": "ssd"},
+                },
+                "affinity": {
+                    "nodeAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "weight": 1,
+                                "preference": {
+                                    "matchExpressions": [
+                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                },
+                "tolerations": [
+                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "not-me"},
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.type",
+            docs[0],
+        )
+        tolerations = jmespath.search("spec.template.spec.tolerations", docs[0])
+        assert 1 == len(tolerations)
+        assert "dynamic-pods" == tolerations[0]["key"]
+
     @parameterized.expand(
         [
             ({"enabled": False}, None),
@@ -235,6 +309,39 @@ class WebserverDeploymentTest(unittest.TestCase):
             assert "logs" not in [
                 v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
             ]
+
+    @parameterized.expand(
+        [
+            ("1.10.10", False),
+            ("1.10.12", True),
+            ("2.1.0", True),
+        ]
+    )
+    def test_config_volumes_and_mounts(self, af_version, pod_template_file_expected):
+        # setup
+        docs = render_chart(
+            values={"airflowVersion": af_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        # default config
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "readOnly": True,
+            "subPath": "airflow.cfg",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        # pod_template_file config
+        assert pod_template_file_expected == (
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/pod_templates/pod_template_file.yaml",
+                "readOnly": True,
+                "subPath": "pod_template_file.yaml",
+            }
+            in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        )
 
     def test_webserver_resources_are_configurable(self):
         docs = render_chart(
@@ -544,23 +651,19 @@ class WebserverNetworkPolicyTest(unittest.TestCase):
         assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
             "spec.ingress[0].from", docs[0]
         )
-        assert [{"port": "airflow-ui"}] == jmespath.search("spec.ingress[0].ports", docs[0])
+        assert [{"port": 8080}] == jmespath.search("spec.ingress[0].ports", docs[0])
 
     @parameterized.expand(
         [
-            (
-                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
-                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 8080}],
-            ),
-            ([{"name": "only_sidecar", "port": "sidecar"}], [{"name": "only_sidecar", "port": "sidecar"}]),
+            ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
-                    {"name": "flower-ui", "port": "{{ .Values.ports.airflowUI }}"},
-                    {"name": "sidecar", "port": 80},
+                    {"port": "{{ .Values.ports.airflowUI }}"},
+                    {"port": 80},
                 ],
                 [
-                    {"name": "flower-ui", "port": 8080},
-                    {"name": "sidecar", "port": 80},
+                    {"port": 8080},
+                    {"port": 80},
                 ],
             ),
         ],

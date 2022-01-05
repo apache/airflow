@@ -15,59 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Iterable, Optional, Union
+import warnings
 
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
+from airflow.providers.amazon.aws.operators.redshift_cluster import (
+    RedshiftPauseClusterOperator,
+    RedshiftResumeClusterOperator,
+)
+from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
+    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-class RedshiftSQLOperator(BaseOperator):
-    """
-    Executes SQL Statements against an Amazon Redshift cluster
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:RedshiftSQLOperator`
-
-    :param sql: the sql code to be executed
-    :type sql: Can receive a str representing a sql statement,
-        or an iterable of str (sql statements)
-    :param redshift_conn_id: reference to
-        :ref:`Amazon Redshift connection id<howto/connection:redshift>`
-    :type redshift_conn_id: str
-    :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
-    :param autocommit: if True, each command is automatically committed.
-        (default value: False)
-    :type autocommit: bool
-    """
-
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
-
-    def __init__(
-        self,
-        *,
-        sql: Optional[Union[Dict, Iterable]],
-        redshift_conn_id: str = 'redshift_default',
-        parameters: Optional[dict] = None,
-        autocommit: bool = True,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.redshift_conn_id = redshift_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-
-    def get_hook(self) -> RedshiftSQLHook:
-        """Create and return RedshiftSQLHook.
-        :return RedshiftSQLHook: A RedshiftSQLHook instance.
-        """
-        return RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-
-    def execute(self, context: dict) -> None:
-        """Execute a statement against Amazon Redshift"""
-        self.log.info(f"Executing statement: {self.sql}")
-        hook = self.get_hook()
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+__all__ = ["RedshiftSQLOperator", "RedshiftPauseClusterOperator", "RedshiftResumeClusterOperator"]

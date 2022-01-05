@@ -301,6 +301,20 @@ function install_all_provider_packages_from_sdist() {
     pip install /dist/apache-airflow-*providers-*.tar.gz
 }
 
+function twine_check_provider_packages_from_wheels() {
+    echo
+    echo "Twine check of all provider packages from wheels"
+    echo
+    twine check /dist/apache_airflow*providers_*.whl
+}
+
+function twine_check_provider_packages_from_sdist() {
+    echo
+    echo "Twine check all provider packages from sdist"
+    echo
+    twine check /dist/apache-airflow-*providers-*.tar.gz
+}
+
 function setup_provider_packages() {
     export PACKAGE_TYPE="regular"
     export PACKAGE_PREFIX_UPPERCASE=""

@@ -78,7 +78,7 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": { "$ref": "#/definitions/dict" },
+        "params": { "$ref": "#/definitions/params_dict" },
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
@@ -135,6 +135,24 @@
       "type": "array",
       "additionalProperties": { "$ref": "#/definitions/operator" }
     },
+    "params_dict": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/definitions/param" }
+    },
+    "param": {
+      "$comment": "A param for a dag / operator",
+      "type": "object",
+      "required": [
+        "__class",
+        "default"
+      ],
+      "properties": {
+        "__class": { "type": "string" },
+        "default": {},
+        "description": {"anyOf": [{"type":"string"}, {"type":"null"}]},
+        "schema": { "$ref": "#/definitions/dict" }
+      }
+    },
     "operator": {
       "$comment": "A task/operator in a DAG",
       "type": "object",
@@ -166,7 +184,7 @@
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
-        "params": { "$ref": "#/definitions/dict" },
+        "params": { "$ref": "#/definitions/params_dict" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },

@@ -18,6 +18,7 @@
 """This module contains SFTP hook."""
 import datetime
 import stat
+import warnings
 from typing import Dict, List, Optional, Tuple
 
 import pysftp
@@ -32,7 +33,7 @@ class SFTPHook(SSHHook):
     This hook is inherited from SSH hook. Please refer to SSH hook for the input
     arguments.
 
-    Interact with SFTP. Aims to be interchangeable with FTPHook.
+    Interact with SFTP.
 
     :Pitfalls::
 
@@ -46,11 +47,17 @@ class SFTPHook(SSHHook):
 
     Errors that may occur throughout but should be handled downstream.
 
-    :param sftp_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
-    :type sftp_conn_id: str
+    For consistency reasons with SSHHook, the preferred parameter is "ssh_conn_id".
+    Please note that it is still possible to use the parameter "ftp_conn_id"
+    to initialize the hook, but it will be removed in future Airflow versions.
+
+    :param ssh_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
+    :type ssh_conn_id: str
+    :param ftp_conn_id (Outdated): The :ref:`sftp connection id<howto/connection:sftp>`
+    :type ftp_conn_id: str
     """
 
-    conn_name_attr = 'ftp_conn_id'
+    conn_name_attr = 'ssh_conn_id'
     default_conn_name = 'sftp_default'
     conn_type = 'sftp'
     hook_name = 'SFTP'
@@ -64,8 +71,22 @@ class SFTPHook(SSHHook):
             },
         }
 
-    def __init__(self, ftp_conn_id: str = 'sftp_default', *args, **kwargs) -> None:
-        kwargs['ssh_conn_id'] = ftp_conn_id
+    def __init__(
+        self,
+        ssh_conn_id: Optional[str] = 'sftp_default',
+        ftp_conn_id: Optional[str] = 'sftp_default',
+        *args,
+        **kwargs,
+    ) -> None:
+
+        if ftp_conn_id:
+            warnings.warn(
+                'Parameter `ftp_conn_id` is deprecated.' 'Please use `ssh_conn_id` instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs['ssh_conn_id'] = ftp_conn_id
+        self.ssh_conn_id = ssh_conn_id
         super().__init__(*args, **kwargs)
 
         self.conn = None
@@ -82,7 +103,6 @@ class SFTPHook(SSHHook):
 
                 # For backward compatibility
                 # TODO: remove in Airflow 2.1
-                import warnings
 
                 if 'private_key_pass' in extra_options:
                     warnings.warn(
@@ -115,9 +135,6 @@ class SFTPHook(SSHHook):
                 if 'ciphers' in extra_options:
                     self.ciphers = extra_options['ciphers']
 
-                if 'private_key' in extra_options:
-                    self.key_file = extra_options.get('private_key')
-
     @tenacity.retry(
         stop=tenacity.stop_after_delay(10),
         wait=tenacity.wait_exponential(multiplier=1, max=10),
@@ -146,7 +163,9 @@ class SFTPHook(SSHHook):
             }
             if self.password and self.password.strip():
                 conn_params['password'] = self.password
-            if self.key_file:
+            if self.pkey:
+                conn_params['private_key'] = self.pkey
+            elif self.key_file:
                 conn_params['private_key'] = self.key_file
             if self.private_key_pass:
                 conn_params['private_key_pass'] = self.private_key_pass
@@ -321,3 +340,12 @@ class SFTPHook(SSHHook):
         )
 
         return files, dirs, unknowns
+
+    def test_connection(self) -> Tuple[bool, str]:
+        """Test the SFTP connection by checking if remote entity '/some/path' exists"""
+        try:
+            conn = self.get_conn()
+            conn.pwd
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)

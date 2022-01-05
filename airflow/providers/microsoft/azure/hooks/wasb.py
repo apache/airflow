@@ -86,7 +86,7 @@ class WasbHook(BaseHook):
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host'],
+            "hidden_fields": ['schema', 'port'],
             "relabeling": {
                 'login': 'Blob Storage Login (optional)',
                 'password': 'Blob Storage Key (optional)',
@@ -133,12 +133,12 @@ class WasbHook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            tenant = extra.get('tenant_id') or extra.get('extra__wasb__tenant_id')
+            tenant = extra.get('tenant_id', extra.get('extra__wasb__tenant_id'))
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
         sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
         if sas_token and sas_token.startswith('https'):
-            return BlobServiceClient(account_url=extra.get('sas_token'))
+            return BlobServiceClient(account_url=sas_token)
         if sas_token and not sas_token.startswith('https'):
             return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
 

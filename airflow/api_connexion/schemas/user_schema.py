@@ -16,12 +16,12 @@
 # under the License.
 from typing import List, NamedTuple
 
-from flask_appbuilder.security.sqla.models import User
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.role_and_permission_schema import RoleSchema
+from airflow.www.fab_security.sqla.models import User
 
 
 class UserCollectionItemSchema(SQLAlchemySchema):

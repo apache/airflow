@@ -21,7 +21,7 @@ import io
 import pickle
 import tarfile
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
 from docker import APIClient, tls
 from docker.errors import APIError
@@ -30,6 +30,9 @@ from docker.types import Mount
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DockerOperator(BaseOperator):
@@ -58,7 +61,7 @@ class DockerOperator(BaseOperator):
     be provided with the parameter ``docker_conn_id``.
 
     :param image: Docker image from which to create the container.
-        If image tag is omitted, "latest" will be used.
+        If image tag is omitted, "latest" will be used. (templated)
     :type image: str
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
@@ -152,8 +155,8 @@ class DockerOperator(BaseOperator):
     :type retrieve_output_path: Optional[str]
     """
 
-    template_fields = ('command', 'environment', 'container_name')
-    template_ext = (
+    template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
+    template_ext: Sequence[str] = (
         '.sh',
         '.bash',
     )
@@ -281,6 +284,8 @@ class DockerOperator(BaseOperator):
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
             self.environment.pop('AIRFLOW_TMP_DIR', None)
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -363,7 +368,7 @@ class DockerOperator(BaseOperator):
     def _get_return_value_from_logs(self, res_lines, line):
         return res_lines if self.xcom_all else line
 
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         self.cli = self._get_cli()
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")

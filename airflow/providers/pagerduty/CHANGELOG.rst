@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add standard hook fields to pagerdutyHook to make hook show up in UI (#18763)``
+* ``Make a separate hook for interacting with the Pagerduty Events API (#18784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+
 2.0.1
 .....
 

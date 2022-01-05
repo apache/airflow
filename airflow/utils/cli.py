@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
+from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
@@ -53,51 +54,60 @@ def _check_cli_args(args):
         )
 
 
-def action_logging(f: T) -> T:
-    """
-    Decorates function to execute function at the same time submitting action_logging
-    but in CLI context. It will call action logger callbacks twice,
-    one for pre-execution and the other one for post-execution.
-
-    Action logger will be called with below keyword parameters:
-        sub_command : name of sub-command
-        start_datetime : start datetime instance by utc
-        end_datetime : end datetime instance by utc
-        full_command : full command line arguments
-        user : current user
-        log : airflow.models.log.Log ORM instance
-        dag_id : dag id (optional)
-        task_id : task_id (optional)
-        execution_date : execution date (optional)
-        error : exception instance if there's an exception
-
-    :param f: function instance
-    :return: wrapped function
-    """
-
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
+def action_cli(func=None, check_db=True):
+    def action_logging(f: T) -> T:
         """
-        An wrapper for cli functions. It assumes to have Namespace instance
-        at 1st positional argument
+        Decorates function to execute function at the same time submitting action_logging
+        but in CLI context. It will call action logger callbacks twice,
+        one for pre-execution and the other one for post-execution.
 
-        :param args: Positional argument. It assumes to have Namespace instance
+        Action logger will be called with below keyword parameters:
+            sub_command : name of sub-command
+            start_datetime : start datetime instance by utc
+            end_datetime : end datetime instance by utc
+            full_command : full command line arguments
+            user : current user
+            log : airflow.models.log.Log ORM instance
+            dag_id : dag id (optional)
+            task_id : task_id (optional)
+            execution_date : execution date (optional)
+            error : exception instance if there's an exception
+
+        :param f: function instance
+        :return: wrapped function
+        """
+
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            """
+            An wrapper for cli functions. It assumes to have Namespace instance
             at 1st positional argument
-        :param kwargs: A passthrough keyword argument
-        """
-        _check_cli_args(args)
-        metrics = _build_metrics(f.__name__, args[0])
-        cli_action_loggers.on_pre_execution(**metrics)
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            metrics['error'] = e
-            raise
-        finally:
-            metrics['end_datetime'] = datetime.utcnow()
-            cli_action_loggers.on_post_execution(**metrics)
 
-    return cast(T, wrapper)
+            :param args: Positional argument. It assumes to have Namespace instance
+                at 1st positional argument
+            :param kwargs: A passthrough keyword argument
+            """
+            _check_cli_args(args)
+            metrics = _build_metrics(f.__name__, args[0])
+            cli_action_loggers.on_pre_execution(**metrics)
+            try:
+                # Check and run migrations if necessary
+                if check_db:
+                    check_and_run_migrations()
+                    synchronize_log_template()
+                return f(*args, **kwargs)
+            except Exception as e:
+                metrics['error'] = e
+                raise
+            finally:
+                metrics['end_datetime'] = datetime.utcnow()
+                cli_action_loggers.on_post_execution(**metrics)
+
+        return cast(T, wrapper)
+
+    if func:
+        return action_logging(func)
+    return action_logging
 
 
 def _build_metrics(func_name, namespace):
@@ -177,7 +187,7 @@ def get_dag_by_file_location(dag_id: str):
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise AirflowException(
-            f'dag_id could not be found: {dag_id}. Either the dag did not exist or it failed to parse.'
+            f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
     dagbag = DagBag(dag_folder=dag_model.fileloc)
     return dagbag.dags[dag_id]
@@ -190,7 +200,7 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
     dagbag = DagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:
         raise AirflowException(
-            f'dag_id could not be found: {dag_id}. Either the dag did not exist or it failed to parse.'
+            f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
     return dagbag.dags[dag_id]
 

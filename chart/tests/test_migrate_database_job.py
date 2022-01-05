@@ -155,3 +155,48 @@ class TestMigrateDatabaseJob:
                 "memory": "512Mi",
             },
         } == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
+
+    def test_should_disable_default_helm_hooks(self):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"useHelmHooks": False}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations is None
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=[
+                "templates/jobs/migrate-database-job.yaml",
+            ],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "1"
+
+    def test_should_add_extra_volumes(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+
+    def test_should_add_extra_volume_mounts(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraVolumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
+        )

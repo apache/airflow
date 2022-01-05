@@ -20,7 +20,10 @@ import getpass
 import logging
 import os
 import pkgutil
+import platform
 import sys
+
+IS_WINDOWS = platform.system() == 'Windows'
 
 log = logging.getLogger(__name__)
 

@@ -19,7 +19,7 @@
 import json
 import tempfile
 import uuid
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient import http
 
@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
@@ -66,7 +69,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "report_name",
@@ -102,7 +105,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -168,7 +171,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "file_id",
@@ -204,7 +207,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         self.api_version = api_version
         self.chunk_size = chunk_size
         self.gzip = gzip
-        self.bucket_name = self._set_bucket_name(bucket_name)
+        self.bucket_name = bucket_name
         self.report_name = report_name
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -224,7 +227,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -254,8 +257,9 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
 
             temp_file.flush()
             # Upload the local file to bucket
+            bucket_name = self._set_bucket_name(self.bucket_name)
             gcs_hook.upload(
-                bucket_name=self.bucket_name,
+                bucket_name=bucket_name,
                 object_name=report_name,
                 gzip=self.gzip,
                 filename=temp_file.name,
@@ -300,7 +304,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report",
         "api_version",
@@ -309,7 +313,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    template_ext = (".json",)
+    template_ext: Sequence[str] = (".json",)
 
     def __init__(
         self,
@@ -336,7 +340,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
             with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -388,7 +392,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "report_id",
         "synchronous",
@@ -419,7 +423,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -485,7 +489,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "conversions",
         "encryption_entity_type",
@@ -521,7 +525,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -586,7 +590,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "profile_id",
         "conversions",
         "encryption_entity_type",
@@ -622,7 +626,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

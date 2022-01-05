@@ -29,8 +29,8 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -71,6 +71,7 @@ class BaseJob(Base, LoggingMixin):
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
         Index('idx_job_state_heartbeat', state, latest_heartbeat),
+        Index('idx_job_dag_id', dag_id),
     )
 
     task_instances_enqueued = relationship(

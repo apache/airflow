@@ -440,7 +440,7 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(pod_id: str) -> str:
+    def make_unique_pod_id(pod_id: str) -> Optional[str]:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
@@ -459,11 +459,14 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-        # Strip trailing '-' and '.' as they can't be followed by '.'
-        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
-        return safe_pod_id
+        # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
+        # end of podID ('.' can't be followed by '-').
+        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
+        trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
+
+        # previously used a '.' as the separator, but this could create errors in some situations
+        return f"{trimmed_pod_id}-{safe_uuid}"
 
 
 def merge_objects(base_obj, client_obj):

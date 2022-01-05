@@ -47,7 +47,7 @@ Or the more explicit ``set_upstream`` and ``set_downstream`` methods::
 
 These both do exactly the same thing, but in general we recommend you use the bitshift operators, as they are easier to read in most cases.
 
-By default, a Task will run when all of its upstream (parent) tasks have succeeded, but there are many ways of modifying this behaviour to add branching, only wait for some upstream tasks, or change behaviour based on where the current run is in history. For more, see :ref:`concepts:control-flow`.
+By default, a Task will run when all of its upstream (parent) tasks have succeeded, but there are many ways of modifying this behaviour to add branching, to only wait for some upstream tasks, or to change behaviour based on where the current run is in history. For more, see :ref:`concepts:control-flow`.
 
 Tasks don't pass information to each other by default, and run entirely independently. If you want to pass information from one Task to another, you should use :doc:`xcoms`.
 
@@ -153,7 +153,7 @@ If you merely want to be notified if a task runs over but still let it run to co
 SLAs
 ----
 
-An SLA, or a Service Level Agreement, is an expectation for the maximum time a Task should take. If a task takes longer than this to run, then it visible in the "SLA Misses" part of the user interface, as well going out in an email of all tasks that missed their SLA.
+An SLA, or a Service Level Agreement, is an expectation for the maximum time a Task should take. If a task takes longer than this to run, it is then visible in the "SLA Misses" part of the user interface, as well as going out in an email of all tasks that missed their SLA.
 
 Tasks over their SLA are not cancelled, though - they are allowed to run to completion. If you want to cancel a task after a certain runtime is reached, you want :ref:`concepts:timeouts` instead.
 
@@ -162,6 +162,10 @@ To set an SLA for a task, pass a ``datetime.timedelta`` object to the Task/Opera
 If you want to disable SLA checking entirely, you can set ``check_slas = False`` in Airflow's ``[core]`` configuration.
 
 To read more about configuring the emails, see :doc:`/howto/email-config`.
+
+.. note::
+
+    Only scheduled tasks will be checked against SLA. For example, manually triggered tasks will not invoke an SLA miss. For more information on ``schedule_interval`` values see :doc:`DAG Run </dag-run>`.
 
 .. _concepts:sla_miss_callback:
 
@@ -209,6 +213,14 @@ Examples of ``sla_miss_callback`` function signature:
 
     def my_sla_miss_callback(*args):
         ...
+
+Example DAG:
+
+.. exampleinclude:: /../../airflow/example_dags/example_sla_dag.py
+    :language: python
+    :start-after: [START howto_task_sla]
+    :end-before: [END howto_task_sla]
+
 
 Special Exceptions
 ------------------

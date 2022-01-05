@@ -142,6 +142,29 @@ class TestDagRun(unittest.TestCase):
         assert 0 == len(models.DagRun.find(dag_id=dag_id2, external_trigger=True))
         assert 1 == len(models.DagRun.find(dag_id=dag_id2, external_trigger=False))
 
+    def test_dagrun_find_duplicate(self):
+        session = settings.Session()
+        now = timezone.utcnow()
+
+        dag_id = "test_dagrun_find_duplicate"
+        dag_run = models.DagRun(
+            dag_id=dag_id,
+            run_id=dag_id,
+            run_type=DagRunType.MANUAL,
+            execution_date=now,
+            start_date=now,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+        session.add(dag_run)
+
+        session.commit()
+
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id, execution_date=now) is not None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id, execution_date=None) is not None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=None, execution_date=now) is not None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=None, execution_date=None) is None
+
     def test_dagrun_success_when_all_skipped(self):
         """
         Tests that a DAG run succeeds when all tasks are skipped

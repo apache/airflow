@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.cleanup) }}
 {{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: batch/v1
 {{- else }}
@@ -48,6 +49,13 @@ spec:
       backoffLimit: 1
       template:
         metadata:
+          labels:
+            tier: airflow
+            component: airflow-cleanup-pods
+            release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 12 }}
+{{- end }}
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
@@ -63,6 +71,7 @@ spec:
           imagePullSecrets:
             - name: {{ template "registry_secret" . }}
           {{- end }}
+          securityContext: {{ $securityContext | nindent 12 }}
           containers:
             - name: airflow-cleanup-pods
               image: {{ template "airflow_image" . }}
@@ -80,6 +89,8 @@ spec:
                   mountPath: {{ template "airflow_config_path" . }}
                   subPath: airflow.cfg
                   readOnly: true
+              resources:
+{{ toYaml .Values.cleanup.resources | indent 16 }}
           volumes:
             - name: config
               configMap:

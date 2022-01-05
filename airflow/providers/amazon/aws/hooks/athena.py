@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains AWS Athena hook"""
+import warnings
 from time import sleep
 from typing import Any, Dict, Optional
 
@@ -25,7 +26,7 @@ from botocore.paginate import PageIterator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSAthenaHook(AwsBaseHook):
+class AthenaHook(AwsBaseHook):
     """
     Interact with AWS Athena to run, poll queries and return query results
 
@@ -227,6 +228,30 @@ class AWSAthenaHook(AwsBaseHook):
             sleep(self.sleep_time)
         return final_query_state
 
+    def get_output_location(self, query_execution_id: str) -> str:
+        """
+        Function to get the output location of the query results
+        in s3 uri format.
+
+        :param query_execution_id: Id of submitted athena query
+        :type query_execution_id: str
+        :return: str
+        """
+        output_location = None
+        if query_execution_id:
+            response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+
+            if response:
+                try:
+                    output_location = response['QueryExecution']['ResultConfiguration']['OutputLocation']
+                except KeyError:
+                    self.log.error("Error retrieving OutputLocation")
+                    raise
+        else:
+            raise ValueError("Invalid Query execution id")
+
+        return output_location
+
     def stop_query(self, query_execution_id: str) -> Dict:
         """
         Cancel the submitted athena query
@@ -236,3 +261,18 @@ class AWSAthenaHook(AwsBaseHook):
         :return: dict
         """
         return self.get_conn().stop_query_execution(QueryExecutionId=query_execution_id)
+
+
+class AWSAthenaHook(AthenaHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.athena.AthenaHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

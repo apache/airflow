@@ -46,7 +46,10 @@ Password
     Specify the password used for the IMAP client.
 
 Host
-    Specify the the IMAP host url.
+    Specify the IMAP host url.
+
+Port
+    Specify the IMAP port to connect to.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -57,4 +60,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_IMAP_DEFAULT='imap://username:password@myimap.com'
+   export AIRFLOW_CONN_IMAP_DEFAULT='imap://username:password@myimap.com:993'

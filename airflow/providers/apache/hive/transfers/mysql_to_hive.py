@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module contains operator to move data from MySQL to Druid."""
+"""This module contains an operator to move data from MySQL to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -28,6 +28,9 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MySqlToHiveOperator(BaseOperator):
@@ -77,8 +80,8 @@ class MySqlToHiveOperator(BaseOperator):
     :type tblproperties: dict
     """
 
-    template_fields = ('sql', 'partition', 'hive_table')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#a0e08c'
 
     def __init__(
@@ -133,7 +136,7 @@ class MySqlToHiveOperator(BaseOperator):
         }
         return type_map.get(mysql_type, 'STRING')
 
-    def execute(self, context: Dict[str, str]):
+    def execute(self, context: "Context"):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 

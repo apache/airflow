@@ -270,6 +270,8 @@ COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
 COPY airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
 
+ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
+
 EOF
     echo "The ${AIRFLOW_IMAGE_KUBERNETES}:${image_tag} is prepared for test kubernetes deployment."
 }
@@ -298,6 +300,7 @@ function kind::wait_for_webserver_healthy() {
             echo
             echo  "${COLOR_RED}ERROR: Timeout while waiting for the webserver health check  ${COLOR_RESET}"
             echo
+            return 1
         fi
     done
     echo

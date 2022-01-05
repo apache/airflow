@@ -36,6 +36,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -52,7 +53,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
+def _get_dag_run(dag, exec_date_or_run_id, create_if_necessary, session):
     dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
     if dag_run:
         return dag_run
@@ -61,7 +62,7 @@ def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
     with suppress(ParserError, TypeError):
         execution_date = timezone.parse(exec_date_or_run_id)
 
-    if create_if_necssary and not execution_date:
+    if create_if_necessary and not execution_date:
         return DagRun(dag_id=dag.dag_id, run_id=exec_date_or_run_id)
     try:
         return (
@@ -73,21 +74,21 @@ def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
             .one()
         )
     except NoResultFound:
-        if create_if_necssary:
-            return DagRun(dag.dag_id, execution_date=execution_date)
+        if create_if_necessary:
+            return DagRun(dag.dag_id, run_id=IN_MEMORY_DAGRUN_ID, execution_date=execution_date)
         raise DagRunNotFound(
             f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
         ) from None
 
 
 @provide_session
-def _get_ti(task, exec_date_or_run_id, create_if_necssary=False, session=None):
+def _get_ti(task, exec_date_or_run_id, create_if_necessary=False, session=None):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
-    dag_run = _get_dag_run(task.dag, exec_date_or_run_id, create_if_necssary, session)
+    dag_run = _get_dag_run(task.dag, exec_date_or_run_id, create_if_necessary, session)
 
     ti = dag_run.get_task_instance(task.task_id)
-    if not ti and create_if_necssary:
-        ti = TaskInstance(task, run_id=None)
+    if not ti and create_if_necessary:
+        ti = TaskInstance(task, run_id=dag_run.run_id)
         ti.dag_run = dag_run
     ti.refresh_from_task(task)
     return ti
@@ -226,9 +227,15 @@ def _capture_task_logs(ti):
             root_logger.handlers[:] = orig_handlers
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def task_run(args, dag=None):
-    """Runs a single task instance"""
+    """Run a single task instance.
+
+    Note that there must be at least one DagRun for this to start,
+    i.e. it must have been scheduled and/or triggered previously.
+    Alternatively, if you just need to run it for testing then use
+    "airflow tasks test ..." command instead.
+    """
     # Load custom airflow config
 
     if args.local and args.raw:
@@ -293,7 +300,7 @@ def task_run(args, dag=None):
             _run_task_by_selected_method(args, dag, ti)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def task_failed_deps(args):
     """
     Returns the unmet dependencies for a task instance from the perspective of the
@@ -320,7 +327,7 @@ def task_failed_deps(args):
         print("Task instance dependencies are all met.")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_state(args):
     """
@@ -334,7 +341,7 @@ def task_state(args):
     print(ti.current_state())
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_list(args, dag=None):
     """Lists the tasks within a DAG at the command line"""
@@ -374,7 +381,7 @@ def _guess_debugger():
     return importlib.import_module("pdb")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @provide_session
 def task_states_for_dag_run(args, session=None):
@@ -415,7 +422,7 @@ def task_states_for_dag_run(args, session=None):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def task_test(args, dag=None):
     """Tests task for a given dag_id"""
     # We want to log output from operators etc to show up here. Normally
@@ -449,7 +456,7 @@ def task_test(args, dag=None):
     if task.params:
         task.params.validate()
 
-    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
+    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necessary=True)
 
     try:
         if args.dry_run:
@@ -469,13 +476,13 @@ def task_test(args, dag=None):
             logging.getLogger('airflow.task').propagate = False
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
+    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necessary=True)
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(
@@ -489,7 +496,7 @@ def task_render(args):
         )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def task_clear(args):
     """Clears all task instances or only those matched by regex for a DAG(s)"""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)

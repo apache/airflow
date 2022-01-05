@@ -59,7 +59,9 @@ class TestHiveEnvironment(unittest.TestCase):
         self.table = 'static_babynames_partitioned'
         with mock.patch(
             'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client'
-        ) as get_metastore_mock:
+        ) as get_metastore_mock, mock.patch(
+            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection'
+        ):
             get_metastore_mock.return_value = mock.MagicMock()
 
             self.hook = HiveMetastoreHook()
@@ -400,19 +402,33 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         assert isinstance(max_partition, str)
 
     @mock.patch(
-        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
-        return_value=Connection(host="localhost", port=9802),
+        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook._find_valid_host",
+        return_value="localhost",
     )
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
-    def test_error_metastore_client(self, socket_mock, _find_valid_server_mock):
+    def test_error_metastore_client(self, socket_mock, _find_valid_host_mock):
         socket_mock.socket.return_value.connect_ex.return_value = 0
         self.hook.get_metastore_client()
 
+    @mock.patch(
+        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
+        return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
+    )
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
+    def test_ha_hosts(self, socket_mock, get_connection_mock):
+        socket_mock.socket.return_value.connect_ex.return_value = 1
+        with pytest.raises(AirflowException):
+            HiveMetastoreHook()
+        assert socket_mock.socket.call_count == 2
+
     def test_get_conn(self):
         with mock.patch(
-            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook._find_valid_server'
-        ) as find_valid_server:
-            find_valid_server.return_value = mock.MagicMock(return_value={})
+            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook._find_valid_host'
+        ) as find_valid_host, mock.patch(
+            'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection'
+        ) as get_connection:
+            find_valid_host.return_value = mock.MagicMock(return_value="")
+            get_connection.return_value = mock.MagicMock(return_value="")
             metastore_hook = HiveMetastoreHook()
 
         assert isinstance(metastore_hook.get_conn(), HMSClient)

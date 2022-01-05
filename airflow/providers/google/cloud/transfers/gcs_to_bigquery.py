@@ -18,11 +18,14 @@
 """This module contains a Google Cloud Storage to BigQuery operator."""
 
 import json
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GCSToBigQueryOperator(BaseOperator):
@@ -160,14 +163,14 @@ class GCSToBigQueryOperator(BaseOperator):
     :type description: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'bucket',
         'source_objects',
         'schema_object',
         'destination_project_dataset_table',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#f0eee4'
 
     def __init__(
@@ -216,7 +219,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if time_partitioning is None:
             time_partitioning = {}
         self.bucket = bucket
-        self.source_objects = source_objects if isinstance(source_objects, list) else [source_objects]
+        self.source_objects = source_objects
         self.schema_object = schema_object
 
         # BQ config
@@ -253,7 +256,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.labels = labels
         self.description = description
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -279,6 +282,9 @@ class GCSToBigQueryOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
+        self.source_objects = (
+            self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
+        )
         source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
@@ -335,12 +341,16 @@ class GCSToBigQueryOperator(BaseOperator):
             escaped_table_name = f'`{self.destination_project_dataset_table}`'
 
         if self.max_id_key:
-            cursor.execute(f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}')
+            select_command = f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}'
+            cursor.execute(select_command)
             row = cursor.fetchone()
-            max_id = row[0] if row[0] else 0
-            self.log.info(
-                'Loaded BQ data with max %s.%s=%s',
-                self.destination_project_dataset_table,
-                self.max_id_key,
-                max_id,
-            )
+            if row:
+                max_id = row[0] if row[0] else 0
+                self.log.info(
+                    'Loaded BQ data with max %s.%s=%s',
+                    self.destination_project_dataset_table,
+                    self.max_id_key,
+                    max_id,
+                )
+            else:
+                raise RuntimeError(f"The f{select_command} returned no rows!")

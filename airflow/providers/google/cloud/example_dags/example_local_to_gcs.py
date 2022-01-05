@@ -17,10 +17,10 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.utils import dates
 
 # [START howto_gcs_environment_variables]
 BUCKET_NAME = os.environ.get('GCP_GCS_BUCKET', 'example-bucket-name')
@@ -30,8 +30,9 @@ DESTINATION_FILE_LOCATION = os.environ.get('GCP_GCS_DESTINATION_FILE_LOCATION', 
 
 with models.DAG(
     'example_local_to_gcs',
-    default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_local_filesystem_to_gcs]

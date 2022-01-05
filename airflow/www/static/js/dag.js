@@ -20,7 +20,7 @@
 /* global document, window, $ */
 
 import getMetaValue from './meta_value';
-import { formatDateTime } from './datetime_utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -227,6 +227,10 @@ export function callModalDag(dag) {
     dag_id: dag && dag.dag_id,
     execution_date: dag && dag.execution_date,
   });
+  updateButtonUrl(buttons.dagrun_details, {
+    dag_id: dag && dag.dag_id,
+    run_id: dag && dag.run_id,
+  });
 }
 
 // Task Instance Modal actions
@@ -279,7 +283,10 @@ $('#pause_resume').on('change', function onChange() {
 $('#next-run').on('mouseover', () => {
   $('#next-run').attr('data-original-title', () => {
     let newTitle = '';
-    if (nextRun.createAfter) newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br><br>`;
+    if (nextRun.createAfter) {
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
+    }
     if (nextRun.intervalStart && nextRun.intervalEnd) {
       newTitle += '<strong>Data Interval</strong><br>';
       newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;

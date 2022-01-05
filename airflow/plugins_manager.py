@@ -75,6 +75,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "timetables",
     "source",
 }
 
@@ -372,10 +373,7 @@ def initialize_extra_operators_links_plugins():
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
         registered_operator_link_classes.update(
-            {
-                f"{link.__class__.__module__}.{link.__class__.__name__}": link.__class__
-                for link in plugin.operator_extra_links
-            }
+            {as_importable_string(link.__class__): link.__class__ for link in plugin.operator_extra_links}
         )
 
 
@@ -478,6 +476,27 @@ def get_plugin_info(attrs_to_dump: Optional[List[str]] = None) -> List[Dict[str,
     if plugins:
         for plugin in plugins:
             info = {"name": plugin.name}
-            info.update({n: getattr(plugin, n) for n in attrs_to_dump})
+            for attr in attrs_to_dump:
+                if attr in ('global_operator_extra_links', 'operator_extra_links'):
+                    info[attr] = [
+                        f'<{as_importable_string(d.__class__)} object>' for d in getattr(plugin, attr)
+                    ]
+                elif attr in ('macros', 'timetables', 'hooks', 'executors'):
+                    info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
+                elif attr == 'appbuilder_views':
+                    info[attr] = [
+                        {**d, 'view': as_importable_string(d['view'].__class__) if 'view' in d else None}
+                        for d in getattr(plugin, attr)
+                    ]
+                elif attr == 'flask_blueprints':
+                    info[attr] = [
+                        (
+                            f"<{as_importable_string(d.__class__)}: "
+                            f"name={d.name!r} import_name={d.import_name!r}>"
+                        )
+                        for d in getattr(plugin, attr)
+                    ]
+                else:
+                    info[attr] = getattr(plugin, attr)
             plugins_info.append(info)
     return plugins_info

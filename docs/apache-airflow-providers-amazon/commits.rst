@@ -28,6 +28,103 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.6.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  ==========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`746ee587d <https://github.com/apache/airflow/commit/746ee587da485acdc816129fe71df23e4f024e0b>`_  2021-12-31   ``Delete pods by default in KubernetesPodOperator (#20575)``
+`b164124bf <https://github.com/apache/airflow/commit/b164124bfe15e7ef00c235daa2667e0b4ae82466>`_  2021-12-31   ``Fix mypy errors in amazon aws transfer (#20590)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`6d25d6367 <https://github.com/apache/airflow/commit/6d25d63679085279ca1672c2eee2c45d6704efaa>`_  2021-12-30   ``Fixe static checks on few other not sorted stub files (#20572)``
+`a3caea090 <https://github.com/apache/airflow/commit/a3caea09039a011440feb010e6c5ba0b26a21c4b>`_  2021-12-30   ``Fix mypy aws example dags (#20497)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`051fac077 <https://github.com/apache/airflow/commit/051fac0776b7e61e80653d1e91fdf2dfb1017a6f>`_  2021-12-29   ``Add support to replace S3 file on MySqlToS3Operator (#20506)``
+`2ab2ae884 <https://github.com/apache/airflow/commit/2ab2ae8849bf6d80a700b1b74cef37eb187161ad>`_  2021-12-22   ``Fix backwards compatibility issue in AWS provider's _get_credentials (#20463)``
+`d557965ba <https://github.com/apache/airflow/commit/d557965bab8e03d48922ed233ed3b9551cf65cec>`_  2021-12-21   ``Organize Sagemaker classes in Amazon provider (#20370)``
+`1ce71f823 <https://github.com/apache/airflow/commit/1ce71f823f1c7cfde5e8eec479f6a67b92a1555a>`_  2021-12-21   ``move emr_container hook (#20375)``
+`4dd751d2f <https://github.com/apache/airflow/commit/4dd751d2fc3f091417146079d7d1b3ac6dd86c9c>`_  2021-12-20   ``Standardize AWS Athena naming (#20305)``
+`ecbe16079 <https://github.com/apache/airflow/commit/ecbe16079754d81d095290c115213a051481909a>`_  2021-12-20   ``Standardize AWS EKS naming (#20354)``
+`463e3b2b2 <https://github.com/apache/airflow/commit/463e3b2b25ee5c116313160c64bb8e2644e1fef3>`_  2021-12-19   ``Fix mypy errors in aws/transfers (#20403)``
+`404cd2eb6 <https://github.com/apache/airflow/commit/404cd2eb69605c3b960c7c6936cb8b342acb6f64>`_  2021-12-19   ``Fix mypy errors in aws/sensors (#20402)``
+`1f4710f16 <https://github.com/apache/airflow/commit/1f4710f16af725f45cd7b90fb1311b4b80e4cc29>`_  2021-12-19   ``Fix mypy errors in providers/amazon/aws/operators (#20401)``
+`1baa648e2 <https://github.com/apache/airflow/commit/1baa648e2af124032c2f2752dc0f587ee253a3a9>`_  2021-12-19   ``Standardize AWS Glue naming (#20372)``
+`5769defb2 <https://github.com/apache/airflow/commit/5769defb2ac1bf7ea36a8a9ee9c26cfe515fba70>`_  2021-12-18   ``Add aws_conn_id to DynamoDBToS3Operator (#20363)``
+`cef498efe <https://github.com/apache/airflow/commit/cef498efe9f4818e5f8e85c179ca730e84b31f4a>`_  2021-12-18   ``Standardize Amazon SES naming (#20367)``
+`2a3db4d38 <https://github.com/apache/airflow/commit/2a3db4d38525df040dbee467f4d63fc2157f9084>`_  2021-12-17   ``Standardize AWS CloudFormation naming (#20357)``
+`bb82cc0fb <https://github.com/apache/airflow/commit/bb82cc0fbb7a6630eac1155d0c3b445dff13ceb6>`_  2021-12-17   ``Fix deprecation messages after splitting redshift modules (#20366)``
+`ca492e168 <https://github.com/apache/airflow/commit/ca492e16810763df0317e48658813c5b578d7edb>`_  2021-12-17   ``Standardize AWS Lambda naming (#20365)``
+`f6a41a036 <https://github.com/apache/airflow/commit/f6a41a036d450020917d5862f627e606d0d36ac0>`_  2021-12-17   ``Standardize AWS Kinesis/Firehose naming (#20362)``
+`3d354084e <https://github.com/apache/airflow/commit/3d354084efb3e3c4ca15dce847701c8f6322a010>`_  2021-12-17   ``Standardize Amazon SNS naming (#20368)``
+`bfcaf195a <https://github.com/apache/airflow/commit/bfcaf195a56242df1d78439323a013605cb100ee>`_  2021-12-16   ``Split redshift sql and cluster objects (#20276)``
+`a3870611a <https://github.com/apache/airflow/commit/a3870611a72deaface2729efe8eb809468c2a053>`_  2021-12-16   ``Organize EMR classes in Amazon provider (#20160)``
+`206cce971 <https://github.com/apache/airflow/commit/206cce971da6941e8c1b0d3c4dbf4fa8afe0fba4>`_  2021-12-16   ``ECSOperator: fix KeyError on missing exitCode (#20264)``
+`38fd65dcf <https://github.com/apache/airflow/commit/38fd65dcfe85149170d6be640c23018e0065cf7c>`_  2021-12-16   ``Rename DataSync Hook and Operator (#20328)``
+`2fb5e1d0e <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`5712e2b58 <https://github.com/apache/airflow/commit/5712e2b58741d4332350c012be412881b04a61c2>`_  2021-12-15   ``Deprecate passing execution_date to XCom methods (#19825)``
+`60b72dd8f <https://github.com/apache/airflow/commit/60b72dd8f5161f0e00f29a9de54522682f7cd5f6>`_  2021-12-14   ``Organize Dms classes in Amazon provider (#20156)``
+`e77c05fa1 <https://github.com/apache/airflow/commit/e77c05fa1b29908adebc36280249b77b50b3dda2>`_  2021-12-13   ``Add RedshiftResumeClusterOperator and RedshiftPauseClusterOperator (#19665)``
+`a20846380 <https://github.com/apache/airflow/commit/a2084638020613979fa1ed9ba944050f274bb160>`_  2021-12-13   ``Organize S3 Classes in Amazon Provider (#20167)``
+`1d2f2d3df <https://github.com/apache/airflow/commit/1d2f2d3dfec950d278d63277e4410c8294af5142>`_  2021-12-13   ``Organize Step Function classes in Amazon provider (#20158)``
+`985bb06ba <https://github.com/apache/airflow/commit/985bb06ba57ab67bb218ca9ca7549a81bea88f87>`_  2021-12-09   ``Organize EC2 classes in Amazon provider (#20157)``
+`0e2a0ccd3 <https://github.com/apache/airflow/commit/0e2a0ccd3087f53222e7859f414daf0ffa50dfbb>`_  2021-12-08   ``Added function in AWSAthenaHook to get s3 output query results file URI  (#20124)``
+`6e15e3a65 <https://github.com/apache/airflow/commit/6e15e3a65ec15d9b52abceed36da9f8cccee72d9>`_  2021-12-06   ``Bug fix in AWS glue operator when specifying the WorkerType & NumberOfWorkers (#19787)``
+`af28b4190 <https://github.com/apache/airflow/commit/af28b4190316401c9dfec6108d22b0525974eadb>`_  2021-12-05   ``Add sensor for AWS Batch (#19850) (#19885)``
+`480c333c4 <https://github.com/apache/airflow/commit/480c333c45d31cdfdc63cdfceecd4ad8529eefd4>`_  2021-12-03   ``Add state details to EMR container failure reason (#19579)``
+`2539cb44b <https://github.com/apache/airflow/commit/2539cb44b47d78e81a88fde51087f4cc77c924c5>`_  2021-12-01   ``Move to watchtower 2.0.1 (#19907)``
+================================================================================================  ===========  ==========================================================================================
+
+2.5.0
+.....
+
+Latest change: 2021-11-30
+
+================================================================================================  ===========  =====================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =====================================================================================================
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`83b51e530 <https://github.com/apache/airflow/commit/83b51e53062dc596a630edd4bd01407a556f1aa6>`_  2021-11-26   ``Amazon provider remove deprecation, second try (#19815)``
+`d58df468c <https://github.com/apache/airflow/commit/d58df468c8d77c5d45e80f2333eb074bb7771a95>`_  2021-11-24   ``Revert "Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)" (#19791)``
+`4be04143a <https://github.com/apache/airflow/commit/4be04143a5f7e246127e942bf1d73abcd22ce189>`_  2021-11-24   ``Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)``
+`fe682ec3d <https://github.com/apache/airflow/commit/fe682ec3d376f0983410d64beb4f3529fb7b0f99>`_  2021-11-24   ``Fix duplicate changelog entries (#19759)``
+`186513e24 <https://github.com/apache/airflow/commit/186513e24e723b79bc57e3ca0ade3c73e4fa2f9a>`_  2021-11-15   ``Catch AccessDeniedException in AWS Secrets Manager Backend (#19324)``
+`4c495ca94 <https://github.com/apache/airflow/commit/4c495ca94e67a03a31832fea77a29220b6c13673>`_  2021-11-15   ``Cleanup of start_date and default arg use for Amazon example DAGs (#19237)``
+`eb16fd51e <https://github.com/apache/airflow/commit/eb16fd51e0a6b30fe6fd87cc7316d283528f4ac9>`_  2021-11-12   ``Adding support for using ''client_type'' API for interacting with EC2 and support filters (#9011)``
+`aa2cb5545 <https://github.com/apache/airflow/commit/aa2cb5545f09d694b9143b323efcd4f6b6c66e60>`_  2021-11-12   ``Remove remaining 'pylint: disable' comments (#19541)``
+`9053de771 <https://github.com/apache/airflow/commit/9053de771873561aaf21a930056666e043b14b9c>`_  2021-11-10   ``Do not check for S3 key before attempting download (#19504)``
+`ebb739400 <https://github.com/apache/airflow/commit/ebb739400598962343e0f5059d96f15a9bfa9c9f>`_  2021-11-08   ``MySQLToS3Operator  actually allow writing parquet files to s3. (#19094)``
+================================================================================================  ===========  =====================================================================================================
+
+2.4.0
+.....
+
+Latest change: 2021-11-04
+
+================================================================================================  ===========  ========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ========================================================================================
+`5a113f302 <https://github.com/apache/airflow/commit/5a113f302769f0ecad3a54bad3027d459cb276a4>`_  2021-11-04   ``Add documentation for RC2 release of Amazon provider for October (#19413)``
+`96dd70348 <https://github.com/apache/airflow/commit/96dd70348ad7e31cfeae6d21af70671b41551fe9>`_  2021-11-04   `` fix SagemakerProcessingOperator ThrottlingException (#19195)``
+`a3266ba2b <https://github.com/apache/airflow/commit/a3266ba2b9c0d6d8b669178f3ce8752bef92924f>`_  2021-11-03   ``Doc: Fix typos in variable and comments (#19349)``
+`6148ddd36 <https://github.com/apache/airflow/commit/6148ddd365939bb5129b342900a576bd855e9fc4>`_  2021-11-03   ``Fix S3ToRedshiftOperator (#19358)``
+`1600f1dfd <https://github.com/apache/airflow/commit/1600f1dfd767ebb0097e1455348dc13ea68e9bb5>`_  2021-10-30   ``Remove duplicated entries in changelog (#19331)``
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`1543dc28f <https://github.com/apache/airflow/commit/1543dc28f4a2f1631dfaedd948e646a181ccf7ee>`_  2021-10-29   ``Fixing ses email backend (#18042)``
+`3c08c025c <https://github.com/apache/airflow/commit/3c08c025c5445ffc0533ac28d07ccf2e69a19ca8>`_  2021-10-27   ``Move validation of templated input params to run after the context init (#19048)``
+`f5ad26dcd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
+`86a2a19ad <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
+`258451cfb <https://github.com/apache/airflow/commit/258451cfba12959fabe729e70509a478ada7e72c>`_  2021-10-15   ``MySQLToS3Operator add support for parquet format (#18755)``
+`176165de3 <https://github.com/apache/airflow/commit/176165de3b297c0ed7d2b60cf6b4c37fc7a2337f>`_  2021-10-11   ``Update S3PrefixSensor to support checking multiple prefixes within a bucket (#18807)``
+`1d7cfdbcd <https://github.com/apache/airflow/commit/1d7cfdbcd91705b2f88ef4ece503b7a072767e02>`_  2021-10-10   ``Remove extra postgres dependency from AWS Provider (#18844)``
+`1df9a512c <https://github.com/apache/airflow/commit/1df9a512c284f2585ce01bb77ac91d550f6ccaa3>`_  2021-10-08   ``Add RedshiftSQLHook, RedshiftSQLOperator (#18447)``
+`22768ff61 <https://github.com/apache/airflow/commit/22768ff61e1b8d3294c30562fa2ee284ee0f7739>`_  2021-10-08   ``Removed duplicated code on S3ToRedshiftOperator (#18671)``
+================================================================================================  ===========  ========================================================================================
+
 2.3.0
 .....
 
@@ -36,6 +133,7 @@ Latest change: 2021-10-08
 ================================================================================================  ===========  =========================================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================================================
+`a680e876b <https://github.com/apache/airflow/commit/a680e876b680ecd05f7ac8da6c5a8f2518b9e071>`_  2021-10-08   ``Prepare documentation for RC2 Amazon Provider release for September (#18830)``
 `ea8f47890 <https://github.com/apache/airflow/commit/ea8f47890908e3a132273ec96f753ea6af66f837>`_  2021-10-08   ``Add AWS Fargate profile support (#18645)``
 `9344c3452 <https://github.com/apache/airflow/commit/9344c345220fc9c3355596f96132051c96b03ac6>`_  2021-10-08   ``Enable AWS Secrets Manager backend to retrieve conns using different fields (#18764)``
 `1a35644b5 <https://github.com/apache/airflow/commit/1a35644b5dbf2520b95f3d2320902f6e46407b9a>`_  2021-10-08   ``Add emr cluster link (#18691)``

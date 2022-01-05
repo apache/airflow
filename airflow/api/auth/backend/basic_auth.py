@@ -20,8 +20,9 @@ from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
 from flask import Response, current_app, request
 from flask_appbuilder.const import AUTH_LDAP
-from flask_appbuilder.security.sqla.models import User
 from flask_login import login_user
+
+from airflow.www.fab_security.sqla.models import User
 
 CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
 

@@ -50,6 +50,7 @@ def runs(dag):
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
+            data_interval=(execution_date, execution_date),
             state=State.SUCCESS,
             external_trigger=True,
         )

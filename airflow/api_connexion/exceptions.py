@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
+import flask
 import werkzeug
 
 from airflow._vendor.connexion import FlaskApi, ProblemException, problem
@@ -34,7 +35,7 @@ EXCEPTIONS_LINK_MAP = {
 }
 
 
-def common_error_handler(exception):
+def common_error_handler(exception: BaseException) -> flask.Response:
     """
     Used to capture connexion exceptions and add link to the type field
 
@@ -76,10 +77,19 @@ class NotFound(ProblemException):
     """Raise when the object cannot be found"""
 
     def __init__(
-        self, title: str = 'Not Found', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
-    ):
+        self,
+        title: str = 'Not Found',
+        detail: Optional[str] = None,
+        headers: Optional[Dict] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
-            status=404, type=EXCEPTIONS_LINK_MAP[404], title=title, detail=detail, headers=headers, **kwargs
+            status=404,
+            type=EXCEPTIONS_LINK_MAP[404],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
@@ -88,13 +98,18 @@ class BadRequest(ProblemException):
 
     def __init__(
         self,
-        title: str = 'Bad Request',
+        title: str = "Bad Request",
         detail: Optional[str] = None,
         headers: Optional[Dict] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
-            status=400, type=EXCEPTIONS_LINK_MAP[400], title=title, detail=detail, headers=headers, **kwargs
+            status=400,
+            type=EXCEPTIONS_LINK_MAP[400],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
@@ -103,13 +118,18 @@ class Unauthenticated(ProblemException):
 
     def __init__(
         self,
-        title: str = 'Unauthorized',
+        title: str = "Unauthorized",
         detail: Optional[str] = None,
         headers: Optional[Dict] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
-            status=401, type=EXCEPTIONS_LINK_MAP[401], title=title, detail=detail, headers=headers, **kwargs
+            status=401,
+            type=EXCEPTIONS_LINK_MAP[401],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
@@ -117,10 +137,19 @@ class PermissionDenied(ProblemException):
     """Raise when the user does not have the required permissions"""
 
     def __init__(
-        self, title: str = 'Forbidden', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
-    ):
+        self,
+        title: str = "Forbidden",
+        detail: Optional[str] = None,
+        headers: Optional[Dict] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
-            status=403, type=EXCEPTIONS_LINK_MAP[403], title=title, detail=detail, headers=headers, **kwargs
+            status=403,
+            type=EXCEPTIONS_LINK_MAP[403],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
@@ -128,10 +157,19 @@ class AlreadyExists(ProblemException):
     """Raise when the object already exists"""
 
     def __init__(
-        self, title='Conflict', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
+        self,
+        title="Conflict",
+        detail: Optional[str] = None,
+        headers: Optional[Dict] = None,
+        **kwargs: Any,
     ):
         super().__init__(
-            status=409, type=EXCEPTIONS_LINK_MAP[409], title=title, detail=detail, headers=headers, **kwargs
+            status=409,
+            type=EXCEPTIONS_LINK_MAP[409],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
@@ -140,11 +178,16 @@ class Unknown(ProblemException):
 
     def __init__(
         self,
-        title: str = 'Internal Server Error',
+        title: str = "Internal Server Error",
         detail: Optional[str] = None,
         headers: Optional[Dict] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
-            status=500, type=EXCEPTIONS_LINK_MAP[500], title=title, detail=detail, headers=headers, **kwargs
+            status=500,
+            type=EXCEPTIONS_LINK_MAP[500],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )

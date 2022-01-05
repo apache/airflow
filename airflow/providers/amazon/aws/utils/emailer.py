@@ -19,10 +19,11 @@
 
 from typing import List, Optional, Union
 
-from airflow.providers.amazon.aws.hooks.ses import SESHook
+from airflow.providers.amazon.aws.hooks.ses import SesHook
 
 
 def send_email(
+    from_email: str,
     to: Union[List[str], str],
     subject: str,
     html_content: str,
@@ -35,9 +36,9 @@ def send_email(
     **kwargs,
 ) -> None:
     """Email backend for SES."""
-    hook = SESHook(aws_conn_id=conn_id)
+    hook = SesHook(aws_conn_id=conn_id)
     hook.send_email(
-        mail_from=None,
+        mail_from=from_email,
         to=to,
         subject=subject,
         html_content=html_content,

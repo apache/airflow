@@ -212,7 +212,6 @@ class _DataflowJobsController(LoggingMixin):
         self._jobs: Optional[List[dict]] = None
         self.drain_pipeline = drain_pipeline
         self._wait_until_finished = wait_until_finished
-        self._jobs: Optional[List[dict]] = None
 
     def is_job_running(self) -> bool:
         """
@@ -356,10 +355,13 @@ class _DataflowJobsController(LoggingMixin):
             .jobs()
             .list(projectId=self._project_number, location=self._job_location)
         )
-        jobs: List[dict] = []
+        all_jobs: List[dict] = []
         while request is not None:
             response = request.execute(num_retries=self._num_retries)
-            jobs.extend(response["jobs"])
+            jobs = response.get("jobs")
+            if jobs is None:
+                break
+            all_jobs.extend(jobs)
 
             request = (
                 self._dataflow.projects()
@@ -367,7 +369,7 @@ class _DataflowJobsController(LoggingMixin):
                 .jobs()
                 .list_next(previous_request=request, previous_response=response)
             )
-        return jobs
+        return all_jobs
 
     def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[dict]:
         jobs = self._fetch_all_jobs()
@@ -501,7 +503,8 @@ class _DataflowJobsController(LoggingMixin):
                 timeout_error_message = (
                     f"Canceling jobs failed due to timeout ({self._cancel_timeout}s): {', '.join(job_ids)}"
                 )
-                with timeout(seconds=self._cancel_timeout, error_message=timeout_error_message):
+                tm = timeout(seconds=self._cancel_timeout, error_message=timeout_error_message)
+                with tm:
                     self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
         else:
             self.log.info("No jobs to cancel")
@@ -896,7 +899,7 @@ class DataflowHook(GoogleBaseHook):
 
         if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
             raise ValueError(
-                f"Invalid job_name ({base_job_name}); the name must consist ofonly the characters "
+                f"Invalid job_name ({base_job_name}); the name must consist of only the characters "
                 f"[-a-z0-9], starting with a letter and ending with a letter or number "
             )
 
@@ -1033,7 +1036,7 @@ class DataflowHook(GoogleBaseHook):
         ]
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.run(cmd, capture_output=True)
         self.log.info("Output: %s", proc.stdout.decode())
         self.log.warning("Stderr: %s", proc.stderr.decode())
         self.log.info("Exit code %d", proc.returncode)
@@ -1061,7 +1064,7 @@ class DataflowHook(GoogleBaseHook):
                 DeprecationWarning,
                 stacklevel=3,
             )
-            on_new_job_id_callback(job.get("id"))
+            on_new_job_id_callback(job["id"])
 
         if on_new_job_callback:
             on_new_job_callback(job)

@@ -65,7 +65,6 @@ def action_logging(f: T) -> T:
                     logger.exception(
                         "Failed to parse execution_date from the request: %s", execution_date_value
                     )
-                    pass
 
             session.add(log)
 

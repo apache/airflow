@@ -59,16 +59,14 @@
   ],
   "microsoft.azure": [
     "google",
-    "oracle"
+    "oracle",
+    "sftp"
   ],
   "mysql": [
     "amazon",
     "presto",
     "trino",
     "vertica"
-  ],
-  "opsgenie": [
-    "http"
   ],
   "postgres": [
     "amazon"

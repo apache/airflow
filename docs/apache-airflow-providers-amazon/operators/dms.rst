@@ -30,13 +30,13 @@ Overview
 Airflow to AWS Database Migration Service (DMS) integration provides several operators to create and interact with
 DMS replication tasks.
 
- - :class:`~airflow.providers.amazon.aws.sensors.dms_task.DmsTaskBaseSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.dms_task.DmsTaskCompletedSensor`
- - :class:`~airflow.providers.amazon.aws.operators.dms_create_task.DmsCreateTaskOperator`
- - :class:`~airflow.providers.amazon.aws.operators.dms_delete_task.DmsDeleteTaskOperator`
- - :class:`~airflow.providers.amazon.aws.operators.dms_describe_tasks.DmsDescribeTasksOperator`
- - :class:`~airflow.providers.amazon.aws.operators.dms_start_task.DmsStartTaskOperator`
- - :class:`~airflow.providers.amazon.aws.operators.dms_stop_task.DmsStopTaskOperator`
+ - :class:`~airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.dms.DmsTaskCompletedSensor`
+ - :class:`~airflow.providers.amazon.aws.operators.dms.DmsCreateTaskOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.dms.DmsDeleteTaskOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator`
 
 One example_dag is provided which showcases some of these operators in action.
 
@@ -53,7 +53,7 @@ Create replication task, wait for it completion and delete it.
 Purpose
 """""""
 
-This example dag ``example_dms_full_load_task.py`` uses ``DmsCreateTaskOperator``, ``DmsStartTaskOperator``,
+This example DAG ``example_dms_full_load_task.py`` uses ``DmsCreateTaskOperator``, ``DmsStartTaskOperator``,
 ``DmsTaskCompletedSensor``, ``DmsDeleteTaskOperator`` to create replication task, start it, wait for it
 to be completed, and then delete it.
 
@@ -64,23 +64,8 @@ In the following code we create a new replication task, start it, wait for it to
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms_full_load_task.py
     :language: python
-    :start-after: [START howto_dms_create_task_operator]
-    :end-before: [END howto_dms_create_task_operator]
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms_full_load_task.py
-    :language: python
-    :start-after: [START howto_dms_start_task_operator]
-    :end-before: [END howto_dms_start_task_operator]
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms_full_load_task.py
-    :language: python
-    :start-after: [START howto_dms_task_completed_sensor]
-    :end-before: [END howto_dms_task_completed_sensor]
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms_full_load_task.py
-    :language: python
-    :start-after: [START howto_dms_delete_task_operator]
-    :end-before: [END howto_dms_delete_task_operator]
+    :start-after: [START howto_dms_operators]
+    :end-before: [END howto_dms_operators]
 
 
 Reference

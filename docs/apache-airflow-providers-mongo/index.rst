@@ -52,7 +52,7 @@ Package apache-airflow-providers-mongo
 `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 
-Release: 2.1.0
+Release: 2.3.0
 
 Provider package
 ----------------
@@ -63,7 +63,7 @@ are in ``airflow.providers.mongo`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-mongo``
 
 PIP requirements
@@ -74,7 +74,7 @@ PIP package         Version required
 ==================  ===================
 ``apache-airflow``  ``>=2.1.0``
 ``dnspython``       ``>=1.13.0,<3.0.0``
-``pymongo``         ``>=3.6.0``
+``pymongo``         ``>=3.6.0,<4.0.0``
 ==================  ===================
 
 .. include:: ../../airflow/providers/mongo/CHANGELOG.rst

@@ -31,11 +31,16 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v"
 DEFAULT_KUBERNETES_VERSION = "1.22.0"
+BASE_URL_SPEC = (
+    f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
+    f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
+)
 
 crd_lookup = {
     'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
+    # This object type was removed in k8s v1.22.0
+    'networking.k8s.io/v1beta1::Ingress': 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json',  # noqa: E501
 }
 
 
@@ -46,9 +51,9 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     if '/' in api_version:
         ext, _, api_version = api_version.partition("/")
         ext = ext.split(".")[0]
-        url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{ext}-{api_version}.json'
+        url = f'{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json'
     else:
-        url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{api_version}.json'
+        url = f'{BASE_URL_SPEC}/{kind}-{api_version}.json'
     request = requests.get(url)
     request.raise_for_status()
     schema = json.loads(
@@ -100,12 +105,14 @@ def render_chart(
     show_only=None,
     chart_dir=None,
     kubernetes_version=DEFAULT_KUBERNETES_VERSION,
+    namespace=None,
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
     values = values or {}
     chart_dir = chart_dir or sys.path[0]
+    namespace = namespace or "default"
     with NamedTemporaryFile() as tmp_file:
         content = yaml.dump(values)
         tmp_file.write(content.encode())
@@ -115,10 +122,12 @@ def render_chart(
             "template",
             name,
             chart_dir,
-            '--values',
+            "--values",
             tmp_file.name,
-            '--kube-version',
+            "--kube-version",
             kubernetes_version,
+            "--namespace",
+            namespace,
         ]
         if show_only:
             for i in show_only:

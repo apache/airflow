@@ -132,7 +132,7 @@ class AbstractApp(metaclass=abc.ABCMeta):
         auth_all_paths = auth_all_paths if auth_all_paths is not None else self.auth_all_paths
         # TODO test if base_path starts with an / (if not none)
         arguments = arguments or dict()
-        arguments = dict(self.arguments, **arguments)  # copy global arguments and update with api specfic
+        arguments = dict(self.arguments, **arguments)  # copy global arguments and update with api specific
 
         if isinstance(specification, dict):
             specification = specification

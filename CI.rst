@@ -124,7 +124,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | case of Postgres or MySQL. However,             |
 |                                         |             |              |            | it requires to perform manual init/reset        |
 |                                         |             |              |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+--------------+-------------+------------------------------------------------+
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Mount variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
@@ -550,6 +550,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | UI tests                  | React UI tests for new Airflow UI            | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
+| WWW tests                 | React tests for current Airflow UI           | Yes   | Yes   | Yes  |
++---------------------------+----------------------------------------------+-------+-------+------+
 | Test image building       | Tests if PROD image build examples work      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | CI Images                 | Waits for and verify CI Images (3)           | Yes   | Yes   | Yes  |
@@ -660,7 +662,7 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.6", "3.7", "3.8", "3.9"].
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
 * <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
   commit from the tip of the branch used for the PR.
 

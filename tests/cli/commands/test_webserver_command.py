@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 import os
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -229,13 +229,19 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
-class TestCliWebServer(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = cli_parser.get_parser()
+class TestCliWebServer:
+    @pytest.fixture(autouse=True)
+    def _make_parser(self):
+        self.parser = cli_parser.get_parser()
 
-    def setUp(self) -> None:
+    @pytest.fixture(autouse=True)
+    def _cleanup(self):
         self._check_processes()
+        self._clean_pidfiles()
+
+        yield
+
+        self._check_processes(ignore_running=True)
         self._clean_pidfiles()
 
     def _check_processes(self, ignore_running=False):
@@ -256,10 +262,6 @@ class TestCliWebServer(unittest.TestCase):
                     "Background processes are running that prevent the test from passing successfully."
                 )
 
-    def tearDown(self) -> None:
-        self._check_processes(ignore_running=True)
-        self._clean_pidfiles()
-
     def _clean_pidfiles(self):
         pidfile_webserver = setup_locations("webserver")[0]
         pidfile_monitor = setup_locations("webserver-monitor")[0]
@@ -278,48 +280,6 @@ class TestCliWebServer(unittest.TestCase):
                 if start_time - time.monotonic() > 60:
                     raise
                 time.sleep(1)
-
-    def test_cli_webserver_foreground(self):
-        with mock.patch.dict(
-            "os.environ",
-            AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
-            AIRFLOW__CORE__LOAD_EXAMPLES="False",
-            AIRFLOW__WEBSERVER__WORKERS="1",
-        ):
-            # Run webserver in foreground and terminate it.
-
-            proc = subprocess.Popen(["airflow", "webserver"])
-            assert proc.poll() is None
-
-        # Wait for process
-        time.sleep(10)
-
-        # Terminate webserver
-        proc.terminate()
-        # -15 - the server was stopped before it started
-        #   0 - the server terminated correctly
-        assert proc.wait(60) in (-15, 0)
-
-    @pytest.mark.quarantined
-    def test_cli_webserver_foreground_with_pid(self):
-        with tempfile.TemporaryDirectory(prefix='tmp-pid') as tmpdir:
-            pidfile = f"{tmpdir}/pidfile"
-            with mock.patch.dict(
-                "os.environ",
-                AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
-                AIRFLOW__CORE__LOAD_EXAMPLES="False",
-                AIRFLOW__WEBSERVER__WORKERS="1",
-            ):
-
-                proc = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
-                assert proc.poll() is None
-
-            # Check the file specified by --pid option exists
-            self._wait_pidfile(pidfile)
-
-            # Terminate webserver
-            proc.terminate()
-            assert 0 == proc.wait(60)
 
     @pytest.mark.quarantined
     def test_cli_webserver_background(self):
@@ -386,63 +346,67 @@ class TestCliWebServer(unittest.TestCase):
                 webserver_command.webserver(args)
         assert ctx.value.code == 1
 
-    def test_cli_webserver_debug(self):
-        env = os.environ.copy()
-        proc = psutil.Popen(["airflow", "webserver", "--debug"], env=env)
-        time.sleep(3)  # wait for webserver to start
-        return_code = proc.poll()
-        assert return_code is None, f"webserver terminated with return code {return_code} in debug mode"
-        proc.terminate()
-        assert -15 == proc.wait(60)
+    def test_cli_webserver_debug(self, app):
+        with mock.patch.object(webserver_command, 'create_app') as create_app, mock.patch.object(
+            app, 'run'
+        ) as app_run:
+            create_app.return_value = app
 
-    def test_cli_webserver_access_log_format(self):
-
-        # json access log format
-        access_logformat = (
-            "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({"
-            "X-Request-Id}i)s\",\"code\":\"%(s)s\",\"request_method\":\"%(m)s\","
-            "\"request_path\":\"%(U)s\",\"agent\":\"%(a)s\",\"response_time\":\"%(D)s\","
-            "\"response_length\":\"%(B)s\"} "
-        )
-        with tempfile.TemporaryDirectory() as tmpdir, mock.patch.dict(
-            "os.environ",
-            AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
-            AIRFLOW__CORE__LOAD_EXAMPLES="False",
-            AIRFLOW__WEBSERVER__WORKERS="1",
-        ):
-            access_logfile = f"{tmpdir}/access.log"
-            # Run webserver in foreground and terminate it.
-
-            proc = subprocess.Popen(
+            args = self.parser.parse_args(
                 [
-                    "airflow",
                     "webserver",
-                    "--access-logfile",
-                    access_logfile,
-                    "--access-logformat",
-                    access_logformat,
+                    "--debug",
                 ]
             )
-            assert proc.poll() is None
+            webserver_command.webserver(args)
 
-            # Wait for webserver process
-            time.sleep(10)
+            app_run.assert_called_with(
+                debug=True,
+                use_reloader=False,
+                port=8080,
+                host='0.0.0.0',
+                ssl_context=None,
+            )
 
-            proc2 = subprocess.Popen(["curl", "http://localhost:8080"])
-            proc2.wait(10)
-            try:
-                with open(access_logfile) as file:
-                    log = json.loads(file.read())
-                assert '127.0.0.1' == log.get('remote_ip')
-                assert len(log) == 9
-                assert 'GET' == log.get('request_method')
+    def test_cli_webserver_args(self):
+        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, 'GunicornMonitor'):
+            args = self.parser.parse_args(
+                [
+                    "webserver",
+                    "--access-logformat",
+                    "custom_log_format",
+                    "--pid",
+                    "/tmp/x.pid",
+                ]
+            )
+            webserver_command.webserver(args)
 
-            except OSError:
-                print("access log file not found at " + access_logfile)
-
-            # Terminate webserver
-            proc.terminate()
-            # -15 - the server was stopped before it started
-            #   0 - the server terminated correctly
-            assert proc.wait(60) in (-15, 0)
-            self._check_processes()
+            Popen.assert_called_with(
+                [
+                    sys.executable,
+                    '-m',
+                    'gunicorn',
+                    '--workers',
+                    '4',
+                    '--worker-class',
+                    'sync',
+                    '--timeout',
+                    '120',
+                    '--bind',
+                    '0.0.0.0:8080',
+                    '--name',
+                    'airflow-webserver',
+                    '--pid',
+                    '/tmp/x.pid',
+                    '--config',
+                    'python:airflow.www.gunicorn_config',
+                    '--access-logfile',
+                    '-',
+                    '--error-logfile',
+                    '-',
+                    '--access-logformat',
+                    'custom_log_format',
+                    'airflow.www.app:cached_app()',
+                ],
+                close_fds=True,
+            )

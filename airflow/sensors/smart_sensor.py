@@ -29,6 +29,7 @@ from airflow.models import BaseOperator, DagRun, SensorInstance, SkipMixin, Task
 from airflow.settings import LOGGING_CLASS_PATH
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
+from airflow.utils.context import Context
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.module_loading import import_string
@@ -740,7 +741,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         except Exception:
             self.log.exception("Exception at getting loop stats %s")
 
-    def execute(self, context):
+    def execute(self, context: Context):
         started_at = timezone.utcnow()
 
         self.hostname = get_hostname()
@@ -775,4 +776,4 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
 
 if __name__ == '__main__':
-    SmartSensorOperator(task_id='test').execute({})
+    SmartSensorOperator(task_id='test').execute(Context())

@@ -19,7 +19,9 @@ import abc
 import logging
 import re
 import sys
+from io import IOBase
 from logging import Handler, Logger, StreamHandler
+from typing import Optional
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -36,18 +38,17 @@ def remove_escape_codes(text: str) -> str:
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name"""
 
+    _log: Optional[logging.Logger] = None
+
     def __init__(self, context=None):
         self._set_context(context)
 
     @property
     def log(self) -> Logger:
         """Returns a logger."""
-        try:
-            # FIXME: LoggingMixin should have a default _log field.
-            return self._log  # type: ignore
-        except AttributeError:
+        if self._log is None:
             self._log = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
-            return self._log
+        return self._log
 
     def _set_context(self, context):
         if context is not None:
@@ -72,8 +73,7 @@ class ExternalLoggingMixin:
         """Return whether handler is able to support external links."""
 
 
-# TODO: Formally inherit from io.IOBase
-class StreamLogWriter:
+class StreamLogWriter(IOBase):
     """Allows to redirect stdout and stderr to logger"""
 
     encoding: None = None
@@ -117,15 +117,15 @@ class StreamLogWriter:
         if not message.endswith("\n"):
             self._buffer += message
         else:
-            self._buffer += message
-            self._propagate_log(self._buffer.rstrip())
-            self._buffer = ''
+            self._buffer += message.rstrip()
+            self.flush()
 
     def flush(self):
         """Ensure all logging output has been flushed"""
-        if len(self._buffer) > 0:
-            self._propagate_log(self._buffer)
+        buf = self._buffer
+        if len(buf) > 0:
             self._buffer = ''
+            self._propagate_log(buf)
 
     def isatty(self):
         """

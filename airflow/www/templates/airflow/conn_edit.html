@@ -29,4 +29,5 @@
   {{ super() }}
   <script src="{{ url_for_asset(filename='connectionForm.js') }}"></script>
   <script id="field_behaviours" type="text/json">{{ widgets["edit"].field_behaviours }}</script>
+  <script id="testable_connection_types" type="text/json">{{ widgets["edit"].testable_connection_types }}</script>
 {% endblock %}

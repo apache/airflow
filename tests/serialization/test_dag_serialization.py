@@ -21,6 +21,7 @@
 import copy
 import importlib
 import importlib.util
+import json
 import multiprocessing
 import os
 from datetime import datetime, timedelta
@@ -45,6 +46,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -523,7 +525,7 @@ class TestStringifiedDAGs:
         if isinstance(task.params, ParamsDict):
             assert serialized_task.params.dump() == task.params.dump()
 
-        # Check that for Deserialised task, task.subdag is None for all other Operators
+        # Check that for Deserialized task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
         if task.task_type == "SubDagOperator":
             assert serialized_task.subdag is not None
@@ -724,6 +726,7 @@ class TestStringifiedDAGs:
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
+            ({"param_1": {1, 2, 3}}, {"param_1": {1, 2, 3}}),
         ],
     )
     def test_dag_params_roundtrip(self, val, expected_val):
@@ -733,7 +736,10 @@ class TestStringifiedDAGs:
         dag = DAG(dag_id='simple_dag', params=val)
         BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
 
-        serialized_dag = SerializedDAG.to_dict(dag)
+        serialized_dag_json = SerializedDAG.to_json(dag)
+
+        serialized_dag = json.loads(serialized_dag_json)
+
         assert "params" in serialized_dag["dag"]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
@@ -764,14 +770,37 @@ class TestStringifiedDAGs:
             params={'path': S3Param('s3://my_bucket/my_path')},
         )
 
-        with pytest.raises(SerializationError):
-            SerializedDAG.to_dict(dag)
+    @pytest.mark.parametrize(
+        'param',
+        [
+            Param('my value', description='hello', schema={'type': 'string'}),
+            Param('my value', description='hello'),
+            Param(None, description=None),
+        ],
+    )
+    def test_full_param_roundtrip(self, param):
+        """
+        Test to make sure that only native Param objects are being passed as dag or task params
+        """
+
+        dag = DAG(dag_id='simple_dag', params={'my_param': param})
+        serialized_json = SerializedDAG.to_json(dag)
+        serialized = json.loads(serialized_json)
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+
+        assert dag.params["my_param"] == param.value
+        observed_param = dag.params.get_param('my_param')
+        assert isinstance(observed_param, Param)
+        assert observed_param.description == param.description
+        assert observed_param.schema == param.schema
 
     @pytest.mark.parametrize(
         "val, expected_val",
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
+            ({"param_1": {1, 2, 3}}, {"param_1": {1, 2, 3}}),
         ],
     )
     def test_task_params_roundtrip(self, val, expected_val):
@@ -860,7 +889,7 @@ class TestStringifiedDAGs:
 
             operator_extra_links = [TaskStateLink()]
 
-            def execute(self, context):
+            def execute(self, context: Context):
                 pass
 
         with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1)) as dag:
@@ -1066,9 +1095,8 @@ class TestStringifiedDAGs:
         """
         base_operator = BaseOperator(task_id="10")
         fields = base_operator.__dict__
-        assert {
+        assert fields == {
             '_BaseOperator__instantiated': True,
-            '_dag': None,
             '_downstream_task_ids': set(),
             '_inlets': [],
             '_log': base_operator.log,
@@ -1111,12 +1139,11 @@ class TestStringifiedDAGs:
             'run_as_user': None,
             'sla': None,
             'start_date': None,
-            'subdag': None,
             'task_id': '10',
             'trigger_rule': 'all_success',
             'wait_for_downstream': False,
             'weight_rule': 'downstream',
-        } == fields, """
+        }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY
@@ -1309,7 +1336,7 @@ class TestStringifiedDAGs:
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
-            def poke(self, context):
+            def poke(self, context: Context):
                 return False
 
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
@@ -1433,29 +1460,32 @@ class TestStringifiedDAGs:
         assert serialized_obj == expected_output
 
     def test_params_upgrade(self):
+        """when pre-2.2.0 param (i.e. primitive) is deserialized we convert to Param"""
         serialized = {
             "__version": 1,
             "dag": {
                 "_dag_id": "simple_dag",
-                "fileloc": __file__,
+                "fileloc": '/path/to/file.py',
                 "tasks": [],
                 "timezone": "UTC",
                 "params": {"none": None, "str": "str", "dict": {"a": "b"}},
             },
         }
-        SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["none"] is None
-        assert isinstance(dict.__getitem__(dag.params, "none"), Param)
+        assert isinstance(dag.params.get_param("none"), Param)
         assert dag.params["str"] == "str"
 
-    def test_params_serialize_default(self):
+    def test_params_serialize_default_2_2_0(self):
+        """In 2.0.0, param ``default`` was assumed to be json-serializable objects and were not run though
+        the standard serializer function.  In 2.2.2 we serialize param ``default``.  We keep this
+        test only to ensure that params stored in 2.2.0 can still be parsed correctly."""
         serialized = {
             "__version": 1,
             "dag": {
                 "_dag_id": "simple_dag",
-                "fileloc": __file__,
+                "fileloc": '/path/to/file.py',
                 "tasks": [],
                 "timezone": "UTC",
                 "params": {"str": {"__class": "airflow.models.param.Param", "default": "str"}},
@@ -1464,8 +1494,35 @@ class TestStringifiedDAGs:
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
-        assert isinstance(dict.__getitem__(dag.params, "str"), Param)
+        assert isinstance(dag.params.get_param("str"), Param)
         assert dag.params["str"] == "str"
+
+    def test_params_serialize_default(self):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "_dag_id": "simple_dag",
+                "fileloc": '/path/to/file.py',
+                "tasks": [],
+                "timezone": "UTC",
+                "params": {
+                    "my_param": {
+                        "default": "a string value",
+                        "description": "hello",
+                        "schema": {"__var": {"type": "string"}, "__type": "dict"},
+                        "__class": "airflow.models.param.Param",
+                    }
+                },
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+
+        assert dag.params["my_param"] == "a string value"
+        param = dag.params.get_param('my_param')
+        assert isinstance(param, Param)
+        assert param.description == 'hello'
+        assert param.schema == {'type': 'string'}
 
 
 def test_kubernetes_optional():

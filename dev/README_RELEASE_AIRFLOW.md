@@ -24,9 +24,10 @@
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
+  - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -42,7 +43,11 @@
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
-  - [Update the bug issue template](#update-the-bug-issue-template)
+  - [Create release on GitHub](#create-release-on-github)
+  - [Close the milestone](#close-the-milestone)
+  - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
+  - [Tweet about the release](#tweet-about-the-release)
+  - [Update `main` with latest release details](#update-main-with-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
@@ -80,7 +85,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     # Set Version
     export VERSION=2.1.2rc3
     export VERSION_SUFFIX=rc3
-    export VERSION_CONSTRAINT_BRANCH=2-1
+    export VERSION_BRANCH=2-1
     export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -93,17 +98,29 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
+- Check out the 'test' branch
+
+    ```shell script
+    git checkout v${VERSION_BRANCH}-test
+    ```
+
 - Set your version to 2.0.N in `setup.py` (without the RC tag)
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
 For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
 - Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
 - Commit the version change.
+- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
+- Check out the 'stable' branch
+
+    ```shell script
+    git checkout v${VERSION_BRANCH}-stable
+    ```
 
 - Tag your release
 
     ```shell script
-    git tag -s ${VERSION}
+    git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
     ```
 
 - Clean the checkout: the sdist step below will
@@ -142,8 +159,8 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout origin/constraints-${VERSION_CONSTRAINT_BRANCH}
-    git tag -s "constraints-${VERSION}"
+    git checkout origin/constraints-${VERSION_BRANCH}
+    git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
 
@@ -152,9 +169,11 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     ```shell script
     # First clone the repo
     svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+    cd airflow-dev
+    # Or move into it if you already have it cloned
 
     # Create new folder for the release
-    cd airflow-dev
+    svn update
     svn mkdir ${VERSION}
 
     # Move the artifacts to svn folder & commit
@@ -164,36 +183,134 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
 
-## [\Optional\] Create new release branch
+## [\Optional\] Prepare new release branches and cache
 
 When you just released the `X.Y.0` version (first release of new minor version) you need to create release
 branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
-`v2-1-stable` branches):
+`v2-1-stable` branches). You also need to configure the branch
 
+### Create test source branch
 
    ```shell script
    # First clone the repo
-   export BRANCH_PREFIX=v2-1
-   git branch ${BRANCH_PREFIX}-test
-   git branch ${BRANCH_PREFIX}-stable
-   git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
+   export BRANCH_PREFIX=2-1
+   git branch v${BRANCH_PREFIX}-test
    ```
 
-Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
+### Re-tag images from main
 
 Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
 
    ```shell script
-   ./dev/retag_docker_images.py --source-branch main --target-branch ${BRANCH_PREFIX}-test
+   ./dev/retag_docker_images.py --source-branch main --target-branch v${BRANCH_PREFIX}-test
    ```
 
 
+### Update default branches
+
+In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
+
+```bash
+export DEFAULT_BRANCH=${DEFAULT_BRANCH="main"}
+export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-main"}
+```
+
+should become this, where ``X-Y`` is your new branch version:
+
+```bash
+export DEFAULT_BRANCH=${DEFAULT_BRANCH="vX-Y-test"}
+export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-X-Y"}
+```
+
+In ``./scripts/ci/libraries/_build_images.sh`` add branch to preload packages from (replace X and Y in
+values for comparison and regexp):
+
+```bash
+    elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
+```
+
+### Commit the changes to the test branch
+
+```bash
+git add -p .
+git commit "Update default branches for ${BRANCH_PREFIX}"
+```
+
+### Create stable branch
+
+```bash
+git branch v${BRANCH_PREFIX}-stable
+````
+
+### Push test and stable branch
+
+```bash
+git checkout v${BRANCH_PREFIX}-test
+git push --set-upstream origin v${BRANCH_PREFIX}-test
+git checkout v${BRANCH_PREFIX}-stable
+git push --set-upstream origin v${BRANCH_PREFIX}-stable
+````
+
+### Add branches in the main branch
+
+You have to do those steps in the `main` branch of the repository:
+
+```bash
+git checkout main
+git pull
+```
+
+Add ``vX-Y-stable`` and ``vX-Y-test`` branches in ``codecov.yml`` (there are 2 places in the file!)
+
+```yaml
+    branches:
+      - main
+      - v2-0-stable
+      - v2-0-test
+      - v2-1-stable
+      - v2-1-test
+      - v2-2-stable
+      - v2-2-test
+```
+
+Add vX-Y-stable to `.asf.yaml` (X-Y is your new branch)
+
+```yaml
+protected_branches:
+    main:
+        required_pull_request_reviews:
+        required_approving_review_count: 1
+    ...
+    vX-Y-stable:
+        required_pull_request_reviews:
+        required_approving_review_count: 1
+
+```
+
+### Create constraints branch out of the constraints-main one
+
+   ```shell script
+   # First clone the repo
+   export BRANCH_PREFIX=2-1
+   git checkout constraints-main
+   git checkout -b constraints-${BRANCH_PREFIX}
+   git push origin tag constraints-${BRANCH_PREFIX}
+   ```
+
 ## Prepare PyPI convenience "snapshot" packages
 
-At this point we have the artefact that we vote on, but as a convenience to developers we also want to
+At this point we have the artifact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to PyPI for installing via pip:
 
 To do this we need to
+
+- Checkout the rc tag:
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    git checkout ${VERSION}
+    ```
 
 - Build the package:
 
@@ -217,7 +334,10 @@ To do this we need to
 https://test.pypi.org/project/apache-airflow/#files
 
 - Upload the package to PyPI's production environment:
-`twine upload -r pypi dist/*`
+
+    ```shell script
+    twine upload -r pypi dist/*
+    ```
 
 - Again, confirm that the package is available here:
 https://pypi.python.org/pypi/apache-airflow
@@ -232,7 +352,7 @@ is not supposed to be used by and advertised to the end-users who do not read th
     (both airflow and latest provider packages).
 
     ```shell script
-    git push origin ${VERSION}
+    git push origin tag ${VERSION}
     ```
 
 ## Prepare production Docker Image
@@ -240,11 +360,37 @@ is not supposed to be used by and advertised to the end-users who do not read th
 Production Docker images should be manually prepared and pushed by the release manager.
 
 ```shell script
-./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
+./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before pushing the images.
+
+## Prepare issue for testing status of rc
+
+For now this part works for bugfix releases only, for major/minor ones we will experiment and
+see if there is a way to only extract important/not tested bugfixes and high-level changes to
+make the process manageable.
+
+
+Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
+(for example 2.1.0).
+
+```shell script
+cat <<EOF
+Status of testing of Apache Airflow ${VERSION}
+EOF
+```
+
+Content is generated with:
+
+```shell
+./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_RELEASE> \
+    --current-release ${VERSION}
+
+```
+
+Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -271,6 +417,8 @@ which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
 until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
+
+Status of testing of the release is kept in TODO:URL_OF_THE_ISSUE_HERE
 
 Consider this my (binding) +1.
 
@@ -302,7 +450,7 @@ the artifact checksums when we actually release.
 
 Full Changelog: https://github.com/apache/airflow/blob/${VERSION}/CHANGELOG.txt
 
-Changes since ${VERSION}:
+Changes since PREVIOUS_VERSION_OR_RC:
 *Bugs*:
 [AIRFLOW-3732] Fix issue when trying to edit connection in RBAC UI
 [AIRFLOW-2866] Fix missing CSRF token head when using RBAC UI (#3804)
@@ -354,9 +502,9 @@ The files should be present in the sub-folder of
 
 The following files should be present (9 files):
 
-* -bin-tar.gz + .asc + .sha512
 * -source.tar.gz + .asc + .sha512
-* -.whl + .asc + .sha512
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -383,8 +531,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
@@ -394,7 +542,7 @@ where `.rat-excludes` is the file in the root of Airflow source code.
 
 ## Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
@@ -408,7 +556,7 @@ retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
 ```shell script
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -418,7 +566,7 @@ errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
 ```shell script
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
@@ -426,26 +574,28 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
 gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
@@ -454,6 +604,7 @@ gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
 gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
@@ -478,7 +629,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.sha512
+Checking apache-airflow-2.0.2rc4.tar.gz.sha512
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
@@ -570,8 +721,8 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 
 ```shell script
 # GO to Airflow Sources first
-cd <YOUR_AIRFLOW_SOURCES>
-export AIRFLOW_SOURCES=$(pwd)
+cd <YOUR_AIRFLOW_REPO_ROOT>
+export AIRFLOW_REPO_ROOT=$(pwd)
 
 # GO to Checked out DEV repo. Should be checked out before via:
 # svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
@@ -595,8 +746,6 @@ cd "${VERSION}"
 # Move the artifacts to svn folder & commit
 for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
     svn cp "$f" "${$(basename $f)/}"
-    # Those will be used to upload to PyPI
-    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/}"
 done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
@@ -612,20 +761,19 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 
 ## Prepare PyPI "release" packages
 
-At this point we release an official package (they should be copied and renamed from the
-previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
+At this point we release an official package:
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
     cd "${AIRFLOW_RELEASE_SVN}/${VERSION}"
-    twine check dist/*
+    twine check *.whl *${VERSION}.tar.gz
     ```
 
 - Upload the package to PyPI's test environment:
 
     ```shell script
-    twine upload -r pypitest dist/*
+    twine upload -r pypitest *.whl *${VERSION}.tar.gz
     ```
 
 - Verify that the test package looks good by downloading it and installing it into a virtual environment.
@@ -634,7 +782,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Upload the package to PyPI's production environment:
 
     ```shell script
-    twine upload -r pypi dist/*
+    twine upload -r pypi *.whl *${VERSION}.tar.gz
     ```
 
 - Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
@@ -642,9 +790,10 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Re-Tag & Push the constraints files with the final release version.
 
     ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
     git checkout constraints-${RC}
-    git tag -s "constraints-${VERSION}"
-    git push origin "constraints-${VERSION}"
+    git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
+    git push origin tag "constraints-${VERSION}"
     ```
 
 - Push Tag for the final version
@@ -654,26 +803,23 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     (both airflow and latest provider packages).
 
     ```shell script
-    git checkout ${VERSION}
-    git push origin ${VERSION}
+    git checkout ${RC}
+    git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
+    git push origin tag ${VERSION}
     ```
 
 ## Manually prepare production Docker Image
 
 
 ```shell script
-./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
+./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before pushing the images.
-
-If this is the newest image released, push the latest image as well.
-
-```shell script
-docker tag "apache/airflow:${VERSION}" "apache/airflow:latest"
-docker push "apache/airflow:latest"
-```
+If you release 'official' (non-rc) version you will be asked if you want to
+tag the images as latest - if you are releasing the latest stable branch, you
+should answer y and tags will be created and pushed. If you are releasing a
+patch release from an older branch, you should answer n and creating tags will
+be skipped.
 
 ## Publish documentation
 
@@ -717,14 +863,14 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
+- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
 the artifacts have been published:
 
 Subject:
 
 ```shell script
 cat <<EOF
-Airflow ${VERSION} is released
+[ANNOUNCE] Apache Airflow ${VERSION} Released
 EOF
 ```
 
@@ -744,8 +890,7 @@ We also made this version available on PyPI for convenience:
 \`pip install apache-airflow\`
 https://pypi.org/project/apache-airflow/${VERSION}/
 
-The documentation is available on:
-https://airflow.apache.org/
+The documentation is available at:
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
@@ -759,19 +904,72 @@ Cheers,
 EOF
 ```
 
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
 
-## Update the bug issue template
+## Create release on GitHub
 
-Make sure the version you just released is listed in the bug issue template in `.github/ISSUE_TEMPLATE/airflow_bug_report.yml`.
+Create a new release on GitHub with the changelog and assets from the release svn.
+
+## Close the milestone
+
+Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+
+## Announce the release on the community slack
+
+Post this in the #announce channel:
+
+```shell
+cat <<EOF
+We’ve just released Apache Airflow $VERSION 🎉
+
+📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
+📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
+🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🐳 Docker Image: “docker pull apache/airflow:$VERSION"
+🚏 Constraints: https://github.com/apache/airflow/tree/constraints-$VERSION
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Tweet about the release
+
+Tweet about the release:
+
+```shell
+cat <<EOF
+We’ve just released Apache Airflow $VERSION 🎉
+
+📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
+📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
+🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🐳 Docker Image: "docker pull apache/airflow:$VERSION"
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Update `main` with latest release details
+
+This includes:
+
+- Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
+- Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
+- Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 
 ## Update default Airflow version in the helm chart
 
 Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in the helm chart so the next helm chart release
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
+
+Also add a note to `UPDATING.rst` that the default version of Airflow has changed.
+
+In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
 
 ## Update airflow/config_templates/config.yml file
 
