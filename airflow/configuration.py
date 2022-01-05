@@ -834,6 +834,41 @@ def _generate_fernet_key():
     return Fernet.generate_key().decode()
 
 
+def load_config_file(config_file: Optional[str] = None, unit_test_mode: Optional[bool] = False):
+    """
+    Loads requested config file depending on the mode.
+    Generates a new file and populates with default values if it does not exist.
+    If config file not provided then returns default config
+    """
+    # Set up default one
+    default_config = _parameterized_config_from_template('default_airflow.cfg')
+    _conf = AirflowConfigParser(default_config=default_config)
+
+    if config_file is None:
+        return _conf
+
+    if not os.path.isfile(config_file):
+        # Then Create a new one
+        default_config_file = 'default_test.cfg' if unit_test_mode else 'default_airflow.cfg'
+        _config = _parameterized_config_from_template(default_config_file)
+
+        msg_designation = 'for unit tests ' if unit_test_mode else ''
+        log.info('Creating new Airflow config file %sin: %s', msg_designation, config_file)
+        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+
+        with open(config_file, 'w') as file:
+            file.write(_config)
+
+    log.info("Reading the config from %s", config_file)
+
+    if unit_test_mode:
+        _conf.load_test_config()
+    else:
+        _conf.read(config_file)
+
+    return _conf
+
+
 def initialize_config():
     """
     Load the Airflow config files.
@@ -842,43 +877,21 @@ def initialize_config():
     """
     global FERNET_KEY, AIRFLOW_HOME
 
-    default_config = _parameterized_config_from_template('default_airflow.cfg')
+    if FERNET_KEY is None:
+        from cryptography.fernet import Fernet
 
-    conf = AirflowConfigParser(default_config=default_config)
+        FERNET_KEY = Fernet.generate_key().decode()
 
-    if conf.getboolean('core', 'unit_test_mode'):
+    _conf: AirflowConfigParser = load_config_file()
+
+    if _conf.getboolean('core', 'unit_test_mode'):
         # Load test config only
-        if not os.path.isfile(TEST_CONFIG_FILE):
-            from cryptography.fernet import Fernet
-
-            log.info('Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE)
-            pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
-
-            FERNET_KEY = Fernet.generate_key().decode()
-
-            with open(TEST_CONFIG_FILE, 'w') as file:
-                cfg = _parameterized_config_from_template('default_test.cfg')
-                file.write(cfg)
-
-        conf.load_test_config()
+        _conf = load_config_file(TEST_CONFIG_FILE, True)
     else:
         # Load normal config
-        if not os.path.isfile(AIRFLOW_CONFIG):
-            from cryptography.fernet import Fernet
+        _conf = load_config_file(AIRFLOW_CONFIG)
 
-            log.info('Creating new Airflow config file in: %s', AIRFLOW_CONFIG)
-            pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
-
-            FERNET_KEY = Fernet.generate_key().decode()
-
-            with open(AIRFLOW_CONFIG, 'w') as file:
-                file.write(default_config)
-
-        log.info("Reading the config from %s", AIRFLOW_CONFIG)
-
-        conf.read(AIRFLOW_CONFIG)
-
-        if conf.has_option('core', 'AIRFLOW_HOME'):
+        if _conf.has_option('core', 'AIRFLOW_HOME'):
             msg = (
                 'Specifying both AIRFLOW_HOME environment variable and airflow_home '
                 'in the config file is deprecated. Please use only the AIRFLOW_HOME '
@@ -886,7 +899,7 @@ def initialize_config():
             )
             if 'AIRFLOW_HOME' in os.environ:
                 warnings.warn(msg, category=DeprecationWarning)
-            elif conf.get('core', 'airflow_home') == AIRFLOW_HOME:
+            elif _conf.get('core', 'airflow_home') == AIRFLOW_HOME:
                 warnings.warn(
                     'Specifying airflow_home in the config file is deprecated. As you '
                     'have left it at the default value you should remove the setting '
@@ -894,13 +907,13 @@ def initialize_config():
                     category=DeprecationWarning,
                 )
             else:
-                AIRFLOW_HOME = conf.get('core', 'airflow_home')
+                AIRFLOW_HOME = _conf.get('core', 'airflow_home')
                 warnings.warn(msg, category=DeprecationWarning)
 
         # They _might_ have set unit_test_mode in the airflow.cfg, we still
         # want to respect that and then load the unittests.cfg
-        if conf.getboolean('core', 'unit_test_mode'):
-            conf.load_test_config()
+        if _conf.getboolean('core', 'unit_test_mode'):
+            _conf.load_test_config()
 
     # Make it no longer a proxy variable, just set it to an actual string
     global WEBSERVER_CONFIG
@@ -911,7 +924,7 @@ def initialize_config():
 
         log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path('default_webserver_config.py'), WEBSERVER_CONFIG)
-    return conf
+    return _conf
 
 
 # Historical convenience functions to access config entries
@@ -1119,7 +1132,6 @@ def __getattr__(name):
 
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
-
 
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
