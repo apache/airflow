@@ -3144,14 +3144,6 @@ class DagFilter(BaseFilter):
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
-class DagEditFilter(BaseFilter):
-    """Filter using DagIDs"""
-
-    def apply(self, query, func):  # pylint: disable=redefined-outer-name,unused-argument
-        filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
-        return query.filter(self.model.dag_id.in_(filter_dag_ids))
-
-
 class AirflowModelView(ModelView):
     """Airflow Mode View."""
 
@@ -3951,7 +3943,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     base_order = ('execution_date', 'desc')
 
-    base_filters = [['dag_id', DagEditFilter, lambda: []]]
+    base_filters = [['dag_id', DagFilter, lambda: []]]
 
     edit_form = DagRunEditForm
 
@@ -4299,7 +4291,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     base_order = ('job_id', 'asc')
 
-    base_filters = [['dag_id', DagEditFilter, lambda: []]]
+    base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def log_url_formatter(self):
         """Formats log URL."""

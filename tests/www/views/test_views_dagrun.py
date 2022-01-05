@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import flask
+import markupsafe
 import pytest
 import werkzeug
 
@@ -73,6 +75,21 @@ def reset_dagrun():
         session.query(TaskInstance).delete()
 
 
+def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, client_dr_without_dag_edit):
+    """Test that a user without dag_edit but with dag_read permission can view the records"""
+    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    resp = client_dr_without_dag_edit.get('/dagrun/list/', follow_redirects=True)
+
+    with client_dr_without_dag_edit.application.test_request_context():
+        url = flask.url_for(
+            'Airflow.graph', dag_id=running_dag_run.dag_id, execution_date=running_dag_run.execution_date
+        )
+        dag_url_link = markupsafe.Markup('<a href="{url}">{dag_id}</a>').format(
+            url=url, dag_id=running_dag_run.dag_id
+        )
+    check_content_in_response(dag_url_link, resp)
+
+
 def test_create_dagrun_permission_denied(session, client_dr_without_dag_edit):
     data = {
         "state": "running",
@@ -102,7 +119,7 @@ def running_dag_run(session):
         TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
     ]
     session.bulk_save_objects(tis)
-    session.flush()
+    session.commit()
     return dr
 
 
@@ -113,12 +130,12 @@ def test_delete_dagrun(session, admin_client, running_dag_run):
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 0
 
 
-def test_delete_dagrun_permission_denied(session, client_dr_without_dag_edit, running_dag_run):
+def test_delete_dagrun_permission_denied(session, running_dag_run, client_dr_without_dag_edit):
     composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
 
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
     resp = client_dr_without_dag_edit.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
-    assert resp.status_code == 404  # If it doesn't fully succeed it gives a 404.
+    check_content_in_response(f"Access denied for dag_id {running_dag_run.dag_id}", resp)
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
 
 

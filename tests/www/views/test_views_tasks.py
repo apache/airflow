@@ -635,13 +635,15 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
         task_id="test_task_instance_delete_permission_denied",
         execution_date=timezone.utcnow(),
         state=State.DEFERRED,
+        session=session,
     )
+    session.commit()
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
     task_id = task_instance_to_delete.task_id
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
     resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    assert resp.status_code == 404  # If it doesn't fully succeed it gives a 404.
+    check_content_in_response(f"Access denied for dag_id {task_instance_to_delete.dag_id}", resp)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
