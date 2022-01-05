@@ -50,6 +50,18 @@ The default Airflow image that is used with the Chart is now ``2.2.3``, previous
 
 The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
 
+Fixed precedence of ``nodeSelector``, ``affinity`` and ``tolerations`` params
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``nodeSelector``, ``affinity`` and ``tolerations`` params precedence has been fixed on all components. Now component-specific params
+(e.g. ``webserver.affinity``) takes precedence over the global param (e.g. ``affinity``).
+
+Default ``KubernetesExecutor`` worker affinity removed
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Previously a default affinity was added to ``KubernetesExecutor`` workers to spread the workers out across nodes. This default affinity is no
+longer set because, in general, there is no reason to spread task-specific workers across nodes.
+
 Changes in webserver and flower ``NetworkPolicy`` default ports
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 

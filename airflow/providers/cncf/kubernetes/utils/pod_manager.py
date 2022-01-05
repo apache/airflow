@@ -20,12 +20,11 @@ import math
 import time
 from contextlib import closing
 from datetime import datetime
-from typing import Iterable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Union
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_event_list import V1EventList
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -37,6 +36,13 @@ from airflow.exceptions import AirflowException
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    try:
+        # Kube >= 19
+        from kubernetes.client.models.core_v1_event_list import CoreV1EventList as V1EventList
+    except ImportError:
+        from kubernetes.client.models.v1_event_list import V1EventList
 
 
 class PodLaunchFailedException(AirflowException):
@@ -293,7 +299,7 @@ class PodManager(LoggingMixin):
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod_events(self, pod: V1Pod) -> V1EventList:
+    def read_pod_events(self, pod: V1Pod) -> "V1EventList":
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(

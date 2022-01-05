@@ -20,9 +20,9 @@
 #################################
 {{- $persistence := .Values.workers.persistence.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-{{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
-{{- $affinity := or .Values.affinity .Values.workers.affinity }}
-{{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
+{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
@@ -86,7 +86,18 @@ spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
+{{- if $affinity }}
 {{ toYaml $affinity | indent 8 }}
+{{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: worker
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+{{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
 {{- if .Values.workers.hostAliases }}
