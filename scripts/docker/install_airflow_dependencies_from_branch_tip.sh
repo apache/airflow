@@ -39,12 +39,12 @@ function install_airflow_dependencies_from_branch_tip() {
     fi
     # Install latest set of dependencies using constraints. In case constraints were upgraded and there
     # are conflicts, this might fail, but it should be fixed in the following installation steps
-    pip install \
+    pip install ${AIRFLOW_INSTALL_USER_FLAG} \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
     # make sure correct PIP version is used
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
-    pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
+    pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes || true
     echo
     echo Uninstalling just airflow. Dependencies remain.
     echo
@@ -54,6 +54,5 @@ function install_airflow_dependencies_from_branch_tip() {
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
-common::show_pip_version_and_location
 
 install_airflow_dependencies_from_branch_tip
