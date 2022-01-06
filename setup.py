@@ -666,6 +666,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,
     'databricks': databricks,
     'datadog': datadog,
+    'dbt.cloud': http_provider,
     'dingding': [],
     'discord': [],
     'docker': docker,

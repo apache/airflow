@@ -30,6 +30,9 @@
   "apache.livy": [
     "http"
   ],
+  "dbt.cloud": [
+    "http"
+  ],
   "dingding": [
     "http"
   ],
