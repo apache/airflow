@@ -50,7 +50,6 @@ from typing import (
 import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
-from jinja2.nativetypes import NativeEnvironment
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
@@ -1287,7 +1286,7 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         if self.render_template_as_native_obj:
-            env_class: Any = NativeEnvironment
+            env_class = airflow.templates.NativeEnvironment
         else:
             env_class = airflow.templates.SandboxedEnvironment
         env: jinja2.Environment = env_class(**jinja_env_options)
