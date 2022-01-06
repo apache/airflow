@@ -471,7 +471,7 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
 * Enter the sources folder run the check
 
 ```shell script
