@@ -19,6 +19,7 @@ New Features
 Improvements
 """"""""""""
 
+- Increase default livenessProbe timeout (#20698)
 - Strict schema for k8s objects for values.yaml (#19181)
 - Remove unnecessary ``pod_template_file`` defaults (#19690)
 - Use built-in ``check-migrations`` command for Airflow>=2 (#19676)
@@ -38,6 +39,7 @@ Bug Fixes
 Doc only changes
 """"""""""""""""
 
+- Add `helm dependency update` step to chart INSTALL (#20702)
 - Reword section covering the envvar secrets (#20566)
 - Add "Customizing Workers" page (#20331)
 - Include Datadog example in production guide (#17996)

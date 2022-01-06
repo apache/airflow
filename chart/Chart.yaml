@@ -113,6 +113,11 @@ annotations:
       links:
         - name: "#20069"
           url: https://github.com/apache/airflow/pull/20069
+    - description: Increase default livenessProbe timeout
+      kind: changed
+      links:
+      - name: '#20698'
+        url: https://github.com/apache/airflow/pull/20698
     - description: Strict schema for k8s objects for values.yaml
       kind: changed
       links:
@@ -168,6 +173,11 @@ annotations:
       links:
         - name: "#20266"
           url: https://github.com/apache/airflow/pull/20266
+    - description: 'Docs: Add `helm dependency update` step to chart INSTALL'
+      kind: changed
+      links:
+      - name: '#20702'
+        url: https://github.com/apache/airflow/pull/20702
     - description: "Docs: Reword section covering the envvar secrets"
       kind: changed
       links:
