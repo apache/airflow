@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Callable, List, Optional, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
