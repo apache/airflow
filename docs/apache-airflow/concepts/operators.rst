@@ -217,7 +217,7 @@ Reserved params keyword
 In Apache Airflow 2.2.0 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
 If you upgrade your environment and get the following error:
 
-.. code-block:: python
+.. code-block::
 
     Broken DAG: [/opt/airflow/dags/ImamRefresh_DAG.py] Traceback (most recent call last):
     File "/home/airflow/airflow_venv/lib64/python3.6/site-packages/airflow/serialization/serialized_objects.py", line 574, in serialize_operator
