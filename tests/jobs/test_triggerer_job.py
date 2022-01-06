@@ -18,11 +18,8 @@
 
 import asyncio
 import datetime
-import os
 import sys
-import tempfile
 import time
-from pathlib import Path
 from threading import Thread
 
 import pytest
@@ -187,13 +184,15 @@ def test_trigger_lifecycle(session):
 
 
 @pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
-def test_trigger_bad_respawn(session):
+def test_trigger_create_race_condition_18392(session, tmp_path):
     """
+    This verifies the resolution of race condition documented in github issue #18392.
     Triggers are queued for creation by TriggerJob.load_triggers.
-    There is a race condition where multiple triggers will be created unnecessarily.
+    There was a race condition where multiple triggers would be created unnecessarily.
     What happens is the runner completes the trigger and purges from the "running" list.
     Then job.load_triggers is called and it looks like the trigger is not running but should,
     so it queues it again.
+
     The scenario is as follows:
         1. job.load_triggers (trigger now queued)
         2. runner.create_triggers (trigger now running)
@@ -202,10 +201,9 @@ def test_trigger_bad_respawn(session):
         5. job.load_triggers (trigger not running, but also not purged from DB, so it is queued again)
         6. runner.create_triggers (trigger created again)
 
+    This test verifies that under this scenario only one trigger is created.
     """
-    path = Path(tempfile.tempdir, 'test_trigger_bad_respawn.txt')
-    if path.exists():
-        os.remove(path)
+    path = tmp_path / 'test_trigger_bad_respawn.txt'
 
     class TriggerRunner_(TriggerRunner):
         """We do some waiting for main thread looping"""
