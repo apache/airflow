@@ -381,10 +381,16 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         # line's execution, but we consider that safe, since there's a strict
         # add -> remove -> never again lifecycle this function is already
         # handling.
-        current_trigger_ids = set(self.triggers.keys())
+        running_trigger_ids = set(self.triggers.keys())
+        known_trigger_ids = (
+            running_trigger_ids.union(x[0] for x in self.events)
+            .union(self.to_cancel)
+            .union(x[0] for x in self.to_create)
+            .union(self.failed_triggers)
+        )
         # Work out the two difference sets
-        new_trigger_ids = requested_trigger_ids.difference(current_trigger_ids)
-        cancel_trigger_ids = current_trigger_ids.difference(requested_trigger_ids)
+        new_trigger_ids = requested_trigger_ids - known_trigger_ids
+        cancel_trigger_ids = running_trigger_ids - requested_trigger_ids
         # Bulk-fetch new trigger records
         new_triggers = Trigger.bulk_fetch(new_trigger_ids)
         # Add in new triggers
