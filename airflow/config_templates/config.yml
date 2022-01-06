@@ -71,6 +71,14 @@
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
+    - name: sql_alchemy_engine_args
+      description: |
+        Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
+      version_added: 2.3.0
+      type: string
+      sensitive: true
+      example: '{"arg1": True}'
+      default: ~
     - name: sql_engine_encoding
       description: |
         The encoding for the databases

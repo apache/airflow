@@ -367,6 +367,29 @@ key2 = 1.23
         assert isinstance(test_conf.getfloat('valid', 'key2'), float)
         assert 1.23 == test_conf.getfloat('valid', 'key2')
 
+    def test_getjson(self):
+        config = textwrap.dedent(
+            """
+            [test]
+            json = {"a": 123}
+            jsonlist = [1,2,3]
+            jsonstr = "abc"
+            jsonnum = 2.1
+        """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json') == {"a": 123}
+        assert test_conf.getjson('test', 'jsonlist') == [1, 2, 3]
+        assert test_conf.getjson('test', 'jsonstr') == "abc"
+        assert test_conf.getjson('test', 'jsonnum') == 2.1
+        assert test_conf.getjson('test', 'not_there', fallback={"a": "b"}) == {"a": "b"}
+        # fallback is _NOT_ json parsed, but used verbatim
+        assert test_conf.getjson('test', 'not_there', fallback='{"a": "b"}') == '{"a": "b"}'
+        assert test_conf.getjson('test', 'not_there', fallback=None) is None
+        assert test_conf.getjson('nosection', 'not_there', fallback=None) is None
+
     def test_has_option(self):
         test_config = '''[test]
 key1 = value1
