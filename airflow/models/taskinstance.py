@@ -1705,15 +1705,10 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
 
-        if error:
-            if isinstance(error, BaseException):
-                self.log.error("Task failed with exception", exc_info=error)
-            else:
-                self.log.error("%s", error)
+        if error and error_file:
             # external monitoring process provides pickle file so _run_raw_task
             # can send its runtime errors for access by failure callback
-            if error_file:
-                set_error_file(error_file, error)
+            set_error_file(error_file, error)
         if not test_mode:
             self.refresh_from_db(session)
 
