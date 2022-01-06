@@ -635,7 +635,7 @@ You can see the core differences between these two constructs.
 +--------------------------------------------------------+--------------------------------------------------------+
 | One set of DAG configuration                           |  Several sets of DAG configurations                    |
 +--------------------------------------------------------+--------------------------------------------------------+
-| Honours parallelism configurations through existing    |  Does not honour parallelism configurations due to     |
+| Honors parallelism configurations through existing    |  Does not honor parallelism configurations due to       |
 | SchedulerJob                                           |  newly spawned BackfillJob                             |
 +--------------------------------------------------------+--------------------------------------------------------+
 | Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
