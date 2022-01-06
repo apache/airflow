@@ -813,16 +813,32 @@ class DagRun(Base, LoggingMixin):
 
         created_counts: Dict[str, int] = Counter()
 
-        def create_ti(task: "BaseOperator") -> TI:
-            ti = TI(task, run_id=self.run_id)
-            task_instance_mutation_hook(ti)
-            created_counts[ti.operator] += 1
-            return ti
+        # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
+        hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
+
+        if hook_is_noop:
+
+            def create_ti_mapping(task: "BaseOperator"):
+                created_counts[task.task_type] += 1
+                return TI.insert_mapping(self.run_id, task)
+
+        else:
+
+            def create_ti(task: "BaseOperator") -> TI:
+                ti = TI(task, run_id=self.run_id)
+                task_instance_mutation_hook(ti)
+                created_counts[ti.operator] += 1
+                return ti
 
         # Create missing tasks
         tasks = list(filter(task_filter, dag.task_dict.values()))
+        if hasattr(self, '_max_tis'):
+            del tasks[self._max_tis :]
         try:
-            session.bulk_save_objects(map(create_ti, tasks))
+            if hook_is_noop:
+                session.bulk_insert_mappings(TI, map(create_ti_mapping, tasks))
+            else:
+                session.bulk_save_objects(map(create_ti, tasks))
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)

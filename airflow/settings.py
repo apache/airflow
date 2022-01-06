@@ -181,6 +181,9 @@ def task_instance_mutation_hook(task_instance):
     """
 
 
+task_instance_mutation_hook.is_noop = True  # type: ignore
+
+
 def pod_mutation_hook(pod):
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
@@ -502,6 +505,9 @@ def import_local_settings():
             )
             globals()["task_policy"] = globals()["policy"]
             del globals()["policy"]
+
+        if not hasattr(task_instance_mutation_hook, 'is_noop'):
+            task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ModuleNotFoundError as e:
