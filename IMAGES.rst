@@ -41,13 +41,12 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airflow-build-image' segment uses the same technique as the CI jobs for pre-installing PIP dependencies.
+'airflow-build-image' segment uses the same technique as the CI jobs for pre-installing dependencies.
 It first pre-installs them from the right GitHub branch and only after that final airflow installation is
-done from either local sources or remote location (PIP or GitHub repository).
+done from either local sources or remote location (PyPI or GitHub repository).
 
 You can read more details about building, extending and customizing the PROD image in the
 `Latest documentation <https://airflow.apache.org/docs/docker-stack/index.html>`_
-
 
 CI image
 --------
@@ -492,7 +491,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``21.2.4``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``21.3.1``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+

@@ -242,7 +242,7 @@ function install_released_airflow_version() {
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow==${version}"
+    pip install "apache-airflow==${version}"
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -332,7 +332,7 @@ function setup_provider_packages() {
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     group_end
 }
 

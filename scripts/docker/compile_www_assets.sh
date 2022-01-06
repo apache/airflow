@@ -17,7 +17,6 @@
 # under the License.
 # shellcheck disable=SC2086
 set -euo pipefail
-set -x
 
 # Installs additional dependencies passed as Argument to the Docker build command
 function compile_www_assets() {
@@ -35,8 +34,27 @@ function compile_www_assets() {
         www_dir="$(python -m site --user-site)/airflow/www"
     fi
     pushd ${www_dir} || exit 1
-    yarn install --frozen-lockfile --no-cache
-    yarn run prod
+    set +e
+    yarn install --frozen-lockfile --no-cache 2>/tmp/out-yarn-install.txt
+    local res=$?
+    if [[ ${res} != 0 ]]; then
+        >&2 echo
+        >&2 echo "Error when running yarn install:"
+        >&2 echo
+        >&2 cat /tmp/out-yarn-install.txt && rm -f /tmp/out-yarn-install.txt
+        exit 1
+    fi
+    yarn run prod 2>/tmp/out-yarn-run.txt
+    res=$?
+    if [[ ${res} != 0 ]]; then
+        >&2 echo
+        >&2 echo "Error when running yarn install:"
+        >&2 echo
+        >&2 cat /tmp/out-yarn-run.txt && rm -f /tmp/out-yarn-run.txt
+        exit 1
+    fi
+    rm -f /tmp/out-yarn-run.txt
+    set -e
     find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${md5sum_file}"
     rm -rf "${www_dir}/node_modules"
     rm -vf "${www_dir}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js}

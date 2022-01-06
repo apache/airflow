@@ -611,9 +611,9 @@ provider packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
-FROM apache/airflow:2.0.0
+FROM apache/airflow:2.2.3
 
-RUN pip install --upgrade --user apache-airflow-providers-google==2.0.0.rc1
+RUN pip install --user apache-airflow-providers-google==2.2.2.rc1
 
 USER ${AIRFLOW_UID}
 ```
