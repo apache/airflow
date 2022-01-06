@@ -228,7 +228,7 @@ class AthenaHook(AwsBaseHook):
             sleep(self.sleep_time)
         return final_query_state
 
-    def get_output_location(self, query_execution_id: str) -> Optional[str]:
+    def get_output_location(self, query_execution_id: str) -> str:
         """
         Function to get the output location of the query results
         in s3 uri format.
@@ -247,6 +247,8 @@ class AthenaHook(AwsBaseHook):
                 except KeyError:
                     self.log.error("Error retrieving OutputLocation")
                     raise
+            else:
+                raise
         else:
             raise ValueError("Invalid Query execution id")
 
