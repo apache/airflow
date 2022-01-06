@@ -3127,6 +3127,44 @@ class Airflow(AirflowBaseView):
         """
         return send_from_directory(current_app.static_folder, 'robots.txt')
 
+    @expose('/audit_log')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        ]
+    )
+    @provide_session
+    def audit_log(self, session=None):
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        # limit query days to avoid loading too much data
+        query_days = conf.getint('webserver', 'audit_trail_query_days')
+        included_events = conf.get('webserver', 'included_events')
+        excluded_events = conf.get('webserver', 'excluded_events')
+        query_start_dttm = timezone.utcnow() - timedelta(days=query_days)
+
+        query = session.query(Log).filter(
+            Log.dag_id == dag_id,
+            Log.dttm >= query_start_dttm,
+        )
+        if included_events:
+            included_events = [event.strip() for event in included_events.split(',')]
+            query = query.filter(Log.event.in_(included_events))
+        if excluded_events:
+            excluded_events = [event.strip() for event in excluded_events.split(',')]
+            query = query.filter(Log.event.notin_(excluded_events))
+        dag_audit_logs = query.all()
+
+        content = self.render_template(
+            'airflow/dag_audit_log.html',
+            dag=dag,
+            dag_id=dag_id,
+            dag_logs=dag_audit_logs,
+            max_query_days=query_days
+        )
+        return content
+
 
 class ConfigurationView(AirflowBaseView):
     """View to show Airflow Configurations"""
