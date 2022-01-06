@@ -70,8 +70,8 @@ class DagFileStat(NamedTuple):
 
     num_dags: int
     import_errors: int
-    last_finish_time: Optional[datetime]
-    last_duration: Optional[float]
+    last_finish_time: datetime
+    last_duration: float
     run_count: int
 
 
@@ -1043,7 +1043,11 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path in files_paths_to_queue:
             if file_path not in self._file_stats:
                 self._file_stats[file_path] = DagFileStat(
-                    num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
+                    num_dags=0,
+                    import_errors=0,
+                    last_finish_time=None,
+                    last_duration=cast(float, None),
+                    run_count=0,
                 )
 
         self._file_path_queue.extend(files_paths_to_queue)
