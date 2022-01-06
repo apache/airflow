@@ -20,14 +20,18 @@ import collections
 import datetime
 from typing import Any, Dict
 
+from sqlalchemy.orm import Session
+
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 from airflow.lineage import PIPELINE_INLETS, PIPELINE_OUTLETS
 from airflow.models.xcom import XCom
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @provide_session
-def get_lineage(dag_id: str, execution_date: datetime.datetime, *, session) -> Dict[str, Dict[str, Any]]:
+def get_lineage(
+    dag_id: str, execution_date: datetime.datetime, *, session: Session = NEW_SESSION
+) -> Dict[str, Dict[str, Any]]:
     """Gets the lineage information for dag specified."""
     dag = check_and_get_dag(dag_id)
     dagrun = check_and_get_dagrun(dag, execution_date)
