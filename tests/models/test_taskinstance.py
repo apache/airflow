@@ -483,7 +483,7 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-        "state, exception_type, retries",
+        "state, exception, retries",
         [
             (State.FAILED, AirflowException, 0),
             (State.SKIPPED, AirflowSkipException, 0),
@@ -492,21 +492,20 @@ class TestTaskInstance:
             (State.UP_FOR_RETRY, AirflowException, 1),
         ],
     )
-    def test_task_wipes_next_fields(self, session, dag_maker, state, exception_type, retries):
+    def test_task_wipes_next_fields(self, session, dag_maker, state, exception, retries):
         """
-        Test that ensures that tasks wipe their next_method and next_kwargs for the configured states:
-        FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, UP_FOR_RETRY.
+        Test that ensures that tasks wipe their next_method and next_kwargs
+        when the TI enters one of the configured states.
         """
 
-        def _raise_af_exception(exception_type):
-            if exception_type:
-                raise exception_type
+        def _raise_if_exception():
+            if exception:
+                raise exception
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-                python_callable=_raise_af_exception,
-                op_args=[exception_type],
+                python_callable=_raise_if_exception,
                 retries=retries,
                 retry_delay=datetime.timedelta(seconds=2),
             )
@@ -519,8 +518,8 @@ class TestTaskInstance:
         session.commit()
 
         ti.task = task
-        if exception_type == AirflowException:
-            with pytest.raises(AirflowException):
+        if state in [State.FAILED, State.UP_FOR_RETRY]:
+            with pytest.raises(exception):
                 ti.run()
         else:
             ti.run()
