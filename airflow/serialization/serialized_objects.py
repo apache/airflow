@@ -446,11 +446,18 @@ class BaseSerialization:
         """Serialize Params dict for a DAG/Task"""
         serialized_params = {}
         for k, v in params.items():
-            # TODO: As of now, we would allow serialization of params which are of type Param only
-            if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
+            # TODO: As of now, we would allow serialization of params which are of type Param only.
+            try:
+                class_identity = f"{v.__module__}.{v.__class__.__name__}"
+            except AttributeError:
+                class_identity = ""
+            if class_identity == "airflow.models.param.Param":
                 serialized_params[k] = cls._serialize_param(v)
             else:
-                raise ValueError('Params to a DAG or a Task can be only of type airflow.models.param.Param')
+                raise ValueError(
+                    f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
+                    f"but param {k!r} is {v.__class__}"
+                )
         return serialized_params
 
     @classmethod

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,53 +15,37 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""freespace.py for clean environment before start CI"""
-
+import hashlib
 import shlex
 import subprocess
-from typing import List
+from typing import Dict, List
 
-import click
-from rich.console import Console
-
-console = Console(force_terminal=True, color_system="standard", width=180)
-
-option_verbose = click.option(
-    "--verbose",
-    envvar='VERBOSE',
-    is_flag=True,
-    help="Print verbose information about free space steps",
-)
+from airflow_breeze.console import console
 
 
-@click.group()
-def main():
-    pass
-
-
-@option_verbose
-def run_command(cmd: List[str], verbose, *, check: bool = True, **kwargs):
+def run_command(cmd: List[str], *, check: bool = True, verbose: bool = False, **kwargs):
     if verbose:
-        console.print(f"\n[green]$ {' '.join(shlex.quote(c) for c in cmd)}[/]\n")
+        console.print(f"[blue]$ {' '.join(shlex.quote(c) for c in cmd)}")
     try:
-        subprocess.run(cmd, check=check, **kwargs)
+        return subprocess.run(cmd, check=check, **kwargs)
     except subprocess.CalledProcessError as ex:
         print("========================= OUTPUT start ============================")
         print(ex.stderr)
         print(ex.stdout)
         print("========================= OUTPUT end ============================")
+        raise
 
 
-@main.command()
-@option_verbose
-def free_space(verbose):
-    run_command(["sudo", "swapoff", "-a"], verbose)
-    run_command(["sudo", "rm", "-f", "/swapfile"], verbose)
-    run_command(["sudo", "apt", "clean", "||", "true"], verbose)
-    run_command(["docker", "system", "prune", "--all", "--force", "volumes"], verbose)
-    run_command(["df", "-h"], verbose)
-    run_command(["docker", "logout", "ghcr.io"], verbose)
+def generate_md5(filename, file_size: int = 65536):
+    hash_md5 = hashlib.md5()
+    with open(filename, "rb") as f:
+        for file_chunk in iter(lambda: f.read(file_size), b""):
+            hash_md5.update(file_chunk)
+    return hash_md5.hexdigest()
 
 
-if __name__ == '__main__':
-    main()
+def filter_out_none(**kwargs) -> Dict:
+    for key in list(kwargs):
+        if kwargs[key] is None:
+            kwargs.pop(key)
+    return kwargs
