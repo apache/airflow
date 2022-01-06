@@ -282,7 +282,7 @@ def configure_orm(disable_connection_pool=False):
 
 DEFAULT_ENGINE_ARGS = {
     'postgresql': {
-        'executemany_mode': 'batch',
+        'executemany_mode': 'values',
         'executemany_values_page_size': 10000,
         'executemany_batch_page_size': 2000,
     },
