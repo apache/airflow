@@ -489,12 +489,6 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
     To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup, but note that you will now be responsible for ensuring every single task and group has a unique ID of its own.
 
 
-While TaskGroups and SubDAGs are both used to create repeating patterns, depending on your use case, one may be better
-than the other. The SubDagOperator launches a DAG as a separate entity from the original graph. This design pattern
-offers flexibility to create SubDAGs with different schedulers and executors at the cost of greater complexity and
-maintenance burden. TaskGroups creates a UI grouping concept on the same original DAG which simplifies logic and
-maintenance for less flexibility.
-
 .. _concepts:edge-labels:
 
 Edge Labels
@@ -616,7 +610,36 @@ See ``airflow/example_dags`` for a demonstration.
 Note that :doc:`pools` are *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so
 resources could be consumed by SubdagOperators beyond any limits you may have set.
 
-For a comparision of SubDAGs and TaskGroup, see the :ref:`TaskGroup <concepts:taskgroup>` section.
+
+TaskGroups vs SubDAGs
+----------------------
+
+SubDAGs, while serving a similar purpose as TaskGroups, introduces both performance and functional issues due to its implementation.
+
+* The SubDagOperator starts a BackfillJob, which ignores existing parallelism configurations potentially oversubscribing the worker environment.
+* SubDAGs have their own DAG attributes. When the SubDAG DAG attributes are inconsistent with its parent DAG, unexpected behavior can occur.
+* Unable to see the "full" DAG in one view as SubDAGs exists as a full fledged DAG.
+* SubDAGs introduces all sorts of edge cases and caveats. This can disrupt user experience and expectation.
+
+TaskGroups, on the other hand, is a better option given that it is purely a UI grouping concept. All tasks within the TaskGroup still behave as any other tasks outside of the TaskGroup.
+
+You can see the core differences between these two constructs.
+
++--------------------------------------------------------+--------------------------------------------------------+
+| TaskGroup                                              | SubDAG                                                 |
++========================================================+========================================================+
+| Repeating patterns as part of the same DAG             |  Repeating patterns as a separate DAG                  |
++--------------------------------------------------------+--------------------------------------------------------+
+| One set of views and statistics for the DAG            |  Separate set of views and statistics between parent   |
+|                                                        |  and child DAGs                                        |
++--------------------------------------------------------+--------------------------------------------------------+
+| One set of DAG configuration                           |  Several sets of DAG configurations                    |
++--------------------------------------------------------+--------------------------------------------------------+
+| Honours parallelism configurations through existing    |  Does not honour parallelism configurations due to     |
+| SchedulerJob                                           |  newly spawned BackfillJob                             |
++--------------------------------------------------------+--------------------------------------------------------+
+| Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
++--------------------------------------------------------+--------------------------------------------------------+
 
 
 Packaging DAGs
