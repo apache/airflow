@@ -973,7 +973,7 @@ function breeze::parse_arguments() {
             echo "Clean build of images without cache"
             echo
             export DOCKER_CACHE="disabled"
-            # if not set here, docker cached is determined later, depending on type of image to be build
+            # if not set here, docker cached is determined later, depending on type of image to be built
             export FORCE_BUILD_IMAGES="true"
             shift
             ;;
@@ -988,21 +988,21 @@ function breeze::parse_arguments() {
             echo "Use local cache to build images"
             echo
             export DOCKER_CACHE="local"
-            # if not set here, docker cached is determined later, depending on type of image to be build
+            # if not set here, docker cached is determined later, depending on type of image to be built
             shift
             ;;
         -U | --build-cache-pulled)
             echo "Use pulled cache to build images"
             echo
             export DOCKER_CACHE="pulled"
-            # if not set here, docker cached is determined later, depending on type of image to be build
+            # if not set here, docker cached is determined later, depending on type of image to be built
             shift
             ;;
         -X | --build-cache-disabled)
             echo "Use disabled cache to build images"
             echo
             export DOCKER_CACHE="disabled"
-            # if not set here, docker cached is determined later, depending on type of image to be build
+            # if not set here, docker cached is determined later, depending on type of image to be built
             shift
             ;;
         -P | --force-pull-images)

@@ -645,7 +645,7 @@ python dependencies, additional Airflow extras. Breeze's ``build-image`` command
 customized variant of the image that contains everything you need.
 
 You can switch to building the production image by adding ``--production-image`` flag to the ``build_image``
-command. Note, that the images can also be build using ``docker build`` command by passing appropriate
+command. Note, that the images can also be built using ``docker build`` command by passing appropriate
 build-args as described in `IMAGES.rst <IMAGES.rst>`_ , but Breeze provides several flags that
 makes it easier to do it. You can see all the flags by running ``./breeze build-image --help``,
 but here typical examples are presented:

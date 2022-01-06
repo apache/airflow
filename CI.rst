@@ -474,7 +474,7 @@ Scheduled runs
 Those runs are results of (nightly) triggered job - only for ``main`` branch. The
 main purpose of the job is to check if there was no impact of external dependency changes on the Apache
 Airflow code (for example transitive dependencies released that fail the build). It also checks if the
-Docker images can be build from the scratch (again - to see if some dependencies have not changed - for
+Docker images can be built from the scratch (again - to see if some dependencies have not changed - for
 example downloaded package releases etc.
 
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different

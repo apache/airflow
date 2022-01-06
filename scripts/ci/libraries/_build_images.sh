@@ -111,7 +111,7 @@ function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     set +u
     if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}" >"${DETECTED_TERMINAL}"
         echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     fi
     if [[ ${ACTION} == "pull and rebuild" ]]; then
@@ -129,8 +129,8 @@ function build_images::confirm_via_terminal() {
     RES=$?
 }
 
-# Confirms if the image should be rebuild and interactively checks it with the user.
-# In case iit needs to be rebuild. It only ask the user if it determines that the rebuild
+# Confirms if the image should be rebuilt and interactively checks it with the user.
+# In case iit needs to be rebuilt. It only ask the user if it determines that the rebuild
 # is needed and that the rebuild is not already forced. It asks the user using available terminals
 # So that the script works also from within pre-commit run via git hooks - where stdin is not
 # available - it tries to find usable terminal and ask the user via this terminal.
@@ -172,7 +172,7 @@ function build_images::confirm_image_rebuild() {
         echo
         set +u
         if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}"
+            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}"
             echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}"
         fi
         echo
