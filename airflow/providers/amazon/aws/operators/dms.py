@@ -204,7 +204,7 @@ class DmsStartTaskOperator(BaseOperator):
     """
     Starts AWS DMS replication task.
 
-    .. see also::
+    .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DmsStartTaskOperator`
 
