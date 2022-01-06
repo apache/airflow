@@ -20,7 +20,7 @@ import re
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict
 from unittest import mock
 
 import pytest
@@ -33,7 +33,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 _PASSWORD = 'snowflake42'
 
-BASE_CONNECTION_KWARGS: Dict[str, Union[str, Dict[str, Union[str, Dict[str, str]]]]] = {
+BASE_CONNECTION_KWARGS: Dict = {
     'login': 'user',
     'password': 'pw',
     'schema': 'public',
