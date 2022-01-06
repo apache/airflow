@@ -223,13 +223,8 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
-          cache: 'pip'
-      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
-        run: freespace
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
@@ -301,13 +296,8 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
-          cache: 'pip'
-      - run: python -m pip install --editable ./dev/breeze
       - name: "Free space"
-        run: freespace
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         # Pull images built in the previous step

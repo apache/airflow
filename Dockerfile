@@ -43,7 +43,7 @@ ARG AIRFLOW_UID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.2.4
+ARG AIRFLOW_PIP_VERSION=21.3.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By default PIP has progress bar but you can disable it.
@@ -186,9 +186,6 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     PATH=${PATH}:/root/.local/bin \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
-    # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
-    # from the build image and always in non-editable mode
-    AIRFLOW_INSTALL_USER_FLAG="--user" \
     AIRFLOW_INSTALL_EDITABLE_FLAG="" \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
@@ -341,9 +338,6 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# As of August 2021, Debian buster-slim does not include Python2 by default and we need it
-# as we still support running Python2 via PythonVirtualenvOperator
-# TODO: Remove python2 when we stop supporting it
 ARG RUNTIME_APT_DEPS="\
        apt-transport-https \
        apt-utils \
@@ -365,7 +359,6 @@ ARG RUNTIME_APT_DEPS="\
        netcat \
        openssh-client \
        postgresql-client \
-       python2 \
        rsync \
        sasl2-bin \
        sqlite3 \

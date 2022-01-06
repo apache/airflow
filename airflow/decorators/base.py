@@ -17,12 +17,28 @@
 
 import functools
 import inspect
+import itertools
 import re
-from inspect import signature
-from typing import Any, Callable, Collection, Dict, Mapping, Optional, Sequence, Type, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Type,
+    TypeVar,
+    cast,
+)
 
+import attr
+
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
@@ -39,7 +55,7 @@ def validate_python_callable(python_callable):
     """
     if not callable(python_callable):
         raise TypeError('`python_callable` param must be callable')
-    if 'self' in signature(python_callable).parameters.keys():
+    if 'self' in inspect.signature(python_callable).parameters.keys():
         raise AirflowException('@task does not support methods')
 
 
@@ -127,7 +143,7 @@ class DecoratedOperator(BaseOperator):
         op_kwargs = op_kwargs or {}
 
         # Check that arguments can be binded
-        signature(python_callable).bind(*op_args, **op_kwargs)
+        inspect.signature(python_callable).bind(*op_args, **op_kwargs)
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
@@ -169,7 +185,7 @@ class DecoratedOperator(BaseOperator):
         python_callable = kwargs['python_callable']
         default_args = kwargs.get('default_args') or {}
         op_kwargs = kwargs.get('op_kwargs') or {}
-        f_sig = signature(python_callable)
+        f_sig = inspect.signature(python_callable)
         for arg in f_sig.parameters:
             if arg not in op_kwargs and arg in default_args:
                 op_kwargs[arg] = default_args[arg]
@@ -179,11 +195,113 @@ class DecoratedOperator(BaseOperator):
 
 T = TypeVar("T", bound=Callable)
 
+OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
+
+
+@attr.define(slots=False)
+class _TaskDecorator(Generic[T, OperatorSubclass]):
+    """
+    Helper class for providing dynamic task mapping to decorated functions.
+
+    ``task_decorator_factory`` returns an instance of this, instead of just a plain wrapped function.
+
+    :meta private:
+    """
+
+    function: T = attr.ib(validator=attr.validators.is_callable())
+    operator_class: Type[OperatorSubclass]
+    multiple_outputs: bool = attr.ib()
+    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+
+    decorator_name: str = attr.ib(repr=False, default="task")
+
+    @cached_property
+    def function_signature(self):
+        return inspect.signature(self.function)
+
+    @cached_property
+    def function_arg_names(self) -> Set[str]:
+        return set(self.function_signature.parameters)
+
+    @function.validator
+    def _validate_function(self, _, f):
+        if 'self' in self.function_arg_names:
+            raise TypeError(f'@{self.decorator_name} does not support methods')
+
+    @multiple_outputs.default
+    def _infer_multiple_outputs(self):
+        return_type = self.function_signature.return_annotation
+        ttype = getattr(return_type, "__origin__", None)
+
+        return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
+
+    def __attrs_post_init__(self):
+        self.kwargs.setdefault('task_id', self.function.__name__)
+
+    def __call__(self, *args, **kwargs) -> XComArg:
+        op = self.operator_class(
+            python_callable=self.function,
+            op_args=args,
+            op_kwargs=kwargs,
+            multiple_outputs=self.multiple_outputs,
+            **self.kwargs,
+        )
+        if self.function.__doc__:
+            op.doc_md = self.function.__doc__
+        return XComArg(op)
+
+    def _validate_arg_names(self, funcname: str, kwargs: Dict[str, Any], valid_names: Set[str] = set()):
+        unknown_args = kwargs.copy()
+        for name in itertools.chain(self.function_arg_names, valid_names):
+            unknown_args.pop(name, None)
+
+            if not unknown_args:
+                # If we have no args left ot check, we are valid
+                return
+
+        if len(unknown_args) == 1:
+            raise TypeError(f'{funcname} got unexpected keyword argument {next(iter(unknown_args))!r}')
+        else:
+            names = ", ".join(repr(n) for n in unknown_args)
+            raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
+
+    def map(
+        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+    ) -> XComArg:
+
+        dag = dag or DagContext.get_current_dag()
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
+
+        self._validate_arg_names("map", kwargs)
+
+        operator = MappedOperator(
+            operator_class=self.operator_class,
+            task_id=task_id,
+            dag=dag,
+            task_group=task_group,
+            partial_kwargs=self.kwargs,
+            # Set them to empty to bypass the validation, as for decorated stuff we validate ourselves
+            mapped_kwargs={},
+        )
+        operator.mapped_kwargs.update(kwargs)
+
+        return XComArg(operator=operator)
+
+    def partial(
+        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+    ) -> "_TaskDecorator[T, OperatorSubclass]":
+        self._validate_arg_names("partial", kwargs, {'task_id'})
+        partial_kwargs = self.kwargs.copy()
+        partial_kwargs.update(kwargs)
+        return attr.evolve(self, kwargs=partial_kwargs)
+
 
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
+    *,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Optional[Type[BaseOperator]] = None,
+    decorated_operator_class: Type[BaseOperator],
     **kwargs,
 ) -> Callable[[T], T]:
     """
@@ -202,38 +320,23 @@ def task_decorator_factory(
     :type decorated_operator_class: BaseOperator
 
     """
-    # try to infer from  type annotation
-    if python_callable and multiple_outputs is None:
-        sig = signature(python_callable).return_annotation
-        ttype = getattr(sig, "__origin__", None)
-
-        multiple_outputs = sig != inspect.Signature.empty and ttype in (dict, Dict)
-
-    def wrapper(f: T):
-        """
-        Python wrapper to generate PythonDecoratedOperator out of simple python functions.
-        Used for Airflow Decorated interface
-        """
-        validate_python_callable(f)
-        kwargs.setdefault('task_id', f.__name__)
-
-        @functools.wraps(f)
-        def factory(*args, **f_kwargs):
-            op = decorated_operator_class(
-                python_callable=f,
-                op_args=args,
-                op_kwargs=f_kwargs,
-                multiple_outputs=multiple_outputs,
-                **kwargs,
-            )
-            if f.__doc__:
-                op.doc_md = f.__doc__
-            return XComArg(op)
-
-        return cast(T, factory)
-
-    if callable(python_callable):
-        return wrapper(python_callable)
+    if multiple_outputs is None:
+        multiple_outputs = cast(bool, attr.NOTHING)
+    if python_callable:
+        return _TaskDecorator(  # type: ignore
+            function=python_callable,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        )
     elif python_callable is not None:
-        raise AirflowException('No args allowed while using @task, use kwargs instead')
-    return wrapper
+        raise TypeError('No args allowed while using @task, use kwargs instead')
+    return cast(
+        "Callable[[T], T]",
+        functools.partial(
+            _TaskDecorator,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        ),
+    )

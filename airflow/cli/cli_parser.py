@@ -30,7 +30,6 @@ from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors import celery_executor, celery_kubernetes_executor
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import ColorMode
@@ -63,10 +62,24 @@ class DefaultHelpParser(argparse.ArgumentParser):
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
                 executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
-                if not issubclass(
-                    executor_cls,
-                    (celery_executor.CeleryExecutor, celery_kubernetes_executor.CeleryKubernetesExecutor),
-                ):
+                classes = ()
+                try:
+                    from airflow.executors.celery_executor import CeleryExecutor
+
+                    classes += (CeleryExecutor,)
+                except ImportError:
+                    message = (
+                        "The celery subcommand requires that you pip install the celery module. "
+                        "To do it, run: pip install 'apache-airflow[celery]'"
+                    )
+                    raise ArgumentError(action, message)
+                try:
+                    from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+
+                    classes += (CeleryKubernetesExecutor,)
+                except ImportError:
+                    pass
+                if not issubclass(executor_cls, classes):
                     message = (
                         f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
                         f'executors derived from them, your current executor: {executor}, subclassed from: '
@@ -78,7 +91,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                 import kubernetes.client  # noqa: F401
             except ImportError:
                 message = (
-                    'The kubernetes subcommand requires that you pip install the kubernetes python client.'
+                    "The kubernetes subcommand requires that you pip install the kubernetes python client. "
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)

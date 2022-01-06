@@ -50,7 +50,6 @@ from typing import (
 import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
-from jinja2.nativetypes import NativeEnvironment
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
@@ -1287,7 +1286,7 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         if self.render_template_as_native_obj:
-            env_class: Any = NativeEnvironment
+            env_class = airflow.templates.NativeEnvironment
         else:
             env_class = airflow.templates.SandboxedEnvironment
         env: jinja2.Environment = env_class(**jinja_env_options)
@@ -1755,7 +1754,7 @@ class DAG(LoggingMixin):
             acyclic = False
             for node in list(graph_unsorted.values()):
                 for edge in node.upstream_list:
-                    if edge.task_id in graph_unsorted:
+                    if edge.node_id in graph_unsorted:
                         break
                 # no edges in upstream tasks
                 else:
@@ -2075,10 +2074,10 @@ class DAG(LoggingMixin):
         # the cut.
         subdag_task_groups = dag.task_group.get_task_group_dict()
         for group in subdag_task_groups.values():
-            group.upstream_group_ids = group.upstream_group_ids.intersection(subdag_task_groups.keys())
-            group.downstream_group_ids = group.downstream_group_ids.intersection(subdag_task_groups.keys())
-            group.upstream_task_ids = group.upstream_task_ids.intersection(dag.task_dict.keys())
-            group.downstream_task_ids = group.downstream_task_ids.intersection(dag.task_dict.keys())
+            group.upstream_group_ids.intersection_update(subdag_task_groups)
+            group.downstream_group_ids.intersection_update(subdag_task_groups)
+            group.upstream_task_ids.intersection_update(dag.task_dict)
+            group.downstream_task_ids.intersection_update(dag.task_dict)
 
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
@@ -2092,7 +2091,7 @@ class DAG(LoggingMixin):
         return dag
 
     def has_task(self, task_id: str):
-        return task_id in (t.task_id for t in self.tasks)
+        return task_id in self.task_dict
 
     def get_task(self, task_id: str, include_subdags: bool = False) -> BaseOperator:
         if task_id in self.task_dict:
@@ -2196,6 +2195,16 @@ class DAG(LoggingMixin):
         """
         for task in tasks:
             self.add_task(task)
+
+    def _remove_task(self, task_id: str) -> None:
+        # This is "private" as removing could leave a hole in dependencies if done incorrectly, and this
+        # doesn't guard against that
+        task = self.task_dict.pop(task_id)
+        tg = getattr(task, 'task_group', None)
+        if tg:
+            tg._remove(task)
+
+        self.task_count = len(self.task_dict)
 
     def run(
         self,

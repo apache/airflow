@@ -18,11 +18,10 @@
 # shellcheck disable=SC2086
 set -euo pipefail
 
-test -v UPGRADE_TO_NEWER_DEPENDENCIES
-test -v ADDITIONAL_PYTHON_DEPS
-test -v EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
-test -v AIRFLOW_INSTALL_USER_FLAG
-test -v AIRFLOW_PIP_VERSION
+: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
+: "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
+: "${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS:?Should be set}"
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -36,20 +35,19 @@ function install_additional_dependencies() {
         echo
         echo Installing additional dependencies while upgrading to newer dependencies
         echo
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
+        pip install --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         pip check
     else
         echo
         echo Installing additional dependencies upgrading only if needed
         echo
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} \
-            --upgrade --upgrade-strategy only-if-needed \
+        pip install --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PYTHON_DEPS}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         pip check
     fi
 }
@@ -57,5 +55,6 @@ function install_additional_dependencies() {
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
+common::show_pip_version_and_location
 
 install_additional_dependencies

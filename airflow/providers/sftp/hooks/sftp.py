@@ -102,14 +102,14 @@ class SFTPHook(SSHHook):
                 extra_options = conn.extra_dejson
 
                 # For backward compatibility
-                # TODO: remove in Airflow 2.1
+                # TODO: remove in the next major provider release.
 
                 if 'private_key_pass' in extra_options:
                     warnings.warn(
                         'Extra option `private_key_pass` is deprecated.'
                         'Please use `private_key_passphrase` instead.'
                         '`private_key_passphrase` will precede if both options are specified.'
-                        'The old option `private_key_pass` will be removed in Airflow 2.1',
+                        'The old option `private_key_pass` will be removed in a future release.',
                         DeprecationWarning,
                         stacklevel=2,
                     )
@@ -121,7 +121,7 @@ class SFTPHook(SSHHook):
                     warnings.warn(
                         'Extra option `ignore_hostkey_verification` is deprecated.'
                         'Please use `no_host_key_check` instead.'
-                        'This option will be removed in Airflow 2.1',
+                        'This option will be removed in a future release.',
                         DeprecationWarning,
                         stacklevel=2,
                     )

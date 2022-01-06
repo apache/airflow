@@ -61,7 +61,7 @@ from airflow.models.base import Operator
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
-from airflow.models.taskmixin import DependencyMixin
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -70,7 +70,6 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
-from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import render_template_as_native, render_template_to_string, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
@@ -89,6 +88,23 @@ TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=FunctionType)
+
+
+class _PartialDescriptor:
+    """A descriptor that guards against ``.partial`` being called on Task objects."""
+
+    class_method = None
+
+    def __get__(
+        self, obj: "BaseOperator", cls: "Optional[Type[BaseOperator]]" = None
+    ) -> Callable[..., "MappedOperator"]:
+        # Call this "partial" so it looks nicer in stack traces
+        def partial(**kwargs):
+            raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
+
+        if obj is not None:
+            return partial
+        return self.class_method.__get__(cls, cls)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -110,12 +126,13 @@ class BaseOperatorMeta(abc.ABCMeta):
         # per decoration, i.e. each function decorated using apply_defaults will
         # have a different sig_cache.
         sig_cache = signature(func)
-        non_optional_args = {
-            name
+        non_variadic_params = {
+            name: param
             for (name, param) in sig_cache.parameters.items()
-            if param.default == param.empty
-            and param.name != 'self'
-            and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+            if param.name != 'self' and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+        }
+        non_optional_args = {
+            name for (name, param) in non_variadic_params.items() if param.default == param.empty
         }
 
         class autostacklevel_warn:
@@ -139,7 +156,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             func.__globals__['warnings'] = autostacklevel_warn()
 
         @functools.wraps(func)
-        def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
+        def apply_defaults(self: "BaseOperator", *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
             from airflow.utils.task_group import TaskGroupContext
 
@@ -159,9 +176,8 @@ class BaseOperatorMeta(abc.ABCMeta):
             params = kwargs.get('params', {}) or {}
             dag_params.update(params)
 
-            default_args = {}
-            if 'default_args' in kwargs:
-                default_args = kwargs['default_args']
+            default_args = kwargs.pop('default_args', {})
+            if default_args:
                 if 'params' in default_args:
                     dag_params.update(default_args['params'])
                     del default_args['params']
@@ -181,13 +197,17 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag_params:
                 kwargs['params'] = dag_params
 
-            if default_args:
-                kwargs['default_args'] = default_args
+            hook = getattr(self, '_hook_apply_defaults', None)
+            if hook:
+                args, kwargs = hook(**kwargs, default_args=default_args)
+                default_args = kwargs.pop('default_args', {})
 
-            if hasattr(self, '_hook_apply_defaults'):
-                args, kwargs = self._hook_apply_defaults(*args, **kwargs)
+            if not hasattr(self, '_BaseOperator__init_kwargs'):
+                self._BaseOperator__init_kwargs = {}
 
-            result = func(self, *args, **kwargs)
+            result = func(self, **kwargs, default_args=default_args)
+            # Store the args passed to init -- we need them to support task.map serialzation!
+            self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
             # Here we set upstream task defined by XComArgs passed to template fields of the operator
             self.set_xcomargs_dependencies()
@@ -196,16 +216,37 @@ class BaseOperatorMeta(abc.ABCMeta):
             self._BaseOperator__instantiated = True
             return result
 
+        apply_defaults.__non_optional_args = non_optional_args  # type: ignore
+        apply_defaults.__param_names = set(non_variadic_params)  # type: ignore
+
         return cast(T, apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
+        try:
+            # Update the partial descriptor with the class method so it call call the actual function (but let
+            # subclasses override it if they need to)
+            partial_desc = vars(new_cls)['partial']
+            if isinstance(partial_desc, _PartialDescriptor):
+                actual_partial = cls.partial
+                partial_desc.class_method = classmethod(actual_partial)
+        except KeyError:
+            pass
         new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
         return new_cls
 
+    # The class level partial function. This is what handles the actual mapping
+    def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs):
+        operator_class = cast("Type[BaseOperator]", cls)
+        # Validate that the args we passed are known -- at call/DAG parse time, not run time!
+        _validate_kwarg_names_for_mapping(operator_class, "partial", kwargs)
+        return MappedOperator(
+            task_id=task_id, operator_class=operator_class, dag=dag, partial_kwargs=kwargs, mapped_kwargs={}
+        )
+
 
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperatorMeta):
+class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -452,6 +493,8 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
 
+    partial: Callable[..., "MappedOperator"] = _PartialDescriptor()  # type: ignore
+
     _comps = {
         'task_id',
         'dag_id',
@@ -480,6 +523,9 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
 
     # If True then the class constructor was called
     __instantiated = False
+    # List of args as passed to `init()`, after apply_defaults() has been updated. Used to "recreate" the task
+    # when mapping
+    __init_kwargs: Dict[str, Any]
 
     # Set to True before calling execute method
     _lock_for_execution = False
@@ -489,6 +535,22 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     # subdag parameter is only set for SubDagOperator.
     # Setting it to None by default as other Operators do not have that field
     subdag: Optional["DAG"] = None
+
+    start_date: Optional[pendulum.DateTime] = None
+    end_date: Optional[pendulum.DateTime] = None
+
+    def __new__(cls, dag: Optional['DAG'] = None, task_group: Optional["TaskGroup"] = None, **kwargs):
+        # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
+        # create mapped operators.
+        from airflow.models.dag import DagContext
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroupContext
+
+        dag = dag or DagContext.get_current_dag()
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+
+        if isinstance(task_group, MappedTaskGroup):
+            return cls.partial(dag=dag, task_group=task_group, **kwargs)
+        return super().__new__(cls)
 
     def __init__(
         self,
@@ -541,6 +603,8 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         from airflow.models.dag import DagContext
         from airflow.utils.task_group import TaskGroupContext
 
+        self.__init_kwargs = {}
+
         super().__init__()
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
@@ -575,13 +639,11 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
-        self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
             self.log.warning("start_date for %s isn't datetime.datetime", self)
         elif start_date:
             self.start_date = timezone.convert_to_utc(start_date)
 
-        self.end_date = end_date
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
 
@@ -792,6 +854,8 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         if self._lock_for_execution:
             # Skip any custom behaviour during execute
             return
+        if key in self.__init_kwargs:
+            self.__init_kwargs[key] = value
         if self.__instantiated and key in self.template_fields:
             # Resolve upstreams set by assigning an XComArg after initializing
             # an operator, example:
@@ -816,7 +880,11 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         return self._outlets
 
     @property
-    def dag(self) -> 'DAG':
+    def node_id(self):
+        return self.task_id
+
+    @property  # type: ignore[override]
+    def dag(self) -> 'DAG':  # type: ignore[override]
         """Returns the Operator's DAG if set, otherwise raises an error"""
         if self._dag:
             return self._dag
@@ -1192,19 +1260,9 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         self.prepare_template()
 
     @property
-    def upstream_list(self) -> List["BaseOperator"]:
-        """@property: list of tasks directly upstream"""
-        return [self.dag.get_task(tid) for tid in self._upstream_task_ids]
-
-    @property
     def upstream_task_ids(self) -> Set[str]:
         """@property: set of ids of tasks directly upstream"""
         return self._upstream_task_ids
-
-    @property
-    def downstream_list(self) -> List["BaseOperator"]:
-        """@property: list of tasks directly downstream"""
-        return [self.dag.get_task(tid) for tid in self._downstream_task_ids]
 
     @property
     def downstream_task_ids(self) -> Set[str]:
@@ -1374,7 +1432,7 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         else:
             return self._downstream_task_ids
 
-    def get_direct_relatives(self, upstream: bool = False) -> List["BaseOperator"]:
+    def get_direct_relatives(self, upstream: bool = False) -> Iterable["DAGNode"]:
         """
         Get list of the direct relatives to the current task, upstream or
         downstream.
@@ -1392,13 +1450,6 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         """@property: type of the task"""
         return self.__class__.__name__
 
-    def add_only_new(self, item_set: Set[str], item: str, dag_id: str) -> None:
-        """Adds only new items to item set"""
-        if item in item_set:
-            self.log.warning('Dependency %s, %s already registered for DAG: %s', self, item, dag_id)
-        else:
-            item_set.add(item)
-
     @property
     def roots(self) -> List["BaseOperator"]:
         """Required by TaskMixin"""
@@ -1408,90 +1459,6 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
     def leaves(self) -> List["BaseOperator"]:
         """Required by TaskMixin"""
         return [self]
-
-    def _set_relatives(
-        self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        upstream: bool = False,
-        edge_modifier: Optional[EdgeModifier] = None,
-    ) -> None:
-        """Sets relatives for the task or task list."""
-        if not isinstance(task_or_task_list, Sequence):
-            task_or_task_list = [task_or_task_list]
-
-        task_list: List["BaseOperator"] = []
-        for task_object in task_or_task_list:
-            task_object.update_relative(self, not upstream)
-            relatives = task_object.leaves if upstream else task_object.roots
-            for task in relatives:
-                if not isinstance(task, BaseOperator):
-                    raise AirflowException(
-                        f"Relationships can only be set between Operators; received {task.__class__.__name__}"
-                    )
-                task_list.append(task)
-
-        # relationships can only be set if the tasks share a single DAG. Tasks
-        # without a DAG are assigned to that DAG.
-        dags = {
-            task._dag.dag_id: task._dag for task in self.roots + task_list if task.has_dag()  # type: ignore
-        }
-
-        if len(dags) > 1:
-            raise AirflowException(
-                f'Tried to set relationships between tasks in more than one DAG: {dags.values()}'
-            )
-        elif len(dags) == 1:
-            dag = dags.popitem()[1]
-        else:
-            raise AirflowException(
-                f"Tried to create relationships between tasks that don't have DAGs yet. "
-                f"Set the DAG for at least one task and try again: {[self] + task_list}"
-            )
-
-        if dag and not self.has_dag():
-            # If this task does not yet have a dag, add it to the same dag as the other task and
-            # put it in the dag's root TaskGroup.
-            self.dag = dag
-            self.dag.task_group.add(self)
-
-        for task in task_list:
-            if dag and not task.has_dag():
-                # If the other task does not yet have a dag, add it to the same dag as this task and
-                # put it in the dag's root TaskGroup.
-                task.dag = dag
-                task.dag.task_group.add(task)
-            if upstream:
-                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id, self.dag.dag_id)
-                self.add_only_new(self._upstream_task_ids, task.task_id, task.dag.dag_id)
-                if edge_modifier:
-                    edge_modifier.add_edge_info(self.dag, task.task_id, self.task_id)
-            else:
-                self.add_only_new(self._downstream_task_ids, task.task_id, task.dag.dag_id)
-                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id, self.dag.dag_id)
-                if edge_modifier:
-                    edge_modifier.add_edge_info(self.dag, self.task_id, task.task_id)
-
-    def set_downstream(
-        self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        edge_modifier: Optional[EdgeModifier] = None,
-    ) -> None:
-        """
-        Set a task or a task list to be directly downstream from the current
-        task. Required by TaskMixin.
-        """
-        self._set_relatives(task_or_task_list, upstream=False, edge_modifier=edge_modifier)
-
-    def set_upstream(
-        self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        edge_modifier: Optional[EdgeModifier] = None,
-    ) -> None:
-        """
-        Set a task or a task list to be directly upstream from the current
-        task. Required by TaskMixin.
-        """
-        self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
     def output(self):
@@ -1614,8 +1581,11 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
                     'dag',
                     '_dag',
                     '_BaseOperator__instantiated',
+                    '_BaseOperator__init_kwargs',
                 }
-                | {
+                | {  # Class level defaults need to be added to this list
+                    'start_date',
+                    'end_date',
                     '_task_type',
                     'subdag',
                     'ui_color',
@@ -1658,6 +1628,118 @@ class BaseOperator(Operator, LoggingMixin, DependencyMixin, metaclass=BaseOperat
         which is caught in the main _execute_task wrapper.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    def map(self, **kwargs) -> "MappedOperator":
+        return MappedOperator.from_operator(self, kwargs)
+
+
+def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
+    if isinstance(str, cls):
+        # Serialized version -- would have been validated at parse time
+        return
+
+    # use a dict so order of args is same as code order
+    unknown_args = value.copy()
+    for clazz in cls.mro():
+        # Mypy doesn't like doing `class.__init__`, Error is: Cannot access "__init__" directly
+        init = clazz.__init__  # type: ignore
+
+        if not hasattr(init, '_BaseOperatorMeta__param_names'):
+            continue
+
+        for name in init._BaseOperatorMeta__param_names:
+            unknown_args.pop(name, None)
+
+        if not unknown_args:
+            # If we have no args left ot check: stop looking at the MRO chian
+            return
+
+    if len(unknown_args) == 1:
+        raise TypeError(
+            f'{cls.__name__}.{func_name} got unexpected keyword argument {unknown_args.popitem()[0]!r}'
+        )
+    else:
+        names = ", ".join(repr(n) for n in unknown_args)
+        raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
+
+
+@attr.define(kw_only=True)
+class MappedOperator(DAGNode):
+    """Object representing a mapped operator in a DAG"""
+
+    operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
+    task_id: str
+    partial_kwargs: Dict[str, Any]
+    mapped_kwargs: Dict[str, Any] = attr.ib(
+        validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
+    )
+    dag: Optional["DAG"] = None
+    upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
+    downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
+
+    task_group: Optional["TaskGroup"] = attr.ib(repr=False)
+    # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
+    start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
+    end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
+
+    @classmethod
+    def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
+        dag: Optional["DAG"] = getattr(operator, '_dag', None)
+        if dag:
+            # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
+            # are mapped, we want to _remove_ that task from the dag
+            dag._remove_task(operator.task_id)
+
+        return MappedOperator(
+            operator_class=type(operator),
+            task_id=operator.task_id,
+            task_group=getattr(operator, 'task_group', None),
+            dag=getattr(operator, '_dag', None),
+            start_date=operator.start_date,
+            end_date=operator.end_date,
+            partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
+            mapped_kwargs=mapped_kwargs,
+        )
+
+    def __attrs_post_init__(self):
+        if self.task_group:
+            self.task_id = self.task_group.child_id(self.task_id)
+            self.task_group.add(self)
+        if self.dag:
+            self.dag.add_task(self)
+
+    @task_group.default
+    def _default_task_group(self):
+        from airflow.utils.task_group import TaskGroupContext
+
+        return TaskGroupContext.get_current_task_group(self.dag)
+
+    @property
+    def node_id(self):
+        return self.task_id
+
+    def map(self, **kwargs) -> "MappedOperator":
+        """
+        Update the mapping parameters in place.
+
+        :return: ``self`` for easier method chaining
+        """
+        if self.mapped_kwargs:
+            raise RuntimeError("Already a mapped task")
+        return attr.evolve(self, mapped_kwargs=kwargs)
+
+    @property
+    def roots(self) -> List["MappedOperator"]:
+        """Required by TaskMixin"""
+        return [self]
+
+    @property
+    def leaves(self) -> List["MappedOperator"]:
+        """Required by TaskMixin"""
+        return [self]
+
+    def has_dag(self):
+        return self.dag is not None
 
 
 # TODO: Deprecate for Airflow 3.0

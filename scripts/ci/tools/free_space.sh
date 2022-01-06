@@ -15,22 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
-function install_mssql_client() {
-    echo
-    echo Installing mssql client
-    echo
-    curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
-    curl --silent https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
-    apt-get update -yqq
-    apt-get upgrade -yqq
-    ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends msodbcsql17 mssql-tools
-    rm -rf /var/lib/apt/lists/*
-    apt-get autoremove -yqq --purge
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-}
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# Install MsSQL client from Microsoft repositories
-if [[ ${INSTALL_MSSQL_CLIENT:="true"} == "true" ]]; then
-    install_mssql_client "${@}"
-fi
+echo "${COLOR_BLUE}Disable swap${COLOR_RESET}"
+sudo swapoff -a
+sudo rm -f /swapfile
+
+echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
+sudo apt clean || true
+
+echo "${COLOR_BLUE}Pruning docker${COLOR_RESET}"
+docker_v system prune --all --force --volumes
+
+echo "${COLOR_BLUE}Free disk space  ${COLOR_RESET}"
+df -h
+
+# always logout from the docker registry - this is necessary as we can have an expired token from
+# previous job!.
+docker_v logout "ghcr.io"
