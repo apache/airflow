@@ -71,7 +71,11 @@ class ImapHook(BaseHook):
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            self.mail_client = imaplib.IMAP4_SSL(conn.host, conn.port or imaplib.IMAP4_SSL_PORT)
+            self.mail_client = imaplib.IMAP4_SSL(
+                conn.host, conn.port or imaplib.IMAP4_SSL_PORT  # type:ignore
+            )
+            # imaplib.IMAP4_SSL() aspects port in the argument and port here is conn.port or
+            # IMAP4_SSL_PORT which is defined in the imaplib.py
             self.mail_client.login(conn.login, conn.password)
 
         return self
