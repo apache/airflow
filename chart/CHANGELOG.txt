@@ -39,7 +39,7 @@ Bug Fixes
 Doc only changes
 """"""""""""""""
 
-- Add `helm dependency update` step to chart INSTALL (#20702)
+- Add ``helm dependency update`` step to chart INSTALL (#20702)
 - Reword section covering the envvar secrets (#20566)
 - Add "Customizing Workers" page (#20331)
 - Include Datadog example in production guide (#17996)

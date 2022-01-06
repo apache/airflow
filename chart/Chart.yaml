@@ -173,7 +173,7 @@ annotations:
       links:
         - name: "#20266"
           url: https://github.com/apache/airflow/pull/20266
-    - description: 'Docs: Add `helm dependency update` step to chart INSTALL'
+    - description: "Docs: Add ``helm dependency update`` step to chart INSTALL"
       kind: changed
       links:
         - name: '#20702'
