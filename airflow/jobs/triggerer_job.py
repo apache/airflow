@@ -382,9 +382,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         # handling.
         running_trigger_ids = set(self.triggers.keys())
         known_trigger_ids = (
-            running_trigger_ids.union({x[0] for x in self.events})
+            running_trigger_ids.union(x[0] for x in self.events)
             .union(self.to_cancel)
-            .union({x[0] for x in self.to_create})
+            .union(x[0] for x in self.to_create)
             .union(self.failed_triggers)
         )
         # Work out the two difference sets
