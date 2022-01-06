@@ -233,7 +233,14 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt encrypted password for login={self.login}  "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
+            try:
+                decrypted_password = fernet.decrypt(bytes(self._password, 'utf-8')).decode()
+                return decrypted_password
+            except Exception as e:
+                log.exception(str(e))
+                raise AirflowException(
+                    f"Connection on the table with the Id: {self.conn_id} cannot be decrypted, Fernet Key used to encrypt the password was different than the current one."
+                )
         else:
             return self._password
 
