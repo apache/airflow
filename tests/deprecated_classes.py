@@ -976,7 +976,7 @@ OPERATORS = [
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
+        "airflow.providers.amazon.aws.operators.batch.BatchOperator",
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),
     (

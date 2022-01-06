@@ -27,7 +27,7 @@ An Airflow operator for AWS Batch services
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
 import warnings
-from typing import Any, Optional, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
