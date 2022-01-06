@@ -28,7 +28,8 @@ class AirflowException(Exception):
     """
     Base class for all Airflow's errors.
 
-    Each custom exception should be derived from this class.
+    An uncaught exception deriving from this class will not have its stacktrace
+    printed to the task log if raised during execution.
     """
 
     status_code = 500

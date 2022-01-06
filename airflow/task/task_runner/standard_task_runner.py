@@ -18,11 +18,13 @@
 """Standard task runner"""
 import logging
 import os
+from traceback import TracebackException
 from typing import Optional
 
 import psutil
 from setproctitle import setproctitle
 
+from airflow.exceptions import AirflowException
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.process_utils import reap_process_group
@@ -84,12 +86,29 @@ class StandardTaskRunner(BaseTaskRunner):
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
-            except Exception:
+            except Exception as exc:
                 return_code = 1
-                self.log.exception(
+                exclude_stacktrace = isinstance(exc, AirflowException)
+                if exclude_stacktrace:
+                    # Instead of including the exception info with the logging statement,
+                    # we create a custom log record and provide the filename and lineno
+                    # information from the stack frame where the exception was raised.
+                    stack = TracebackException.from_exception(exc).stack[-1]
+                    record = self.log.makeRecord(
+                        self.log.name,
+                        logging.ERROR,
+                        stack.filename,
+                        stack.lineno,
+                        "%s: %s",
+                        (type(exc).__name__, exc),
+                        None,
+                    )
+                    self.log.handle(record)
+                self.log.error(
                     "Failed to execute job %s for task %s",
                     self._task_instance.job_id,
                     self._task_instance.task_id,
+                    exc_info=exc if not exclude_stacktrace else None,
                 )
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled

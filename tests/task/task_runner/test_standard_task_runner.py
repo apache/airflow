@@ -17,8 +17,10 @@
 # under the License.
 import logging
 import os
+import re
 import time
 from logging.config import dictConfig
+from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import psutil
@@ -26,6 +28,7 @@ import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.models import taskinstance
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
@@ -40,11 +43,13 @@ TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
+TASK_FORMAT = '{{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
+
 LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'airflow.task': {'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'},
+        'airflow.task': {'format': TASK_FORMAT},
     },
     'handlers': {
         'console': {
@@ -197,7 +202,7 @@ class TestStandardTaskRunner:
         dag = dagbag.dags.get('test_on_kill')
         task = dag.get_task('task1')
 
-        with create_session() as session:
+        with create_session() as session, NamedTemporaryFile("w", delete=False) as f:
             dag.create_dagrun(
                 run_id="test",
                 state=State.RUNNING,
@@ -210,6 +215,9 @@ class TestStandardTaskRunner:
             session.commit()
 
             runner = StandardTaskRunner(job1)
+            handler = logging.StreamHandler(f)
+            handler.setFormatter(logging.Formatter(TASK_FORMAT))
+            runner.log.addHandler(handler)
             runner.start()
 
             with timeout(seconds=3):
@@ -232,6 +240,17 @@ class TestStandardTaskRunner:
             logging.info(f"Terminating processes {processes} belonging to {runner_pgid} group")
             runner.terminate()
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
+            with open(f.name) as g:
+                logged = g.read()
+            os.unlink(f.name)
+
+        m = re.search(
+            r'{{taskinstance.py:(\d+)}} ERROR - AirflowException: Task received SIGTERM signal', logged
+        )
+        assert m is not None
+        lineno = int(m.group(1))
+        line = open(taskinstance.__file__).readlines()[lineno - 1]
+        assert line.strip().startswith("raise")
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
