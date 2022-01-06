@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.s3 import S3ListPrefixesOperator  # noqa
+from airflow.providers.amazon.aws.operators.s3 import S3ListPrefixesOperator  # type: ignore # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
