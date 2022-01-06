@@ -121,7 +121,7 @@ class SFTPHook(SSHHook):
                     warnings.warn(
                         'Extra option `ignore_hostkey_verification` is deprecated.'
                         'Please use `no_host_key_check` instead.'
-                        'This option will be removed in future release',
+                        'This option will be removed in a future release.',
                         DeprecationWarning,
                         stacklevel=2,
                     )
