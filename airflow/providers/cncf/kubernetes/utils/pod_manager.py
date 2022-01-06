@@ -30,7 +30,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import Date, DateTime, Duration, Time
 from pendulum.parsing.exceptions import ParserError
-from requests.exceptions import BaseHTTPError
+from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.kube_client import get_kube_client
@@ -49,7 +49,7 @@ class PodLaunchFailedException(AirflowException):
     """When pod launching fails in KubernetesPodOperator."""
 
 
-def should_retry_start_pod(exception: Exception) -> bool:
+def should_retry_start_pod(exception: BaseException) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying"""
     if isinstance(exception, ApiException):
         return exception.status == 409
@@ -180,7 +180,7 @@ class PodManager(LoggingMixin):
             So the looping logic is there to let us resume following the logs.
         """
 
-        def follow_logs(since_time: Optional[datetime] = None) -> Optional[datetime]:
+        def follow_logs(since_time: Optional[datetime] = None) -> Union[Date, Time, Duration, datetime, None]:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -198,7 +198,7 @@ class PodManager(LoggingMixin):
                         math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
                     ),
                 )
-                for line in logs:  # type: bytes
+                for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
             except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
@@ -275,7 +275,7 @@ class PodManager(LoggingMixin):
         tail_lines: Optional[int] = None,
         timestamps: bool = False,
         since_seconds: Optional[int] = None,
-    ) -> Iterable[str]:
+    ) -> Iterable[bytes]:
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:

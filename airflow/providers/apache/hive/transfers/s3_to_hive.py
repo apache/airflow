@@ -23,7 +23,7 @@ import gzip
 import os
 import tempfile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -178,7 +178,7 @@ class S3ToHiveOperator(BaseOperator):
                 if self.delimiter:
                     option['FieldDelimiter'] = self.delimiter
 
-                input_serialization = {'CSV': option}
+                input_serialization: Dict[str, Any] = {'CSV': option}
                 if self.input_compressed:
                     input_serialization['CompressionType'] = 'GZIP'
 
