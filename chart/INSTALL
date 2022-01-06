@@ -3,7 +3,7 @@
 # The Assumption here is that you have a running Kubernetes cluster
 # and helm installed & configured to talk with the cluster
 
-# Run `helm dependency update` Command to install dependencies(postgresql)
+# Run `helm dependency update` Command to install dependencies (postgresql)
 helm dependency update
 
 # Run `helm install` Command
