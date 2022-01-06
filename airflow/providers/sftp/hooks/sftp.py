@@ -109,7 +109,7 @@ class SFTPHook(SSHHook):
                         'Extra option `private_key_pass` is deprecated.'
                         'Please use `private_key_passphrase` instead.'
                         '`private_key_passphrase` will precede if both options are specified.'
-                        'The old option `private_key_pass` will be removed in future release',
+                        'The old option `private_key_pass` will be removed in a future release.',
                         DeprecationWarning,
                         stacklevel=2,
                     )
