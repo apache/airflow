@@ -102,7 +102,7 @@ class SFTPHook(SSHHook):
                 extra_options = conn.extra_dejson
 
                 # For backward compatibility
-                # TODO: remove in next major provider release
+                # TODO: remove in the next major provider release.
 
                 if 'private_key_pass' in extra_options:
                     warnings.warn(
