@@ -43,7 +43,7 @@ ARG AIRFLOW_UID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.2.4
+ARG AIRFLOW_PIP_VERSION=21.3.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By default PIP has progress bar but you can disable it.
@@ -186,11 +186,10 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     PATH=${PATH}:/root/.local/bin \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
-    # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
-    # from the build image and always in non-editable mode
-    AIRFLOW_INSTALL_USER_FLAG="--user" \
     AIRFLOW_INSTALL_EDITABLE_FLAG="" \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
+    # By default PIP installs everything to ~/.local
+    PIP_USER="true"
 
 COPY scripts/docker/*.sh /scripts/docker/
 RUN bash ./scripts/docker/install_mysql.sh dev \
@@ -382,8 +381,6 @@ ARG BUILD_ID
 ARG COMMIT_SHA
 ARG AIRFLOW_IMAGE_REPOSITORY
 ARG AIRFLOW_IMAGE_DATE_CREATED
-# By default PIP will install everything in ~/.local
-ARG PIP_USER="true"
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -400,7 +397,8 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     BUILD_ID=${BUILD_ID} \
     COMMIT_SHA=${COMMIT_SHA} \
-    PIP_USER=${PIP_USER}
+    # By default PIP installs everything to ~/.local
+    PIP_USER="true"
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
