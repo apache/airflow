@@ -70,7 +70,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         """Placeholder for returning states with are considered failed."""
         raise NotImplementedError('Please implement failed_states() in subclass')
 
-    def get_sagemaker_response(self) -> Optional[dict]:
+    def get_sagemaker_response(self) -> dict:
         """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
