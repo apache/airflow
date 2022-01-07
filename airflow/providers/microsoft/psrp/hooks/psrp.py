@@ -18,6 +18,7 @@
 
 import re
 from contextlib import contextmanager
+from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
 from typing import Any, Dict, Optional
 from weakref import WeakKeyDictionary
@@ -46,8 +47,10 @@ class PsrpHook(BaseHook):
 
     :param psrp_conn_id: Required. The name of the PSRP connection.
     :type psrp_conn_id: str
-    :param logging: If true (default), log command output and streams during execution.
-    :type logging: bool
+    :param logging_level:
+        Logging level for message streams which are received during remote execution.
+        The default is to include all messages in the task log.
+    :type logging_level: int
     :param operation_timeout: Override the default WSMan timeout when polling the pipeline.
     :type operation_timeout: float
     :param runspace_options:
@@ -75,14 +78,14 @@ class PsrpHook(BaseHook):
     def __init__(
         self,
         psrp_conn_id: str,
-        logging: bool = True,
+        logging_level: int = DEBUG,
         operation_timeout: Optional[float] = None,
         runspace_options: Optional[Dict[str, Any]] = None,
         wsman_options: Optional[Dict[str, Any]] = None,
         exchange_keys: bool = True,
     ):
         self.conn_id = psrp_conn_id
-        self._logging = logging
+        self._logging_level = logging_level
         self._operation_timeout = operation_timeout
         self._runspace_options = runspace_options or {}
         self._wsman_options = wsman_options or {}
@@ -151,6 +154,8 @@ class PsrpHook(BaseHook):
         Context manager that yields a PowerShell object to which commands can be
         added. Upon exit, the commands will be invoked.
         """
+        logger = copy(self.log)
+        logger.setLevel(self._logging_level)
         local_context = self._conn is None
         if local_context:
             self.__enter__()
@@ -158,28 +163,28 @@ class PsrpHook(BaseHook):
             ps = PowerShell(self._conn)
             yield ps
             ps.begin_invoke()
-            if self._logging:
-                streams = [
-                    (ps.streams.debug, self._log_record),
-                    (ps.streams.error, self._log_record),
-                    (ps.streams.information, self._log_record),
-                    (ps.streams.progress, self._log_record),
-                    (ps.streams.verbose, self._log_record),
-                    (ps.streams.warning, self._log_record),
-                ]
-                offsets = [0 for _ in streams]
 
-                # We're using polling to make sure output and streams are
-                # handled while the process is running.
-                while ps.state == PSInvocationState.RUNNING:
-                    ps.poll_invoke(timeout=self._operation_timeout)
+            streams = [
+                ps.streams.debug,
+                ps.streams.error,
+                ps.streams.information,
+                ps.streams.progress,
+                ps.streams.verbose,
+                ps.streams.warning,
+            ]
+            offsets = [0 for _ in streams]
 
-                    for (i, (stream, handler)) in enumerate(streams):
-                        offset = offsets[i]
-                        while len(stream) > offset:
-                            handler(stream[offset])
-                            offset += 1
-                        offsets[i] = offset
+            # We're using polling to make sure output and streams are
+            # handled while the process is running.
+            while ps.state == PSInvocationState.RUNNING:
+                ps.poll_invoke(timeout=self._operation_timeout)
+
+                for i, stream in enumerate(streams):
+                    offset = offsets[i]
+                    while len(stream) > offset:
+                        self._log_record(logger.log, stream[offset])
+                        offset += 1
+                    offsets[i] = offset
 
             # For good measure, we'll make sure the process has
             # stopped running in any case.
@@ -205,7 +210,7 @@ class PsrpHook(BaseHook):
             ps.add_script(script)
         return ps
 
-    def _log_record(self, record):
+    def _log_record(self, log, record):
         message_type = getattr(record, "MESSAGE_TYPE", None)
 
         # There seems to be a problem with some record types; we'll assume
@@ -216,10 +221,10 @@ class PsrpHook(BaseHook):
             )
 
         if message_type == MessageType.ERROR_RECORD:
-            self.log.info("%s: %s", record.reason, record)
+            log(INFO, "%s: %s", record.reason, record)
             if record.script_stacktrace:
                 for trace in record.script_stacktrace.split('\r\n'):
-                    self.log.info(trace)
+                    log(INFO, trace)
 
         level = INFORMATIONAL_RECORD_LEVEL_MAP.get(message_type)
         if level is not None:
@@ -228,10 +233,10 @@ class PsrpHook(BaseHook):
             except BaseException as exc:
                 # See https://github.com/jborean93/pypsrp/pull/130
                 message = str(exc)
-            self.log.log(level, "%s: %s", record.command_name, message)
+            log(level, "%s: %s", record.command_name, message)
         elif message_type == MessageType.INFORMATION_RECORD:
-            self.log.info("%s (%s): %s", record.computer, record.user, record.message_data)
+            log(INFO, "%s (%s): %s", record.computer, record.user, record.message_data)
         elif message_type == MessageType.PROGRESS_RECORD:
-            self.log.info("Progress: %s (%s)", record.activity, record.description)
+            log(INFO, "Progress: %s (%s)", record.activity, record.description)
         else:
-            self.log.warning("Unsupported message type: %s", message_type)
+            log(WARNING, "Unsupported message type: %s", message_type)

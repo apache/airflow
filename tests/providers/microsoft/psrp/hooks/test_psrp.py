@@ -131,17 +131,17 @@ class TestPsrpHook(TestCase):
         with raises(AirflowException, match="Unexpected extra configuration keys: foo"):
             hook.get_conn()
 
-    @parameterized.expand([(False,), (True,)])
-    def test_invoke(self, runspace_pool, powershell, ws_man, logging):
+    @parameterized.expand([(None,), (ERROR,)])
+    def test_invoke(self, runspace_pool, powershell, ws_man, logging_level):
         runspace_options = {"connection_name": "foo"}
         wsman_options = {"encryption": "auto"}
 
-        def assert_log(method_name, *args):
-            method = getattr(call, method_name)
-            assert not (logging ^ (method(*args) in logger.method_calls))
+        options = {}
+        if logging_level is not None:
+            options["logging_level"] = logging_level
 
         with PsrpHook(
-            CONNECTION_ID, logging=logging, runspace_options=runspace_options, wsman_options=wsman_options
+            CONNECTION_ID, runspace_options=runspace_options, wsman_options=wsman_options, **options
         ) as hook, patch.object(type(hook), "log") as logger:
             try:
                 with hook.invoke() as ps:
@@ -160,33 +160,37 @@ class TestPsrpHook(TestCase):
         assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
         assert ws_man.call_args_list[0][1]["encryption"] == "auto"
+        assert logger.method_calls[0] == call.setLevel(logging_level or DEBUG)
 
-        assert_log("log", DEBUG, '%s: %s', 'command', 'debug')
-        assert_log("log", ERROR, '%s: %s', 'command', 'error')
-        assert_log("log", INFO, '%s: %s', 'command', 'verbose')
-        assert_log("log", WARNING, '%s: %s', 'command', 'warning')
-        assert_log("info", 'Progress: %s (%s)', 'activity', 'description')
-        assert_log("info", '%s (%s): %s', 'computer', 'user', 'information')
-        assert_log("info", '%s: %s', 'reason', ps.streams.error[0])
-        assert_log("info", DUMMY_STACKTRACE[0])
-        assert_log("info", DUMMY_STACKTRACE[1])
+        def assert_log(level, *args):
+            assert call.log(level, *args) in logger.method_calls
+
+        assert_log(DEBUG, '%s: %s', 'command', 'debug')
+        assert_log(ERROR, '%s: %s', 'command', 'error')
+        assert_log(INFO, '%s: %s', 'command', 'verbose')
+        assert_log(WARNING, '%s: %s', 'command', 'warning')
+        assert_log(INFO, 'Progress: %s (%s)', 'activity', 'description')
+        assert_log(INFO, '%s (%s): %s', 'computer', 'user', 'information')
+        assert_log(INFO, '%s: %s', 'reason', ps.streams.error[0])
+        assert_log(INFO, DUMMY_STACKTRACE[0])
+        assert_log(INFO, DUMMY_STACKTRACE[1])
 
         assert call('Invocation state: %s', 'Completed') in logger.info.mock_calls
 
         assert runspace_pool.call_args == call(ws_man.return_value, connection_name='foo')
 
     def test_invoke_cmdlet(self, *mocks):
-        with PsrpHook(CONNECTION_ID, logging=False) as hook:
+        with PsrpHook(CONNECTION_ID) as hook:
             ps = hook.invoke_cmdlet('foo', bar="1", baz="2")
             assert [call('foo', use_local_scope=None)] == ps.add_cmdlet.mock_calls
             assert [call({'bar': '1', 'baz': '2'})] == ps.add_parameters.mock_calls
 
     def test_invoke_powershell(self, *mocks):
-        with PsrpHook(CONNECTION_ID, logging=False) as hook:
+        with PsrpHook(CONNECTION_ID) as hook:
             ps = hook.invoke_powershell('foo')
             assert call('foo') in ps.add_script.mock_calls
 
     def test_invoke_local_context(self, *mocks):
-        hook = PsrpHook(CONNECTION_ID, logging=False)
+        hook = PsrpHook(CONNECTION_ID)
         ps = hook.invoke_powershell('foo')
         assert call('foo') in ps.add_script.mock_calls

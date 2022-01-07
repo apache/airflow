@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from logging import DEBUG
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from jinja2.nativetypes import NativeEnvironment
@@ -57,7 +58,9 @@ class PsrpOperator(BaseOperator):
     :param parameters:
         parameters to provide to cmdlet (templated). This is allowed only if
         the `cmdlet` parameter is also given.
-    :param logging: whether to log command output and streams during execution
+    :param logging_level:
+        Logging level for message streams which are received during remote execution.
+        The default is to include all messages in the task log.
     :param runspace_options:
         optional dictionary which is passed when creating the runspace pool. See
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
@@ -84,7 +87,7 @@ class PsrpOperator(BaseOperator):
         powershell: Optional[str] = None,
         cmdlet: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
-        logging: bool = True,
+        logging_level: int = DEBUG,
         runspace_options: Optional[Dict[str, Any]] = None,
         wsman_options: Optional[Dict[str, Any]] = None,
         **kwargs,
@@ -102,14 +105,14 @@ class PsrpOperator(BaseOperator):
         self.powershell = powershell
         self.cmdlet = cmdlet
         self.parameters = parameters or {}
-        self.logging = logging
+        self.logging_level = logging_level
         self.runspace_options = runspace_options
         self.wsman_options = wsman_options
 
     def execute(self, context: "Context") -> List[Any]:
         with PsrpHook(
             self.conn_id,
-            logging=self.logging,
+            logging_level=self.logging_level,
             runspace_options=self.runspace_options,
             wsman_options=self.wsman_options,
         ) as hook, hook.invoke() as ps:
