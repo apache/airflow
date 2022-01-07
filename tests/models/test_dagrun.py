@@ -840,7 +840,13 @@ class TestDagRun(unittest.TestCase):
         assert ti_failed.state in State.failed_states
 
 
-@pytest.mark.parametrize(('run_type', 'expected_tis'), [(DagRunType.MANUAL, 1), (DagRunType.BACKFILL_JOB, 2)])
+@pytest.mark.parametrize(
+    ('run_type', 'expected_tis'),
+    [
+        pytest.param(DagRunType.MANUAL, 1, id='manual'),
+        pytest.param(DagRunType.BACKFILL_JOB, 2, id='backfill'),
+    ],
+)
 @mock.patch.object(Stats, 'incr')
 def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expected_tis):
     """Test that tasks with specific start dates are only created for backfill runs"""

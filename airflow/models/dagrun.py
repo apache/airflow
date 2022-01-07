@@ -17,7 +17,7 @@
 # under the License.
 import os
 import warnings
-from collections import Counter
+from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
@@ -811,7 +811,7 @@ class DagRun(Base, LoggingMixin):
                 self.is_backfill or task.start_date <= self.execution_date
             )
 
-        created_counts: Dict[str, int] = Counter()
+        created_counts: Dict[str, int] = defaultdict(int)
 
         # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
         hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
@@ -832,8 +832,6 @@ class DagRun(Base, LoggingMixin):
 
         # Create missing tasks
         tasks = list(filter(task_filter, dag.task_dict.values()))
-        if hasattr(self, '_max_tis'):
-            del tasks[self._max_tis :]
         try:
             if hook_is_noop:
                 session.bulk_insert_mappings(TI, map(create_ti_mapping, tasks))
