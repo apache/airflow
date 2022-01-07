@@ -74,19 +74,18 @@ class SFTPHook(SSHHook):
     def __init__(
         self,
         ssh_conn_id: Optional[str] = 'sftp_default',
-        ftp_conn_id: Optional[str] = 'sftp_default',
         *args,
         **kwargs,
     ) -> None:
-
+        ftp_conn_id = kwargs.pop('ftp_conn_id', None)
         if ftp_conn_id:
             warnings.warn(
-                'Parameter `ftp_conn_id` is deprecated.' 'Please use `ssh_conn_id` instead.',
+                'Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.',
                 DeprecationWarning,
                 stacklevel=2,
             )
-            kwargs['ssh_conn_id'] = ftp_conn_id
-        self.ssh_conn_id = ssh_conn_id
+            ssh_conn_id = ftp_conn_id
+        kwargs['ssh_conn_id'] = ssh_conn_id
         super().__init__(*args, **kwargs)
 
         self.conn = None
