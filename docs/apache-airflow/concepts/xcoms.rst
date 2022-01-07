@@ -42,8 +42,8 @@ XComs are a relative of :doc:`variables`, with the main difference being that XC
 
   Note: If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
 
-Custom Backends
----------------
+Custom XCom Backends
+--------------------
 
 The XCom system has interchangeable backends, and you can set which backend is being used via the ``xcom_backend`` configuration option.
 
@@ -51,10 +51,10 @@ If you want to implement your own backend, you should subclass :class:`~airflow.
 
 There is also an ``orm_deserialize_value`` method that is called whenever the XCom objects are rendered for UI or reporting purposes; if you have large or expensive-to-retrieve values in your XComs, you should override this method to avoid calling that code (and instead return a lighter, incomplete representation) so the UI remains responsive.
 
-You can also override the ``clear`` method and use it when clearing results for given dags and tasks. This allows the custom XCom backend process the data lifecycle easier.
+You can also override the ``clear`` method and use it when clearing results for given dags and tasks. This allows the custom XCom backend to process the data lifecycle easier.
 
-Working with Custom Backends in Containers
-------------------------------------------
+Working with Custom XCom Backends in Containers
+-----------------------------------------------
 
 Depending on where Airflow is deployed i.e., local, Docker, K8s, etc. it can be useful to be assured that a custom XCom backend is actually being initialized. For example, the complexity of the container environment can make it more difficult to determine if your backend is being loaded correctly during container deployment. Luckily the following guidance can be used to assist you in building confidence in your custom XCom implementation.
 
@@ -76,11 +76,13 @@ If using env vars check  with ``env|grep  AIRFLOW__CORE__XCOM``.
 Working with Custom Backends in K8s via Helm
 --------------------------------------------
 
-Running custom XCom backends in K8s can introduce even more complexity. Put simply, sometimes things go wrong which can be difficult to debug.
+Running custom XCom backends in K8s will introduce even more complexity to you Airflow deployment. Put simply, sometimes things go wrong which can be difficult to debug.
 
 For example, if you define a custom XCom backend in the Chart ``values.yaml`` (via the ``xcom_backend`` configuration) and Airflow fails to load the class, the entire Chart deployment will fail with each pod container attempting to restart time and time again.
 
-The problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. If you are fortunate enough to query the container logs at the right time, assuming that the custom backend value used is ``xcom_custom_backend.S3XComBackend``, you may see something similar to the following::
+When deploying in K8s your custom XCom backend needs to be reside in a ``config`` directory otherwise it cannot be located during Chart deployment.
+
+An observed problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. If you are fortunate enough to query the container logs at the right time, assuming that the custom backend value used is ``xcom_custom_backend.S3XComBackend``, you may see something similar to the following::
 
     Traceback (most recent call last):
       File "/home/airflow/.local/bin/airflow", line 8, in <module>
