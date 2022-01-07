@@ -1087,7 +1087,7 @@ class SchedulerJob(BaseJob):
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-            # Send SLA & DAG Success/Failure Callbacks to be executed
+            # Send SLA Callbacks to be executed
             self._send_sla_callbacks_to_processor(dag)
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
