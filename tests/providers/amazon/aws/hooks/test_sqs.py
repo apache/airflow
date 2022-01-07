@@ -28,7 +28,7 @@ except ImportError:
 
 
 @unittest.skipIf(mock_sqs is None, 'moto sqs package missing')
-class TestAwsSqsHook(unittest.TestCase):
+class TestSqsHook(unittest.TestCase):
     @mock_sqs
     def test_get_conn(self):
         hook = SqsHook(aws_conn_id='aws_default')
