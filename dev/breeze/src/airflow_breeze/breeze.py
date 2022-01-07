@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -27,46 +25,15 @@ import click_completion
 from click import ClickException
 from click_completion import get_auto_shell
 
+from airflow_breeze.ci.build_image import build_image
 from airflow_breeze.console import console
+from airflow_breeze.utils.path_utils import __AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, find_airflow_sources_root
 from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE
 
 AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 NAME = "Breeze2"
 VERSION = "0.0.1"
-
-__AIRFLOW_SOURCES_ROOT = Path.cwd()
-
-__AIRFLOW_CFG_FILE = "setup.cfg"
-
-
-def get_airflow_sources_root():
-    return __AIRFLOW_SOURCES_ROOT
-
-
-def search_upwards_for_airflow_sources_root(start_from: Path) -> Optional[Path]:
-    root = Path(start_from.root)
-    d = start_from
-    while d != root:
-        attempt = d / __AIRFLOW_CFG_FILE
-        if attempt.exists() and "name = apache-airflow\n" in attempt.read_text():
-            return attempt.parent
-        d = d.parent
-    return None
-
-
-def find_airflow_sources_root():
-    # Try to find airflow sources in current working dir
-    airflow_sources_root = search_upwards_for_airflow_sources_root(Path.cwd())
-    if not airflow_sources_root:
-        # Or if it fails, find it in parents of the directory where the ./breeze.py is.
-        airflow_sources_root = search_upwards_for_airflow_sources_root(Path(__file__).resolve().parent)
-    global __AIRFLOW_SOURCES_ROOT
-    if airflow_sources_root:
-        __AIRFLOW_SOURCES_ROOT = airflow_sources_root
-    else:
-        console.print(f"\n[yellow]Could not find Airflow sources location. Assuming {__AIRFLOW_SOURCES_ROOT}")
-    os.chdir(__AIRFLOW_SOURCES_ROOT)
 
 
 click_completion.init()
@@ -168,7 +135,6 @@ def build_ci_image(
     upgrade_to_newer_dependencies: bool,
 ):
     """Builds docker CI image without entering the container."""
-    from airflow_breeze.ci.build_image import build_image
 
     if verbose:
         console.print(f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT}[/]\n")
@@ -189,7 +155,7 @@ def build_ci_image(
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
         docker_cache=build_cache,
-        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
+        upgrade_to_newer_dependencies=str(upgrade_to_newer_dependencies).lower(),
     )
 
 
@@ -275,7 +241,5 @@ def setup_autocomplete():
 
 
 if __name__ == '__main__':
-    from airflow_breeze.cache import BUILD_CACHE_DIR
-
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     main()
