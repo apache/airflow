@@ -40,6 +40,7 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
+ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
@@ -173,6 +174,10 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG AIRFLOW_SOURCES_FROM="empty"
 ARG AIRFLOW_SOURCES_TO="/empty"
 
+ARG AIRFLOW_HOME
+ARG AIRFLOW_USER_HOME_DIR
+ARG AIRFLOW_UID
+
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     AIRFLOW_REPO=${AIRFLOW_REPO} \
@@ -183,25 +188,39 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
     AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
-    PATH=${PATH}:/root/.local/bin \
+    PATH=${PATH}:${AIRFLOW_USER_HOME_DIR}/.local/bin \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
+    AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
+    AIRFLOW_HOME=${AIRFLOW_HOME} \
+    AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW_INSTALL_EDITABLE_FLAG="" \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
     # By default PIP installs everything to ~/.local
     PIP_USER="true"
 
-COPY scripts/docker/*.sh /scripts/docker/
+COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh  /scripts/docker/
+
 RUN bash ./scripts/docker/install_mysql.sh dev \
     && bash ./scripts/docker/install_mssql.sh
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
 
+RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+       --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
+    mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
+
+USER airflow
+
 RUN if [[ -f /docker-context-files/pip.conf ]]; then \
-        mkdir -p /root/.config/pip; \
-        cp /docker-context-files/pip.conf /root/.config/pip/pip.conf; \
+        mkdir -p ${AIRFLOW_USER_HOME_DIR}/.config/pip; \
+        cp /docker-context-files/pip.conf "${AIRFLOW_USER_HOME_DIR}/.config/pip/pip.conf"; \
     fi
+
+# Copy all scripts required for installation - changing any of those should lead to
+# rebuilding from here
+COPY --chown=airflow:0 scripts/docker/* /scripts/docker/
 
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
@@ -224,7 +243,7 @@ RUN bash /scripts/docker/install_pip_version.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
+COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -263,11 +282,11 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
-    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
-    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
+    find "${AIRFLOW_USER_HOME_DIR}/.local/" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
+    find "${AIRFLOW_USER_HOME_DIR}/.local/" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ; \
     # make sure that all directories and files in .local are also group accessible
-    find /root/.local -executable -print0 | xargs --null chmod g+x; \
-    find /root/.local -print0 | xargs --null chmod g+rw
+    find "${AIRFLOW_USER_HOME_DIR}/.local" -executable -print0 | xargs --null chmod g+x; \
+    find "${AIRFLOW_USER_HOME_DIR}/.local" -print0 | xargs --null chmod g+rw
 
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
@@ -372,7 +391,7 @@ ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
-ARG AIRFLOW_USER_HOME_DIR=/home/airflow
+ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_HOME
 # Having the variable in final image allows to disable providers manager warnings when
 # production image is prepared from sources rather than from package
@@ -431,13 +450,14 @@ RUN chmod a+x /scripts/docker/install_mysql.sh && \
     mkdir -pv "${AIRFLOW_HOME}"; \
     mkdir -pv "${AIRFLOW_HOME}/dags"; \
     mkdir -pv "${AIRFLOW_HOME}/logs"; \
-    chown -R "airflow:root" "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
+    chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
     find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x && \
         find "${AIRFLOW_HOME}" -print0 | xargs --null chmod g+rw
 
-COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
-COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
-COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
+COPY --chown=airflow:0 --from=airflow-build-image \
+     "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
+COPY --chown=airflow:0 scripts/in_container/prod/entrypoint_prod.sh /entrypoint
+COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
