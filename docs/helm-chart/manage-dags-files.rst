@@ -150,13 +150,7 @@ Then create your ssh keys:
 
 Add the public key to your private repo (under ``Settings > Deploy keys``).
 
-You have to convert the private ssh key to a base64 string. You can convert the private ssh key file like so:
-
-.. code-block:: bash
-
-    base64 <my-private-ssh-key> -w 0 > temp.txt
-
-Then copy the string from the ``temp.txt`` file. You'll add it to your ``override-values.yaml`` next.
+Then copy the string from the private key file. You'll add it to your ``override-values.yaml`` next.
 
 In this example, you will create a yaml file called ``override-values.yaml`` to override values in the
 ``values.yaml`` file, instead of using ``--set``:
