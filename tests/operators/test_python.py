@@ -17,6 +17,7 @@
 # under the License.
 import copy
 import logging
+import os
 import sys
 import unittest.mock
 import warnings
@@ -45,6 +46,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -58,6 +60,8 @@ TI_CONTEXT_ENV_VARS = [
     'AIRFLOW_CTX_EXECUTION_DATE',
     'AIRFLOW_CTX_DAG_RUN_ID',
 ]
+
+TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, 'tests', 'config_templates')
 
 
 class Call:
@@ -734,6 +738,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self.dag = DAG(
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            template_searchpath=TEMPLATE_SEARCHPATH,
             schedule_interval=INTERVAL,
         )
         self.dag.create_dagrun(
@@ -760,10 +765,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_add_dill(self):
         def f():
-            pass
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
 
-        task = self._run_as_operator(f, use_dill=True, system_site_packages=False)
-        assert 'dill' in task.requirements
+        self._run_as_operator(f, use_dill=True, system_site_packages=False)
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
@@ -809,6 +814,26 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             import funcsigs  # noqa: F401
 
         self._run_as_operator(f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
+
+    def test_requirements_file(self):
+        def f():
+            import funcsigs  # noqa: F401
+
+        self._run_as_operator(f, requirements='requirements.txt', system_site_packages=False)
+
+    def test_templated_requirements_file(self):
+        def f():
+            import funcsigs
+
+            assert funcsigs.__version__ == '1.0.2'
+
+        self._run_as_operator(
+            f,
+            requirements='requirements.txt',
+            use_dill=True,
+            params={'environ': 'templated_unit_test'},
+            system_site_packages=False,
+        )
 
     def test_fail(self):
         def f():
