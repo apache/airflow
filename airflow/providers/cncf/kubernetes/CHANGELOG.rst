@@ -39,6 +39,7 @@ cluster indefinitely.  With this release, we change the default to ``True``.
 
 Notes on changes KubernetesPodOperator and PodLauncher
 ``````````````````````````````````````````````````````
+
 .. warning:: Many methods in ``KubernetesPodOperator`` and ``PodLauncher`` have been renamed.
     If you have subclassed ``KubernetesPodOperator`` will need to update your subclass to reflect
     the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
