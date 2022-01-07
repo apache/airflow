@@ -26,17 +26,18 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+import warnings
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AwsBatchOperator(BaseOperator):
+class BatchOperator(BaseOperator):
     """
     Execute a job on AWS Batch
 
@@ -62,9 +63,9 @@ class AwsBatchOperator(BaseOperator):
         submit_job operation gets the jobId defined by AWS Batch
     :type job_id: Optional[str]
 
-    :param waiters: an :py:class:`.AwsBatchWaiters` object (see note below);
+    :param waiters: an :py:class:`.BatchWaiters` object (see note below);
         if None, polling is used with max_retries and status_retries.
-    :type waiters: Optional[AwsBatchWaiters]
+    :type waiters: Optional[BatchWaiters]
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
@@ -133,7 +134,7 @@ class AwsBatchOperator(BaseOperator):
         self.parameters = parameters or {}
         self.waiters = waiters
         self.tags = tags or {}
-        self.hook = AwsBatchClientHook(
+        self.hook = BatchClientHook(
             max_retries=max_retries,
             status_retries=status_retries,
             aws_conn_id=aws_conn_id,
@@ -202,3 +203,19 @@ class AwsBatchOperator(BaseOperator):
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)
+
+
+class AwsBatchOperator(BatchOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

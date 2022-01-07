@@ -18,7 +18,7 @@
 from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates, NodegroupStates
-from airflow.providers.amazon.aws.sensors.eks import DEFAULT_CONN_ID
+from airflow.providers.amazon.aws.sensors.eks import DEFAULT_CONN_ID  # type: ignore
 
 class EksClusterStateSensor:
     def __init__(

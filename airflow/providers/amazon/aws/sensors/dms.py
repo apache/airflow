@@ -59,8 +59,8 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.replication_task_arn = replication_task_arn
-        self.target_statuses: Optional[Iterable[str]] = target_statuses
-        self.termination_statuses: Optional[Iterable[str]] = termination_statuses
+        self.target_statuses: Iterable[str] = target_statuses or []
+        self.termination_statuses: Iterable[str] = termination_statuses or []
         self.hook: Optional[DmsHook] = None
 
     def get_hook(self) -> DmsHook:
@@ -72,7 +72,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         return self.hook
 
     def poke(self, context: 'Context'):
-        status: str = self.get_hook().get_task_status(self.replication_task_arn)
+        status: Optional[str] = self.get_hook().get_task_status(self.replication_task_arn)
 
         if not status:
             raise AirflowException(

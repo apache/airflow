@@ -18,7 +18,7 @@
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -52,29 +52,29 @@ class BatchSensor(BaseSensorOperator):
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: Optional[AwsBatchClientHook] = None
+        self.hook: Optional[BatchClientHook] = None
 
     def poke(self, context: 'Context') -> bool:
         job_description = self.get_hook().get_job_description(self.job_id)
         state = job_description['status']
 
-        if state == AwsBatchClientHook.SUCCESS_STATE:
+        if state == BatchClientHook.SUCCESS_STATE:
             return True
 
-        if state in AwsBatchClientHook.INTERMEDIATE_STATES:
+        if state in BatchClientHook.INTERMEDIATE_STATES:
             return False
 
-        if state == AwsBatchClientHook.FAILURE_STATE:
+        if state == BatchClientHook.FAILURE_STATE:
             raise AirflowException(f'Batch sensor failed. AWS Batch job status: {state}')
 
         raise AirflowException(f'Batch sensor failed. Unknown AWS Batch job status: {state}')
 
-    def get_hook(self) -> AwsBatchClientHook:
-        """Create and return a AwsBatchClientHook"""
+    def get_hook(self) -> BatchClientHook:
+        """Create and return a BatchClientHook"""
         if self.hook:
             return self.hook
 
-        self.hook = AwsBatchClientHook(
+        self.hook = BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
         )

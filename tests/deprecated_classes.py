@@ -416,7 +416,7 @@ HOOKS = [
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook',
+        'airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
@@ -976,7 +976,7 @@ OPERATORS = [
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
+        "airflow.providers.amazon.aws.operators.batch.BatchOperator",
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),
     (
@@ -1783,6 +1783,10 @@ SENSORS = [
     (
         "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor",
         "airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor",
+        "airflow.providers.amazon.aws.sensors.redshift.RedshiftClusterSensor",
     ),
 ]
 

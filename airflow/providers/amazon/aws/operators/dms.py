@@ -79,7 +79,7 @@ class DmsCreateTaskOperator(BaseOperator):
         target_endpoint_arn: str,
         replication_instance_arn: str,
         table_mappings: dict,
-        migration_type: Optional[str] = 'full-load',
+        migration_type: str = 'full-load',
         create_task_kwargs: Optional[dict] = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
@@ -210,9 +210,9 @@ class DmsStartTaskOperator(BaseOperator):
 
     :param replication_task_arn: Replication task ARN
     :type replication_task_arn: str
-    :param start_replication_task_type: Replication task start type
+    :param start_replication_task_type: Replication task start type (default='start-replication')
         ('start-replication'|'resume-processing'|'reload-target')
-    :type start_replication_task_type: Optional[str]
+    :type start_replication_task_type: str
     :param start_task_kwargs: Extra start replication task arguments
     :type start_task_kwargs: Optional[dict]
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -235,7 +235,7 @@ class DmsStartTaskOperator(BaseOperator):
         self,
         *,
         replication_task_arn: str,
-        start_replication_task_type: Optional[str] = 'start-replication',
+        start_replication_task_type: str = 'start-replication',
         start_task_kwargs: Optional[dict] = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,

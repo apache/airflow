@@ -52,8 +52,8 @@ class EmrBaseSensor(BaseSensorOperator):
     def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
-        self.target_states: Optional[Iterable[str]] = None  # will be set in subclasses
-        self.failed_states: Optional[Iterable[str]] = None  # will be set in subclasses
+        self.target_states: Iterable[str] = []  # will be set in subclasses
+        self.failed_states: Iterable[str] = []  # will be set in subclasses
         self.hook: Optional[EmrHook] = None
 
     def get_hook(self) -> EmrHook:

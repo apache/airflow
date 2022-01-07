@@ -559,7 +559,7 @@ scheduler:
   # scheduler and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
   # Airflow 2.0 allows users to run multiple schedulers,
@@ -901,7 +901,7 @@ triggerer:
   # triggerer and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
 

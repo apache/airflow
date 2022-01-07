@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AwsRedshiftClusterSensor(BaseSensorOperator):
+class RedshiftClusterSensor(BaseSensorOperator):
     """
     Waits for a Redshift cluster to reach a specific status.
 
