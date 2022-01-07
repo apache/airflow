@@ -493,7 +493,7 @@ class AirflowConfigParser(ConfigParser):
                 f'Current value: "{full_qualified_path}".'
             )
 
-    def getjson(self, section, key, fallback=_UNSET, **kwargs) -> Union[dict, list, str, int, float]:
+    def getjson(self, section, key, fallback=_UNSET, **kwargs) -> Union[dict, list, str, int, float, None]:
         """
         Return a config value parsed from a JSON string.
 
@@ -510,6 +510,9 @@ class AirflowConfigParser(ConfigParser):
             data = self.get(section=section, key=key, fallback=fallback, **kwargs)
         except (NoSectionError, NoOptionError):
             return default
+
+        if len(data) == 0:
+            return default if default is not _UNSET else None
 
         try:
             return json.loads(data)
