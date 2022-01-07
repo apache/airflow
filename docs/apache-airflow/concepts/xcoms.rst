@@ -52,3 +52,51 @@ If you want to implement your own backend, you should subclass :class:`~airflow.
 There is also an ``orm_deserialize_value`` method that is called whenever the XCom objects are rendered for UI or reporting purposes; if you have large or expensive-to-retrieve values in your XComs, you should override this method to avoid calling that code (and instead return a lighter, incomplete representation) so the UI remains responsive.
 
 You can also override the ``clear`` method and use it when clearing results for given dags and tasks. This allows the custom XCom backend process the data lifecycle easier.
+
+Working with Custom Backends in Containers
+------------------------------------------
+
+Depending on where Airflow is deployed i.e., local, Docker, K8s, etc. it can be useful to be assured that a custom XCom backend is actually being initialized. For example, the complexity of the container environment can make it more difficult to determine if your backend is being loaded correctly during container deployment. Luckily the following guidance can be used to assist you in building confidence in your custom XCom implementation.
+
+Firstly, if you can exec into a terminal in the container then you should be able to do::
+
+    from  airflow.models.xcom  import XCom
+    print(XCom.__name__)
+
+which will print the actual class that is being used.
+
+Depending on how you've configured the backend, you can also examine airflow
+configuration::
+
+    from airflow.settings import conf
+    conf.get("core", "xcom_backend")
+
+If using env vars check  with ``env|grep  AIRFLOW__CORE__XCOM``.
+
+Working with Custom Backends in K8s via Helm
+--------------------------------------------
+
+Running custom XCom backends in K8s can introduce even more complexity. Put simply, sometimes things go wrong which can be difficult to debug.
+
+For example, if you define a custom XCom backend in the Chart ``values.yaml`` (via the ``xcom_backend`` configuration) and Airflow fails to load the class, the entire Chart deployment will fail with each pod container attempting to restart time and time again.
+
+The problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. If you are fortunate enough to query the container logs at the right time, assuming that the custom backend value used is ``xcom_custom_backend.S3XComBackend``, you may see something similar to the following::
+
+    Traceback (most recent call last):
+      File "/home/airflow/.local/bin/airflow", line 8, in <module>
+        sys.exit(main())
+      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/__main__.py", line 48, in main
+        args.func(args)
+      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/cli/cli_parser.py", line 47, in command
+    ...
+        from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/models/xcom.py", line 379, in <module>
+        XCom = resolve_xcom_backend()
+      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/models/xcom.py", line 369, in resolve_xcom_backend
+        clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
+      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/configuration.py", line 485, in getimport
+        raise AirflowConfigException(
+    airflow.exceptions.AirflowConfigException: The object could not be loaded. Please check "xcom_backend" key in "core" section. Current value: "xcom_custom_backend.S3XComBackend".
+    [2022-01-06 00:02:16,880] {settings.py:331} DEBUG - Disposing DB connection pool (PID 214)
+
+As you can see, in this example the path to the custom XCom is incorrect. This in turn prevents the entire Helm chart from deploying successfully.
