@@ -44,6 +44,7 @@ from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.types import ArgNotSet
 
 try:
     # isort: off
@@ -438,7 +439,10 @@ class BaseSerialization:
                 deserialized_val = cls._deserialize(param_dict[attr])
                 kwargs[attr] = deserialized_val
             else:
-                kwargs[attr] = val
+                if isinstance(val, str) and 'airflow.utils.types.ArgNotSet' in val:
+                    kwargs[attr] = ArgNotSet()
+                else:
+                    kwargs[attr] = val
         return class_(**kwargs)
 
     @classmethod
