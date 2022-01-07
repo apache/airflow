@@ -47,7 +47,7 @@ def _trigger_dag(
     """
     dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
-    if dag_id not in dag_bag.dags:
+    if dag is None or dag_id not in dag_bag.dag_ids:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     execution_date = execution_date if execution_date else timezone.utcnow()
@@ -84,6 +84,7 @@ def _trigger_dag(
         dag_run = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
+            data_interval=(execution_date, execution_date),
             state=State.QUEUED,
             conf=run_conf,
             external_trigger=True,
