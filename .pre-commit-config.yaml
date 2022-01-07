@@ -199,7 +199,7 @@ repos:
     rev: v2.31.0
     hooks:
       - id: pyupgrade
-        args: ["--py37-plus"]
+        args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
