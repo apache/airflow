@@ -47,35 +47,31 @@ ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG AIRFLOW_PIP_VERSION=21.3.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
+# By default latest released version of airflow is installed (when empty) but this value can be overridden
+# and we can install version according to specification (For example ==2.0.2 or <3.0.0).
+ARG AIRFLOW_VERSION_SPECIFICATION=""
+
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
-
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+# Nolog bash flag is currently ignored - but you can replace it with
+# xtrace - to show commands executed)
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-# Install curl and gnupg2 - needed for many other installation steps
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           curl \
-           gnupg2 \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 ARG DEV_APT_DEPS="\
      apt-transport-https \
      apt-utils \
      build-essential \
      ca-certificates \
-     gnupg \
      dirmngr \
      freetds-bin \
      freetds-dev \
@@ -103,10 +99,13 @@ ARG DEV_APT_DEPS="\
      unixodbc \
      unixodbc-dev \
      yarn"
+
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
-    curl --fail --location https://deb.nodesource.com/setup_14.x | bash - \
-    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
+    curl --silent --fail --location https://deb.nodesource.com/setup_14.x | \
+        bash -o pipefail -o errexit -o nolog - \
+    && curl --silent https://dl.yarnpkg.com/debian/pubkey.gpg | \
+    apt-key add - >/dev/null 2>&1\
     && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
 ARG ADDITIONAL_DEV_APT_ENV=""
@@ -120,11 +119,14 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
-RUN mkdir -pv /usr/share/man/man1 \
+RUN apt-get update \
+    && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
+    && apt-get install -y --no-install-recommends curl gnupg2 \
+    && mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && export ${ADDITIONAL_DEV_APT_ENV?} \
-    && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
-    && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            ${DEV_APT_DEPS} \
@@ -153,6 +155,9 @@ ARG PIP_PROGRESS_BAR
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 # This is airflow version that is put in the label of the image build
 ARG AIRFLOW_VERSION
+# By default latest released version of airflow is installed (when empty) but this value can be overridden
+# and we can install version according to specification (For example ==2.0.2 or <3.0.0).
+ARG AIRFLOW_VERSION_SPECIFICATION
 # By default we install providers from PyPI but in case of Breeze build we want to install providers
 # from local sources without the need of preparing provider packages upfront. This value is
 # automatically overridden by Breeze scripts.
@@ -163,9 +168,6 @@ ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 # Airflow checked out together with the Dockerfile and AIRFLOW_SOURCES_FROM and AIRFLOW_SOURCES_TO
 # set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
-# By default latest released version of airflow is installed (when empty) but this value can be overridden
-# and we can install version according to specification (For example ==2.0.2 or <3.0.0).
-ARG AIRFLOW_VERSION_SPECIFICATION=""
 # By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 # By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
@@ -201,8 +203,8 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 
 COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh  /scripts/docker/
 
-RUN bash ./scripts/docker/install_mysql.sh dev \
-    && bash ./scripts/docker/install_mssql.sh
+RUN bash -o pipefail -o errexit -o nounset -o nolog ./scripts/docker/install_mysql.sh dev \
+    && bash -o pipefail -o errexit -o nounset -o nolog ./scripts/docker/install_mssql.sh
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
@@ -237,10 +239,11 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
 # Upgrade to specific PIP version
-RUN bash /scripts/docker/install_pip_version.sh; \
+RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog \
+            /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -272,15 +275,15 @@ WORKDIR /opt/airflow
 RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # only compile assets if the prod image is build from sources
         # otherwise they are already compiled-in
-        bash /scripts/docker/compile_www_assets.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/compile_www_assets.sh; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        bash /scripts/docker/install_from_docker_context_files.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        bash /scripts/docker/install_airflow.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        bash /scripts/docker/install_additional_dependencies.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find "${AIRFLOW_USER_HOME_DIR}/.local/" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
     find "${AIRFLOW_USER_HOME_DIR}/.local/" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ; \
@@ -328,7 +331,10 @@ LABEL org.apache.airflow.distro="debian" \
 # installed Airflow and all it's dependencies from the build image to make it smaller.
 ##############################################################################################
 FROM ${PYTHON_BASE_IMAGE} as main
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+# Nolog bash flag is currently ignored - but you can replace it with other flags (for example
+# xtrace - to show commands executed)
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG AIRFLOW_UID
 
@@ -350,15 +356,6 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
-# Install curl and gnupg2 - needed for many other installation steps
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           curl \
-           gnupg2 \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 ARG RUNTIME_APT_DEPS="\
        apt-transport-https \
        apt-utils \
@@ -366,7 +363,6 @@ ARG RUNTIME_APT_DEPS="\
        curl \
        dumb-init \
        freetds-bin \
-       gnupg \
        gosu \
        krb5-user \
        ldap-utils \
@@ -400,6 +396,7 @@ ARG BUILD_ID
 ARG COMMIT_SHA
 ARG AIRFLOW_IMAGE_REPOSITORY
 ARG AIRFLOW_IMAGE_DATE_CREATED
+ARG AIRFLOW_VERSION_SPECIFICATION
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -414,6 +411,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
+    AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION} \
     BUILD_ID=${BUILD_ID} \
     COMMIT_SHA=${COMMIT_SHA} \
     # By default PIP installs everything to ~/.local
@@ -422,11 +420,14 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
-RUN mkdir -pv /usr/share/man/man1 \
+RUN apt-get update \
+    && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
+    && apt-get install -y --no-install-recommends curl gnupg2 \
+    && mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
-    && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
-    && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            ${RUNTIME_APT_DEPS} \
@@ -437,14 +438,15 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 # Only copy install_m(y/s)sql and install_pip_version.sh. We do not need any other scripts in the final image.
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh scripts/docker/install_pip_version.sh \
-   /scripts/docker/
+   scripts/docker/common.sh /scripts/docker/
 
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
     chmod a+x /scripts/docker/install_mssql.sh && \
     /scripts/docker/install_mssql.sh && \
-    adduser --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
+    adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+           --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
     mkdir -pv "${AIRFLOW_HOME}"; \
@@ -463,8 +465,7 @@ COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 # See https://github.com/apache/airflow/issues/9248
 
 RUN chmod a+x /entrypoint /clean-logs && \
-    chmod g=u /etc/passwd && \
-    bash /scripts/docker/install_pip_version.sh
+    chmod g=u /etc/passwd
 
 WORKDIR ${AIRFLOW_HOME}
 
@@ -473,6 +474,8 @@ EXPOSE 8080
 RUN usermod -g 0 airflow -G 0
 
 USER ${AIRFLOW_UID}
+
+RUN /scripts/docker/install_pip_version.sh
 
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \

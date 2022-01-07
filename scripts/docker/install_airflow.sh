@@ -29,13 +29,15 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
+
 function install_airflow() {
     # Coherence check for editable installation mode.
     if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \
           ${AIRFLOW_INSTALL_EDITABLE_FLAG} == "--editable" ]]; then
         echo
-        echo "ERROR! You can only use --editable flag when installing airflow from sources!"
-        echo "       Current installation method is '${AIRFLOW_INSTALLATION_METHOD} and should be '.'"
+        echo "${COLOR_RED}ERROR! You can only use --editable flag when installing airflow from sources!${COLOR_RESET}"
+        echo "{COLOR_RED}       Current installation method is '${AIRFLOW_INSTALLATION_METHOD} and should be '.'${COLOR_RESET}"
         exit 1
     fi
     # Remove mysql from extras if client is not going to be installed
@@ -44,7 +46,7 @@ function install_airflow() {
     fi
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
         echo
-        echo Installing all packages with eager upgrade
+        echo "${COLOR_BLUE}Installing all packages with eager upgrade${COLOR_RESET}"
         echo
         # eager upgrade
         pip install --upgrade --upgrade-strategy eager \
@@ -57,13 +59,15 @@ function install_airflow() {
             pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         fi
-
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        echo
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+        echo
         pip check
     else \
         echo
-        echo Installing all packages with constraints and upgrade if needed
+        echo "${COLOR_BLUE}Installing all packages with constraints and upgrade if needed${COLOR_RESET}"
         echo
         pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
@@ -76,11 +80,15 @@ function install_airflow() {
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        echo
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+        echo
         pip check
     fi
 
 }
 
+common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location

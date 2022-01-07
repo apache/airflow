@@ -18,7 +18,9 @@
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 FROM ${PYTHON_BASE_IMAGE} as main
 
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+# Nolog bash flag is currently ignored - but you can replace it with other flags (for example
+# xtrace - to show commands executed)
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG AIRFLOW_VERSION="2.2.0.dev0"
@@ -31,24 +33,17 @@ ARG DEPENDENCIES_EPOCH_NUMBER="6"
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
-    DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
+    DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
+    INSTALL_MYSQL_CLIENT="true" \
+    INSTALL_MSSQL_CLIENT="true"
 
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}, Airflow version: ${AIRFLOW_VERSION}"
 
-# Install curl and gnupg2 - needed to download nodejs in the next step
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           curl \
-           gnupg2 \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
-    curl --fail --location https://deb.nodesource.com/setup_14.x | bash - \
-    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
+    curl --silent --fail --location https://deb.nodesource.com/setup_14.x | bash - \
+    && curl --silent --fail https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - >/dev/null 2>&1 \
     && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_ENV_VARS=""
@@ -57,16 +52,15 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-# As of August 2021, Debian buster-slim does not include Python2 by default and we need it
-# as we still support running Python2 via PythonVirtualenvOperator
-# TODO: Remove python2 when we stop supporting it
-
 # Install basic and additional apt dependencies
-RUN mkdir -pv /usr/share/man/man1 \
+RUN apt-get update \
+    && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
+    && apt-get install -y --no-install-recommends curl gnupg2 \
+    && mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && export ${ADDITIONAL_DEV_ENV_VARS?} \
-    && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
-    && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
@@ -101,18 +95,18 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/docker/*.sh /scripts/docker/
-RUN bash /scripts/docker/install_mysql.sh dev \
-    && bash /scripts/docker/install_mssql.sh \
-    && adduser airflow \
-    && echo "airflow:airflow" | chpasswd \
+# Only copy mysql/mssql installation scripts for now - so that changing the other
+# scripts which are needed much later will not invalidate the docker layer here
+COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
+RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_mysql.sh dev \
+    && bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_mssql.sh \
+    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+              --quiet "airflow" --home "/home/airflow" \
+    && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-# The latest buster images do not have libpython 2.7 installed and it is needed
-# To run virtualenv tests with python 2
 ARG RUNTIME_APT_DEPS="\
-      gnupg \
       libgcc-8-dev \
       apt-transport-https \
       bash-completion \
@@ -138,7 +132,7 @@ ARG HELM_VERSION="v3.6.3"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz" \
-    && curl --location "${HELM_URL}" | tar -xvz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
+    && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
 
 ARG ADDITIONAL_RUNTIME_APT_DEPS=""
@@ -151,7 +145,6 @@ ARG DOCKER_CLI_VERSION=19.03.9
 ARG HOME=/root
 ARG AIRFLOW_HOME=/root/airflow
 ARG AIRFLOW_SOURCES=/opt/airflow
-
 
 ENV RUNTIME_APT_DEP=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -168,8 +161,8 @@ RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && export ${ADDITIONAL_DEV_APT_ENV?} \
     && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
-    && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
-    && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       ${RUNTIME_APT_DEPS} \
@@ -177,7 +170,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz \
+    && curl --silent "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
     |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
 WORKDIR ${AIRFLOW_SOURCES}
@@ -194,7 +187,7 @@ ARG BATS_FILE_VERSION="0.2.0"
 
 RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.tar.gz -o /tmp/bats.tgz \
     && tar -zxf /tmp/bats.tgz -C /tmp \
-    && /bin/bash /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf \
+    && bash -o pipefail -o errexit -o nounset -o nolog /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf \
     && mkdir -p /opt/bats/lib/bats-support \
     && curl -sSL https://github.com/bats-core/bats-support/archive/v${BATS_SUPPORT_VERSION}.tar.gz -o /tmp/bats-support.tgz \
     && tar -zxf /tmp/bats-support.tgz -C /opt/bats/lib/bats-support --strip 1 && rm -rf /tmp/* \
@@ -276,6 +269,8 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
+COPY scripts/docker/*.sh scripts/docker/install_pip_version.sh /scripts/docker/
+
 # In case of CI builds we want to pre-install main version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
@@ -283,10 +278,12 @@ ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENT
 # are uninstalled, only dependencies remain.
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
-RUN bash /scripts/docker/install_pip_version.sh; \
+RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not valid but we can't disable them :(\e[0m\n"; \
+    echo -e "\n\e[34mSee https://github.com/pypa/pip/issues/10556 for details.\e[0m\n" ; \
+    bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -296,13 +293,6 @@ RUN head -c 30 /dev/urandom | xxd -ps >/build-cache-hash
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
-
-# Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
-# installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
-# Rather than after setup.py is added.
-COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/
-
-RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache && yarn cache clean
 
 # Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
 # This is fine as root user will be able to use those dirs anyway.
@@ -322,17 +312,16 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        bash /scripts/docker/install_airflow.sh; \
+        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_airflow.sh; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/
-COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
+COPY airflow/www/webpack.config.js airflow/www/package.json airflow/www/yarn.lock ${AIRFLOW_SOURCES}/airflow/www/
 COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
-COPY airflow/www/compile_assets.sh ${AIRFLOW_SOURCES}/airflow/www/compile_assets.sh
 
 # Package JS/css for production
-RUN bash airflow/www/compile_assets.sh
+RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/compile_www_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
@@ -342,9 +331,9 @@ COPY scripts/docker/load.bash /opt/bats/lib/
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-RUN bash /scripts/docker/install_pip_version.sh; \
+RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_pip_version.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-            bash /scripts/docker/install_additional_dependencies.sh; \
+            bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 # Install autocomplete for airflow

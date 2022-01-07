@@ -16,27 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Install airflow using regular 'pip install' command. This install airflow depending on the arguments:
-# AIRFLOW_INSTALLATION_METHOD - determines where to install airflow form:
-#             "." - installs airflow from local sources
-#             "apache-airflow" - installs airflow from PyPI 'apache-airflow' package
-# AIRFLOW_VERSION_SPECIFICATION - optional specification for Airflow version to install (
-#                                 might be ==2.0.2 for example or <3.0.0
-# UPGRADE_TO_NEWER_DEPENDENCIES - determines whether eager-upgrade should be performed with the
-#                                 dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
-#
 # shellcheck disable=SC2086
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
+
 function install_pip_version() {
+    echo
+    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
+    echo
     pip install --disable-pip-version-check --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" &&
         mkdir -p ${HOME}/.local/bin
 }
 
+common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
-common::get_constraints_location
 common::show_pip_version_and_location
 
 install_pip_version
