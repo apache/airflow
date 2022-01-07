@@ -20,7 +20,7 @@ import math
 import time
 from contextlib import closing
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 
 import pendulum
 import tenacity
@@ -28,7 +28,7 @@ from kubernetes import client, watch
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-from pendulum import Date, DateTime, Duration, Time
+from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
@@ -180,7 +180,7 @@ class PodManager(LoggingMixin):
             So the looping logic is there to let us resume following the logs.
         """
 
-        def follow_logs(since_time: Optional[datetime] = None) -> Union[Date, Time, Duration, datetime, None]:
+        def follow_logs(since_time: Optional[DateTime] = None) -> Optional[DateTime]:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -241,7 +241,7 @@ class PodManager(LoggingMixin):
             time.sleep(2)
         return remote_pod
 
-    def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
+    def parse_log_line(self, line: str) -> Tuple[Optional[DateTime], str]:
         """
         Parse K8s log line and returns the final state
 
@@ -256,7 +256,7 @@ class PodManager(LoggingMixin):
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
         try:
-            last_log_time = pendulum.parse(timestamp)
+            last_log_time = cast(DateTime, pendulum.parse(timestamp))
         except ParserError:
             self.log.error("Error parsing timestamp. Will continue execution but won't update timestamp")
             return None, line
