@@ -126,6 +126,12 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
             assert identity_dict(5, 5).operator.multiple_outputs is True
 
+            @task_decorator
+            def identity_dict_stringified(x: int, y: int) -> test_return_annotation:
+                return {"x": x, "y": y}
+
+            assert identity_dict_stringified(5, 5).operator.multiple_outputs is True
+
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
