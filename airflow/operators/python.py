@@ -262,7 +262,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         if downstream_tasks:
             dag_run = context["dag_run"]
-            execution_date = context["ti"].execution_date
+            execution_date = dag_run.execution_date
 
             if self.ignore_downstream_trigger_rules is True:
                 self.log.info("Skipping all downstream tasks...")
