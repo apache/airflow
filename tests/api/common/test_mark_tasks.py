@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy.orm import eagerload
 
 from airflow import models
-from airflow.api.common.experimental.mark_tasks import (
+from airflow.api.common.mark_tasks import (
     _create_dagruns,
     set_dag_run_state_to_failed,
     set_dag_run_state_to_running,

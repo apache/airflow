@@ -1232,7 +1232,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session: Session) -> Optional[datetime]:
+    def get_latest_execution_date(self, session: Session = NEW_SESSION) -> Optional[datetime]:
         """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
@@ -1286,10 +1286,10 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         if self.render_template_as_native_obj:
-            env_class = airflow.templates.NativeEnvironment
+            env_class: Callable[..., jinja2.Environment] = airflow.templates.NativeEnvironment
         else:
             env_class = airflow.templates.SandboxedEnvironment
-        env: jinja2.Environment = env_class(**jinja_env_options)
+        env = env_class(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
@@ -1660,7 +1660,7 @@ class DAG(LoggingMixin):
         :param past: Include all past TaskInstances of the given task_id
         :type past: bool
         """
-        from airflow.api.common.experimental.mark_tasks import set_state
+        from airflow.api.common.mark_tasks import set_state
 
         task = self.get_task(task_id)
         task.dag = self

@@ -90,10 +90,7 @@ from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
-from airflow.api.common.experimental.mark_tasks import (
-    set_dag_run_state_to_failed,
-    set_dag_run_state_to_success,
-)
+from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException
@@ -2211,7 +2208,7 @@ class Airflow(AirflowBaseView):
 
         execution_date = timezone.parse(execution_date)
 
-        from airflow.api.common.experimental.mark_tasks import set_state
+        from airflow.api.common.mark_tasks import set_state
 
         to_be_altered = set_state(
             tasks=[task],
