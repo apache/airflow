@@ -297,13 +297,12 @@ def prepare_engine_args(disable_connection_pool=False):
     default_args = {}
     for dialect, default in DEFAULT_ENGINE_ARGS.items():
         if SQL_ALCHEMY_CONN.startswith(dialect):
-            default_args = default
+            default_args = default.copy()
             break
 
-    engine_args = conf.getjson('core', 'sql_alchemy_engine_args', fallback=default_args)
+    engine_args: dict = conf.getjson('core', 'sql_alchemy_engine_args', fallback=default_args)  # type: ignore
 
-    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
-    if disable_connection_pool or not pool_connections:
+    if disable_connection_pool or not conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):

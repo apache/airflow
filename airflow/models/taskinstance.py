@@ -485,7 +485,6 @@ class TaskInstance(Base, LoggingMixin):
             'task_id': task.task_id,
             'run_id': run_id,
             '_try_number': 0,
-            'unixname': getuser(),
             'queue': task.queue,
             'pool': task.pool,
             'pool_slots': task.pool_slots,
