@@ -50,6 +50,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import callback_requests, timezone
+from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
@@ -341,11 +342,10 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(cls.dag_id.in_(dag_ids))
         if run_id:
             qry = qry.filter(cls.run_id == run_id)
-        if execution_date:
-            if isinstance(execution_date, list):
-                qry = qry.filter(cls.execution_date.in_(execution_date))
-            else:
-                qry = qry.filter(cls.execution_date == execution_date)
+        if is_container(execution_date):
+            qry = qry.filter(cls.execution_date.in_(execution_date))
+        elif execution_date:
+            qry = qry.filter(cls.execution_date == execution_date)
         if execution_start_date and execution_end_date:
             qry = qry.filter(cls.execution_date.between(execution_start_date, execution_end_date))
         elif execution_start_date:

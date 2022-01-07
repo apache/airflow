@@ -29,6 +29,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
+from airflow.timetables.base import DagRunInfo
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -44,12 +45,11 @@ __all__ = [
 
 def _create_dagruns(
     dag: DAG,
-    execution_dates: List[datetime],
+    infos: List[DagRunInfo],
     state: DagRunState,
     run_type: DagRunType,
-) -> List[DagRun]:
-    """
-    Infers from the dates which dag runs need to be created and does so.
+) -> Iterable[DagRun]:
+    """Infers from data intervals which dag runs need to be created and does so.
 
     :param dag: the dag to create dag runs for
     :param execution_dates: list of execution dates to evaluate
@@ -57,21 +57,25 @@ def _create_dagruns(
     :param run_type: The prefix will be used to construct dag run id: {run_id_prefix}__{execution_date}
     :return: newly created and existing dag runs for the execution dates supplied
     """
-    # find out if we need to create any dag runs
-    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=execution_dates)
-    dates_to_create = list(set(execution_dates) - {dag_run.execution_date for dag_run in dag_runs})
+    # Find out existing DAG runs that we don't need to create.
+    dag_runs = {
+        dag.get_run_data_interval(run): run
+        for run in DagRun.find(dag_id=dag.dag_id, execution_date=[info.logical_date for info in infos])
+    }
 
-    for date in dates_to_create:
-        dag_run = dag.create_dagrun(
-            execution_date=date,
+    for info in infos:
+        if info.data_interval in dag_runs:
+            continue
+        dag_runs[info.data_interval] = dag.create_dagrun(
+            execution_date=info.logical_date,
+            data_interval=info.data_interval,
             start_date=timezone.utcnow(),
             external_trigger=False,
             state=state,
             run_type=run_type,
         )
-        dag_runs.append(dag_run)
 
-    return dag_runs
+    return dag_runs.values()
 
 
 @provide_session
@@ -122,9 +126,10 @@ def set_state(
 
     task_ids = list(_find_task_relatives(tasks, downstream, upstream))
 
-    confirmed_dates = _verify_dag_run_integrity(dag, dates)
+    confirmed_infos = list(_verify_dag_run_integrity(dag, dates))
+    confirmed_dates = [info.logical_date for info in confirmed_infos]
 
-    sub_dag_run_ids = _get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates)
+    sub_dag_run_ids = _get_subdag_runs(dag, session, state, task_ids, commit, confirmed_infos)
 
     # now look for the task instances that are affected
 
@@ -149,7 +154,10 @@ def set_state(
 
 
 def _all_subdag_tasks_query(
-    sub_dag_run_ids: List[str], session: SASession, state: TaskInstanceState, confirmed_dates: List[datetime]
+    sub_dag_run_ids: List[str],
+    session: SASession,
+    state: TaskInstanceState,
+    confirmed_dates: Iterable[datetime],
 ):
     """Get *all* tasks of the sub dags"""
     qry_sub_dag = (
@@ -165,7 +173,7 @@ def _get_all_dag_task_query(
     session: SASession,
     state: TaskInstanceState,
     task_ids: List[str],
-    confirmed_dates: List[datetime],
+    confirmed_dates: Iterable[datetime],
 ):
     """Get all tasks of the main dag that will be affected by a state change"""
     qry_dag = (
@@ -188,7 +196,7 @@ def _get_subdag_runs(
     state: TaskInstanceState,
     task_ids: List[str],
     commit: bool,
-    confirmed_dates: List[datetime],
+    confirmed_infos: List[DagRunInfo],
 ) -> List[str]:
     """Go through subdag operators and create dag runs. We will only work
     within the scope of the subdag. We won't propagate to the parent dag,
@@ -211,7 +219,7 @@ def _get_subdag_runs(
             # dagrun.verify_integrity?
             dag_runs = _create_dagruns(
                 current_task.subdag,
-                execution_dates=confirmed_dates,
+                infos=confirmed_infos,
                 state=DagRunState.RUNNING,
                 run_type=DagRunType.BACKFILL_JOB,
             )
@@ -222,7 +230,7 @@ def _get_subdag_runs(
 
 
 def _verify_dagruns(
-    dag_runs: List[DagRun],
+    dag_runs: Iterable[DagRun],
     commit: bool,
     state: TaskInstanceState,
     session: SASession,
@@ -245,19 +253,17 @@ def _verify_dagruns(
             session.merge(dag_run)
 
 
-def _verify_dag_run_integrity(dag: DAG, dates: List[datetime]) -> List[datetime]:
+def _verify_dag_run_integrity(dag: DAG, dates: List[datetime]) -> Iterable[DagRunInfo]:
     """
     Verify the integrity of the dag runs in case a task was added or removed
     set the confirmed execution dates as they might be different
     from what was provided
     """
-    confirmed_dates = []
-    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=dates)
-    for dag_run in dag_runs:
+    for dag_run in DagRun.find(dag_id=dag.dag_id, execution_date=dates):
         dag_run.dag = dag
         dag_run.verify_integrity()
-        confirmed_dates.append(dag_run.execution_date)
-    return confirmed_dates
+        data_interval = dag.get_run_data_interval(dag_run)
+        yield DagRunInfo.interval(data_interval.start, data_interval.end)
 
 
 def _find_task_relatives(
