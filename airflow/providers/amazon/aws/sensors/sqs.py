@@ -207,8 +207,7 @@ class SQSSensor(SqsSensor):
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.",
+            "This class is deprecated. Please use `airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.",
             DeprecationWarning,
             stacklevel=2,
         )
