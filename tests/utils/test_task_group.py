@@ -689,6 +689,42 @@ def test_build_task_group_deco_context_manager():
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
 
+def test_build_task_group_depended_by_task():
+    """A decorator-based task group should be able to be used as a relative to operators."""
+
+    from airflow.decorators import dag as dag_decorator, task
+
+    @dag_decorator(start_date=pendulum.now())
+    def build_task_group_depended_by_task():
+        @task
+        def task_start():
+            return "[Task_start]"
+
+        @task
+        def task_end():
+            return "[Task_end]"
+
+        @task
+        def task_thing(value):
+            return f"[Task_thing {value}]"
+
+        @task_group_decorator
+        def section_1():
+            task_thing(1)
+            task_thing(2)
+
+        task_start() >> section_1() >> task_end()
+
+    dag = build_task_group_depended_by_task()
+    task_thing_1 = dag.task_dict["section_1.task_thing"]
+    task_thing_2 = dag.task_dict["section_1.task_thing__1"]
+
+    # Tasks in the task group don't depend on each other; they both become
+    # downstreams to task_start, and upstreams to task_end.
+    assert task_thing_1.upstream_task_ids == task_thing_2.upstream_task_ids == {"task_start"}
+    assert task_thing_1.downstream_task_ids == task_thing_2.downstream_task_ids == {"task_end"}
+
+
 def test_build_task_group_with_operators():
     """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
 
@@ -731,7 +767,7 @@ def test_build_task_group_with_operators():
         t_end = PythonOperator(task_id='task_end', python_callable=task_end, dag=dag)
         sec_1.set_downstream(t_end)
 
-    # Testing Tasks ing DAG
+    # Testing Tasks in DAG
     assert set(dag.task_group.children.keys()) == {'section_1', 'task_start', 'task_end'}
     assert set(dag.task_group.children['section_1'].children.keys()) == {
         'section_1.task_2',
