@@ -14,3 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
+
+# Reference: https://www.gitpod.io/docs/references/gitpod-yml
+# Docs: https://www.gitpod.io/docs/config-gitpod-file/
+
+tasks:
+  - init: ./breeze -y
+  - name: Install pre-commit
+    openMode: split-right
+    command: |
+      printf '%s\n' "export PIP_USER=no" >> "$HOME/.bashrc"
+      source "$HOME/.bashrc"
+      pip install pre-commit
+      pre-commit install
+      echo "for running integration test with breeze"
+
+# Ports to expose on workspace startup
+ports:
+  - port: 8000
+    onOpen: open-preview
