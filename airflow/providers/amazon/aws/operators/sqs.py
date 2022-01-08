@@ -101,7 +101,7 @@ class SQSPublishOperator(SqsPublishOperator):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This operator is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
+            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
             DeprecationWarning,
             stacklevel=2,
         )
