@@ -181,6 +181,9 @@ def task_instance_mutation_hook(task_instance):
     """
 
 
+task_instance_mutation_hook.is_noop = True  # type: ignore
+
+
 def pod_mutation_hook(pod):
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
@@ -238,10 +241,6 @@ def configure_orm(disable_connection_pool=False):
     global Session
     engine_args = prepare_engine_args(disable_connection_pool)
 
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-
     if conf.has_option('core', 'sql_alchemy_connect_args'):
         connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
     else:
@@ -284,11 +283,26 @@ def configure_orm(disable_connection_pool=False):
             session.close()
 
 
+DEFAULT_ENGINE_ARGS = {
+    'postgresql': {
+        'executemany_mode': 'values',
+        'executemany_values_page_size': 10000,
+        'executemany_batch_page_size': 2000,
+    },
+}
+
+
 def prepare_engine_args(disable_connection_pool=False):
     """Prepare SQLAlchemy engine args"""
-    engine_args = {}
-    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
-    if disable_connection_pool or not pool_connections:
+    default_args = {}
+    for dialect, default in DEFAULT_ENGINE_ARGS.items():
+        if SQL_ALCHEMY_CONN.startswith(dialect):
+            default_args = default.copy()
+            break
+
+    engine_args: dict = conf.getjson('core', 'sql_alchemy_engine_args', fallback=default_args)  # type: ignore
+
+    if disable_connection_pool or not conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
@@ -348,6 +362,10 @@ def prepare_engine_args(disable_connection_pool=False):
 
     if SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
         engine_args['isolation_level'] = 'READ COMMITTED'
+
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
+    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
 
     return engine_args
 
@@ -486,6 +504,9 @@ def import_local_settings():
             )
             globals()["task_policy"] = globals()["policy"]
             del globals()["policy"]
+
+        if not hasattr(task_instance_mutation_hook, 'is_noop'):
+            task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ModuleNotFoundError as e:
