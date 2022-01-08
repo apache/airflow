@@ -428,10 +428,12 @@ class TaskInstance(Base, LoggingMixin):
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         state: Optional[str] = None,
+        map_index: int = -1,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
+        self.map_index = map_index
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
@@ -764,6 +766,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == self.run_id,
+            TaskInstance.map_index == self.map_index,
         )
 
         if lock_for_update:
