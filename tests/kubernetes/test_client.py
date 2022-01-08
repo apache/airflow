@@ -27,14 +27,16 @@ from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keep
 
 class TestClient(unittest.TestCase):
     @mock.patch('airflow.kubernetes.kube_client.config')
-    def test_load_cluster_config(self, _):
-        client = get_kube_client(in_cluster=True)
-        assert not isinstance(client.api_client.configuration, Configuration)
+    def test_load_cluster_config(self, config):
+        get_kube_client(in_cluster=True)
+        assert config.load_incluster_config.called
+        assert config.load_kube_config.not_called
 
     @mock.patch('airflow.kubernetes.kube_client.config')
-    def test_load_file_config(self, _):
-        client = get_kube_client(in_cluster=False)
-        assert isinstance(client.api_client.configuration, Configuration)
+    def test_load_file_config(self, config):
+        get_kube_client(in_cluster=False)
+        assert config.load_incluster_config.not_called
+        assert config.load_kube_config.called
 
     def test_enable_tcp_keepalive(self):
         socket_options = [
