@@ -28,6 +28,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.1
+.....
+
+Latest change: 2022-01-04
+
+================================================================================================  ===========  ==============================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================
+`7222f68d3 <https://github.com/apache/airflow/commit/7222f68d374787f95acc7110a1165bd21e7722a1>`_  2022-01-04   ``Update Kubernetes library version (#18797)``
+================================================================================================  ===========  ==============================================
+
 3.0.0
 .....
 
@@ -36,6 +47,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  =================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
 `746ee587d <https://github.com/apache/airflow/commit/746ee587da485acdc816129fe71df23e4f024e0b>`_  2021-12-31   ``Delete pods by default in KubernetesPodOperator (#20575)``
