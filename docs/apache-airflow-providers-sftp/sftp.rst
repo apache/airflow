@@ -25,9 +25,7 @@ Using the Operator
 To start working with an operator, you need to register an SFTP \ SSH connection in Airflow Connections.
 Use ssh_conn_id to specify the name of the connection.
 
-You can use the operator for the following tasks:
-
-1. Send one file to the server with the full path
+You can use SFTPOperator for send one file to remote server
 
 .. code-block:: python
 
@@ -41,107 +39,24 @@ You can use the operator for the following tasks:
     )
 
 
-2. Send all files from local directory to remote server
+And you can use SFTPOperator for get one file from remote server to local
 
 .. code-block:: python
 
-    put_dir_files = SFTPBatchOperator(
-        task_id="put_dir_files",
+    put_file = SFTPOperator(
+        task_id="get_file",
         ssh_conn_id="ssh_default",
-        local_folder="/tmp/local_folder/",
-        remote_folder="/tmp/dir_for_remote_transfer/",
-        operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True,
-    )
-
-
-3. Send specific files from local directory to remote server
-
-.. code-block:: python
-
-    put_dir_files = SFTPBatchOperator(
-        task_id="put_dir_files",
-        ssh_conn_id="ssh_default",
-        local_files_path=[
-            "/tmp/local_folder/file1.txt",
-        ],
-        remote_folder="/tmp/dir_for_remote_transfer/",
-        operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True,
-    )
-
-
-4. Send all files from the local directory that match the specified pattern to the remote server
-
-.. code-block:: python
-
-    put_dir_txt_files = SFTPBatchOperator(
-        task_id="put_dir_txt_files",
-        ssh_conn_id="ssh_default",
-        local_folder="/tmp/local_folder/",
-        remote_folder="/tmp/dir_for_remote_transfer/",
-        regexp_mask=r".*\.txt",
-        operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True,
-    )
-
-
-5. Get specific list of files from the remote server to the local folder
-
-.. code-block:: python
-
-    put_dir_txt_files = SFTPBatchOperator(
-        task_id="put_dir_txt_files",
-        ssh_conn_id="ssh_default",
-        local_folder="/tmp/local_folder/",
-        remote_files_path=[
-            "/tmp/dir_for_remote_transfer/file1.txt",
-            "/tmp/dir_for_remote_transfer/file2.txt",
-        ],
+        local_filepath="/tmp/transfer_file/remote/put_file_file1.txt",
+        remote_filepath="/tmp/transfer_file/put_file_file1.txt",
         operation=SFTPOperation.GET,
         create_intermediate_dirs=True,
     )
 
 
-6. Get all files from the remote server to the local folder
 
-.. code-block:: python
-
-    put_dir_txt_files = SFTPBatchOperator(
-        task_id="put_dir_txt_files",
-        ssh_conn_id="ssh_default",
-        local_folder="/tmp/local_folder/",
-        remote_folder="/tmp/dir_for_remote_transfer/",
-        operation=SFTPOperation.GET,
-        create_intermediate_dirs=True,
-    )
-
-
-7. Get all files from the remote server that match the specified pattern to the local folder with overwrite files
-
-.. code-block:: python
-
-    put_dir_txt_files = SFTPBatchOperator(
-        task_id="put_dir_txt_files",
-        ssh_conn_id="ssh_default",
-        local_folder="/tmp/local_folder/",
-        remote_folder="/tmp/dir_for_remote_transfer/",
-        regexp_mask=r".*\.txt",
-        operation=SFTPOperation.GET,
-        create_intermediate_dirs=True,
-        force=True,
-    )
-
-
-
-Possible options for PUT:
-    1.optional(regexp_mask:str) + local_folder:str + remote_folder:str
-    2.local_files_path:list + remote_folder:str
-Possible options for GET:
-    1.local_folder:str + remote_folder:str + optional(regexp_mask:str)
-    2.local_folder:str + remote_files_path:list
+Parameter ``operation`` needs for position determination:
+    1.  ``SFTPOperation.GET`` or ``"GET"`` for get file from remote to local
+    2.  ``SFTPOperation.PUT`` or ``"PUT"`` for get file from local to remote
 
 Parameter ``create_intermediate_dirs`` is needed to create missing intermediate directories when
 copying from remote to local and vice-versa. Default is False.
-
-Parameter ``force`` is needed to overwrite file if it already exist. Default is False.

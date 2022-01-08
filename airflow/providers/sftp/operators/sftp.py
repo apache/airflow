@@ -22,7 +22,7 @@ from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.providers.sftp.utils.common import check_conn, make_intermediate_dirs
 
 
 class SFTPOperation:
@@ -111,7 +111,7 @@ class SFTPOperator(BaseOperator):
     def execute(self, context: Any) -> str:
         file_msg = None
         try:
-            _check_conn(self)
+            check_conn(self)
 
             with self.ssh_hook.get_conn() as ssh_client:
                 sftp_client = ssh_client.open_sftp()
@@ -125,7 +125,7 @@ class SFTPOperator(BaseOperator):
                 else:
                     remote_folder = os.path.dirname(self.remote_filepath)
                     if self.create_intermediate_dirs:
-                        _make_intermediate_dirs(
+                        make_intermediate_dirs(
                             sftp_client=sftp_client,
                             remote_directory=remote_folder,
                         )
@@ -137,46 +137,3 @@ class SFTPOperator(BaseOperator):
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
         return self.local_filepath
-
-
-def _make_intermediate_dirs(sftp_client, remote_directory) -> None:
-    """
-    Create all the intermediate directories in a remote host
-
-    :param sftp_client: A Paramiko SFTP client.
-    :param remote_directory: Absolute Path of the directory containing the file
-    :return:
-    """
-    if remote_directory == '/':
-        sftp_client.chdir('/')
-        return
-    if remote_directory == '':
-        return
-    try:
-        sftp_client.chdir(remote_directory)
-    except OSError:
-        dirname, basename = os.path.split(remote_directory.rstrip('/'))
-        _make_intermediate_dirs(sftp_client, dirname)
-        sftp_client.mkdir(basename)
-        sftp_client.chdir(basename)
-        return
-
-
-def _check_conn(obj):
-    if obj.ssh_conn_id:
-        if obj.ssh_hook and isinstance(obj.ssh_hook, SSHHook):
-            obj.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
-        else:
-            obj.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
-            obj.ssh_hook = SSHHook(ssh_conn_id=obj.ssh_conn_id)
-
-    if not obj.ssh_hook:
-        raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
-
-    if obj.remote_host is not None:
-        obj.log.info(
-            "remote_host is provided explicitly. "
-            "It will replace the remote_host which was defined "
-            "in ssh_hook or predefined in connection of ssh_conn_id."
-        )
-        obj.ssh_hook.remote_host = obj.remote_host

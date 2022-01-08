@@ -16,21 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP Batch operator."""
+import ast
 import os
 import re
 from pathlib import Path
-from typing import Any, List
+from typing import List, Optional
 
 from paramiko.sftp_client import SFTPClient
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.sftp.operators.sftp import SFTPOperation, _check_conn, _make_intermediate_dirs
+from airflow.providers.sftp.operators.sftp import SFTPOperation
+from airflow.providers.sftp.utils.common import check_conn, make_intermediate_dirs
+from airflow.utils.context import Context
 
 
 class SFTPBatchOperator(BaseOperator):
     """
-    SFTPOperator for transferring files from remote host to local or vice a versa.
+    SFTPBatchOperator for transferring files from remote host to local or vice a versa.
     This operator uses ssh_hook to open sftp transport channel that serve as basis
     for file transfer.
     :param ssh_hook: predefined ssh_hook to use for remote execution.
@@ -63,6 +66,11 @@ class SFTPBatchOperator(BaseOperator):
     :type create_intermediate_dirs: bool
     :param force: if the file already exists, it will be overwritten
     :type force: bool
+        copying from remote to local and vice-versa. Default is False.
+    :param list_as_str: if you uses xcom or string in remote_files_path or local_files_path
+        for example your xcom return "['/tmp/tmp1/batch/file1.txt']"
+        then turn use_xcom_args = True and your will be xcom transformed to list type
+    :type list_as_str: bool
         copying from remote to local and vice-versa. Default is False.
     Summary, support arguments:
         Possible options for PUT:
@@ -130,15 +138,16 @@ class SFTPBatchOperator(BaseOperator):
         ssh_hook=None,
         ssh_conn_id=None,
         remote_host=None,
-        local_files_path: list = None,
-        remote_files_path: list = None,
-        local_folder: str = None,
-        remote_folder: str = None,
+        local_files_path: Optional[List[str]] = None,
+        remote_files_path: Optional[List[str]] = None,
+        local_folder: Optional[str] = None,
+        remote_folder: Optional[str] = None,
         regexp_mask=None,
         operation=SFTPOperation.PUT,
         confirm=True,
         create_intermediate_dirs=False,
         force=False,
+        list_as_str=False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -154,65 +163,25 @@ class SFTPBatchOperator(BaseOperator):
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
         self.force = force
+        self.list_as_str = list_as_str
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
                 f"""Unsupported operation value {self.operation},
                 expected {SFTPOperation.GET} or {SFTPOperation.PUT}"""
             )
-        if not (
-            (
-                self.operation == SFTPOperation.PUT
-                and (
-                    (
-                        isinstance(self.local_folder, str)
-                        and isinstance(self.remote_folder, str)
-                        and local_files_path is None
-                        and remote_files_path is None
-                    )
-                    or (
-                        isinstance(self.local_files_path, list)
-                        and isinstance(self.remote_folder, str)
-                        and self.local_folder is None
-                        and remote_files_path is None
-                        and self.regexp_mask is None
-                    )
-                )
-            )
-            or (
-                self.operation == SFTPOperation.GET
-                and (
-                    (
-                        isinstance(self.local_folder, str)
-                        and isinstance(self.remote_folder, str)
-                        and local_files_path is None
-                        and remote_files_path is None
-                    )
-                    or (
-                        isinstance(self.local_folder, str)
-                        and isinstance(self.remote_files_path, list)
-                        and self.local_files_path is None
-                        and remote_folder is None
-                        and self.regexp_mask is None
-                    )
-                )
-            )
-        ):
-            raise TypeError(
-                """
-                Unsupported argument pool,
-                Possible options for PUT:
-                    1.optional(regexp_mask:str) + local_folder:str + remote_folder:str
-                    2.local_files_path:list + remote_folder:str
-                Possible options for GET:
-                    1.local_folder:str + remote_folder:str + optional(regexp_mask:str)
-                    2.local_folder:str + remote_files_path:list
-                """
-            )
+        if not self.list_as_str:
+            self.__check_arguments()
 
-    def execute(self, context: Any) -> str:
+    def execute(self, context: Context) -> None:
+        if self.list_as_str:
+            if self.operation == SFTPOperation.GET and isinstance(self.remote_files_path, str):
+                self.remote_files_path = ast.literal_eval(self.remote_files_path)
+            if self.operation == SFTPOperation.PUT and isinstance(self.local_files_path, str):
+                self.local_files_path = ast.literal_eval(self.local_files_path)
+            self.__check_arguments()
         dump_file_name_for_log = None
         try:
-            _check_conn(self)
+            check_conn(self)
 
             with self.ssh_hook.get_conn() as ssh_client:
                 sftp_client = ssh_client.open_sftp()
@@ -248,8 +217,6 @@ class SFTPBatchOperator(BaseOperator):
         except Exception as e:
             raise AirflowException(f"Error while transferring {dump_file_name_for_log}, error: {str(e)}")
 
-        return self.local_folder
-
     def _search_files(self, files) -> List:
         if self.regexp_mask:
             files = list(filter(re.compile(self.regexp_mask).match, files))
@@ -267,7 +234,7 @@ class SFTPBatchOperator(BaseOperator):
             sftp_client.get(remote_full_path, local_full_path)
         else:
             if self.create_intermediate_dirs:
-                _make_intermediate_dirs(
+                make_intermediate_dirs(
                     sftp_client=sftp_client,
                     remote_directory=remote_foolder,
                 )
@@ -292,3 +259,54 @@ class SFTPBatchOperator(BaseOperator):
                 )
         except FileNotFoundError:
             return False
+
+    def __check_arguments(self):
+        if not (
+            (
+                self.operation == SFTPOperation.PUT
+                and (
+                    (
+                        isinstance(self.local_folder, str)
+                        and isinstance(self.remote_folder, str)
+                        and self.local_files_path is None
+                        and self.remote_files_path is None
+                    )
+                    or (
+                        isinstance(self.local_files_path, list)
+                        and isinstance(self.remote_folder, str)
+                        and self.local_folder is None
+                        and self.remote_files_path is None
+                        and self.regexp_mask is None
+                    )
+                )
+            )
+            or (
+                self.operation == SFTPOperation.GET
+                and (
+                    (
+                        isinstance(self.local_folder, str)
+                        and isinstance(self.remote_folder, str)
+                        and self.local_files_path is None
+                        and self.remote_files_path is None
+                    )
+                    or (
+                        isinstance(self.local_folder, str)
+                        and isinstance(self.remote_files_path, list)
+                        and self.local_files_path is None
+                        and self.remote_folder is None
+                        and self.regexp_mask is None
+                    )
+                )
+            )
+        ):
+            raise TypeError(
+                """
+                Unsupported argument pool,
+                Possible options for PUT:
+                    1.optional(regexp_mask:str) + local_folder:str + remote_folder:str
+                    2.local_files_path:list + remote_folder:str
+                Possible options for GET:
+                    1.local_folder:str + remote_folder:str + optional(regexp_mask:str)
+                    2.local_folder:str + remote_files_path:list
+                """
+            )

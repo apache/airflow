@@ -620,11 +620,57 @@ class TestSFTPOperator:
             tis["get_test_task"].run()
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_use_xcom_args(self, dag_maker):
+        from airflow.models.taskinstance import TaskInstance
+
+        test_remote_file_content = b"This is remote file content"
+        pathlib.Path(self.test_remote_batch_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.test_local_batch_dir).mkdir(parents=True, exist_ok=True)
+        with open(f'{self.test_remote_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_remote_file_content)
+
+        def push_xcom(**context):
+            ti: TaskInstance = context["task_instance"]
+            ti.xcom_push(key="file_names", value=[f'{self.test_remote_batch_dir}/{self.test_txt_file}'])
+
+        with dag_maker(dag_id="test_use_xcom_args"):
+            from airflow.operators.python import PythonOperator
+
+            PythonOperator(
+                task_id="push_xcom",
+                python_callable=push_xcom,
+                provide_context=True,
+            )
+            SFTPBatchOperator(  # Get test file to remote.
+                task_id="get_test_task",
+                ssh_hook=self.hook,
+                local_folder=self.test_local_batch_dir,
+                remote_files_path="{{ task_instance.xcom_pull(task_ids='push_xcom', key='file_names') }}",
+                operation=SFTPOperation.GET,
+                create_intermediate_dirs=True,
+                list_as_str=True,
+            )
+            SSHOperator(  # Check files exists
+                task_id="read_file",
+                ssh_hook=self.hook,
+                command=fr"cat {self.test_local_batch_dir}/{self.test_txt_file}",
+                do_xcom_push=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["push_xcom"].run()
+        tis["get_test_task"].run()
+        tis["read_file"].run()
+        pulled = tis["read_file"].xcom_pull(task_ids="read_file", key='return_value')
+        assert base64.b64decode(pulled.strip().encode('ascii')) == test_remote_file_content
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_arg_batch(self, dag_maker):
 
         with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_get"):
             with pytest.raises(TypeError):
-                SFTPBatchOperator(  # Put test file to remote.
+                SFTPBatchOperator(
                     task_id="local_folder_is_not_str",
                     ssh_hook=self.hook,
                     local_folder=[
@@ -639,7 +685,7 @@ class TestSFTPOperator:
                     create_intermediate_dirs=True,
                 )
             with pytest.raises(TypeError):
-                SFTPBatchOperator(  # Put test file to remote.
+                SFTPBatchOperator(
                     task_id="local_files_path_and_remote_files_path",
                     ssh_hook=self.hook,
                     local_files_path=[
@@ -654,7 +700,7 @@ class TestSFTPOperator:
                     create_intermediate_dirs=True,
                 )
             with pytest.raises(TypeError):
-                SFTPBatchOperator(  # Put test file to remote.
+                SFTPBatchOperator(
                     task_id="local_files_path_put_with_regexp",
                     ssh_hook=self.hook,
                     local_files_path=[
@@ -667,7 +713,7 @@ class TestSFTPOperator:
                     create_intermediate_dirs=True,
                 )
             with pytest.raises(TypeError):
-                SFTPBatchOperator(  # Put test file to remote.
+                SFTPBatchOperator(
                     task_id="remote_files_path_get_with_regexp",
                     ssh_hook=self.hook,
                     local_folder=self.test_local_batch_dir,
@@ -676,6 +722,15 @@ class TestSFTPOperator:
                         f'{self.test_remote_batch_dir}/{self.test_csv2_file}',
                     ],
                     regexp_mask=".*[.]csv",
+                    operation=SFTPOperation.GET,
+                    create_intermediate_dirs=True,
+                )
+            with pytest.raises(TypeError):
+                SFTPBatchOperator(
+                    task_id="xcom_path_without_use_xcom_args_flag",
+                    ssh_hook=self.hook,
+                    local_folder=self.test_local_batch_dir,
+                    remote_files_path="{{ task_instance.xcom_pull(task_ids='push_xcom', key='file_names') }}",
                     operation=SFTPOperation.GET,
                     create_intermediate_dirs=True,
                 )
