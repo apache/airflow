@@ -39,7 +39,7 @@ class EmrHook(AwsBaseHook):
     conn_name_attr = 'emr_conn_id'
     default_conn_name = 'emr_default'
     conn_type = 'emr'
-    hook_name = 'Elastic MapReduce'
+    hook_name = 'Amazon Elastic MapReduce'
 
     def __init__(self, emr_conn_id: Optional[str] = default_conn_name, *args, **kwargs) -> None:
         self.emr_conn_id = emr_conn_id
