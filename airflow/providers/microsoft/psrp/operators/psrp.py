@@ -46,7 +46,8 @@ class PsrpOperator(BaseOperator):
     serialization into a `System.Security.SecureString` (applicable only
     for DAGs which have `render_template_as_native_obj=True`).
 
-    The command output is converted to JSON by PowerShell such that the operator
+    If `do_xcom_push` is enabled, the command output is converted to JSON by
+    PowerShell using the 'ConvertTo-JSON' cmdlet such that the operator
     return value is serializable to an XCom value.
 
     :param psrp_conn_id: connection id
@@ -123,12 +124,13 @@ class PsrpOperator(BaseOperator):
                 ps.add_script(f"cmd.exe /c @'\n{self.command}\n'@")
             else:
                 ps.add_script(self.powershell)
-            ps.add_cmdlet("ConvertTo-Json")
+            if self.do_xcom_push:
+                ps.add_cmdlet("ConvertTo-Json")
 
         if ps.had_errors:
             raise AirflowException("Process failed")
 
-        return [json.loads(output) for output in ps.output]
+        return [json.loads(output) for output in ps.output] if self.do_xcom_push else ps.output
 
     def get_template_env(self):
         # Create a template environment overlay in order to leave the underlying

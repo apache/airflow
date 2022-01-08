@@ -60,15 +60,18 @@ class TestPsrpOperator(TestCase):
                     ExecuteParameter("cmdlet", "add_cmdlet", {"bar": "baz"}),
                 ],
                 [False, True],
+                [False, True],
             )
         )
     )
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
-    def test_execute(self, parameter, had_errors, hook):
+    def test_execute(self, parameter, had_errors, do_xcom_push, hook):
         kwargs = {parameter.name: "foo"}
         if parameter[2]:
             kwargs["parameters"] = parameter.expected_parameters
-        op = PsrpOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID, **kwargs)
+        op = PsrpOperator(
+            task_id='test_task_id', psrp_conn_id=CONNECTION_ID, do_xcom_push=do_xcom_push, **kwargs
+        )
         hook = hook.return_value.__enter__.return_value
         ps = hook.invoke().__enter__.return_value
         ps.output = [json.dumps("<output>")]
@@ -79,13 +82,14 @@ class TestPsrpOperator(TestCase):
                 op.execute(None)
         else:
             output = op.execute(None)
-            assert output == [json.loads(output) for output in ps.output]
+            assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
         if parameter.expected_parameters:
-            assert ps.mock_calls == [
-                call.add_cmdlet('foo'),
-                call.add_parameters({'bar': 'baz'}),
-                call.add_cmdlet('ConvertTo-Json'),
-            ]
+            expected_ps_calls = [call.add_cmdlet('foo'), call.add_parameters({'bar': 'baz'})]
+            if do_xcom_push:
+                expected_ps_calls.append(
+                    call.add_cmdlet('ConvertTo-Json'),
+                )
+            assert ps.mock_calls == expected_ps_calls
 
     def test_securestring_sandboxed(self):
         op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
