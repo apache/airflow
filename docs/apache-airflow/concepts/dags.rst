@@ -582,14 +582,12 @@ Note that SubDAG operators should contain a factory method that returns a DAG ob
     :start-after: [START subdag]
     :end-before: [END subdag]
 
-
 This SubDAG can then be referenced in your main DAG file:
 
 .. exampleinclude:: /../../airflow/example_dags/example_subdag_operator.py
     :language: python
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
-
 
 You can zoom into a :class:`~airflow.operators.subdag.SubDagOperator` from the graph view of the main DAG to show the tasks contained within the SubDAG:
 
@@ -607,8 +605,11 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
-Note that :doc:`pools` are *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so
-resources could be consumed by SubdagOperators beyond any limits you may have set.
+
+.. note::
+
+    Parallelism is *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so resources could be consumed by SubdagOperators beyond any limits you may have set.
+
 
 
 TaskGroups vs SubDAGs
@@ -640,6 +641,11 @@ You can see the core differences between these two constructs.
 +--------------------------------------------------------+--------------------------------------------------------+
 | Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
 +--------------------------------------------------------+--------------------------------------------------------+
+
+.. note::
+
+    SubDAG is deprecated hence TaskGroup is always the preferred choice.
+
 
 
 Packaging DAGs
