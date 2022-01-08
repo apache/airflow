@@ -60,6 +60,8 @@ Depending on where Airflow is deployed i.e., local, Docker, K8s, etc. it can be 
 
 Firstly, if you can exec into a terminal in the container then you should be able to do::
 
+.. code-block:: python
+
     from  airflow.models.xcom  import XCom
     print(XCom.__name__)
 
@@ -67,6 +69,8 @@ which will print the actual class that is being used.
 
 Depending on how you've configured the backend, you can also examine airflow
 configuration::
+
+.. code-block:: python
 
     from airflow.settings import conf
     conf.get("core", "xcom_backend")
@@ -83,6 +87,8 @@ For example, if you define a custom XCom backend in the Chart ``values.yaml`` (v
 When deploying in K8s your custom XCom backend needs to be reside in a ``config`` directory otherwise it cannot be located during Chart deployment.
 
 An observed problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. If you are fortunate enough to query the container logs at the right time, assuming that the custom backend value used is ``xcom_custom_backend.S3XComBackend``, you may see something similar to the following::
+
+.. code-block:: python
 
     Traceback (most recent call last):
       File "/home/airflow/.local/bin/airflow", line 8, in <module>
