@@ -24,9 +24,9 @@ Create Date: 2021-12-13 22:59:41.052584
 """
 
 from alembic import op
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, String
+from sqlalchemy import Column, ForeignKeyConstraint, Integer
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 # Revision identifiers, used by Alembic.
@@ -71,9 +71,9 @@ def upgrade():
     # Create task_map.
     op.create_table(
         "task_map",
-        Column("dag_id", String(250, **COLLATION_ARGS), primary_key=True),
-        Column("task_id", String(250, **COLLATION_ARGS), primary_key=True),
-        Column("run_id", String(250, **COLLATION_ARGS), primary_key=True),
+        Column("dag_id", StringID(), primary_key=True),
+        Column("task_id", StringID(), primary_key=True),
+        Column("run_id", StringID(), primary_key=True),
         Column("map_index", Integer, primary_key=True),
         Column("length", Integer, nullable=False),
         Column("keys", ExtendedJSON, nullable=True),
