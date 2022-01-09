@@ -15,15 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
 import click
+import click_completion
 from click import ClickException
+from click_completion import get_auto_shell
 
 from airflow_breeze.console import console
 from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE
+
+AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 NAME = "Breeze2"
 VERSION = "0.0.1"
@@ -60,6 +67,9 @@ def find_airflow_sources_root():
     else:
         console.print(f"\n[yellow]Could not find Airflow sources location. Assuming {__AIRFLOW_SOURCES_ROOT}")
     os.chdir(__AIRFLOW_SOURCES_ROOT)
+
+
+click_completion.init()
 
 
 @click.group()
@@ -190,6 +200,78 @@ def build_prod_image(verbose: bool):
     if verbose:
         console.print("\n[blue]Building image[/]\n")
     raise ClickException("\nPlease implement building the Production image\n")
+
+
+@option_verbose
+@main.command(name='start-airflow')
+def start_airflow(verbose: bool):
+    """Enters breeze.py environment and set up the tmux session"""
+    if verbose:
+        console.print("\n[green]Welcome to breeze.py[/]\n")
+    console.print(ASCIIART, style=ASCIIART_STYLE)
+    raise ClickException("\nPlease implement entering breeze.py\n")
+
+
+def write_to_shell(command_to_execute: str, script_path: str, breeze_comment: str):
+    skip_check = False
+    script_path_file = Path(script_path)
+    if not script_path_file.exists():
+        skip_check = True
+    if not skip_check:
+        with open(script_path) as script_file:
+            if breeze_comment in script_file.read():
+                click.echo("Autocompletion is already setup. Skipping")
+                click.echo(f"Please exit and re-enter your shell or run: \'source {script_path}\'")
+                sys.exit()
+    click.echo(f"This will modify the {script_path} file")
+    with open(script_path, 'a') as script_file:
+        script_file.write(f"\n# START: {breeze_comment}\n")
+        script_file.write(f"{command_to_execute}\n")
+        script_file.write(f"# END: {breeze_comment}\n")
+        click.echo(f"Please exit and re-enter your shell or run: \'source {script_path}\'")
+
+
+@main.command(name='setup-autocomplete')
+def setup_autocomplete():
+    """
+    Enables autocompletion of Breeze2 commands.
+    Functionality: By default the generated shell scripts will be available in ./dev/breeze/autocomplete/ path
+    Depending on the shell type in the machine we have to link it to the corresponding file
+    """
+    global NAME
+    breeze_comment = "Added by Updated Airflow Breeze autocomplete setup"
+    # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
+    shell = get_auto_shell()
+    click.echo(f"Installing {shell} completion for local user")
+    extra_env = {'_CLICK_COMPLETION_COMMAND_CASE_INSENSITIVE_COMPLETE': 'ON'}
+    autocomplete_path = Path(AIRFLOW_SOURCES_DIR) / ".build/autocomplete" / f"{NAME}-complete.{shell}"
+    shell, path = click_completion.core.install(
+        shell=shell, prog_name=NAME, path=autocomplete_path, append=False, extra_env=extra_env
+    )
+    click.echo(f"Activation command scripts are created in this autocompletion path: {autocomplete_path}")
+    if click.confirm(f"Do you want to add the above autocompletion scripts to your {shell} profile?"):
+        if shell == 'bash':
+            script_path = Path('~').expanduser() / '/.bash_completion'
+            command_to_execute = f"source {autocomplete_path}"
+            write_to_shell(command_to_execute, script_path, breeze_comment)
+        elif shell == 'zsh':
+            script_path = Path('~').expanduser() / '/.zshrc'
+            command_to_execute = f"source {autocomplete_path}"
+            write_to_shell(command_to_execute, script_path, breeze_comment)
+        elif shell == 'fish':
+            # Include steps for fish shell
+            script_path = Path('~').expanduser() / f'/.config/fish/completions/{NAME}.fish'
+            with open(path) as source_file, open(script_path, 'w') as destination_file:
+                for line in source_file:
+                    destination_file.write(line)
+        else:
+            # Include steps for powershell
+            subprocess.check_call(['powershell', 'Set-ExecutionPolicy Unrestricted -Scope CurrentUser'])
+            script_path = subprocess.check_output(['powershell', '-NoProfile', 'echo $profile']).strip()
+            command_to_execute = f". {autocomplete_path}"
+            write_to_shell(command_to_execute, script_path.decode("utf-8"), breeze_comment)
+    else:
+        click.echo(f"Link for manually adding the autocompletion script to {shell} profile")
 
 
 if __name__ == '__main__':

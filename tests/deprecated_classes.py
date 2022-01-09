@@ -144,7 +144,7 @@ HOOKS = [
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
-        "airflow.providers.amazon.aws.hooks.sqs.SQSHook",
+        "airflow.providers.amazon.aws.hooks.sqs.SqsHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
     ),
     (
@@ -1000,7 +1000,7 @@ OPERATORS = [
         "airflow.providers.amazon.aws.operators.dms_stop_task.DmsStopTaskOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
+        "airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator",
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
     ),
     (
@@ -1579,7 +1579,7 @@ SENSORS = [
         "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskCompletedSensor",
     ),
     (
-        "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
+        "airflow.providers.amazon.aws.sensors.sqs.SqsSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
     (

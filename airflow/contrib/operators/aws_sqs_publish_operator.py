@@ -19,10 +19,26 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator  # noqa
+from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sqs`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class SQSPublishOperator(SqsPublishOperator):
+    """
+    This class is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
