@@ -23,7 +23,9 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.sql`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
+    DeprecationWarning,
+    stacklevel=2
 )
 
 
