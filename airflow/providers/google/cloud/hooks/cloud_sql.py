@@ -536,10 +536,10 @@ class CloudSqlProxyRunner(LoggingMixin):
             self.log.info(
                 "The credentials are not supplied by neither key_path nor "
                 "keyfile_dict of the gcp connection %s. Falling back to "
-                "default activated account",
+                "default activated account and using automatic IAM login",
                 self.gcp_conn_id,
             )
-            credential_params = []
+            credential_params = ["-enable_iam_login"]
 
         if not self.instance_specification:
             project_id = connection.extra_dejson.get('extra__google_cloud_platform__project')
@@ -890,8 +890,6 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException("The login parameter needs to be set in connection")
         if not self.public_ip:
             raise AirflowException("The location parameter needs to be set in connection")
-        if not self.password:
-            raise AirflowException("The password parameter needs to be set in connection")
         if not self.database:
             raise AirflowException("The database parameter needs to be set in connection")
 
