@@ -18,7 +18,7 @@
 """Delete DAGs APIs."""
 import logging
 
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
@@ -55,13 +55,13 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     # deleting a DAG should also all of its subdags
-    dags_to_delete = [
-        d[0]
-        for d in session.query(DagModel.dag_id)
-        .filter(and_(DagModel.dag_id.like(dag_id + ".%"), DagModel.is_subdag))
-        .all()
-    ]
-    dags_to_delete.append(dag_id)
+    dags_to_delete_query = session.query(DagModel.dag_id).filter(
+        or_(
+            DagModel.dag_id == dag_id,
+            and_(DagModel.dag_id.like(f"{dag_id}.%"), DagModel.is_subdag),
+        )
+    )
+    dags_to_delete = [dag_id for dag_id, in dags_to_delete_query]
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.
