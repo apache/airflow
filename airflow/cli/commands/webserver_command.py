@@ -376,6 +376,7 @@ def webserver(args):
         )
 
         run_args = [
+            'opentelemetry-instrument',
             sys.executable,
             '-m',
             'gunicorn',
