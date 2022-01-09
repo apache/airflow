@@ -366,6 +366,7 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
+            raise
 
     def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
@@ -392,6 +393,7 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return FargateProfileStates.NONEXISTENT
+            raise
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
@@ -416,6 +418,7 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return NodegroupStates.NONEXISTENT
+            raise
 
     def list_clusters(
         self,
@@ -493,7 +496,7 @@ class EksHook(AwsBaseHook):
         :return: A List of the combined results of the provided API call.
         :rtype: List
         """
-        name_collection = []
+        name_collection: List = []
         token = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:
