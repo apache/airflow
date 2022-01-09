@@ -18,24 +18,12 @@
 import json
 import logging
 import re
+import sys
 import warnings
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
-
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
-from airflow.settings import pod_mutation_hook
-
-try:
-    import airflow.utils.yaml as yaml
-except ImportError:
-    import yaml
-
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator
@@ -56,8 +44,16 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
+from airflow.settings import pod_mutation_hook
+from airflow.utils import yaml
 from airflow.utils.helpers import validate_key
 from airflow.version import version as airflow_version
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 if TYPE_CHECKING:
     import jinja2
@@ -238,7 +234,7 @@ class KubernetesPodOperator(BaseOperator):
         do_xcom_push: bool = False,
         pod_template_file: Optional[str] = None,
         priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
+        pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
         **kwargs,
@@ -307,7 +303,7 @@ class KubernetesPodOperator(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Dict,
+        context: 'Context',
         jinja_env: "jinja2.Environment",
         seen_oids: set,
     ) -> None:
@@ -369,6 +365,7 @@ class KubernetesPodOperator(BaseOperator):
             label_selector=label_selector,
         ).items
 
+        pod = None
         num_pods = len(pod_list)
         if num_pods > 1:
             raise AirflowException(f'More than one pod running with labels {label_selector}')
@@ -377,7 +374,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
             self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
             self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
-            return pod
+        return pod
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context):
         if self.reattach_on_restart:

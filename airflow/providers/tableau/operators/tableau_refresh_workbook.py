@@ -92,6 +92,6 @@ class TableauRefreshWorkbookOperator(BaseOperator):
             check_interval=self.check_interval,
             task_id='refresh_workbook',
             dag=None,
-        ).execute(context={})
+        ).execute(context=context)
 
         return job_id

@@ -17,6 +17,7 @@
 # under the License.
 import os
 import warnings
+from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
@@ -57,6 +58,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
 
 
@@ -804,18 +806,40 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
             session.merge(ti)
 
-        # check for missing tasks
-        for task in dag.task_dict.values():
-            if task.start_date > self.execution_date and not self.is_backfill:
-                continue
+        def task_filter(task: "BaseOperator"):
+            return task.task_id not in task_ids and (
+                self.is_backfill or task.start_date <= self.execution_date
+            )
 
-            if task.task_id not in task_ids:
-                Stats.incr(f"task_instance_created-{task.task_type}", 1, 1)
+        created_counts: Dict[str, int] = defaultdict(int)
+
+        # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
+        hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
+
+        if hook_is_noop:
+
+            def create_ti_mapping(task: "BaseOperator"):
+                created_counts[task.task_type] += 1
+                return TI.insert_mapping(self.run_id, task)
+
+        else:
+
+            def create_ti(task: "BaseOperator") -> TI:
                 ti = TI(task, run_id=self.run_id)
                 task_instance_mutation_hook(ti)
-                session.add(ti)
+                created_counts[ti.operator] += 1
+                return ti
 
+        # Create missing tasks
+        tasks = list(filter(task_filter, dag.task_dict.values()))
         try:
+            if hook_is_noop:
+                session.bulk_insert_mappings(TI, map(create_ti_mapping, tasks))
+            else:
+                session.bulk_save_objects(map(create_ti, tasks))
+
+            for task_type, count in created_counts.items():
+                Stats.incr(f"task_instance_created-{task_type}", count)
             session.flush()
         except IntegrityError as err:
             self.log.info(str(err))
