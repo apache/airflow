@@ -233,7 +233,15 @@ class PsrpHook(BaseHook):
             except BaseException as exc:
                 # See https://github.com/jborean93/pypsrp/pull/130
                 message = str(exc)
-            log(level, "%s: %s", record.command_name, message)
+
+            # Sometimes a message will have a trailing \r\n sequence such as
+            # the tracing output of the Set-PSDebug cmdlet.
+            message = message.rstrip()
+
+            if record.command_name is None:
+                log(level, "%s", message)
+            else:
+                log(level, "%s: %s", record.command_name, message)
         elif message_type == MessageType.INFORMATION_RECORD:
             log(INFO, "%s (%s): %s", record.computer, record.user, record.message_data)
         elif message_type == MessageType.PROGRESS_RECORD:

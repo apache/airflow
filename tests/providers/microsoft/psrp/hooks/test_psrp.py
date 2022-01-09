@@ -49,9 +49,11 @@ class MockPowerShell(MagicMock):
         self.output.append("output")
 
         def informational(message_type, message, **kwargs):
-            return Mock(MESSAGE_TYPE=message_type, command_name="command", message=message, **kwargs)
+            kwargs.setdefault("command_name", "command")
+            return Mock(MESSAGE_TYPE=message_type, message=message, **kwargs)
 
-        self.streams.debug.append(informational(MessageType.DEBUG_RECORD, "debug"))
+        self.streams.debug.append(informational(MessageType.DEBUG_RECORD, "debug1"))
+        self.streams.debug.append(informational(MessageType.DEBUG_RECORD, "debug2\r\n", command_name=None))
         self.streams.verbose.append(informational(MessageType.VERBOSE_RECORD, "verbose"))
         self.streams.warning.append(informational(MessageType.WARNING_RECORD, "warning"))
         self.streams.information.append(
@@ -165,7 +167,8 @@ class TestPsrpHook(TestCase):
         def assert_log(level, *args):
             assert call.log(level, *args) in logger.method_calls
 
-        assert_log(DEBUG, '%s: %s', 'command', 'debug')
+        assert_log(DEBUG, '%s: %s', 'command', 'debug1')
+        assert_log(DEBUG, '%s', 'debug2')
         assert_log(ERROR, '%s: %s', 'command', 'error')
         assert_log(INFO, '%s: %s', 'command', 'verbose')
         assert_log(WARNING, '%s: %s', 'command', 'warning')
