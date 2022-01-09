@@ -81,7 +81,7 @@ class SqlToS3Operator(BaseOperator):
     :param file_format: the destination file format, only string 'csv' or 'parquet' is accepted.
     :type file_format: str
     :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()`` or
-        ``DataFrame.to_csv()``. This is preferred than ``pd_csv_kwargs``.
+        ``DataFrame.to_csv()``.
     :type pd_kwargs: dict
     """
 
