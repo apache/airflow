@@ -86,6 +86,7 @@ class Context(TypedDict):
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
+    try_number: Optional[int]
     var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str

@@ -53,7 +53,7 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
-from airflow.utils.state import DagRunState, PoolSlotState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 TI = models.TaskInstance
@@ -1141,9 +1141,9 @@ class SchedulerJob(BaseJob):
     def _emit_pool_metrics(self, session: Session = None) -> None:
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
-            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats[PoolSlotState.OPEN.value])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[PoolSlotState.QUEUED.value])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[PoolSlotState.RUNNING.value])
+            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats["running"])
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:

@@ -164,8 +164,10 @@ class KeywordParameters:
 
     def unpacking(self) -> Mapping[str, Any]:
         """Dump the kwargs mapping to unpack with ``**`` in a function call."""
-        if self._wildcard and isinstance(self._kwargs, Context):
-            return lazy_mapping_from_context(self._kwargs)
+        # We have a typestub that says Context is a TypedDict, but at runtime it's actually a custom
+        # MutableMapping class.
+        if self._wildcard and isinstance(self._kwargs, Context):  # type: ignore
+            return lazy_mapping_from_context(self._kwargs)  # type: ignore
         return self._kwargs
 
     def serializing(self) -> Mapping[str, Any]:

@@ -40,6 +40,7 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 from urllib.parse import quote
 
@@ -1286,7 +1287,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     def _date_or_empty(self, attr: str):
-        result = getattr(self, attr, None)  # type: datetime
+        result = getattr(self, attr, None)  # type: Optional[datetime]
         return result.strftime('%Y%m%dT%H%M%S') if result else ''
 
     def _log_state(self, lead_msg: str = ''):
@@ -1295,7 +1296,7 @@ class TaskInstance(Base, LoggingMixin):
             ' dag_id=%s, task_id=%s,'
             ' execution_date=%s, start_date=%s, end_date=%s',
             lead_msg,
-            self.state.upper(),
+            str(self.state).upper(),
             self.dag_id,
             self.task_id,
             self._date_or_empty('execution_date'),
@@ -1715,7 +1716,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Optional[Union[str, BaseException]] = None,
+        error: Union[None, str, BaseException] = None,
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
@@ -1787,7 +1788,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure_with_callback(
         self,
-        error: Union[str, Exception],
+        error: Union[None, str, Exception],
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         session=NEW_SESSION,
@@ -2078,7 +2079,7 @@ class TaskInstance(Base, LoggingMixin):
         # This function is called after changing the state from State.RUNNING,
         # so we need to subtract 1 from self.try_number here.
         current_try_number = self.try_number - 1
-        additional_context = {
+        additional_context: Dict[str, Any] = {
             "exception": exception,
             "exception_html": exception_html,
             "try_number": current_try_number,
@@ -2095,8 +2096,7 @@ class TaskInstance(Base, LoggingMixin):
             html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
 
         else:
-            jinja_context = self.get_template_context()
-            jinja_context.update(additional_context)
+            jinja_context = {**cast(dict, self.get_template_context()), **additional_context}
             jinja_env = self.task.get_template_env()
 
             def render(key: str, content: str) -> str:

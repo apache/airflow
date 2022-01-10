@@ -910,17 +910,18 @@ class DagFileProcessorManager(LoggingMixin):
             count_import_errors = -1
             num_dags = 0
 
+        last_duration = (last_finish_time - processor.start_time).total_seconds()
         stat = DagFileStat(
             num_dags=num_dags,
             import_errors=count_import_errors,
             last_finish_time=last_finish_time,
-            last_duration=(last_finish_time - processor.start_time).total_seconds(),
+            last_duration=last_duration,
             run_count=self.get_run_count(processor.file_path) + 1,
         )
         self._file_stats[processor.file_path] = stat
 
         file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, '.')
-        Stats.timing(f'dag_processing.last_duration.{file_name}', stat.last_duration)
+        Stats.timing(f'dag_processing.last_duration.{file_name}', last_duration)
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors"""

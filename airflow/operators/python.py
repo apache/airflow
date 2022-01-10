@@ -317,8 +317,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_exts: list[str]
     """
 
-    template_fields = ('requirements',)
-    template_ext = ('.txt',)
+    template_fields: Sequence[str] = ('requirements',)
+    template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',
         'ds_nodash',

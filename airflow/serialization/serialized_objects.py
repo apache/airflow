@@ -21,7 +21,7 @@ import enum
 import logging
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union, cast
 
 import cattr
 import pendulum
@@ -268,7 +268,7 @@ class BaseSerialization:
 
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
-            elif key == "timetable":
+            elif key == "timetable" and value is not None:
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
@@ -975,7 +975,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "children": {
                 label: (DAT.OP, child.task_id)
                 if isinstance(child, BaseOperator)
-                else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+                else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(cast("TaskGroup", child)))
                 for label, child in task_group.children.items()
             },
             "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
