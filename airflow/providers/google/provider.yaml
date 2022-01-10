@@ -482,6 +482,7 @@ operators:
     python-modules:
       - airflow.providers.google.cloud.operators.vertex_ai.dataset
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
+      - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
 
 sensors:
   - integration-name: Google BigQuery
@@ -683,6 +684,7 @@ hooks:
     python-modules:
       - airflow.providers.google.cloud.hooks.vertex_ai.dataset
       - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
+      - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
 
 transfers:
   - source-integration-name: Presto
@@ -839,6 +841,8 @@ extra-links:
   - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
+  - airflow.providers.google.cloud.operators.vertex_ai.auto_ml.VertexAIModelLink
+  - airflow.providers.google.cloud.operators.vertex_ai.auto_ml.VertexAITrainingPipelinesLink
   - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAIModelLink
   - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAITrainingPipelinesLink
   - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetLink
