@@ -69,12 +69,14 @@ def find_airflow_sources_root():
     os.chdir(__AIRFLOW_SOURCES_ROOT)
 
 
+find_airflow_sources_root()
+
 click_completion.init()
 
 
 @click.group()
 def main():
-    find_airflow_sources_root()
+    pass
 
 
 option_verbose = click.option(
