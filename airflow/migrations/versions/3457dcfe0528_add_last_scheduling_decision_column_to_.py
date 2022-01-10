@@ -40,7 +40,9 @@ def upgrade():
     """Apply add last_scheduling_decision column to taskinstance"""
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         batch_op.add_column(sa.Column('last_scheduling_decision', TIMESTAMP, nullable=True))
-        batch_op.create_index('idx_ti_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
+        batch_op.create_index(
+            'idx_ti_last_scheduling_decision', ['last_scheduling_decision', 'dag_id'], unique=False
+        )
 
 
 def downgrade():

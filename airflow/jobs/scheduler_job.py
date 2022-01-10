@@ -290,13 +290,21 @@ class SchedulerJob(BaseJob):
             .filter(not_(DM.is_paused))
             .filter(TI.state == TaskInstanceState.SCHEDULED)
             .options(selectinload('dag_model'))
-            .order_by(
+        )
+        if session.bind.dialect.name == "postgresql":
+            query = query.order_by(
+                TI.priority_weight.desc(),
+                TI.last_scheduling_decision.desc().nullsfirst(),
+                DR.execution_date,
+            )
+        else:
+            query = query.order_by(
                 TI.priority_weight.desc(),
                 desc(case([(TI.last_scheduling_decision.is_(None), 1)], else_=0)),
                 TI.last_scheduling_decision.desc(),
                 DR.execution_date,
             )
-        )
+
         starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
         if starved_pools:
             query = query.filter(not_(TI.pool.in_(starved_pools)))
@@ -402,7 +410,7 @@ class SchedulerJob(BaseJob):
                         dag_id,
                         max_active_tasks_per_dag_limit,
                     )
-                    # update the last_scheduling_decision for all task instances in this dag
+                    # update the last_scheduling_decision for all scheduled task instances in this dag
                     session.query(TI).filter(
                         TI.dag_id == task_instance.dag_id, TI.state == State.SCHEDULED
                     ).update(
