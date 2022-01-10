@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
 import unittest
 import warnings
 from unittest import mock
@@ -97,7 +98,7 @@ class TestStreamLogWriter(unittest.TestCase):
         logger.log = mock.MagicMock()
 
         log = StreamLogWriter(logger, 1)
-        assert log.encoding is None
+        assert log.encoding == sys.getdefaultencoding()
 
     def test_iobase_compatibility(self):
         log = StreamLogWriter(None, 1)

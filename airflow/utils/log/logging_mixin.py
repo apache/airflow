@@ -82,6 +82,8 @@ class ExternalLoggingMixin:
 class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     """Allows to redirect stdout and stderr to logger"""
 
+    encoding = sys.getdefaultencoding()
+
     def __init__(self, logger, level):
         """
         :param log: The log level method to write to, ie. log.debug, log.warning
