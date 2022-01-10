@@ -514,6 +514,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
+  priorityClassName: ""
   affinity: {}
   # default worker affinity is:
   #  podAntiAffinity:

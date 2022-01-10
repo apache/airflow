@@ -1351,6 +1351,11 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Set priority value from the priority class name",
+                    "type": "string",
+                    "default": ""
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for worker pods.",
                     "type": "object",
