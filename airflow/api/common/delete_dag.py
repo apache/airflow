@@ -54,7 +54,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
-    # deleting a DAG should also all of its subdags
+    # deleting a DAG should also delete all of its subdags
     dags_to_delete_query = session.query(DagModel.dag_id).filter(
         or_(
             DagModel.dag_id == dag_id,
