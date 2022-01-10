@@ -33,9 +33,8 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
     :type op_args: list
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     :type multiple_outputs: bool
     """
 
@@ -85,9 +84,8 @@ class PythonDecoratorMixin:
 
         :param python_callable: Function to decorate
         :type python_callable: Optional[Callable]
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
+        :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+            multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys.
             Defaults to False.
         :type multiple_outputs: bool
         """
@@ -109,10 +107,8 @@ def python_task(
 
     :param python_callable: Function to decorate
     :type python_callable: Optional[Callable]
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-        with index as key. Dict will unroll to xcom values with keys as XCom keys.
-        Defaults to False.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     :type multiple_outputs: bool
     """
     return task_decorator_factory(
