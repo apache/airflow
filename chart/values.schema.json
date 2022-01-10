@@ -2632,6 +2632,11 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Set priority class name",
+                    "type": "string",
+                    "default": ""
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for webserver pods.",
                     "type": "object",
