@@ -57,6 +57,7 @@ spec:
         checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
 {{- end }}
     spec:
+      priorityClassName: {{ .Values.statsd.priorityClassName }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:

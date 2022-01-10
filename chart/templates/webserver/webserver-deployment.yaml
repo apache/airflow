@@ -87,6 +87,7 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
+      priorityClassName: {{ .Values.webserver.priorityClassName }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
@@ -130,7 +131,6 @@ spec:
         {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
         {{- end }}
       containers:
-        priorityClassName: {{ .Values.webserver.priorityClassName }}
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
