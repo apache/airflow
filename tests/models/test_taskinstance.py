@@ -17,9 +17,9 @@
 # under the License.
 
 import datetime
-import logging
 import os
 import signal
+import sys
 import urllib
 from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
@@ -1859,7 +1859,7 @@ class TestTaskInstance:
             pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
-    def test_exclude_stacktrace_on_airflow_exception(self, dag_maker):
+    def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
 
@@ -1873,11 +1873,11 @@ class TestTaskInstance:
         ti.task = task
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
-        assert len(log.handle.mock_calls) == 1
-        record = log.handle.mock_calls[0].args[0]
-        assert record.filename == __file__
-        assert record.level == logging.ERROR
-        assert record.lineno == fail.__code__.co_firstlineno + 1
+        assert len(log.error.mock_calls) == 1
+        assert log.error.call_args[0] == ("Task failed with exception",)
+        exc_info = log.error.call_args[1]["exc_info"]
+        filename = exc_info[2].tb_frame.f_code.co_filename
+        assert sys.modules[PythonOperator.__module__].__file__ == filename
 
     def _env_var_check_callback(self):
         assert 'test_echo_env_variables' == os.environ['AIRFLOW_CTX_DAG_ID']
