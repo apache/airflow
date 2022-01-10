@@ -205,12 +205,12 @@ class TestStandardTaskRunner:
         with create_session() as session, NamedTemporaryFile("w", delete=False) as f:
             dag.create_dagrun(
                 run_id="test",
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
                 start_date=DEFAULT_DATE,
                 session=session,
             )
-            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, run_id="test")
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
             session.commit()
 
