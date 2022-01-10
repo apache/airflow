@@ -28,6 +28,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
+from traceback import TracebackException
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -1727,7 +1728,25 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                self.log.error("Task failed with exception", exc_info=error)
+                exclude_stacktrace = isinstance(error, AirflowException)
+                if exclude_stacktrace:
+                    # Instead of including the exception info with the logging statement,
+                    # we create a custom log record and provide the filename and lineno
+                    # information from the stack frame where the exception was raised.
+                    stack = TracebackException.from_exception(error).stack[-1]
+                    record = logging.makeLogRecord(
+                        {
+                            "name": self.log.name,
+                            "level": logging.ERROR,
+                            "filename": stack.filename,
+                            "lineno": stack.lineno,
+                            "msg": "%s: %s",
+                            "args": (type(error).__name__, error),
+                        }
+                    )
+                    self.log.handle(record)
+                else:
+                    self.log.error("Task failed with exception", exc_info=error)
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task

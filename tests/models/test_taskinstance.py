@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import logging
 import os
 import signal
 import urllib
@@ -1857,6 +1858,26 @@ class TestTaskInstance:
         except AirflowException:
             pass  # expected
         assert State.UP_FOR_RETRY == ti.state
+
+    def test_exclude_stacktrace_on_airflow_exception(self, dag_maker):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        with dag_maker(dag_id='test_retries_on_other_exceptions'):
+            task = PythonOperator(
+                task_id='test_raise_other_exception',
+                python_callable=fail,
+                retries=1,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        with patch.object(TI, "log") as log, pytest.raises(AirflowException):
+            ti.run()
+        assert len(log.handle.mock_calls) == 1
+        record = log.handle.mock_calls[0].args[0]
+        assert record.filename == __file__
+        assert record.level == logging.ERROR
+        assert record.lineno == fail.__code__.co_firstlineno + 1
 
     def _env_var_check_callback(self):
         assert 'test_echo_env_variables' == os.environ['AIRFLOW_CTX_DAG_ID']

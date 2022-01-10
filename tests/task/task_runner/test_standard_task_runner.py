@@ -17,7 +17,6 @@
 # under the License.
 import logging
 import os
-import re
 import time
 from logging.config import dictConfig
 from tempfile import NamedTemporaryFile
@@ -28,7 +27,6 @@ import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import taskinstance
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
@@ -244,13 +242,7 @@ class TestStandardTaskRunner:
                 logged = g.read()
             os.unlink(f.name)
 
-        m = re.search(
-            r'{{taskinstance.py:(\d+)}} ERROR - AirflowException: Task received SIGTERM signal', logged
-        )
-        assert m is not None
-        lineno = int(m.group(1))
-        line = open(taskinstance.__file__).readlines()[lineno - 1]
-        assert line.strip().startswith("raise")
+        assert logged.count(f'ERROR - Failed to execute job {ti.job_id} for task {ti.task_id}') == 1
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
