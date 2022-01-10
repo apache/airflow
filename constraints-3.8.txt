@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-06T21:33:11Z
+# This constraints file was automatically generated on 2022-01-10T08:11:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -13,7 +13,7 @@ APScheduler==3.6.3
 Authlib==0.15.5
 Babel==2.9.1
 Deprecated==1.2.13
-Flask-AppBuilder==3.4.2
+Flask-AppBuilder==3.4.3
 Flask-Babel==2.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -23,7 +23,7 @@ Flask-OpenID==1.3.0
 Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.14.3
 Flask==1.1.2
-GitPython==3.1.24
+GitPython==3.1.25
 HeapDict==1.0.1
 JPype1==1.3.0
 JayDeBeApi==1.2.3
@@ -34,7 +34,7 @@ MarkupSafe==2.0.1
 PyGithub==1.54.1
 PyHive==0.6.4
 PyJWT==1.7.1
-PyNaCl==1.4.0
+PyNaCl==1.5.0
 PyYAML==5.4.1
 Pygments==2.11.2
 Rx==3.2.0
@@ -116,7 +116,7 @@ apache-airflow-providers-salesforce==3.4.0
 apache-airflow-providers-samba==3.0.1
 apache-airflow-providers-segment==2.0.1
 apache-airflow-providers-sendgrid==2.0.1
-apache-airflow-providers-sftp==2.4.0
+apache-airflow-providers-sftp==2.3.0
 apache-airflow-providers-singularity==2.0.1
 apache-airflow-providers-slack==4.1.0
 apache-airflow-providers-snowflake==2.4.0
@@ -135,7 +135,7 @@ argcomplete==1.12.3
 arrow==1.2.1
 asana==0.10.3
 asn1crypto==1.4.0
-astroid==2.9.2
+astroid==2.9.3
 async-timeout==4.0.2
 atlasclient==1.0.0
 attrs==20.3.0
@@ -203,7 +203,7 @@ curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2021.6.0
 datadog==0.43.0
-decorator==5.1.0
+decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
 distlib==0.3.4
@@ -221,7 +221,7 @@ entrypoints==0.3
 eventlet==0.33.0
 execnet==1.9.0
 facebook-business==12.0.1
-fastavro==1.4.8
+fastavro==1.4.9
 filelock==3.4.2
 fissix==21.11.13
 flake8-colors==0.1.9
@@ -339,7 +339,7 @@ mccabe==0.6.1
 mongomock==3.23.0
 monotonic==1.6
 moreorless==0.4.0
-moto==2.3.0
+moto==2.3.1
 msal-extensions==0.3.1
 msal==1.16.0
 msgpack==1.0.3
@@ -372,7 +372,7 @@ pandas-gbq==0.14.1
 pandas==1.3.5
 papermill==2.3.3
 parameterized==0.8.1
-paramiko==2.9.1
+paramiko==2.9.2
 parso==0.8.3
 partd==1.2.0
 pathspec==0.9.0
@@ -382,7 +382,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.3.8
-pipdeptree==2.2.0
+pipdeptree==2.2.1
 pkginfo==1.8.2
 platformdirs==2.4.1
 pluggy==1.0.0
@@ -407,7 +407,7 @@ pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.8.0
-pycountry==20.7.3
+pycountry==22.1.10
 pycparser==2.21
 pycryptodome==3.12.0
 pycryptodomex==3.12.0
@@ -463,7 +463,7 @@ requests-toolbelt==0.9.1
 requests==2.26.0
 responses==0.16.0
 rfc3986==1.5.0
-rich==10.16.2
+rich==11.0.0
 rsa==4.8
 s3transfer==0.5.0
 sasl==0.3.1
@@ -526,38 +526,39 @@ tqdm==4.62.3
 traitlets==5.1.1
 trino==0.309.0
 twine==3.7.1
-types-Deprecated==1.2.3
-types-Markdown==3.3.10
-types-PyMySQL==1.0.8
-types-PyYAML==6.0.1
-types-boto==2.49.3
-types-certifi==2021.10.8.0
-types-croniter==1.0.4
-types-cryptography==3.3.10
-types-docutils==0.17.2
-types-enum34==1.1.1
-types-freezegun==1.1.4
-types-futures==3.3.1
-types-ipaddress==1.0.1
-types-paramiko==2.8.6
-types-protobuf==3.18.3
-types-python-dateutil==2.8.4
-types-python-slugify==5.0.2
-types-pytz==2021.3.3
-types-redis==4.1.3
-types-requests==2.26.3
-types-setuptools==57.4.5
-types-six==1.16.7
-types-tabulate==0.8.4
-types-termcolor==1.1.2
-types-toml==0.10.1
+types-Deprecated==1.2.5
+types-Markdown==3.3.12
+types-PyMySQL==1.0.11
+types-PyYAML==6.0.3
+types-boto==2.49.6
+types-certifi==2021.10.8.1
+types-croniter==1.0.7
+types-cryptography==3.3.12
+types-docutils==0.17.4
+types-enum34==1.1.2
+types-freezegun==1.1.6
+types-futures==3.3.2
+types-ipaddress==1.0.2
+types-paramiko==2.8.9
+types-protobuf==3.18.4
+types-python-dateutil==2.8.6
+types-python-slugify==5.0.3
+types-pytz==2021.3.4
+types-redis==4.1.7
+types-requests==2.27.5
+types-setuptools==57.4.7
+types-six==1.16.9
+types-tabulate==0.8.5
+types-termcolor==1.1.3
+types-toml==0.10.3
+types-urllib3==1.26.2
 typing-extensions==3.10.0.2
 typing-inspect==0.7.1
 tzdata==2021.5
 tzlocal==4.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
-urllib3==1.26.7
+urllib3==1.26.8
 vertica-python==1.0.2
 vine==5.0.0
 virtualenv==20.13.0
