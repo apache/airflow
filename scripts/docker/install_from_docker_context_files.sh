@@ -25,6 +25,8 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
+
 function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -65,7 +67,7 @@ function install_airflow_and_providers_from_docker_context_files(){
 
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
         echo
-        echo Force re-installing airflow and providers from local files with eager upgrade
+        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
         echo
         # force reinstall all airflow + provider package local files with eager upgrade
         pip install "${pip_flags[@]}" --upgrade --upgrade-strategy eager \
@@ -73,7 +75,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     else
         echo
-        echo Force re-installing airflow and providers from local files with constraints and upgrade if needed
+        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with constraints and upgrade if needed${COLOR_RESET}"
         echo
         if [[ ${AIRFLOW_CONSTRAINTS_LOCATION} == "/"* ]]; then
             grep -ve '^apache-airflow' <"${AIRFLOW_CONSTRAINTS_LOCATION}" > /tmp/constraints.txt
@@ -104,8 +106,9 @@ function install_airflow_and_providers_from_docker_context_files(){
 # method on air-gaped system where you do not want to download any dependencies from remote hosts
 # which is a requirement for serious installations
 function install_all_other_packages_from_docker_context_files() {
+
     echo
-    echo Force re-installing all other package from local files without dependencies
+    echo "${COLOR_BLUE}Force re-installing all other package from local files without dependencies${COLOR_RESET}"
     echo
     local reinstalling_other_packages
     # shellcheck disable=SC2010
@@ -118,6 +121,7 @@ function install_all_other_packages_from_docker_context_files() {
     fi
 }
 
+common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location

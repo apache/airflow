@@ -29,10 +29,14 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+: "${AIRFLOW_REPO:?Should be set}"
+: "${AIRFLOW_BRANCH:?Should be set}"
+: "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 function install_airflow_dependencies_from_branch_tip() {
     echo
-    echo "Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies"
+    echo "${COLOR_BLUE}Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies${COLOR_RESET}"
     echo
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -46,11 +50,12 @@ function install_airflow_dependencies_from_branch_tip() {
     pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
     echo
-    echo Uninstalling just airflow. Dependencies remain.
+    echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
     echo
     pip uninstall --yes apache-airflow || true
 }
 
+common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location

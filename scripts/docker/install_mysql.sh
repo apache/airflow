@@ -21,9 +21,16 @@ declare -a packages
 MYSQL_VERSION="8.0"
 readonly MYSQL_VERSION
 
+COLOR_BLUE=$'\e[34m'
+readonly COLOR_BLUE
+COLOR_RESET=$'\e[0m'
+readonly COLOR_RESET
+
+: "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+
 install_mysql_client() {
     echo
-    echo Installing mysql client
+    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}${COLOR_RESET}"
     echo
 
     if [[ "${1}" == "dev" ]]; then
