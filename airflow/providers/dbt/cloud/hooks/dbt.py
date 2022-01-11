@@ -171,8 +171,6 @@ class DbtCloudHook(HttpHook):
         """
         self.method = method
 
-        print(data)
-
         return self.run(endpoint=endpoint, data=data)
 
     def list_accounts(self) -> Response:
@@ -365,8 +363,6 @@ class DbtCloudHook(HttpHook):
         """
         if not additional_run_config:
             additional_run_config = {}
-
-        print(additional_run_config)
 
         return self._run_and_get_response(
             method="POST",

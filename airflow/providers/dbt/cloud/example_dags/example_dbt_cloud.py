@@ -34,7 +34,7 @@ from airflow.utils.edgemodifier import Label
 def example_dbt_cloud():
     [begin, end] = [DummyOperator(task_id=x) for x in ["begin", "end"]]
 
-    # [START howto_operator_adf_run_pipeline]
+    # [START howto_operator_dbt_cloud_run_job]
     trigger_job_run1 = DbtCloudRunJobOperator(
         task_id="trigger_job_run1",
         job_id=48617,
@@ -42,9 +42,9 @@ def example_dbt_cloud():
         check_interval=10,
         timeout=20,
     )
-    # [END howto_operator_adf_run_pipeline]
+    # [END howto_operator_dbt_cloud_run_job]
 
-    # [START howto_operator_adf_run_pipeline_async]
+    # [START howto_operator_dbt_cloud_run_job_async]
     trigger_job_run2 = DbtCloudRunJobOperator(
         task_id="trigger_job_run2", job_id=48617, additional_run_config={"threads_override": 8}
     )
@@ -52,7 +52,7 @@ def example_dbt_cloud():
     job_run_sensor = DbtCloudJobRunSensor(
         task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=30
     )
-    # [END howto_operator_adf_run_pipeline_async]
+    # [END howto_operator_dbt_cloud_run_job_async]
 
     begin >> Label("No async wait") >> trigger_job_run1
     begin >> Label("Do async wait with sensor") >> trigger_job_run2
