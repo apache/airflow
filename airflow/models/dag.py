@@ -2388,11 +2388,6 @@ class DAG(LoggingMixin):
             else:
                 data_interval = self.infer_automated_data_interval(logical_date)
 
-        # create a copy of params before validating
-        copied_params = copy.deepcopy(self.params)
-        copied_params.update(conf or {})
-        copied_params.validate()
-
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,

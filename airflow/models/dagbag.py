@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import copy
 import hashlib
 import importlib
 import importlib.machinery
@@ -40,6 +41,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowTimetableInvalid,
+    ParamValidationError,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -398,6 +400,10 @@ class DagBag(LoggingMixin):
             dag.fileloc = mod.__file__
             try:
                 dag.timetable.validate()
+                # create a copy of params before validating
+                copied_params = copy.deepcopy(dag.params)
+                copied_params.update(conf or {})
+                copied_params.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
@@ -409,6 +415,7 @@ class DagBag(LoggingMixin):
                 AirflowDagCycleException,
                 AirflowDagDuplicatedIdException,
                 AirflowClusterPolicyViolation,
+                ParamValidationError,
             ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = str(exception)

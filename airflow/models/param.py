@@ -23,7 +23,7 @@ import jsonschema
 from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.utils.context import Context
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -78,13 +78,13 @@ class Param:
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:
                 return None
-            raise TypeError("No value passed and Param has no default value")
+            raise ParamValidationError("No value passed and Param has no default value")
         try:
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
         except ValidationError as err:
             if suppress_exception:
                 return None
-            raise ValueError(err) from None
+            raise ParamValidationError(err) from None
         self.value = final_val
         return final_val
 
@@ -160,8 +160,8 @@ class ParamsDict(MutableMapping[str, Any]):
             param = self.__dict[key]
             try:
                 param.resolve(value=value, suppress_exception=self.suppress_exception)
-            except ValueError as ve:
-                raise ValueError(f'Invalid input for param {key}: {ve}') from None
+            except ParamValidationError as ve:
+                raise ParamValidationError(f'Invalid input for param {key}: {ve}') from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
@@ -204,8 +204,8 @@ class ParamsDict(MutableMapping[str, Any]):
         try:
             for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
-        except ValueError as ve:
-            raise ValueError(f'Invalid input for param {k}: {ve}') from None
+        except ParamValidationError as ve:
+            raise ParamValidationError(f'Invalid input for param {k}: {ve}') from None
 
         return resolved_dict
 
