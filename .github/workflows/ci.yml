@@ -401,7 +401,7 @@ jobs:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-        if: needs.build-info.outputs.waitForImage == 'true'      
+        if: needs.build-info.outputs.waitForImage == 'true'
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
@@ -909,7 +909,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*        
+          cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
