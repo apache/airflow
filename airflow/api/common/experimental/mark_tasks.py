@@ -18,7 +18,7 @@
 """Marks tasks APIs."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Generator, Iterable, List, Optional, cast
+from typing import TYPE_CHECKING, Generator, Iterable, List, Optional
 
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.session import Session as SASession
@@ -114,9 +114,7 @@ def set_state(
 
     confirmed_dates = verify_dag_run_integrity(dag, dates)
 
-    sub_dag_run_ids = get_subdag_runs(
-        dag, session, cast("DagRunState", state), task_ids, commit, confirmed_dates
-    )
+    sub_dag_run_ids = get_subdag_runs(dag, session, DagRunState(state), task_ids, commit, confirmed_dates)
 
     # now look for the task instances that are affected
 
