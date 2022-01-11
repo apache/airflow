@@ -164,10 +164,11 @@ class KeywordParameters:
 
     def unpacking(self) -> Mapping[str, Any]:
         """Dump the kwargs mapping to unpack with ``**`` in a function call."""
-        # We have a typestub that says Context is a TypedDict, but at runtime it's actually a custom
-        # MutableMapping class.
+        # Context is a TypedDict at lint time, and Mypy would complain it cannot
+        # be used in isinstance. But the call works at runtime since the type is
+        # actually implemented as a custom mapping, so we ignore the Mypy error.
         if self._wildcard and isinstance(self._kwargs, Context):  # type: ignore
-            return lazy_mapping_from_context(self._kwargs)  # type: ignore
+            return lazy_mapping_from_context(self._kwargs)
         return self._kwargs
 
     def serializing(self) -> Mapping[str, Any]:

@@ -197,9 +197,16 @@ class Context(MutableMapping[str, Any]):
 
 
 def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
-    """Merges dictionary parameters into existing context.
+    """Merge parameters into an existing context.
 
-    This updates ``context`` in-place, similar to ``dict.update()``.
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
     """
     context.update(*args, **kwargs)
 
