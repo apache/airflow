@@ -86,6 +86,7 @@ class TestParam(unittest.TestCase):
 
         with pytest.raises(ValueError):
             p = Param('42', type='number')
+            p.resolve()
 
     def test_list_param(self):
         p = Param([1, 2], type='array')
@@ -126,6 +127,7 @@ class TestParam(unittest.TestCase):
 
         with pytest.raises(ValueError):
             p = S3Param("file://not_valid/s3_path")
+            p.resolve()
 
     def test_value_saved(self):
         p = Param("hello", type="string")
@@ -270,4 +272,5 @@ class TestDagParamRuntime:
 
     def test_param_non_json_serializable(self):
         with pytest.warns(DeprecationWarning, match='The use of non-json-serializable params is deprecated'):
-            Param(default={0, 1, 2})
+            p = Param(default={0, 1, 2})
+            p.resolve()

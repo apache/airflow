@@ -49,15 +49,22 @@ class Param:
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
-        if self.has_value:
-            self._validate(self.value, self.schema)
+    def __copy__(self) -> "Param":
+        return Param(self.value, self.description, schema=self.schema)
 
-    @staticmethod
-    def _validate(value, schema):
+    def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
-        1. Check that value is json-serializable; if not, warn.  In future release we will require
-        the value to be json-serializable.
-        2. Validate ``value`` against ``schema``
+        Runs the validations and returns the Param's final value.
+        May raise ValueError on failed validations, or TypeError
+        if no value is passed and no value already exists.
+        We first check that value is json-serializable; if not, warn.
+        In future release we will require the value to be json-serializable.
+
+        :param value: The value to be updated for the Param
+        :type value: Any
+        :param suppress_exception: To raise an exception or not when the validations fails.
+            If true and validations fails, the return value would be None.
+        :type suppress_exception: bool
         """
         try:
             json.dumps(value)
@@ -67,28 +74,6 @@ class Param:
                 "a future release",
                 DeprecationWarning,
             )
-        # If we have a value, validate it once. May raise ValueError.
-        if not isinstance(value, ArgNotSet):
-            try:
-                jsonschema.validate(value, schema, format_checker=FormatChecker())
-            except ValidationError as err:
-                raise ValueError(err)
-
-    def __copy__(self) -> "Param":
-        return Param(self.value, self.description, schema=self.schema)
-
-    def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
-        """
-        Runs the validations and returns the Param's final value.
-        May raise ValueError on failed validations, or TypeError
-        if no value is passed and no value already exists.
-
-        :param value: The value to be updated for the Param
-        :type value: Any
-        :param suppress_exception: To raise an exception or not when the validations fails.
-            If true and validations fails, the return value would be None.
-        :type suppress_exception: bool
-        """
         final_val = value if value is not NOTSET else self.value
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:
