@@ -16,22 +16,23 @@
 # under the License.
 
 """Publish message to SQS queue"""
+import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SQSPublishOperator(BaseOperator):
+class SqsPublishOperator(BaseOperator):
     """
     Publish message to a SQS queue.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SQSPublishOperator`
+        :ref:`howto/operator:SqsPublishOperator`
 
     :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
@@ -77,7 +78,7 @@ class SQSPublishOperator(BaseOperator):
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-        hook = SQSHook(aws_conn_id=self.aws_conn_id)
+        hook = SqsHook(aws_conn_id=self.aws_conn_id)
 
         result = hook.send_message(
             queue_url=self.sqs_queue,
@@ -89,3 +90,19 @@ class SQSPublishOperator(BaseOperator):
         self.log.info('result is send_message is %s', result)
 
         return result
+
+
+class SQSPublishOperator(SqsPublishOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

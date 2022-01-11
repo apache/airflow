@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -128,9 +128,9 @@ class BashOperator(BaseOperator):
 
     """
 
-    template_fields = ('bash_command', 'env')
+    template_fields: Sequence[str] = ('bash_command', 'env')
     template_fields_renderers = {'bash_command': 'bash', 'env': 'json'}
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.sh',
         '.bash',
     )

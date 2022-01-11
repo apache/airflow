@@ -118,7 +118,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
@@ -3213,14 +3213,6 @@ class DagFilter(BaseFilter):
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
-class DagEditFilter(BaseFilter):
-    """Filter using DagIDs"""
-
-    def apply(self, query, func):
-        filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
-        return query.filter(self.model.dag_id.in_(filter_dag_ids))
-
-
 class AirflowModelView(ModelView):
     """Airflow Mode View."""
 
@@ -4078,7 +4070,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     base_order = ('execution_date', 'desc')
 
-    base_filters = [['dag_id', DagEditFilter, lambda: []]]
+    base_filters = [['dag_id', DagFilter, lambda: []]]
 
     edit_form = DagRunEditForm
 
@@ -4367,17 +4359,11 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         'list': 'read',
-        'action_clear': 'edit',
         'action_muldelete': 'delete',
-        'action_set_running': 'edit',
-        'action_set_failed': 'edit',
-        'action_set_success': 'edit',
-        'action_set_retry': 'edit',
     }
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
@@ -4445,7 +4431,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     base_order = ('job_id', 'asc')
 
-    base_filters = [['dag_id', DagEditFilter, lambda: []]]
+    base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def log_url_formatter(self):
         """Formats log URL."""
@@ -4554,6 +4540,14 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('set_skipped', "Set state to 'skipped'", '', single=False)
+    @action_has_dag_edit_access
+    def action_set_skipped(self, tis):
+        """Set state to skipped."""
+        self.set_task_instance_state(tis, TaskInstanceState.SKIPPED)
         self.update_redirect()
         return redirect(self.get_redirect())
 

@@ -120,31 +120,26 @@ class TestDagRunEndpoint:
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
-    def _create_test_dag_run(self, state='running', extra_dag=False, commit=True):
+    def _create_test_dag_run(self, state='running', extra_dag=False, commit=True, idx_start=1):
         dag_runs = []
-        dags = [DagModel(dag_id="TEST_DAG_ID")]
-        dagrun_model_1 = DagRun(
-            dag_id="TEST_DAG_ID",
-            run_id="TEST_DAG_RUN_ID_1",
-            run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time),
-            start_date=timezone.parse(self.default_time),
-            external_trigger=True,
-            state=state,
-        )
-        dag_runs.append(dagrun_model_1)
-        dagrun_model_2 = DagRun(
-            dag_id="TEST_DAG_ID",
-            run_id="TEST_DAG_RUN_ID_2",
-            run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time_2),
-            start_date=timezone.parse(self.default_time),
-            external_trigger=True,
-            state=state,
-        )
-        dag_runs.append(dagrun_model_2)
+        dags = []
+
+        for i in range(idx_start, idx_start + 2):
+            if i == 1:
+                dags.append(DagModel(dag_id='TEST_DAG_ID'))
+            dagrun_model = DagRun(
+                dag_id="TEST_DAG_ID",
+                run_id="TEST_DAG_RUN_ID_" + str(i),
+                run_type=DagRunType.MANUAL,
+                execution_date=timezone.parse(self.default_time) + timedelta(days=i - 1),
+                start_date=timezone.parse(self.default_time),
+                external_trigger=True,
+                state=state,
+            )
+            dag_runs.append(dagrun_model)
+
         if extra_dag:
-            for i in range(3, 5):
+            for i in range(idx_start + 2, idx_start + 4):
                 dags.append(DagModel(dag_id='TEST_DAG_ID_' + str(i)))
                 dag_runs.append(
                     DagRun(
@@ -306,6 +301,18 @@ class TestGetDagRuns(TestDagRunEndpoint):
             ],
             "total_entries": 2,
         }
+
+    def test_filter_by_state(self, session):
+        self._create_test_dag_run()
+        self._create_test_dag_run(state="queued", idx_start=3)
+        assert session.query(DagRun).count() == 4
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,queued", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 4
+        assert response.json["dag_runs"][0]["state"] == response.json["dag_runs"][1]["state"] == "running"
+        assert response.json["dag_runs"][2]["state"] == response.json["dag_runs"][3]["state"] == "queued"
 
     def test_invalid_order_by_raises_400(self):
         self._create_test_dag_run()
@@ -611,6 +618,19 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             ],
             "total_entries": 2,
         }
+
+    def test_filter_by_state(self):
+        self._create_test_dag_run()
+        self._create_test_dag_run(state="queued", idx_start=3)
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list",
+            json={"dag_ids": ["TEST_DAG_ID"], "states": ["running", "queued"]},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 4
+        assert response.json["dag_runs"][0]["state"] == response.json["dag_runs"][1]["state"] == "running"
+        assert response.json["dag_runs"][2]["state"] == response.json["dag_runs"][3]["state"] == "queued"
 
     def test_order_by_descending_works(self):
         self._create_test_dag_run()

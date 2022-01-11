@@ -29,7 +29,7 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, overload
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -273,6 +273,30 @@ class GCSHook(GoogleBaseHook):
             destination_bucket.name,  # type: ignore[attr-defined]
         )
 
+    @overload
+    def download(
+        self,
+        bucket_name: str,
+        object_name: str,
+        filename: None = None,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        num_max_attempts: Optional[int] = 1,
+    ) -> bytes:
+        ...
+
+    @overload
+    def download(
+        self,
+        bucket_name: str,
+        object_name: str,
+        filename: str,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        num_max_attempts: Optional[int] = 1,
+    ) -> str:
+        ...
+
     def download(
         self,
         bucket_name: str,
@@ -366,15 +390,12 @@ class GCSHook(GoogleBaseHook):
         :type num_max_attempts: int
         """
         # We do not pass filename, so will never receive string as response
-        return cast(
-            bytes,
-            self.download(
-                bucket_name=bucket_name,
-                object_name=object_name,
-                chunk_size=chunk_size,
-                timeout=timeout,
-                num_max_attempts=num_max_attempts,
-            ),
+        return self.download(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            chunk_size=chunk_size,
+            timeout=timeout,
+            num_max_attempts=num_max_attempts,
         )
 
     @_fallback_object_url_to_object_name_and_bucket_name()

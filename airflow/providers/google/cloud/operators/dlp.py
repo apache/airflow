@@ -22,7 +22,7 @@ This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.retry import Retry
@@ -221,6 +221,8 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.template_id is None:
+                raise RuntimeError("The template_id should be set here!")
             template = hook.get_deidentify_template(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -331,6 +333,8 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 wait_until_finished=self.wait_until_finished,
             )
         except AlreadyExists:
+            if self.job_id is None:
+                raise RuntimeError("The job_id must be set here!")
             job = hook.get_dlp_job(
                 project_id=self.project_id,
                 dlp_job_id=self.job_id,
@@ -400,7 +404,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         inspect_template: Optional[InspectTemplate] = None,
-        template_id: Optional[Union[Dict, InspectTemplate]] = None,
+        template_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -435,6 +439,8 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.template_id is None:
+                raise RuntimeError("The template_id should be set here!")
             template = hook.get_inspect_template(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -535,6 +541,8 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         except InvalidArgument as e:
             if "already in use" not in e.message:
                 raise
+            if self.trigger_id is None:
+                raise RuntimeError("The trigger_id should be set here!")
             trigger = hook.get_job_trigger(
                 project_id=self.project_id,
                 job_trigger_id=self.trigger_id,
@@ -640,6 +648,8 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         except InvalidArgument as e:
             if "already exists" not in e.message:
                 raise
+            if self.stored_info_type_id is None:
+                raise RuntimeError("The stored_info_type_id should be set here!")
             info = hook.get_stored_info_type(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -1803,7 +1813,8 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(template)
+        # the MessageToDict does not have the right type defined as possible to pass in constructor
+        return MessageToDict(template)  # type: ignore[arg-type]
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1900,7 +1911,8 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(job)
+        # the MessageToDict does not have the right type defined as possible to pass in constructor
+        return MessageToDict(job)  # type: ignore[arg-type]
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
@@ -2327,7 +2339,9 @@ class CloudDLPRedactImageOperator(BaseOperator):
         *,
         project_id: Optional[str] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        image_redaction_configs: Optional[Union[Dict, RedactImageRequest.ImageRedactionConfig]] = None,
+        image_redaction_configs: Optional[
+            Union[List[dict], List[RedactImageRequest.ImageRedactionConfig]]
+        ] = None,
         include_findings: Optional[bool] = None,
         byte_item: Optional[Union[Dict, ByteContentItem]] = None,
         retry: Optional[Retry] = None,

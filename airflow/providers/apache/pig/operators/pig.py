@@ -44,7 +44,7 @@ class PigOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('pig',)
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.pig',
         '.piglatin',
     )
@@ -65,7 +65,7 @@ class PigOperator(BaseOperator):
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
         self.pig_opts = pig_opts
-        self.hook = None
+        self.hook: Optional[PigCliHook] = None
 
     def prepare_template(self):
         if self.pigparams_jinja_translate:

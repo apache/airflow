@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -46,8 +46,8 @@ class GenericTransfer(BaseOperator):
     :type insert_args: dict
     """
 
-    template_fields = ('sql', 'destination_table', 'preoperator')
-    template_ext = (
+    template_fields: Sequence[str] = ('sql', 'destination_table', 'preoperator')
+    template_ext: Sequence[str] = (
         '.sql',
         '.hql',
     )

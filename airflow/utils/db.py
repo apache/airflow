@@ -705,8 +705,8 @@ def check_and_run_migrations():
                     print(error)
                     print(
                         "You still have unapplied migrations. "
-                        "You may need to {verb} the database by running `airflow db {command_name}`",
-                        f"Make sure the command is run using airflow version {version}.",
+                        f"You may need to {verb} the database by running `airflow db {command_name}`. ",
+                        f"Make sure the command is run using Airflow version {version}.",
                         file=sys.stderr,
                     )
                     sys.exit(1)
@@ -714,8 +714,8 @@ def check_and_run_migrations():
             pass
     elif source_heads != db_heads:
         print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}` ."
-            f"Make sure the command is run using airflow version {version}.",
+            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
+            f"Make sure the command is run using Airflow version {version}.",
             file=sys.stderr,
         )
         sys.exit(1)

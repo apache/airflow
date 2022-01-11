@@ -66,7 +66,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         "report",
         "impersonation_chain",
     )
-    template_ext = (".json",)
+    template_ext: Sequence[str] = (".json",)
 
     def __init__(
         self,

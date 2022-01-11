@@ -72,11 +72,12 @@ class TestSqlAlchemySettings(unittest.TestCase):
                 'core',
                 'sql_alchemy_connect_args',
             ): 'tests.core.test_sqlalchemy_config.SQL_ALCHEMY_CONNECT_ARGS',
+            ('core', 'sql_alchemy_engine_args'): '{"arg": 1}',
             ('core', 'sql_alchemy_pool_enabled'): 'False',
         }
         with conf_vars(config):
             settings.configure_orm()
-            engine_args = {}
+            engine_args = {'arg': 1}
             if settings.SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
                 engine_args['isolation_level'] = 'READ COMMITTED'
             mock_create_engine.assert_called_once_with(

@@ -85,7 +85,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#e6f0e4'
 
     def __init__(

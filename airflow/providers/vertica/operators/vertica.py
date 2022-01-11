@@ -37,7 +37,7 @@ class VerticaOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql',)
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#b4e0ff'
 
     def __init__(

@@ -20,31 +20,36 @@ import math
 import time
 from contextlib import closing
 from datetime import datetime
-from typing import Iterable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_event_list import V1EventList
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-from pendulum import Date, DateTime, Duration, Time
+from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
-from requests.exceptions import BaseHTTPError
+from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    try:
+        # Kube >= 19
+        from kubernetes.client.models.core_v1_event_list import CoreV1EventList as V1EventList
+    except ImportError:
+        from kubernetes.client.models.v1_event_list import V1EventList
 
 
 class PodLaunchFailedException(AirflowException):
     """When pod launching fails in KubernetesPodOperator."""
 
 
-def should_retry_start_pod(exception: Exception) -> bool:
+def should_retry_start_pod(exception: BaseException) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying"""
     if isinstance(exception, ApiException):
         return exception.status == 409
@@ -79,8 +84,11 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.running is not None
 
 
-class PodLauncher(LoggingMixin):
-    """Launches PODS"""
+class PodManager(LoggingMixin):
+    """
+    Helper class for creating, monitoring, and otherwise interacting with Kubernetes pods
+    for use with the KubernetesPodOperator
+    """
 
     def __init__(
         self,
@@ -101,8 +109,6 @@ class PodLauncher(LoggingMixin):
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously"""
-        pod_mutation_hook(pod)
-
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
@@ -174,7 +180,7 @@ class PodLauncher(LoggingMixin):
             So the looping logic is there to let us resume following the logs.
         """
 
-        def follow_logs(since_time: Optional[datetime] = None) -> Optional[datetime]:
+        def follow_logs(since_time: Optional[DateTime] = None) -> Optional[DateTime]:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -192,7 +198,7 @@ class PodLauncher(LoggingMixin):
                         math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
                     ),
                 )
-                for line in logs:  # type: bytes
+                for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
             except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
@@ -235,7 +241,7 @@ class PodLauncher(LoggingMixin):
             time.sleep(2)
         return remote_pod
 
-    def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
+    def parse_log_line(self, line: str) -> Tuple[Optional[DateTime], str]:
         """
         Parse K8s log line and returns the final state
 
@@ -250,7 +256,7 @@ class PodLauncher(LoggingMixin):
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
         try:
-            last_log_time = pendulum.parse(timestamp)
+            last_log_time = cast(DateTime, pendulum.parse(timestamp))
         except ParserError:
             self.log.error("Error parsing timestamp. Will continue execution but won't update timestamp")
             return None, line
@@ -269,7 +275,7 @@ class PodLauncher(LoggingMixin):
         tail_lines: Optional[int] = None,
         timestamps: bool = False,
         since_seconds: Optional[int] = None,
-    ) -> Iterable[str]:
+    ) -> Iterable[bytes]:
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:
@@ -293,7 +299,7 @@ class PodLauncher(LoggingMixin):
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod_events(self, pod: V1Pod) -> V1EventList:
+    def read_pod_events(self, pod: V1Pod) -> "V1EventList":
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(

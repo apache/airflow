@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
@@ -97,7 +97,7 @@ class GrpcOperator(BaseOperator):
         for response in responses:
             self._handle_response(response, context)
 
-    def _handle_response(self, response: Any, context: Dict) -> None:
+    def _handle_response(self, response: Any, context: 'Context') -> None:
         if self.log_response:
             self.log.info(repr(response))
         if self.response_callback:

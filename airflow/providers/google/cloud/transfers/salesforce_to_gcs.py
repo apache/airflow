@@ -68,7 +68,7 @@ class SalesforceToGcsOperator(BaseOperator):
         'bucket_name',
         'object_name',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
 
     def __init__(
         self,

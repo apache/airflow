@@ -47,7 +47,7 @@ class DrillOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_fields_renderers = {'sql': 'sql'}
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -62,7 +62,7 @@ class DrillOperator(BaseOperator):
         self.sql = sql
         self.drill_conn_id = drill_conn_id
         self.parameters = parameters
-        self.hook = None
+        self.hook: Optional[DrillHook] = None
 
     def execute(self, context: 'Context'):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)

@@ -20,9 +20,9 @@
 #################################
 {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
-{{- $nodeSelector := or .Values.nodeSelector .Values.triggerer.nodeSelector }}
-{{- $affinity := or .Values.affinity .Values.triggerer.affinity }}
-{{- $tolerations := or .Values.tolerations .Values.triggerer.tolerations }}
+{{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
+{{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.triggerer) }}
 kind: Deployment
 apiVersion: apps/v1
@@ -76,7 +76,18 @@ spec:
       nodeSelector:
         {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
+      {{- if $affinity }}
         {{- toYaml $affinity | nindent 8 }}
+      {{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: triggerer
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      {{- end }}
       tolerations:
         {{- toYaml $tolerations | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}

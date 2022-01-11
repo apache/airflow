@@ -315,9 +315,10 @@ class SnowflakeHook(DbApiHook):
                         self.log.info("Statement execution info - %s", row)
                         execution_info.append(row)
 
+                    query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
-                    self.log.info("Snowflake query id: %s", cur.sfqid)
-                    self.query_ids.append(cur.sfqid)
+                    self.log.info("Snowflake query id: %s", query_id)
+                    self.query_ids.append(query_id)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.

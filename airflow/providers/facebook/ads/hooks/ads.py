@@ -157,7 +157,7 @@ class FacebookAdsReportingHook(BaseHook):
         self,
         account_id: str,
         api: FacebookAdsApi,
-        params: Dict[str, Any],
+        params: Optional[Dict[str, Any]],
         fields: List[str],
         sleep_time: int = 5,
     ) -> List[AdsInsights]:

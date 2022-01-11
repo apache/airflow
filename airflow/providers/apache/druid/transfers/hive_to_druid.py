@@ -80,7 +80,7 @@ class HiveToDruidOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql', 'intervals')
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
 
     def __init__(
         self,

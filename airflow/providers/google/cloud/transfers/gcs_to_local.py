@@ -99,8 +99,9 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         # To preserve backward compatibility
         # TODO: Remove one day
         if object_name is None:
-            if 'object' in kwargs:
-                object_name = kwargs['object']
+            object_name = kwargs.get('object')
+            if object_name is not None:
+                self.object_name = object_name
                 DeprecationWarning("Use 'object_name' instead of 'object'.")
             else:
                 TypeError("__init__() missing 1 required positional argument: 'object_name'")
@@ -119,8 +120,8 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
         super().__init__(**kwargs)
         self.bucket = bucket
-        self.object_name = object_name
         self.filename = filename
+        self.object_name = object_name
         self.store_to_xcom_key = store_to_xcom_key
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to

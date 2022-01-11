@@ -111,7 +111,7 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Dict[str, str]
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, BaseOperator):
@@ -136,12 +136,12 @@ def _draw_nodes(
                 _draw_task_group(node, sub, states_by_task_id)
 
 
-def render_dag_dependencies(deps: Optional[Dict[str, List['DagDependency']]]) -> graphviz.Digraph:
+def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.Digraph:
     """
     Renders the DAG dependency to the DOT object.
 
     :param deps: List of DAG dependencies
-    :type deps: Optional[List[DagDependency]]
+    :type deps: List[DagDependency]
     :return: Graphviz object
     :rtype: graphviz.Digraph
     """

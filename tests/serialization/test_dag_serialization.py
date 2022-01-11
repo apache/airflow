@@ -1094,14 +1094,12 @@ class TestStringifiedDAGs:
         tests should be added for it.
         """
         base_operator = BaseOperator(task_id="10")
-        fields = base_operator.__dict__
+        fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
         assert fields == {
-            '_BaseOperator__instantiated': True,
             '_downstream_task_ids': set(),
             '_inlets': [],
             '_log': base_operator.log,
             '_outlets': [],
-            '_upstream_task_ids': set(),
             '_pre_execute_hook': None,
             '_post_execute_hook': None,
             'depends_on_past': False,
@@ -1114,10 +1112,8 @@ class TestStringifiedDAGs:
             'email': None,
             'email_on_failure': True,
             'email_on_retry': True,
-            'end_date': None,
             'execution_timeout': None,
             'executor_config': {},
-            'inlets': [],
             'label': '10',
             'max_active_tis_per_dag': None,
             'max_retry_delay': None,
@@ -1125,7 +1121,6 @@ class TestStringifiedDAGs:
             'on_failure_callback': None,
             'on_retry_callback': None,
             'on_success_callback': None,
-            'outlets': [],
             'owner': 'airflow',
             'params': {},
             'pool': 'default_pool',
@@ -1138,7 +1133,6 @@ class TestStringifiedDAGs:
             'retry_exponential_backoff': False,
             'run_as_user': None,
             'sla': None,
-            'start_date': None,
             'task_id': '10',
             'trigger_rule': 'all_success',
             'wait_for_downstream': False,

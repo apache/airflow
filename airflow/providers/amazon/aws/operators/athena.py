@@ -65,7 +65,7 @@ class AthenaOperator(BaseOperator):
 
     ui_color = '#44b5e2'
     template_fields: Sequence[str] = ('query', 'database', 'output_location')
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {"query": "sql"}
 
     def __init__(

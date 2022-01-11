@@ -645,7 +645,7 @@ python dependencies, additional Airflow extras. Breeze's ``build-image`` command
 customized variant of the image that contains everything you need.
 
 You can switch to building the production image by adding ``--production-image`` flag to the ``build_image``
-command. Note, that the images can also be build using ``docker build`` command by passing appropriate
+command. Note, that the images can also be built using ``docker build`` command by passing appropriate
 build-args as described in `IMAGES.rst <IMAGES.rst>`_ , but Breeze provides several flags that
 makes it easier to do it. You can see all the flags by running ``./breeze build-image --help``,
 but here typical examples are presented:
@@ -2209,8 +2209,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
                  ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 update-versions vendor-k8s-json-schema verify-db-migrations-documented version-sync
-                 www-lint yamllint yesqa
+                 update-supported-versions update-versions vendor-k8s-json-schema
+                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

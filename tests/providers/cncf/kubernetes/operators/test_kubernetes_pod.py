@@ -26,7 +26,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
 from airflow.operators.dummy import DummyOperator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+    KubernetesPodOperator,
+    _prune_dict,
+    _suppress,
+)
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -45,14 +49,14 @@ def create_context(task):
     }
 
 
-POD_LAUNCHER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher"
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
 class TestKubernetesPodOperator:
     def setup_method(self):
-        self.create_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.create_pod")
-        self.await_pod_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_start")
-        self.await_pod_completion_patch = mock.patch(f"{POD_LAUNCHER_CLASS}.await_pod_completion")
+        self.create_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.await_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.await_pod_completion_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
         self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
@@ -231,7 +235,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     def test_pod_delete_even_on_launcher_error(self, delete_pod_mock):
         k = KubernetesPodOperator(
             namespace="default",
@@ -504,8 +508,8 @@ class TestKubernetesPodOperator:
                 "execution_date": mock.ANY,
             }
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.follow_container_logs")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_container_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
     def test_describes_pod_on_failure(self, await_container_mock, follow_container_mock):
         name_base = "test"
 
@@ -532,8 +536,8 @@ class TestKubernetesPodOperator:
 
         assert not self.client_mock.return_value.read_namespaced_pod.called
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.follow_container_logs")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_container_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
     def test_no_handle_failure_on_success(self, await_container_mock, follow_container_mock):
         name_base = "test"
 
@@ -718,7 +722,7 @@ class TestKubernetesPodOperator:
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
-    @mock.patch(f"{POD_LAUNCHER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     def test_push_xcom_pod_info(self, extract_xcom, do_xcom_push):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
         extract_xcom.return_value = '{}'
@@ -756,7 +760,7 @@ class TestKubernetesPodOperator:
         _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
         assert 'already_checked!=True' in kwargs['label_selector']
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
         ".KubernetesPodOperator.patch_already_checked"
@@ -779,7 +783,7 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
         ".KubernetesPodOperator.patch_already_checked"
@@ -802,7 +806,7 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators."
         "kubernetes_pod.KubernetesPodOperator.patch_already_checked"
@@ -834,3 +838,32 @@ def test__suppress():
             raise ValueError("failure")
 
         mock_error.assert_called_once_with("failure", exc_info=True)
+
+
+@pytest.mark.parametrize(
+    'mode, expected',
+    [
+        (
+            'strict',
+            {
+                'b': '',
+                'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
+                'd': ['', 0, '1'],
+                'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
+            },
+        ),
+        (
+            'truthy',
+            {
+                'c': {'c': 'hi', 'd': ['1']},
+                'd': ['1'],
+                'e': [{'c': 'hi', 'd': ['1']}, ['1']],
+            },
+        ),
+    ],
+)
+def test__prune_dict(mode, expected):
+    l1 = ['', 0, '1', None]
+    d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
+    d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
+    assert _prune_dict(d2, mode=mode) == expected

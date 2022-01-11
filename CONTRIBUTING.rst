@@ -248,13 +248,13 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   mkvirtualenv myenv --python=python3.6
+   mkvirtualenv myenv --python=python3.7
 
 5. Initialize the created environment:
 
 .. code-block:: bash
 
-   ./breeze initialize-local-virtualenv --python 3.6
+   ./breeze initialize-local-virtualenv --python 3.7
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
@@ -415,7 +415,7 @@ these guidelines:
 -   Run tests locally before opening PR.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.6 currently). In rare cases
+    if it works for the oldest supported version (Python 3.7 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
@@ -847,7 +847,7 @@ It can be done from the sources:
 .. code-block:: bash
 
   pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 
 or from the PyPI package:
@@ -855,7 +855,7 @@ or from the PyPI package:
 .. code-block:: bash
 
   pip install apache-airflow \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 
 This works also with extras - for example:
@@ -863,7 +863,7 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install .[ssh] \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 
 As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
@@ -873,7 +873,7 @@ fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag
 .. code-block:: bash
 
   pip install apache-airflow[ssh]==1.10.12 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 
 There are different set of fixed constraint files for different python major/minor versions and you should
 use the right file for the right python version.
@@ -884,7 +884,7 @@ If you want to update just airflow dependencies, without paying attention to pro
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.7.txt"
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``

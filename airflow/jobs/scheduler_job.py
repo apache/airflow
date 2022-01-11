@@ -1071,6 +1071,7 @@ class SchedulerJob(BaseJob):
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
             self._send_dag_callbacks_to_processor(dag, callback_to_execute)
+            self._send_sla_callbacks_to_processor(dag)
             # Because we send the callback here, we need to return None
             return callback
 
@@ -1086,7 +1087,8 @@ class SchedulerJob(BaseJob):
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-
+            # Send SLA Callbacks to be executed
+            self._send_sla_callbacks_to_processor(dag)
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
@@ -1115,7 +1117,6 @@ class SchedulerJob(BaseJob):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
 
-        self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.processor_agent.send_callback_to_execute(callback)
 

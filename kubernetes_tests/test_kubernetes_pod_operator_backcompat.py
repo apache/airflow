@@ -36,7 +36,7 @@ from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.version import version as airflow_version
@@ -117,8 +117,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client = kube_client.get_kube_client(in_cluster=False)
         client.delete_collection_namespaced_pod(namespace="default")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_secrets_correctly_set(self, mock_client, await_pod_completion_mock, create_mock):
         fake_pull_secrets = "fakeSecret"
@@ -266,7 +266,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_volume_mount(self):
-        with patch.object(PodLauncher, 'log') as mock_logger:
+        with patch.object(PodManager, 'log') as mock_logger:
             volume_mount = VolumeMount(
                 'test-volume', mount_path='/tmp/test_volume', sub_path=None, read_only=False
             )
@@ -451,8 +451,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_configmaps(self, mock_client, mock_monitor, mock_start):
         # GIVEN
@@ -480,8 +480,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))
         ]
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_secrets(self, mock_client, await_pod_completion_mock, create_mock):
         # GIVEN

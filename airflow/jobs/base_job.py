@@ -29,8 +29,8 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import timezone

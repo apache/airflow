@@ -86,7 +86,7 @@ class SnowflakeOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql',)
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -199,7 +199,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
     """
 
     template_fields: Sequence[str] = ('sql',)
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(

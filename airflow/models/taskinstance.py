@@ -477,6 +477,26 @@ class TaskInstance(Base, LoggingMixin):
         # can be changed when calling 'run'
         self.test_mode = False
 
+    @staticmethod
+    def insert_mapping(run_id: str, task: "BaseOperator") -> dict:
+        """:meta private:"""
+        return {
+            'dag_id': task.dag_id,
+            'task_id': task.task_id,
+            'run_id': run_id,
+            '_try_number': 0,
+            'hostname': '',
+            'unixname': getuser(),
+            'queue': task.queue,
+            'pool': task.pool,
+            'pool_slots': task.pool_slots,
+            'priority_weight': task.priority_weight_total,
+            'run_as_user': task.run_as_user,
+            'max_tries': task.retries,
+            'executor_config': task.executor_config,
+            'operator': task.task_type,
+        }
+
     @reconstructor
     def init_on_load(self):
         """Initialize the attributes that aren't stored in the DB"""
@@ -1207,7 +1227,8 @@ class TaskInstance(Base, LoggingMixin):
             # Attempt 0 for the first attempt).
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
-            self.start_date = timezone.utcnow()
+            # If the task continues after being deferred (next_method is set), use the original start_date
+            self.start_date = self.start_date if self.next_method else timezone.utcnow()
             if self.state == State.UP_FOR_RESCHEDULE:
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
@@ -1533,6 +1554,8 @@ class TaskInstance(Base, LoggingMixin):
         session.flush()
 
         # Then, update ourselves so it matches the deferral request
+        # Keep an eye on the logic in `check_and_change_state_before_execution()`
+        # depending on self.next_method semantics
         self.state = State.DEFERRED
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name

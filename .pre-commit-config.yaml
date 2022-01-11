@@ -143,7 +143,7 @@ repos:
         files: \.mermaid$
         exclude: ^airflow/_vendor/
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.0.1
+    rev: v2.1.0
     hooks:
       - id: doctoc
         name: Add TOC for md files
@@ -154,19 +154,19 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.9b0
+    rev: 21.12b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.11.0
+    rev: v1.12.0
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.9b0]
+        additional_dependencies: [black==21.12b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
+    rev: v4.1.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -195,11 +195,12 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
+  # TODO: Bump to Python 3.7 when support for Python 3.6 is dropped in Airflow 2.3.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.29.1
+    rev: v2.31.0
     hooks:
       - id: pyupgrade
-        args: ["--py37-plus"]
+        args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
@@ -216,8 +217,8 @@ repos:
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml|pre-commit-config|^airflow/_vendor/
-  - repo: https://github.com/timothycrosley/isort
-    rev: 5.9.3
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
@@ -245,7 +246,7 @@ repos:
           ^airflow/_vendor/
         additional_dependencies: ['toml']
   - repo: https://github.com/asottile/yesqa
-    rev: v1.2.3
+    rev: v1.3.0
     hooks:
       - id: yesqa
         exclude: |
@@ -357,6 +358,13 @@ repos:
         files: ^Dockerfile$
         pass_filenames: false
         additional_dependencies: ['rich']
+      - id: update-supported-versions
+        name: Updates supported versions in documentation
+        entry: ./scripts/ci/pre_commit/supported_versions.py
+        language: python
+        files: ^scripts/ci/pre_commit/supported_versions.py$|^README.md$|^docs/apache-airflow/supported-versions.rst$
+        pass_filenames: false
+        additional_dependencies: ['tabulate']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
@@ -409,13 +417,6 @@ repos:
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
           git|
           ^CHANGELOG\.txt$
-      - id: capitalized-breeze
-        language: pygrep
-        name: Only capitalized Breeze used in Breeze2.
-        description: Please use capitalized "Breeze" in the new Breeze docs
-        entry: ([\W\s\n\t\r]|^)breeze([\W\s\n\t\r]|$)
-        pass_filenames: true
-        files: ^dev/breeze/doc
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports

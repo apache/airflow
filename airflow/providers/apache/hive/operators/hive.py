@@ -74,7 +74,7 @@ class HiveOperator(BaseOperator):
         'mapred_job_name',
         'mapred_queue_priority',
     )
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.hql',
         '.sql',
     )

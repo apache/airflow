@@ -46,7 +46,7 @@ class PostgresOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_fields_renderers = {'sql': 'sql'}
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -65,7 +65,7 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
-        self.hook = None
+        self.hook: Optional[PostgresHook] = None
 
     def execute(self, context: 'Context'):
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)

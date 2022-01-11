@@ -84,7 +84,7 @@ class RedshiftToS3Operator(BaseOperator):
         'unload_options',
         'select_query',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'select_query': 'sql'}
     ui_color = '#ededed'
 

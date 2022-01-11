@@ -364,7 +364,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         poll_sleep: int = 10,
         job_class: Optional[str] = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-        multiple_jobs: Optional[bool] = None,
+        multiple_jobs: bool = False,
         cancel_timeout: Optional[int] = 10 * 60,
         wait_until_finished: Optional[bool] = None,
         **kwargs,

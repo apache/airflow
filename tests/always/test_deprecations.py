@@ -29,7 +29,7 @@ from airflow.models.baseoperator import BaseOperator
 from tests.deprecated_classes import ALL, RENAMED_ALL
 
 
-class TestMovingCoreToContrib(TestCase):
+class TestDeprecations(TestCase):
     @staticmethod
     def assert_warning(msg: str, warnings):
         error = f"Text '{msg}' not in warnings"

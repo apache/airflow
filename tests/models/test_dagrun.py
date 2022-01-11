@@ -21,6 +21,7 @@ import unittest
 from unittest import mock
 from unittest.mock import call
 
+import pytest
 from parameterized import parameterized
 
 from airflow import models, settings
@@ -581,21 +582,6 @@ class TestDagRun(unittest.TestCase):
             if dagrun.dag_id == 'test_latest_runs_1':
                 assert dagrun.execution_date == timezone.datetime(2015, 1, 2)
 
-    def test_is_backfill(self):
-        dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
-
-        dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
-        dagrun.run_type = DagRunType.BACKFILL_JOB
-
-        dagrun2 = self.create_dag_run(dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
-
-        dagrun3 = self.create_dag_run(dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
-        dagrun3.run_id = None
-
-        assert dagrun.is_backfill
-        assert not dagrun2.is_backfill
-        assert not dagrun3.is_backfill
-
     def test_removed_task_instances_can_be_restored(self):
         def with_all_tasks_removed(dag):
             return DAG(dag_id=dag.dag_id, start_date=dag.start_date)
@@ -640,7 +626,7 @@ class TestDagRun(unittest.TestCase):
             assert State.NONE == first_ti.state
 
     @parameterized.expand([(state,) for state in State.task_states])
-    @mock.patch('airflow.settings.task_instance_mutation_hook')
+    @mock.patch.object(settings, 'task_instance_mutation_hook', autospec=True)
     def test_task_instance_mutation_hook(self, state, mock_hook):
         def mutate_task_instance(task_instance):
             if task_instance.queue == 'queue1':
@@ -852,3 +838,35 @@ class TestDagRun(unittest.TestCase):
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
+
+
+@pytest.mark.parametrize(
+    ('run_type', 'expected_tis'),
+    [
+        pytest.param(DagRunType.MANUAL, 1, id='manual'),
+        pytest.param(DagRunType.BACKFILL_JOB, 2, id='backfill'),
+    ],
+)
+@mock.patch.object(Stats, 'incr')
+def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expected_tis):
+    """Test that tasks with specific start dates are only created for backfill runs"""
+    with DAG('test', start_date=DEFAULT_DATE) as dag:
+        DummyOperator(task_id='without')
+        DummyOperator(task_id='with_startdate', start_date=DEFAULT_DATE + datetime.timedelta(1))
+
+    dag_run = DagRun(
+        dag_id=dag.dag_id,
+        run_type=run_type,
+        execution_date=DEFAULT_DATE,
+        run_id=DagRun.generate_run_id(run_type, DEFAULT_DATE),
+    )
+    dag_run.dag = dag
+
+    session.add(dag_run)
+    session.flush()
+    dag_run.verify_integrity(session)
+
+    tis = dag_run.task_instances
+    assert len(tis) == expected_tis
+
+    Stats_incr.assert_called_with('task_instance_created-DummyOperator', expected_tis)

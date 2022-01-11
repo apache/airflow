@@ -29,23 +29,23 @@
 Breaking changes
 ~~~~~~~~~~~~~~~~
 {% for breaking_change in classified_changes.breaking_changes %}
-* ``{{ breaking_change.message_without_backticks }}``
+* ``{{ breaking_change.message_without_backticks | safe }}``
 {%- endfor %}
 
 Features
 ~~~~~~~~
 {% for feature in classified_changes.features %}
-* ``{{ feature.message_without_backticks }}``
+* ``{{ feature.message_without_backticks | safe }}``
 {%- endfor %}
 
 Bug Fixes
 ~~~~~~~~~
 {% for fix in classified_changes.fixes %}
-* ``{{ fix.message_without_backticks }}``
+* ``{{ fix.message_without_backticks | safe }}``
 {%- endfor %}
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    {%- for other in classified_changes.other %}
-   * ``{{ other.message_without_backticks }}``
+   * ``{{ other.message_without_backticks | safe }}``
    {%- endfor %}

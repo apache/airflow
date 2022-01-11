@@ -330,7 +330,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id = None
+        self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -346,9 +346,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self._get_hook()
-        hook.cancel_run(self.run_id)
-        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
+        if self.run_id:
+            hook = self._get_hook()
+            hook.cancel_run(self.run_id)
+            self.log.info(
+                'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
+            )
+        else:
+            self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)
 
 
 class DatabricksRunNowOperator(BaseOperator):
@@ -544,7 +549,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id = None
+        self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -560,6 +565,11 @@ class DatabricksRunNowOperator(BaseOperator):
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self._get_hook()
-        hook.cancel_run(self.run_id)
-        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
+        if self.run_id:
+            hook = self._get_hook()
+            hook.cancel_run(self.run_id)
+            self.log.info(
+                'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
+            )
+        else:
+            self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)
