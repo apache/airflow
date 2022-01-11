@@ -59,6 +59,7 @@ function install_airflow() {
             pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         fi
+
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         echo

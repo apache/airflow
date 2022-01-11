@@ -20,9 +20,11 @@
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
 function build_images::add_build_args_for_remote_install() {
-    # entrypoint is used as AIRFLOW_SOURCES_FROM/TO in order to avoid costly copying of all sources of
+    # entrypoint is used as AIRFLOW_SOURCES_(WWW)_FROM/TO in order to avoid costly copying of all sources of
     # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
     EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=empty"
+        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/empty"
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
@@ -738,6 +740,8 @@ function build_images::prepare_prod_build() {
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}"
             "--build-arg" "AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}"
+            "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM}"
+            "--build-arg" "AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO}"
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}"
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )

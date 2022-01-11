@@ -439,6 +439,13 @@ function initialization::initialize_image_build_variables() {
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
     export AIRFLOW_SOURCES_TO
 
+    # By default no sources are copied to image
+    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="empty"}
+    export AIRFLOW_SOURCES_WWW_FROM
+
+    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/empty"}
+    export AIRFLOW_SOURCES_WWW_TO
+
     # By default in scripts production docker image is installed from PyPI package
     export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
 
@@ -711,6 +718,8 @@ Production image build variables:
     AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
+    AIRFLOW_SOURCES_WWW_FROM: '${AIRFLOW_SOURCES_WWW_FROM}'
+    AIRFLOW_SOURCES_WWW_TO: '${AIRFLOW_SOURCES_WWW_TO}'
 
 Detected GitHub environment:
 
