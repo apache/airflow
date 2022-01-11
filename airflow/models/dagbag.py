@@ -402,7 +402,6 @@ class DagBag(LoggingMixin):
                 dag.timetable.validate()
                 # create a copy of params before validating
                 copied_params = copy.deepcopy(dag.params)
-                copied_params.update(conf or {})
                 copied_params.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
