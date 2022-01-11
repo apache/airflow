@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
+from freezegun import freeze_time
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
@@ -197,18 +198,27 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'
     )
     @pytest.mark.parametrize(
-        'status, should_requeue',
+        'status, should_requeue, service_recovers',
         [
-            pytest.param(403, True, id='403 Forbidden'),
-            pytest.param(12345, True, id='12345 fake-unhandled-reason'),
-            pytest.param(422, False, id='422 Unprocessable Entity'),
-            pytest.param(400, False, id='400 BadRequest'),
+            pytest.param(403, False, False, id='403 Forbidden'),
+            pytest.param(12345, False, False, id='12345 fake-unhandled-reason'),
+            pytest.param(503, True, True, id='503 Service unavailable and recovers'),
+            pytest.param(503, True, False, id='503 Service unavailable until retries exhausted'),
+            pytest.param(422, False, False, id='422 Unprocessable Entity'),
+            pytest.param(400, False, False, id='400 BadRequest'),
         ],
     )
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @freeze_time('2021-09-19 04:56:35', as_kwarg="frozen_time")
     def test_run_next_exception_requeue(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        status,
+        should_requeue,
+        service_recovers,
+        frozen_time=None,
     ):
         """
         When pod scheduling fails with either reason 'Forbidden', or any reason not yet
@@ -218,7 +228,8 @@ class TestKubernetesExecutor:
 
         Note on error scenarios:
 
-        - 403 Forbidden will be returned when your request exceeds namespace quota.
+        - 403 Forbidden will be returned when your request exceeds namespace quota. Or when pod spec
+              attempts to set priority when priority admission controller is enabled.
         - 422 Unprocessable Entity is returned when your parameters are valid but unsupported
             e.g. limits lower than requests.
         - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
@@ -258,15 +269,33 @@ class TestKubernetesExecutor:
             if should_requeue:
                 assert not kubernetes_executor.task_queue.empty()
 
-                # Disable the ApiException
-                mock_kube_client.create_namespaced_pod.side_effect = None
+                if service_recovers:
+                    # Execute the task without errors should empty the queue
+                    # Disable the ApiException (service has recovered)
+                    mock_kube_client.create_namespaced_pod.side_effect = None
+                    mock_kube_client.create_namespaced_pod.reset_mock()
+                    frozen_time.tick(timedelta(minutes=3))
+                    kubernetes_executor.sync()
+                    assert mock_kube_client.create_namespaced_pod.called
+                    assert kubernetes_executor.task_queue.empty()
+                else:
+                    # Retry should continue 10 times, but not more. Tick 15 times and verify only 10 happened
+                    for i in range(15):
+                        frozen_time.tick(timedelta(minutes=3))  # max wait time per attempt is 2min
+                        kubernetes_executor.sync()
+                        attempt = i + 2  # +1 from first attempt above, +1 for range() starting at 0
+                        assert mock_kube_client.create_namespaced_pod.call_count == min(attempt, 10)
+                        if attempt < 10:
+                            assert not kubernetes_executor.task_queue.empty()
+                        else:
+                            # Removed on last attempt
+                            assert kubernetes_executor.task_queue.empty()
 
-                # Execute the task without errors should empty the queue
-                mock_kube_client.create_namespaced_pod.reset_mock()
-                kubernetes_executor.sync()
-                assert mock_kube_client.create_namespaced_pod.called
-                assert kubernetes_executor.task_queue.empty()
+                    assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+
             else:
+                frozen_time.tick(timedelta(minutes=3))
+                kubernetes_executor.sync()
                 assert kubernetes_executor.task_queue.empty()
                 assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
 
@@ -343,7 +372,7 @@ class TestKubernetesExecutor:
 
             assert not executor.task_queue.empty()
             task = executor.task_queue.get_nowait()
-            _, _, expected_executor_config, expected_pod_template_file = task
+            _, _, expected_executor_config, expected_pod_template_file, _, _ = task
 
             # Test that the correct values have been put to queue
             assert expected_executor_config.metadata.labels == {'release': 'stable'}
