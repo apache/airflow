@@ -45,7 +45,9 @@ def example_dbt_cloud():
     # [END howto_operator_adf_run_pipeline]
 
     # [START howto_operator_adf_run_pipeline_async]
-    trigger_job_run2 = DbtCloudRunJobOperator(task_id="trigger_job_run2", job_id=48617)
+    trigger_job_run2 = DbtCloudRunJobOperator(
+        task_id="trigger_job_run2", job_id=48617, additional_run_config={"threads_override": 8}
+    )
 
     job_run_sensor = DbtCloudJobRunSensor(
         task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=30

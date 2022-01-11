@@ -16,7 +16,7 @@
 # under the License.
 
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
@@ -54,6 +54,8 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param steps_override: Optional. List of dbt commands to execute when triggering the job instead of those
         configured in dbt Cloud.
     :type steps_override: List[str]
+    :param schema_override: Optional. Override the destination schema in the configured target for this job.
+    :type schema_override: str
     :param wait_for_termination: Flag to wait on a job run's termination.  By default, this feature is
         enabled but could be disabled to perform an asynchronous wait for a long-running job run execution
         using the ``DbtCloudJobRunSensor``.
@@ -64,6 +66,9 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param check_interval: Time in seconds to check on a job run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True. Defaults to 60 seconds.
     :type check_interval: int
+    :param additional_run_config: Optional. Any additional parameters that should be included in the API
+        request when triggering the job.
+    :type additional_run_config: Dict[str, Any]
     """
 
     template_fields = ("dbt_cloud_conn_id", "job_id", "account_id", "trigger_reason")
@@ -77,9 +82,12 @@ class DbtCloudRunJobOperator(BaseOperator):
         job_id: int,
         account_id: Optional[int] = None,
         trigger_reason: Optional[str] = None,
+        steps_override: Optional[List[str]] = None,
+        schema_override: Optional[str] = None,
         wait_for_termination: bool = False,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
+        additional_run_config: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,15 +95,26 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.hook = DbtCloudHook(self.dbt_cloud_conn_id)
         self.account_id = account_id
         self.job_id = job_id
-        self.trigger_reason = trigger_reason or ""
+        self.trigger_reason = trigger_reason
+        self.steps_override = steps_override
+        self.schema_override = schema_override
         self.wait_for_termination = wait_for_termination
         self.timeout = timeout
         self.check_interval = check_interval
+        self.additional_run_config = additional_run_config or {}
         self.run_id: int
 
     def execute(self, context: "Context") -> int:
+        if self.trigger_reason is None:
+            self.trigger_reason = (
+                f"Triggered in Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
+            )
+        print(self.additional_run_config)
         trigger_job_response = self.hook.trigger_job_run(
-            account_id=self.account_id, job_id=self.job_id, cause=self.trigger_reason
+            account_id=self.account_id,
+            job_id=self.job_id,
+            cause=self.trigger_reason,
+            additional_run_config=self.additional_run_config,
         )
         self.run_id = trigger_job_response.json()["data"]["id"]
         job_run_url = trigger_job_response.json()["data"]["href"]

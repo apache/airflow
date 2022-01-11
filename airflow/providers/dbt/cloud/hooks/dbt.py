@@ -339,6 +339,8 @@ class DbtCloudHook(HttpHook):
         cause: str,
         account_id: Optional[int] = None,
         steps_override: Optional[List[str]] = None,
+        schema_override: Optional[str] = None,
+        additional_run_config: Dict[str, Any] = None,
         **kwargs: Any,
     ) -> Response:
         """
@@ -353,12 +355,28 @@ class DbtCloudHook(HttpHook):
         :param steps_override: Optional. List of dbt commands to execute when triggering the job
             instead of those configured in dbt Cloud.
         :type steps_override: List[str]
+        :param schema_override: Optional. Override the destination schema in the configured target for this
+            job.
+        :type schema_override: str
+        :param additional_run_config: Optional. Any additional parameters that should be included in the API
+            request when triggering the job.
+        :type additional_run_config: Dict[str, Any]
         :return: The request response.
         """
+        if not additional_run_config:
+            additional_run_config = {}
+
+        print(additional_run_config)
+
         return self._run_and_get_response(
             method="POST",
             endpoint=f"{account_id}/jobs/{job_id}/run/",
-            data={"cause": cause, "steps_override": steps_override, **kwargs},
+            data={
+                "cause": cause,
+                "steps_override": steps_override,
+                "schema_override": schema_override,
+                **additional_run_config,
+            },
         )
 
     @fallback_to_default_account
