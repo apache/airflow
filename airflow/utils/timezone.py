@@ -104,10 +104,8 @@ def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
 
     if not is_localized(value):
         value = pendulum.instance(value, TIMEZONE)
-    else:
-        value = pendulum.instance(value)
 
-    return value.astimezone(utc)
+    return pendulum.instance(value.astimezone(utc))
 
 
 @overload
