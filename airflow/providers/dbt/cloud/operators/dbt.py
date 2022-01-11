@@ -36,6 +36,36 @@ class DbtCloudRunJobOperatorLink(BaseOperatorLink):
 
 
 class DbtCloudRunJobOperator(BaseOperator):
+    """
+    Executes a dbt Cloud job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DbtCloudRunJobOperator`
+
+    :param dbt_cloud_conn_id: The connection ID for connecting to dbt Cloud.
+    :type dbt_cloud_conn_id: str
+    :param job_id: The ID of a dbt Cloud job.
+    :type job_id: int
+    :param account_id: Optional. The ID of a dbt Cloud account.
+    :type account_id: int
+    :param trigger_reason: Optional. Description of the reason to trigger the job.
+    :type trigger_reason: str
+    :param steps_override: Optional. List of dbt commands to execute when triggering the job instead of those
+        configured in dbt Cloud.
+    :type steps_override: List[str]
+    :param wait_for_termination: Flag to wait on a job run's termination.  By default, this feature is
+        enabled but could be disabled to perform an asynchronous wait for a long-running job run execution
+        using the ``DbtCloudJobRunSensor``.
+    :type wait_for_termination: bool
+    :param timeout: Time in seconds to wait for a job run to reach a terminal status for non-asynchronous
+        waits. Used only if ``wait_for_termination`` is True. Defaults to 7 days.
+    :type timeout: int
+    :param check_interval: Time in seconds to check on a job run's status for non-asynchronous waits.
+        Used only if ``wait_for_termination`` is True. Defaults to 60 seconds.
+    :type check_interval: int
+    """
+
     template_fields = ("dbt_cloud_conn_id", "job_id", "account_id", "trigger_reason")
 
     operator_extra_links = (DbtCloudRunJobOperatorLink(),)
@@ -69,7 +99,8 @@ class DbtCloudRunJobOperator(BaseOperator):
         )
         self.run_id = trigger_job_response.json()["data"]["id"]
         job_run_url = trigger_job_response.json()["data"]["href"]
-
+        # Push the ``job_run_url`` value to XCom regardless of what happens during execution so that the job
+        # run can be monitored via the operator link.
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
 
         if self.wait_for_termination:
@@ -95,6 +126,31 @@ class DbtCloudRunJobOperator(BaseOperator):
 
 
 class DbtCloudGetJobRunArtifactOperator(BaseOperator):
+    """
+    Download artifacts from a dbt Cloud job run.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DbtCloudGetJobRunArtifactOperator`
+
+    :param dbt_cloud_conn_id: The connection ID for connecting to dbt Cloud.
+    :type dbt_cloud_conn_id: str
+    :param run_id: The ID of a dbt Cloud job run.
+    :type run_id: int
+    :param path: The file path related to the artifact file. Paths are rooted at the target/ directory.
+        Use "manifest.json", "catalog.json", or "run_results.json" to download dbt-generated artifacts
+        for the run.
+    :type path: str
+    :param account_id: Optional. The ID of a dbt Cloud account.
+    :type account_id: int
+    :param step: Optional. The index of the Step in the Run to query for artifacts. The first step in the
+        run has the index 1. If the step parameter is omitted, artifacts for the last step in the run will
+        be returned.
+    :type step: int
+    :param output_file_name: Optional. The desired file name for the download artifact file.
+        Defaults to <run_id>_<path> (e.g. "728368_run_results.json").
+    """
+
     template_fields = ("dbt_cloud_conn_id", "run_id", "path", "account_id", "output_file_name")
 
     def __init__(
@@ -115,15 +171,12 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.path = path
         self.account_id = account_id
         self.step = step
-        self.output_file_name = output_file_name
+        self.output_file_name = output_file_name or f"{self.run_id}_{self.path}"
 
     def execute(self, context: "Context") -> None:
         artifact_data = self.hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
-
-        if not self.output_file_name:
-            self.output_file_name = f"{self.run_id}_{self.path}"
 
         with open(self.output_file_name, "w") as file:
             json.dump(artifact_data.json(), file)
