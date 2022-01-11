@@ -17,6 +17,7 @@
 # under the License.
 import logging
 import os
+import re
 import time
 from logging.config import dictConfig
 from tempfile import NamedTemporaryFile
@@ -211,6 +212,7 @@ class TestStandardTaskRunner:
             ti = TaskInstance(task=task, run_id="test")
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
             session.commit()
+            ti.refresh_from_task(task)
 
             runner = StandardTaskRunner(job1)
             handler = logging.StreamHandler(f)
@@ -242,7 +244,10 @@ class TestStandardTaskRunner:
                 logged = g.read()
             os.unlink(f.name)
 
-        assert logged.count(f'ERROR - Failed to execute job {ti.job_id} for task {ti.task_id}') == 1
+        ti.refresh_from_db()
+        assert re.findall(r'ERROR - Failed to execute job (\S+) for task (\S+)', logged) == [
+            (str(ti.job_id), ti.task_id)
+        ]
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
