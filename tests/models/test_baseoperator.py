@@ -18,7 +18,7 @@
 import logging
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, NamedTuple
 from unittest import mock
 
 import jinja2
@@ -42,7 +42,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
+from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -84,6 +84,11 @@ class DummySubClass(DummyClass):
     def __init__(self, test_sub_param, **kwargs):
         super().__init__(**kwargs)
         self.test_sub_param = test_sub_param
+
+
+class MockNamedTuple(NamedTuple):
+    var1: str
+    var2: str
 
 
 class TestBaseOperator:
