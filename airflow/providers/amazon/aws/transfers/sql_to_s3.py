@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
@@ -80,8 +79,7 @@ class SqlToS3Operator(BaseOperator):
     :type verify: bool or str
     :param file_format: the destination file format, only string 'csv' or 'parquet' is accepted.
     :type file_format: str
-    :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()`` or
-        ``DataFrame.to_csv()``.
+    :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()`` or ``DataFrame.to_csv()``.
     :type pd_kwargs: dict
     """
 
@@ -104,7 +102,7 @@ class SqlToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         sql_conn_id: str,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Union[None, Mapping, Iterable] = None,
         replace: bool = False,
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
@@ -164,14 +162,12 @@ class SqlToS3Operator(BaseOperator):
                 filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
             )
 
-        if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
-            file_location = os.path.join(self.s3_bucket, self.s3_key)
-            self.log.info("File saved correctly in %s", file_location)
-
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook()
-        if not isinstance(hook, DbApiHook):
-            raise AirflowException("This hook is not supported. The hook class must extends DbApiHook.")
+        if not callable(getattr(hook, 'get_pandas_df', None)):
+            raise AirflowException(
+                "This hook is not supported. The hook class must have get_pandas_df method."
+            )
         return hook
