@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowBadRequest, AirflowException, PoolNotFound
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools
 
@@ -82,7 +82,8 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                state=State.QUEUED,
+                data_interval=ANY,
+                state=DagRunState.QUEUED,
                 conf=None,
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
@@ -95,7 +96,8 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                state=State.QUEUED,
+                data_interval=ANY,
+                state=DagRunState.QUEUED,
                 conf=None,
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
@@ -109,7 +111,8 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=custom_run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                state=State.QUEUED,
+                data_interval=ANY,
+                state=DagRunState.QUEUED,
                 conf=None,
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
@@ -123,7 +126,8 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                state=State.QUEUED,
+                data_interval=ANY,
+                state=DagRunState.QUEUED,
                 conf=json.loads(conf),
                 external_trigger=True,
                 dag_hash=expected_dag_hash,

@@ -115,6 +115,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def node_id(self) -> str:
         raise NotImplementedError()
 
+    @property
+    def label(self) -> Optional[str]:
+        tg: Optional["TaskGroup"] = getattr(self, 'task_group', None)
+        if tg and tg.node_id and tg.prefix_group_id:
+            # "task_group_id.task_id" -> "task_id"
+            return self.node_id[len(tg.node_id) + 1 :]
+        return self.node_id
+
     task_group: Optional["TaskGroup"]
     """The task_group that contains this node"""
 

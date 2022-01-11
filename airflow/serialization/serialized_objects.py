@@ -622,7 +622,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-
+            if k == "label":
+                # Label shouldn't be set anymore --  it's computed from task_id now
+                continue
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "subdag":

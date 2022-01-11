@@ -622,7 +622,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             )
         validate_key(task_id)
         self.task_id = task_id
-        self.label = task_id
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
@@ -1581,6 +1580,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                     'default_args',
                     'dag',
                     '_dag',
+                    'label',
                     '_BaseOperator__instantiated',
                     '_BaseOperator__init_kwargs',
                 }
