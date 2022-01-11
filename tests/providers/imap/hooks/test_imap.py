@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import imaplib
+import json
 import unittest
 from unittest.mock import Mock, mock_open, patch
 
@@ -31,9 +31,13 @@ imaplib_string = 'airflow.providers.imap.hooks.imap.imaplib'
 open_string = 'airflow.providers.imap.hooks.imap.open'
 
 
-def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv'):
-    mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-    mock_imaplib.IMAP4_SSL.return_value = mock_conn
+def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv', use_ssl=True):
+    if use_ssl:
+        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+        mock_imaplib.IMAP4_SSL.return_value = mock_conn
+    else:
+        mock_conn = Mock(spec=imaplib.IMAP4)
+        mock_imaplib.IMAP4.return_value = mock_conn
 
     mock_conn.login.return_value = ('OK', [])
 
@@ -65,7 +69,6 @@ class TestImapHook(unittest.TestCase):
                 login='imap_user',
                 password='imap_password',
                 port=1993,
-                extra='{"use_ssl":"true"}',
             )
         )
         db.merge_conn(
@@ -76,6 +79,7 @@ class TestImapHook(unittest.TestCase):
                 login='imap_user',
                 password='imap_password',
                 port=1143,
+                extra=json.dumps(dict(use_ssl=False)),
             )
         )
 
@@ -92,7 +96,7 @@ class TestImapHook(unittest.TestCase):
 
     @patch(imaplib_string)
     def test_connect_and_disconnect_via_nonssl(self, mock_imaplib):
-        mock_conn = _create_fake_imap(mock_imaplib)
+        mock_conn = _create_fake_imap(mock_imaplib, use_ssl=False)
 
         with ImapHook(imap_conn_id='imap_nonssl'):
             pass
