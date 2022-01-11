@@ -196,9 +196,9 @@ class Context(MutableMapping[str, Any]):
         return ValuesView(self._context)
 
 
-def context_merge(context: "Context", context_additions: Mapping[str, Any]) -> None:
+def context_merge(context: "Context", *args, **kwargs) -> None:
     """Merges dictionary parameters into existing context"""
-    return context.update(**context_additions)
+    context.update(*args, **kwargs)
 
 
 def context_copy_partial(source: "Context", keys: Container[str]) -> "Context":
