@@ -35,7 +35,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    MutableMapping,
     NamedTuple,
     Optional,
     Set,
@@ -98,7 +97,7 @@ from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
+from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
 from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -2085,7 +2084,6 @@ class TaskInstance(Base, LoggingMixin):
             "try_number": current_try_number,
             "max_tries": self.max_tries,
         }
-        jinja_context: MutableMapping[str, Any]
 
         if use_default:
             jinja_context = {"ti": self, **additional_context}
@@ -2097,9 +2095,9 @@ class TaskInstance(Base, LoggingMixin):
             html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
 
         else:
-            jinja_context = self.get_template_context()
-            jinja_context.update(additional_context)
             jinja_env = self.task.get_template_env()
+            jinja_context = self.get_template_context()
+            context_merge(jinja_context, additional_context)
 
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
