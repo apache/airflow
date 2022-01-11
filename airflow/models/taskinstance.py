@@ -2086,13 +2086,13 @@ class TaskInstance(Base, LoggingMixin):
         }
 
         if use_default:
-            jinja_context = {"ti": self, **additional_context}
+            default_context = {"ti": self, **additional_context}
             jinja_env = jinja2.Environment(
                 loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
             )
-            subject = jinja_env.from_string(default_subject).render(**jinja_context)
-            html_content = jinja_env.from_string(default_html_content).render(**jinja_context)
-            html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
+            subject = jinja_env.from_string(default_subject).render(**default_context)
+            html_content = jinja_env.from_string(default_html_content).render(**default_context)
+            html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
 
         else:
             jinja_env = self.task.get_template_env()
