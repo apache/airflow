@@ -233,7 +233,7 @@ class AirflowFileParseException(AirflowException):
 
 
 class ConnectionNotUnique(AirflowException):
-    """Raise when multiple values are found for the same connection id."""
+    """Raise when multiple values are found for the same connection ID."""
 
 
 class TaskDeferred(BaseException):
