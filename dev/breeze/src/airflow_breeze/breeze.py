@@ -27,8 +27,9 @@ from click_completion import get_auto_shell
 
 from airflow_breeze.ci.build_image import build_image
 from airflow_breeze.console import console
+from airflow_breeze.global_constants import ALLOWED_BACKENDS, ALLOWED_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.path_utils import __AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, find_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE
+from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
@@ -62,10 +63,15 @@ def version():
 @main.command()
 def shell(verbose: bool):
     """Enters breeze.py environment. this is the default command use when no other is selected."""
+    from airflow_breeze.cache import read_from_cache_file
+
     if verbose:
         console.print("\n[green]Welcome to breeze.py[/]\n")
         console.print(f"\n[green]Root of Airflow Sources = {__AIRFLOW_SOURCES_ROOT}[/]\n")
-    console.print(ASCIIART, style=ASCIIART_STYLE)
+    if read_from_cache_file('suppress_asciiart') is None:
+        console.print(ASCIIART, style=ASCIIART_STYLE)
+    if read_from_cache_file('suppress_cheatsheet') is None:
+        console.print(CHEATSHEET, style=CHEATSHEET_STYLE)
     raise ClickException("\nPlease implement entering breeze.py\n")
 
 
@@ -238,6 +244,36 @@ def setup_autocomplete():
             write_to_shell(command_to_execute, script_path.decode("utf-8"), breeze_comment)
     else:
         click.echo(f"Link for manually adding the autocompletion script to {shell} profile")
+
+
+@main.command(name='config')
+@click.option('--python', type=click.Choice(ALLOWED_PYTHON_MAJOR_MINOR_VERSION))
+@click.option('--backend', type=click.Choice(ALLOWED_BACKENDS))
+@click.option('--cheatsheet/--no-cheatsheet', default=None)
+@click.option('--asciiart/--no-asciiart', default=None)
+def change_config(python, backend, cheatsheet, asciiart):
+    from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
+
+    if asciiart:
+        console.print('[blue] ASCIIART enabled')
+        delete_cache('suppress_asciiart')
+    elif asciiart is not None:
+        touch_cache_file('suppress_asciiart')
+    else:
+        pass
+    if cheatsheet:
+        console.print('[blue] Cheatsheet enabled')
+        delete_cache('suppress_cheatsheet')
+    elif cheatsheet is not None:
+        touch_cache_file('suppress_cheatsheet')
+    else:
+        pass
+    if python is not None:
+        write_to_cache_file('PYTHON_MAJOR_MINOR_VERSION', python)
+        console.print(f'[blue]Python cached_value {python}')
+    if backend is not None:
+        write_to_cache_file('BACKEND', backend)
+        console.print(f'[blue]Backend cached_value {backend}')
 
 
 if __name__ == '__main__':
