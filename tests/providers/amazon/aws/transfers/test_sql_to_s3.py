@@ -22,10 +22,10 @@ from unittest import mock
 
 import pandas as pd
 
-from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
+from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
-class TestMySqlToS3Operator(unittest.TestCase):
+class TestSqlToS3Operator(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_csv(self, mock_s3_hook, temp_mock):
@@ -40,17 +40,15 @@ class TestMySqlToS3Operator(unittest.TestCase):
         with NamedTemporaryFile() as f:
             temp_mock.return_value.__enter__.return_value.name = f.name
 
-            op = MySQLToS3Operator(
+            op = SqlToS3Operator(
                 query=query,
                 s3_bucket=s3_bucket,
                 s3_key=s3_key,
-                mysql_conn_id="mysql_conn_id",
+                sql_conn_id="mysql_conn_id",
                 aws_conn_id="aws_conn_id",
                 task_id="task_id",
-                index=True,
                 replace=True,
-                header=True,
-                pd_csv_kwargs={'index': False, 'header': False},
+                pd_kwargs={'index': False, 'header': False},
                 dag=None,
             )
             op._get_hook = mock_dbapi_hook
@@ -82,11 +80,11 @@ class TestMySqlToS3Operator(unittest.TestCase):
         with NamedTemporaryFile() as f:
             temp_mock.return_value.__enter__.return_value.name = f.name
 
-            op = MySQLToS3Operator(
+            op = SqlToS3Operator(
                 query=query,
                 s3_bucket=s3_bucket,
                 s3_key=s3_key,
-                mysql_conn_id="mysql_conn_id",
+                sql_conn_id="mysql_conn_id",
                 aws_conn_id="aws_conn_id",
                 task_id="task_id",
                 file_format="parquet",
@@ -105,7 +103,13 @@ class TestMySqlToS3Operator(unittest.TestCase):
             )
 
     def test_fix_int_dtypes(self):
-        op = MySQLToS3Operator(query="query", s3_bucket="s3_bucket", s3_key="s3_key", task_id="task_id")
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="s3_bucket",
+            s3_key="s3_key",
+            task_id="task_id",
+            sql_conn_id="mysql_conn_id",
+        )
         dirty_df = pd.DataFrame({"strings": ["a", "b", "c"], "ints": [1, 2, None]})
         op._fix_int_dtypes(df=dirty_df)
         assert dirty_df["ints"].dtype.kind == "i"
