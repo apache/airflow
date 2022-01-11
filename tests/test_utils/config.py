@@ -59,10 +59,16 @@ def conf_vars(overrides):
 
 @contextlib.contextmanager
 def env_vars(overrides):
+    """
+    Temporarily patches env vars, restoring env as it was after context exit.
+
+    Example:
+        with env_vars({'AIRFLOW_CONN_AWS_DEFAULT': 's3://@'}):
+            # now we have an aws default connection available
+    """
     orig_vars = {}
     new_vars = []
-    for (section, key), value in overrides.items():
-        env = conf._env_var_name(section, key)
+    for env, value in overrides.items():
         if env in os.environ:
             orig_vars[env] = os.environ.pop(env, '')
         else:
