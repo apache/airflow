@@ -243,9 +243,6 @@ class CeleryExecutor(BaseExecutor):
 
     def start(self) -> None:
         self.log.debug('Starting Celery Executor using %s processes for syncing', self._sync_parallelism)
-        # Clear stuck queued tasks at startup
-        self._clear_stuck_queued_tasks()
-        self.stuck_tasks_last_check_time = time.time()
 
     def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
