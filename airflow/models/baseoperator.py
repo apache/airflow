@@ -1673,7 +1673,11 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         return False
 
 
-def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
+def _validate_kwarg_names_for_mapping(
+    cls: Union[str, Type[BaseOperator]],
+    func_name: str,
+    value: Dict[str, Any],
+) -> None:
     if isinstance(cls, str):
         # Serialized version -- would have been validated at parse time
         return
@@ -1750,7 +1754,7 @@ class MappedOperator(DAGNode):
 
     deps: Iterable[BaseTIDep] = attr.ib()
     operator_extra_links: Iterable['BaseOperatorLink'] = ()
-    params: ParamsDict = None
+    params: Union[ParamsDict, dict] = attr.ib(factory=ParamsDict)
     template_fields: Iterable[str] = attr.ib()
 
     del _operator_class_repr
