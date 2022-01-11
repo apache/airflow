@@ -122,7 +122,7 @@ official Apache releases must not include the rcN suffix.
     ```
 
 - Update Helm Chart version in `Chart.yaml`, example: `version: 1.0.0` (without
-  the RC tag).
+  the RC tag). If the default version of Airflow is different from `appVersion` change it.
 
 - Add and commit the version change.
 
