@@ -88,7 +88,7 @@ When deploying in K8s your custom XCom backend needs to be reside in a ``config`
 
 An observed problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. If you are fortunate enough to query the container logs at the right time, assuming that the custom backend value used is ``xcom_custom_backend.S3XComBackend``, you may see something similar to the following::
 
-.. code-block:: python
+::
 
     Traceback (most recent call last):
       File "/home/airflow/.local/bin/airflow", line 8, in <module>
