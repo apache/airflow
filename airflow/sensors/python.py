@@ -64,11 +64,8 @@ class PythonSensor(BaseSensorOperator):
         self.templates_dict = templates_dict
 
     def poke(self, context: Context) -> bool:
-        self.op_kwargs = determine_kwargs(
-            self.python_callable,
-            self.op_args,
-            {**context, **self.op_kwargs, 'templates_dict': self.templates_dict},
-        )
+        context.update(self.op_kwargs, templates_dict=self.templates_dict)
+        self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)

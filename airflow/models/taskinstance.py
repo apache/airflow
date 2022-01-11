@@ -35,12 +35,12 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    MutableMapping,
     NamedTuple,
     Optional,
     Set,
     Tuple,
     Union,
-    cast,
 )
 from urllib.parse import quote
 
@@ -1287,7 +1287,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     def _date_or_empty(self, attr: str):
-        result = getattr(self, attr, None)  # type: Optional[datetime]
+        result: Optional[datetime] = getattr(self, attr, None)
         return result.strftime('%Y%m%dT%H%M%S') if result else ''
 
     def _log_state(self, lead_msg: str = ''):
@@ -2085,6 +2085,7 @@ class TaskInstance(Base, LoggingMixin):
             "try_number": current_try_number,
             "max_tries": self.max_tries,
         }
+        jinja_context: MutableMapping[str, Any]
 
         if use_default:
             jinja_context = {"ti": self, **additional_context}
@@ -2096,7 +2097,8 @@ class TaskInstance(Base, LoggingMixin):
             html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
 
         else:
-            jinja_context = {**cast(dict, self.get_template_context()), **additional_context}
+            jinja_context = self.get_template_context()
+            jinja_context.update(additional_context)
             jinja_env = self.task.get_template_env()
 
             def render(key: str, content: str) -> str:

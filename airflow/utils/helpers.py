@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import re
 import signal
 import warnings
@@ -29,7 +30,7 @@ from typing import (
     Generator,
     Iterable,
     List,
-    Mapping,
+    MutableMapping,
     Optional,
     Tuple,
     TypeVar,
@@ -261,7 +262,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
-def render_template(template: Any, context: Mapping[str, Any], *, native: bool) -> Any:
+def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
     """Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
@@ -275,7 +276,7 @@ def render_template(template: Any, context: Mapping[str, Any], *, native: bool) 
         DAG can enable this with ``render_template_as_native_obj=True``.
     :returns: The render result.
     """
-    context = {**context}
+    context = copy.copy(context)
     env = template.environment
     if template.globals:
         context.update((k, v) for k, v in template.globals.items() if k not in context)
@@ -288,12 +289,12 @@ def render_template(template: Any, context: Mapping[str, Any], *, native: bool) 
     return "".join(nodes)
 
 
-def render_template_to_string(template: jinja2.Template, context: Mapping[str, Any]) -> str:
+def render_template_to_string(template: jinja2.Template, context: MutableMapping[str, Any]) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
     return render_template(template, context, native=False)
 
 
-def render_template_as_native(template: jinja2.Template, context: Mapping[str, Any]) -> Any:
+def render_template_as_native(template: jinja2.Template, context: MutableMapping[str, Any]) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
     return render_template(template, context, native=True)
 
