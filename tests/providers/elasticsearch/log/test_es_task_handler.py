@@ -64,7 +64,7 @@ class TestElasticsearchTaskHandler:
     def setup(self):
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
-        self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'
+        self.log_id_template = '{dag_id}-{task_id}-{run_id}-{try_number}'
         self.end_of_log_mark = 'end_of_log\n'
         self.write_stdout = False
         self.json_format = False
