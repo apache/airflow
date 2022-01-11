@@ -17,11 +17,12 @@
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Set, Tuple, Union
 
 import pendulum
 
 from airflow.exceptions import AirflowException
+from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -263,3 +264,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             return self.upstream_list
         else:
             return self.downstream_list
+
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """This is used by SerializedTaskGroup to serialize a task group's content."""
+        raise NotImplementedError()

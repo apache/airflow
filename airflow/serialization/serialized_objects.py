@@ -21,7 +21,7 @@ import enum
 import logging
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
 
 import cattr
 import pendulum
@@ -973,10 +973,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
             "children": {
-                label: (DAT.OP, child.task_id)
-                if isinstance(child, BaseOperator)
-                else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(cast("TaskGroup", child)))
-                for label, child in task_group.children.items()
+                label: child.serialize_for_task_group() for label, child in task_group.children.items()
             },
             "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
             "downstream_group_ids": cls._serialize(sorted(task_group.downstream_group_ids)),
