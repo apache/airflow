@@ -17,9 +17,10 @@
 # under the License.
 
 from logging import DEBUG
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from jinja2.nativetypes import NativeEnvironment
+from pypsrp.powershell import PowerShell
 from pypsrp.serializer import TaggedValue
 
 from airflow.exceptions import AirflowException
@@ -35,6 +36,9 @@ def exactly_one(*args):
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+SessionInitCallback = Callable[[PowerShell], None]
 
 
 class PsrpOperator(BaseOperator):
@@ -69,6 +73,10 @@ class PsrpOperator(BaseOperator):
     :param wsman_options:
         optional dictionary which is passed when creating the `WSMan` client. See
         :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
+    :param psrp_session_init:
+        Optional callback function which will be called when a new PowerShell
+        session has been established, prior to invoking the action specified using
+        the `cmdlet`, `command`, or `powershell` parameters.
     """
 
     template_fields: Sequence[str] = (
@@ -91,6 +99,7 @@ class PsrpOperator(BaseOperator):
         logging_level: int = DEBUG,
         runspace_options: Optional[Dict[str, Any]] = None,
         wsman_options: Optional[Dict[str, Any]] = None,
+        psrp_session_init: Optional[SessionInitCallback] = None,
         **kwargs,
     ) -> None:
         args = {command, powershell, cmdlet}
@@ -109,6 +118,7 @@ class PsrpOperator(BaseOperator):
         self.logging_level = logging_level
         self.runspace_options = runspace_options
         self.wsman_options = wsman_options
+        self.psrp_session_init = psrp_session_init
 
     def execute(self, context: "Context") -> List[Any]:
         with PsrpHook(
@@ -117,6 +127,8 @@ class PsrpOperator(BaseOperator):
             runspace_options=self.runspace_options,
             wsman_options=self.wsman_options,
         ) as hook, hook.invoke() as ps:
+            if self.psrp_session_init is not None:
+                self.psrp_session_init(ps)
             if self.cmdlet:
                 ps.add_cmdlet(self.cmdlet)
                 ps.add_parameters(self.parameters)

@@ -19,7 +19,7 @@
 from itertools import product
 from typing import Any, Dict, NamedTuple, Optional
 from unittest import TestCase
-from unittest.mock import call, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 from jinja2.nativetypes import NativeEnvironment
@@ -69,8 +69,13 @@ class TestPsrpOperator(TestCase):
         kwargs = {parameter.name: "foo"}
         if parameter[2]:
             kwargs["parameters"] = parameter.expected_parameters
+        psrp_session_init = Mock(return_value=None)
         op = PsrpOperator(
-            task_id='test_task_id', psrp_conn_id=CONNECTION_ID, do_xcom_push=do_xcom_push, **kwargs
+            task_id='test_task_id',
+            psrp_conn_id=CONNECTION_ID,
+            psrp_session_init=psrp_session_init,
+            do_xcom_push=do_xcom_push,
+            **kwargs,
         )
         hook = hook.return_value.__enter__.return_value
         ps = hook.invoke().__enter__.return_value
@@ -83,6 +88,7 @@ class TestPsrpOperator(TestCase):
         else:
             output = op.execute(None)
             assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
+        assert psrp_session_init.mock_calls == [call(ps)]
         if parameter.expected_parameters:
             expected_ps_calls = [call.add_cmdlet('foo'), call.add_parameters({'bar': 'baz'})]
             if do_xcom_push:
