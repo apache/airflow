@@ -689,12 +689,16 @@ class TestSchedulerJob:
     def test_not_enough_pool_slots(self, caplog, dag_maker):
         dag_id = 'SchedulerJobTest.test_test_not_enough_pool_slots'
         with dag_maker(dag_id=dag_id, concurrency=16):
-            DummyOperator(task_id="dummy", pool="some_pool", pool_slots=4)
+            DummyOperator(task_id="cannot_run", pool="some_pool", pool_slots=4)
+            DummyOperator(task_id="can_run", pool="some_pool", pool_slots=1)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         session = settings.Session()
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        ti = dr.task_instances[1]
         ti.state = State.SCHEDULED
         session.merge(ti)
         some_pool = Pool(pool='some_pool', slots=2, description='my pool')
@@ -704,10 +708,24 @@ class TestSchedulerJob:
             self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
                 "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]>. "
+                "SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled]>. "
                 "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
                 in caplog.text
             )
+
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.state == State.SCHEDULED)
+            .count()
+            == 1
+        )
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.state == State.QUEUED)
+            .count()
+            == 1
+        )
+
         session.flush()
         session.rollback()
 

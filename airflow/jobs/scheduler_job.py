@@ -339,16 +339,17 @@ class SchedulerJob(BaseJob):
                 continue
 
             pool_total = pools[pool]["total"]
-            if task_instance.pool_slots > pool_total:
-                self.log.warning(
-                    "Not executing %s. Requested pool slots (%s) are greater than "
-                    "total pool slots: '%s' for pool: %s.",
-                    task_instance,
-                    task_instance.pool_slots,
-                    pool_total,
-                    pool,
-                )
-                continue
+            for task_instance in task_instances:
+                if task_instance.pool_slots > pool_total:
+                    self.log.warning(
+                        "Not executing %s. Requested pool slots (%s) are greater than "
+                        "total pool slots: '%s' for pool: %s.",
+                        task_instance,
+                        task_instance.pool_slots,
+                        pool_total,
+                        pool,
+                    )
+                    task_instances.remove(task_instance)
 
             open_slots = pools[pool]["open"]
 
