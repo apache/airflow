@@ -250,8 +250,9 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable .../../dev/breeze/
-      - run: python -m pytest .../../dev/breeze/ -n auto --color=yes
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
+      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
 
   tests-ui:
     timeout-minutes: 10
@@ -327,19 +328,17 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
-          cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
-      - name: "Free space"
-        run: freespace
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
+      - name: "Free space"
+        run: freespace
+        if: |
+          needs.build-info.outputs.waitForImage == 'true'
       - name: "Cache virtualenv environmnent"
         uses: actions/cache@v2
         with:
@@ -360,19 +359,17 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
-          cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
-      - name: "Free space"
-        run: freespace
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
+      - name: "Free space"
+        run: freespace
+        if: |
+          needs.build-info.outputs.waitForImage == 'true'
       - name: "Cache virtualenv environmnent"
         uses: actions/cache@v2
         with:
@@ -402,12 +399,10 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
-        if: needs.build-info.outputs.waitForImage == 'true'
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+        if: needs.build-info.outputs.waitForImage == 'true'      
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
         if: |
@@ -452,11 +447,9 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -567,9 +560,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           submodules: recursive
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -624,11 +618,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -678,11 +670,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -732,11 +722,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -797,11 +785,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -861,11 +847,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -924,11 +908,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*        
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -985,11 +967,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -1043,6 +1023,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
       - name: "Set issue id for main"
         if: github.ref == 'refs/heads/main'
         run: |
@@ -1055,11 +1037,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
           echo "ISSUE_ID=10128" >> $GITHUB_ENV
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
-          cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -1153,12 +1131,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-        if: needs.build-info.outputs.waitForImage == 'true'
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+        if: needs.build-info.outputs.waitForImage == 'true'
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
         if: |
@@ -1219,11 +1195,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Get all PROD images"
@@ -1281,11 +1255,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Get all PROD images"
@@ -1354,11 +1326,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: >
@@ -1454,11 +1424,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
           cache: 'pip'
-      - run: python -m pip install --editable ../../dev/breeze/
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: freespace
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:latest"
