@@ -26,8 +26,6 @@ from googleapiclient.discovery import Resource, build
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
-API_KEY = os.environ.get("GCP_API_KEY", "INVALID API KEY")
-
 
 class DataplexHook(GoogleBaseHook):
     """
@@ -65,7 +63,6 @@ class DataplexHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self.api_key = API_KEY
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
@@ -75,7 +72,6 @@ class DataplexHook(GoogleBaseHook):
             self._conn = build(
                 "dataplex",
                 self.api_version,
-                developerKey=self.api_key,
                 http=http_authorized,
                 cache_discovery=False,
             )
