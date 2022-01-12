@@ -648,7 +648,7 @@ class TestSchedulerJob:
     def test_executable_task_instances_to_queued_fails_task_for_missing_dag_in_dagbag(
         self, dag_maker, session
     ):
-        """Only check concurrency for dag in dagbag"""
+        """Check that task instances of missing DAGs are failed"""
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag'
         task_id_1 = 'dummy'
         task_id_2 = 'dummydummy'
