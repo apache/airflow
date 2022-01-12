@@ -413,7 +413,6 @@ class CeleryExecutor(BaseExecutor):
             TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
         ):
 
-            self.log.info("Checking task %s", task)
 
             if task.key in self.queued_tasks or task.key in self.running:
                 continue
