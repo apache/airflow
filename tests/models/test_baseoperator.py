@@ -42,6 +42,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 
@@ -130,6 +131,30 @@ class TestBaseOperator:
         error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
+
+    def test_illegal_args(self):
+        """
+        Tests that Operators reject illegal arguments
+        """
+        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
+            with pytest.warns(PendingDeprecationWarning, match=msg):
+                BaseOperator(
+                    task_id='test_illegal_args',
+                    illegal_argument_1234='hello?',
+                )
+
+    def test_illegal_args_forbidden(self):
+        """
+        Tests that operators raise exceptions on illegal arguments when
+        illegal arguments are not allowed.
+        """
+        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        with pytest.raises(AirflowException, match=msg):
+            BaseOperator(
+                task_id='test_illegal_args',
+                illegal_argument_1234='hello?',
+            )
 
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
