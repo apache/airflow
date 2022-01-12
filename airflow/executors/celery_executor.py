@@ -40,6 +40,7 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cl
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
+from sqlalchemy.orm.session import Session
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
@@ -50,7 +51,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
@@ -385,7 +386,7 @@ class CeleryExecutor(BaseExecutor):
                 self.change_state(key, State.FAILED)
 
     @provide_session
-    def _clear_stuck_queued_tasks(self: Session = NEW_SESSION) -> None:
+    def _clear_stuck_queued_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         Tasks can get stuck in queued state in DB while still not in
         worker. This happens when the worker is autoscaled down and
