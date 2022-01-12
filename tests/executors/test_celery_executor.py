@@ -445,6 +445,7 @@ class TestCeleryExecutor:
         executor._clear_stuck_queued_tasks()
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
+        assert executor.queued_tasks == {ti.key: AsyncResult("231")}
         assert ti.state == State.QUEUED
 
     @pytest.mark.backend("mysql", "postgres")
@@ -462,6 +463,7 @@ class TestCeleryExecutor:
         executor._clear_stuck_queued_tasks()
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
+        assert executor.running == {ti.key: AsyncResult("231")}
         assert ti.state == State.QUEUED
 
     @pytest.mark.backend("mysql", "postgres")
@@ -483,6 +485,7 @@ class TestCeleryExecutor:
                 ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
                 # Not cleared
                 assert ti.state == State.QUEUED
+                assert executor.tasks == {ti.key: AsyncResult("231")}
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
     @pytest.mark.backend("mysql", "postgres")

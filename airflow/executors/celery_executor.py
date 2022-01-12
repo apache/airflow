@@ -412,8 +412,6 @@ class CeleryExecutor(BaseExecutor):
         for task in session.query(TaskInstance).filter(
             TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
         ):
-
-
             if task.key in self.queued_tasks or task.key in self.running:
                 continue
 
