@@ -78,6 +78,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    from airflow.decorators.base import _TaskDecorator
     from airflow.models.dag import DAG
     from airflow.utils.task_group import TaskGroup
 
@@ -1695,6 +1696,7 @@ class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
 
     operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
+    task_type: str = attr.ib()
     task_id: str
     partial_kwargs: Dict[str, Any]
     mapped_kwargs: Dict[str, Any] = attr.ib(
@@ -1705,9 +1707,12 @@ class MappedOperator(DAGNode):
     downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
 
     task_group: Optional["TaskGroup"] = attr.ib(repr=False)
+
     # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
     start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
     end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
+    owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
+    max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
 
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
@@ -1726,7 +1731,35 @@ class MappedOperator(DAGNode):
             end_date=operator.end_date,
             partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
             mapped_kwargs=mapped_kwargs,
+            owner=operator.owner,
+            max_active_tis_per_dag=operator.max_active_tis_per_dag,
         )
+
+    @classmethod
+    def from_decorator(
+        cls,
+        *,
+        decorator: "_TaskDecorator",
+        dag: Optional["DAG"],
+        task_group: Optional["TaskGroup"],
+        task_id: str,
+        mapped_kwargs: Dict[str, Any],
+    ) -> "MappedOperator":
+        """Create a mapped operator from a task decorator.
+
+        Different from ``from_operator``, this DOES NOT validate ``mapped_kwargs``.
+        The task decorator calling this should be responsible for validation.
+        """
+        operator = MappedOperator(
+            operator_class=decorator.operator_class,
+            partial_kwargs=decorator.kwargs,
+            mapped_kwargs={},
+            task_id=task_id,
+            dag=dag,
+            task_group=task_group,
+        )
+        operator.mapped_kwargs.update(mapped_kwargs)
+        return operator
 
     def __attrs_post_init__(self):
         if self.task_group:
@@ -1734,6 +1767,10 @@ class MappedOperator(DAGNode):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
+
+    @task_type.default
+    def _default_task_type(self):
+        return self.operator_class.__name__
 
     @task_group.default
     def _default_task_group(self):
