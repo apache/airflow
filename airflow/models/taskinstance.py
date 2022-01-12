@@ -1544,7 +1544,9 @@ class TaskInstance(Base, LoggingMixin):
             result = execute_callable(context=context)
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
-            self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+            with create_session() as session:
+                self.xcom_push(key=XCOM_RETURN_KEY, value=result, session=session)
+                self._record_task_map_for_downstreams(result, session=session)
         return result
 
     @provide_session
@@ -2183,9 +2185,6 @@ class TaskInstance(Base, LoggingMixin):
             run_id=self.run_id,
             session=session,
         )
-
-        if key == XCOM_RETURN_KEY:
-            self._record_task_map_for_downstreams(value, session=session)
 
     @provide_session
     def xcom_pull(
