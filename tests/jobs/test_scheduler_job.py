@@ -671,7 +671,9 @@ class TestSchedulerJob:
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
         assert 0 == len(res)
-        assert session.query(TaskInstance).filter(TaskInstance.state == State.FAILED).count() == 2
+        tis = dr.get_task_instances(session=session)
+        for ti in tis:
+            assert ti.state == State.FAILED
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
