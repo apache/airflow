@@ -385,7 +385,7 @@ class CeleryExecutor(BaseExecutor):
                 self.change_state(key, State.FAILED)
 
     @provide_session
-    def _clear_stuck_queued_tasks(self, session=None):
+    def _clear_stuck_queued_tasks(self: Session = NEW_SESSION) -> None:
         """
         Tasks can get stuck in queued state in DB while still not in
         worker. This happens when the worker is autoscaled down and
