@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from time import sleep
 
 import pytest
@@ -27,6 +27,7 @@ from airflow.models import TaskFail, TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
+from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 
