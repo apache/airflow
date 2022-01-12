@@ -21,8 +21,11 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pandas as pd
+import pytest
 
 from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
+
+pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
 
 class TestMySqlToS3Operator(unittest.TestCase):
