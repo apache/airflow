@@ -86,7 +86,6 @@ def _trigger_dag(
         dag_run = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
-            data_interval=_dag.timetable.infer_manual_data_interval(run_after=execution_date),
             state=DagRunState.QUEUED,
             conf=run_conf,
             external_trigger=True,

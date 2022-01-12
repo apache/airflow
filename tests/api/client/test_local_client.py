@@ -82,7 +82,6 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                data_interval=ANY,
                 state=DagRunState.QUEUED,
                 conf=None,
                 external_trigger=True,
@@ -96,7 +95,6 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                data_interval=ANY,
                 state=DagRunState.QUEUED,
                 conf=None,
                 external_trigger=True,
@@ -111,7 +109,6 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=custom_run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                data_interval=ANY,
                 state=DagRunState.QUEUED,
                 conf=None,
                 external_trigger=True,
@@ -126,7 +123,6 @@ class TestLocalClient(unittest.TestCase):
             mock.assert_called_once_with(
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
-                data_interval=ANY,
                 state=DagRunState.QUEUED,
                 conf=json.loads(conf),
                 external_trigger=True,
