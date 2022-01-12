@@ -162,6 +162,11 @@ def positive_int(*, allow_zero):
     return _check
 
 
+def string_list_type(val):
+    """Splits comma-separated list and returns the lists (strips whitespace)"""
+    return [x.strip() for x in val.split(',')]
+
+
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
@@ -397,6 +402,27 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(('-c', '--conf'), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+
+# maintenance
+ARG_MAINTENANCE_TABLES = Arg(
+    ("-t", "--tables"),
+    help="Table names to perform maintenance on (use comma-separated list)",
+    type=string_list_type,
+)
+ARG_MAINTENANCE_TIMESTAMP = Arg(
+    ("--clean-before-timestamp",),
+    help="The date or timestamp before which data should be purged.\n"
+    "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
+    "Example: '2022-01-01 00:00:00+01:00'",
+    type=parsedate,
+    required=True,
+)
+ARG_MAINTENANCE_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
@@ -1076,6 +1102,14 @@ DAGS_COMMANDS = (
         args=(ARG_CLEAR_ONLY,),
     ),
 )
+MAINTENANCE_COMMANDS = (
+    ActionCommand(
+        name='cleanup',
+        help="Purge old records in metastore tables",
+        func=lazy_load_command('airflow.cli.commands.maintenance_command.cleanup'),
+        args=(ARG_MAINTENANCE_TABLES, ARG_MAINTENANCE_DRY_RUN, ARG_MAINTENANCE_TIMESTAMP, ARG_VERBOSE),
+    ),
+)
 TASKS_COMMANDS = (
     ActionCommand(
         name='list',
@@ -1633,6 +1667,11 @@ airflow_commands: List[CLICommand] = [
         name='tasks',
         help='Manage tasks',
         subcommands=TASKS_COMMANDS,
+    ),
+    GroupCommand(
+        name='maintenance',
+        help='Run maintenance tasks',
+        subcommands=MAINTENANCE_COMMANDS,
     ),
     GroupCommand(
         name='pools',
