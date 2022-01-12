@@ -15,9 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This stub is to handle `default_args` use for these operators in the example DAGs. Mypy is native in
-# validating how required arguments can be passed to operators/sensors via `default_args`.
-
+# This stub exists to work around false MyPY errors in examples due to default_args handling.
+# The difference in the stub file vs. original class are Optional args which are passed
+# by default_args.
+#
+# TODO: Remove this file once we implement a proper solution (MyPy plugin?) that will handle default_args.
 from typing import Optional
 
 from airflow.models import BaseOperator
