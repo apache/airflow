@@ -24,10 +24,11 @@ import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -51,7 +52,7 @@ class ImapHook(BaseHook):
     def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.imap_conn_id = imap_conn_id
-        self.mail_client: Optional[imaplib.IMAP4_SSL] = None
+        self.mail_client: Optional[Union[imaplib.IMAP4_SSL, imaplib.IMAP4]] = None
 
     def __enter__(self) -> 'ImapHook':
         return self.get_conn()
@@ -71,13 +72,23 @@ class ImapHook(BaseHook):
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            if conn.port:
-                self.mail_client = imaplib.IMAP4_SSL(conn.host, conn.port)
-            else:
-                self.mail_client = imaplib.IMAP4_SSL(conn.host)
+            self.mail_client = self._build_client(conn)
             self.mail_client.login(conn.login, conn.password)
 
         return self
+
+    def _build_client(self, conn: Connection) -> Union[imaplib.IMAP4_SSL, imaplib.IMAP4]:
+        if conn.extra_dejson.get('use_ssl', True):
+            IMAP = imaplib.IMAP4_SSL
+        else:
+            IMAP = imaplib.IMAP4
+
+        if conn.port:
+            mail_client = IMAP(conn.host, conn.port)
+        else:
+            mail_client = IMAP(conn.host)
+
+        return mail_client
 
     def has_mail_attachment(
         self, name: str, *, check_regex: bool = False, mail_folder: str = 'INBOX', mail_filter: str = 'All'

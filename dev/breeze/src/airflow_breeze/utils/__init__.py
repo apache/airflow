@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# shellcheck disable=SC2086
-# shellcheck source=scripts/docker/common.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
-
-function install_pip_version() {
-    echo
-    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
-    echo
-    pip install --disable-pip-version-check --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" &&
-        mkdir -p ${HOME}/.local/bin
-}
-
-common::get_colors
-common::get_airflow_version_specification
-common::override_pip_version_if_needed
-common::show_pip_version_and_location
-
-install_pip_version

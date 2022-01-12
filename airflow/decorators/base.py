@@ -19,6 +19,7 @@ import functools
 import inspect
 import itertools
 import re
+import sys
 from typing import (
     Any,
     Callable,
@@ -108,9 +109,8 @@ class DecoratedOperator(BaseOperator):
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
     :type op_args: list
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     :type multiple_outputs: bool
     :param kwargs_to_upstream: For certain operators, we might need to upstream certain arguments
         that would otherwise be absorbed by the DecoratedOperator (for example python_callable for the
@@ -231,7 +231,16 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
         return_type = self.function_signature.return_annotation
-        ttype = getattr(return_type, "__origin__", None)
+
+        # If the return type annotation is already the builtins ``dict`` type, use it for the inference.
+        if return_type == dict:
+            ttype = return_type
+        # Checking if Python 3.6, ``__origin__`` attribute does not exist until 3.7; need to use ``__extra__``
+        # TODO: Remove check when support for Python 3.6 is dropped in Airflow 2.3.
+        elif sys.version_info < (3, 7):
+            ttype = getattr(return_type, "__extra__", None)
+        else:
+            ttype = getattr(return_type, "__origin__", None)
 
         return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
 
@@ -310,10 +319,8 @@ def task_decorator_factory(
 
     :param python_callable: Function to decorate
     :type python_callable: Optional[Callable]
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-        with index as key. Dict will unroll to xcom values with keys as XCom keys.
-        Defaults to False.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     :type multiple_outputs: bool
     :param decorated_operator_class: The operator that executes the logic needed to run the python function in
         the correct environment

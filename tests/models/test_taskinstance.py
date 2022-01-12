@@ -484,50 +484,31 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-        "state",
-        [State.FAILED, State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE, State.UP_FOR_RETRY],
+        "state, exception, retries",
+        [
+            (State.FAILED, AirflowException, 0),
+            (State.SKIPPED, AirflowSkipException, 0),
+            (State.SUCCESS, None, 0),
+            (State.UP_FOR_RESCHEDULE, AirflowRescheduleException(timezone.utcnow()), 0),
+            (State.UP_FOR_RETRY, AirflowException, 1),
+        ],
     )
-    def test_task_wipes_next_fields(self, session, state, dag_maker):
+    def test_task_wipes_next_fields(self, session, dag_maker, state, exception, retries):
         """
         Test that ensures that tasks wipe their next_method and next_kwargs
-        when they go into a state of FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, or UP_FOR_RETRY.
+        when the TI enters one of the configured states.
         """
 
-        def failure():
-            raise AirflowException
-
-        def skip():
-            raise AirflowSkipException
-
-        def success():
-            return None
-
-        def reschedule():
-            reschedule_date = timezone.utcnow()
-            raise AirflowRescheduleException(reschedule_date)
-
-        _retries = 0
-        _retry_delay = datetime.timedelta(seconds=0)
-
-        if state == State.FAILED:
-            _python_callable = failure
-        elif state == State.SKIPPED:
-            _python_callable = skip
-        elif state == State.SUCCESS:
-            _python_callable = success
-        elif state == State.UP_FOR_RESCHEDULE:
-            _python_callable = reschedule
-        elif state in [State.FAILED, State.UP_FOR_RETRY]:
-            _python_callable = failure
-            _retries = 1
-            _retry_delay = datetime.timedelta(seconds=2)
+        def _raise_if_exception():
+            if exception:
+                raise exception
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-                python_callable=_python_callable,
-                retries=_retries,
-                retry_delay=_retry_delay,
+                python_callable=_raise_if_exception,
+                retries=retries,
+                retry_delay=datetime.timedelta(seconds=2),
             )
 
         dr = dag_maker.create_dagrun()
@@ -539,9 +520,9 @@ class TestTaskInstance:
 
         ti.task = task
         if state in [State.FAILED, State.UP_FOR_RETRY]:
-            with pytest.raises(AirflowException):
+            with pytest.raises(exception):
                 ti.run()
-        elif state in [State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE]:
+        else:
             ti.run()
         ti.refresh_from_db()
 
@@ -1635,7 +1616,34 @@ class TestTaskInstance:
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
-    def test_tempalte_with_custom_timetable_deprecated_context(self, create_task_instance):
+    @pytest.mark.parametrize(
+        ("field", "expected"),
+        [
+            ("next_ds", "2016-01-01"),
+            ("next_ds_nodash", "20160101"),
+            ("prev_ds", "2015-12-31"),
+            ("prev_ds_nodash", "20151231"),
+            ("yesterday_ds", "2015-12-31"),
+            ("yesterday_ds_nodash", "20151231"),
+            ("tomorrow_ds", "2016-01-02"),
+            ("tomorrow_ds_nodash", "20160102"),
+        ],
+    )
+    def test_deprecated_context(self, field, expected, create_task_instance):
+        ti = create_task_instance(execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with pytest.deprecated_call() as recorder:
+            assert context[field] == expected
+        message_beginning = (
+            f"Accessing {field!r} from the template is deprecated and "
+            f"will be removed in a future version."
+        )
+
+        recorded_message = [str(m.message) for m in recorder]
+        assert len(recorded_message) == 1
+        assert recorded_message[0].startswith(message_beginning)
+
+    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
         ti = create_task_instance(
             start_date=DEFAULT_DATE,
             timetable=AfterWorkdayTimetable(),

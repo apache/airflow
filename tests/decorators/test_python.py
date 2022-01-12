@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import Dict, Tuple
+from typing import Tuple
 
 import pytest
+from parameterized import parameterized
 
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
@@ -113,13 +115,24 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with pytest.raises(TypeError):
             task_decorator(not_callable, dag=self.dag)
 
-    def test_infer_multiple_outputs_using_typing(self):
-        @task_decorator
-        def identity_dict(x: int, y: int) -> Dict[str, int]:
-            return {"x": x, "y": y}
+    @parameterized.expand([["dict"], ["dict[str, int]"], ["Dict"], ["Dict[str, int]"]])
+    def test_infer_multiple_outputs_using_dict_typing(self, test_return_annotation):
+        if sys.version_info < (3, 9) and test_return_annotation == "dict[str, int]":
+            self.skipTest("dict[...] not a supported typing prior to Python 3.9")
 
-        assert identity_dict(5, 5).operator.multiple_outputs is True
+            @task_decorator
+            def identity_dict(x: int, y: int) -> eval(test_return_annotation):
+                return {"x": x, "y": y}
 
+            assert identity_dict(5, 5).operator.multiple_outputs is True
+
+            @task_decorator
+            def identity_dict_stringified(x: int, y: int) -> test_return_annotation:
+                return {"x": x, "y": y}
+
+            assert identity_dict_stringified(5, 5).operator.multiple_outputs is True
+
+    def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
             return x, y

@@ -31,30 +31,31 @@ from airflow.utils.platform import is_tty
 class AirflowException(Exception):
     """
     Base class for all Airflow's errors.
-    Each custom exception should be derived from this class
+
+    Each custom exception should be derived from this class.
     """
 
     status_code = 500
 
 
 class AirflowBadRequest(AirflowException):
-    """Raise when the application or server cannot handle the request"""
+    """Raise when the application or server cannot handle the request."""
 
     status_code = 400
 
 
 class AirflowNotFoundException(AirflowException, ApiConnextionNotFound):
-    """Raise when the requested object/resource is not available in the system"""
+    """Raise when the requested object/resource is not available in the system."""
 
     status_code = 404
 
 
 class AirflowConfigException(AirflowException):
-    """Raise when there is configuration problem"""
+    """Raise when there is configuration problem."""
 
 
 class AirflowSensorTimeout(AirflowException):
-    """Raise when there is a timeout on sensor polling"""
+    """Raise when there is a timeout on sensor polling."""
 
 
 class AirflowRescheduleException(AirflowException):
@@ -72,21 +73,22 @@ class AirflowRescheduleException(AirflowException):
 
 class AirflowSmartSensorException(AirflowException):
     """
-    Raise after the task register itself in the smart sensor service
-    It should exit without failing a task
+    Raise after the task register itself in the smart sensor service.
+
+    It should exit without failing a task.
     """
 
 
 class InvalidStatsNameException(AirflowException):
-    """Raise when name of the stats is invalid"""
+    """Raise when name of the stats is invalid."""
 
 
 class AirflowTaskTimeout(AirflowException):
-    """Raise when the task execution times-out"""
+    """Raise when the task execution times-out."""
 
 
 class AirflowWebServerTimeout(AirflowException):
-    """Raise when the web server times out"""
+    """Raise when the web server times out."""
 
 
 class AirflowSkipException(AirflowException):
@@ -94,15 +96,15 @@ class AirflowSkipException(AirflowException):
 
 
 class AirflowFailException(AirflowException):
-    """Raise when the task should be failed without retrying"""
+    """Raise when the task should be failed without retrying."""
 
 
 class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in Dag definition"""
+    """Raise when there is a cycle in DAG definition."""
 
 
 class AirflowDagDuplicatedIdException(AirflowException):
-    """Raise when a Dag's ID is already used by another Dag"""
+    """Raise when a DAG's ID is already used by another DAG."""
 
     def __init__(self, dag_id: str, incoming: str, existing: str) -> None:
         super().__init__(dag_id, incoming, existing)
@@ -115,7 +117,7 @@ class AirflowDagDuplicatedIdException(AirflowException):
 
 
 class AirflowClusterPolicyViolation(AirflowException):
-    """Raise when there is a violation of a Cluster Policy in Dag definition"""
+    """Raise when there is a violation of a Cluster Policy in DAG definition."""
 
 
 class AirflowTimetableInvalid(AirflowException):
@@ -123,23 +125,23 @@ class AirflowTimetableInvalid(AirflowException):
 
 
 class DagNotFound(AirflowNotFoundException):
-    """Raise when a DAG is not available in the system"""
+    """Raise when a DAG is not available in the system."""
 
 
 class DagCodeNotFound(AirflowNotFoundException):
-    """Raise when a DAG code is not available in the system"""
+    """Raise when a DAG code is not available in the system."""
 
 
 class DagRunNotFound(AirflowNotFoundException):
-    """Raise when a DAG Run is not available in the system"""
+    """Raise when a DAG Run is not available in the system."""
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
-    """Raise when creating a DAG run for DAG which already has DAG run entry"""
+    """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
 
 class DagFileExists(AirflowBadRequest):
-    """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
+    """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -147,35 +149,35 @@ class DagFileExists(AirflowBadRequest):
 
 
 class DuplicateTaskIdFound(AirflowException):
-    """Raise when a Task with duplicate task_id is defined in the same DAG"""
+    """Raise when a Task with duplicate task_id is defined in the same DAG."""
 
 
 class SerializationError(AirflowException):
-    """A problem occurred when trying to serialize a DAG"""
+    """A problem occurred when trying to serialize a DAG."""
 
 
 class TaskNotFound(AirflowNotFoundException):
-    """Raise when a Task is not available in the system"""
+    """Raise when a Task is not available in the system."""
 
 
 class TaskInstanceNotFound(AirflowNotFoundException):
-    """Raise when a Task Instance is not available in the system"""
+    """Raise when a task instance is not available in the system."""
 
 
 class PoolNotFound(AirflowNotFoundException):
-    """Raise when a Pool is not available in the system"""
+    """Raise when a Pool is not available in the system."""
 
 
 class NoAvailablePoolSlot(AirflowException):
-    """Raise when there is not enough slots in pool"""
+    """Raise when there is not enough slots in pool."""
 
 
 class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG max_active_tasks limit is reached"""
+    """Raise when DAG max_active_tasks limit is reached."""
 
 
 class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task max_active_tasks limit is reached"""
+    """Raise when task max_active_tasks limit is reached."""
 
 
 class BackfillUnfinished(AirflowException):
@@ -203,7 +205,7 @@ class FileSyntaxError(NamedTuple):
 
 class AirflowFileParseException(AirflowException):
     """
-    Raises when connection or variable file can not be parsed
+    Raises when connection or variable file can not be parsed.
 
     :param msg: The human-readable description of the exception
     :param file_path: A processed file that contains errors
@@ -231,7 +233,7 @@ class AirflowFileParseException(AirflowException):
 
 
 class ConnectionNotUnique(AirflowException):
-    """Raise when multiple values are found for the same conn_id"""
+    """Raise when multiple values are found for the same connection ID."""
 
 
 class TaskDeferred(BaseException):

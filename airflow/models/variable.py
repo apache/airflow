@@ -129,7 +129,7 @@ class Variable(Base, LoggingMixin):
         Gets a value for an Airflow Variable Key
 
         :param key: Variable Key
-        :param default_var: Default value of the Variable if the Variable doesn't exists
+        :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
         var_val = Variable.get_variable_from_secrets(key=key)
