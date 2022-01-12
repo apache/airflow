@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 try:
     import importlib_metadata
 except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore
+    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist

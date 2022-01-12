@@ -377,7 +377,7 @@ class ProvidersManager(LoggingMixin):
             log.info("You have no providers installed.")
             return
         try:
-            for path in airflow.providers.__path__:  # type: ignore
+            for path in airflow.providers.__path__:  # type: ignore[attr-defined]
                 self._add_provider_info_from_local_source_files_on_path(path)
         except Exception as e:
             log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
@@ -574,7 +574,7 @@ class ProvidersManager(LoggingMixin):
                 other_name = f'{existing.__module__}.{existing.__name__}'
             except Exception:
                 # If problem importing, then get the value from the functools.partial
-                other_name = self._taskflow_decorators._raw_dict[name].args[0]  # type: ignore
+                other_name = self._taskflow_decorators._raw_dict[name].args[0]  # type: ignore[attr-defined]
 
             log.warning(
                 "The taskflow decorator '%s' has been already registered (by %s).",
@@ -782,14 +782,14 @@ class ProvidersManager(LoggingMixin):
         return self._provider_dict
 
     @property
-    def hooks(self) -> Dict[str, Optional[HookInfo]]:
+    def hooks(self) -> MutableMapping[str, Optional[HookInfo]]:
         """
         Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
         None values if a hook discovered cannot be imported!
         """
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
-        return self._hooks_lazy_dict  # type: ignore
+        return self._hooks_lazy_dict
 
     @property
     def taskflow_decorators(self) -> Dict[str, Callable]:

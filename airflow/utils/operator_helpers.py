@@ -164,10 +164,7 @@ class KeywordParameters:
 
     def unpacking(self) -> Mapping[str, Any]:
         """Dump the kwargs mapping to unpack with ``**`` in a function call."""
-        # Context is a TypedDict at lint time, and Mypy would complain it cannot
-        # be used in isinstance. But the call works at runtime since the type is
-        # actually implemented as a custom mapping, so we ignore the Mypy error.
-        if self._wildcard and isinstance(self._kwargs, Context):  # type: ignore
+        if self._wildcard and isinstance(self._kwargs, Context):
             return lazy_mapping_from_context(self._kwargs)
         return self._kwargs
 
