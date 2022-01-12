@@ -128,6 +128,7 @@ class EksHook(AwsBaseHook):
         nodegroupName: str,
         subnets: List[str],
         nodeRole: str,
+        tags: Optional[Dict] = None,
         **kwargs,
     ) -> Dict:
         """
@@ -141,6 +142,8 @@ class EksHook(AwsBaseHook):
         :type subnets: List[str]
         :param nodeRole: The Amazon Resource Name (ARN) of the IAM role to associate with your nodegroup.
         :type nodeRole: str
+        :param tags: Optional tags to apply to your nodegroup.
+        :type tags: Dict
 
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
         :rtype: Dict
@@ -150,15 +153,17 @@ class EksHook(AwsBaseHook):
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        tags = kwargs.pop("tags", {})
-        tags[f'kubernetes.io/cluster/{clusterName}'] = 'owned'
+        cluster_tag_key = f'kubernetes.io/cluster/{clusterName}'
+        resolved_tags = tags or {}
+        if cluster_tag_key not in resolved_tags:
+            resolved_tags[cluster_tag_key] = 'owned'
 
         response = eks_client.create_nodegroup(
             clusterName=clusterName,
             nodegroupName=nodegroupName,
             subnets=subnets,
             nodeRole=nodeRole,
-            tags=tags,
+            tags=resolved_tags,
             **kwargs,
         )
 

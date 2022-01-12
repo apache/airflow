@@ -109,8 +109,8 @@ class EksCreateClusterOperator(BaseOperator):
     :param fargate_pod_execution_role_arn: *REQUIRED* The Amazon Resource Name (ARN) of the pod execution
          role to use for pods that match the selectors in the AWS Fargate profile. (templated)
     :type podExecutionRoleArn: str
-    :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
-    :type selectors: List
+    :param fargate_selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
+    :type fargate_selectors: List
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
          (templated)
     :type: Dict
