@@ -109,7 +109,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
 try:
@@ -2139,7 +2139,10 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection):
-            return  # TODO: Error if the pushed value is not mappable?
+            self.log.error("Failing %s for unmappable XCom push %r", self.key, value)
+            self.state = TaskInstanceState.FAILED
+            session.merge(self)
+            return
         session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session
