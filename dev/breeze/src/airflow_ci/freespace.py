@@ -48,7 +48,7 @@ option_dry_run = click.option(
 def main(verbose, dry_run):
     run_command(["sudo", "swapoff", "-a"], verbose, dry_run)
     run_command(["sudo", "rm", "-f", "/swapfile"], verbose, dry_run)
-    run_command(["sudo", "apt", "clean", "||", "true"], verbose, dry_run)
+    run_command(["sudo", "apt-get", "clean"], verbose, dry_run, check=False)
     run_command(["docker", "system", "prune", "--all", "--force", "--volumes"], verbose, dry_run)
     run_command(["df", "-h"], verbose, dry_run)
     run_command(["docker", "logout", "ghcr.io"], verbose, dry_run)
