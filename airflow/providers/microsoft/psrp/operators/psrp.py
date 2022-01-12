@@ -17,10 +17,10 @@
 # under the License.
 
 from logging import DEBUG
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from jinja2.nativetypes import NativeEnvironment
-from pypsrp.powershell import PowerShell
+from pypsrp.powershell import Command
 from pypsrp.serializer import TaggedValue
 
 from airflow.exceptions import AirflowException
@@ -36,9 +36,6 @@ def exactly_one(*args):
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-SessionInitCallback = Callable[[PowerShell], None]
 
 
 class PsrpOperator(BaseOperator):
@@ -74,7 +71,7 @@ class PsrpOperator(BaseOperator):
         optional dictionary which is passed when creating the `WSMan` client. See
         :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
     :param psrp_session_init:
-        Optional callback function which will be called when a new PowerShell
+        Optional command which will be added to the pipeline when a new PowerShell
         session has been established, prior to invoking the action specified using
         the `cmdlet`, `command`, or `powershell` parameters.
     """
@@ -99,7 +96,7 @@ class PsrpOperator(BaseOperator):
         logging_level: int = DEBUG,
         runspace_options: Optional[Dict[str, Any]] = None,
         wsman_options: Optional[Dict[str, Any]] = None,
-        psrp_session_init: Optional[SessionInitCallback] = None,
+        psrp_session_init: Optional[Command] = None,
         **kwargs,
     ) -> None:
         args = {command, powershell, cmdlet}
@@ -128,7 +125,8 @@ class PsrpOperator(BaseOperator):
             wsman_options=self.wsman_options,
         ) as hook, hook.invoke() as ps:
             if self.psrp_session_init is not None:
-                self.psrp_session_init(ps)
+                ps.add_command(self.psrp_session_init)
+                ps.add_statement()
             if self.cmdlet:
                 ps.add_cmdlet(self.cmdlet)
                 ps.add_parameters(self.parameters)

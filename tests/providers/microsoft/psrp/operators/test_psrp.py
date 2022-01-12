@@ -24,6 +24,7 @@ from unittest.mock import Mock, call, patch
 import pytest
 from jinja2.nativetypes import NativeEnvironment
 from parameterized import parameterized
+from pypsrp.powershell import Command
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
@@ -55,9 +56,9 @@ class TestPsrpOperator(TestCase):
                 [
                     # These tuples map the command parameter to an execution method
                     # and parameter set.
-                    ExecuteParameter("command", "add_script", None),
-                    ExecuteParameter("powershell", "add_Script", None),
-                    ExecuteParameter("cmdlet", "add_cmdlet", {"bar": "baz"}),
+                    ExecuteParameter("command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None),
+                    ExecuteParameter("powershell", call.add_script("foo"), None),
+                    ExecuteParameter("cmdlet", call.add_cmdlet("foo"), {"bar": "baz"}),
                 ],
                 [False, True],
                 [False, True],
@@ -69,7 +70,7 @@ class TestPsrpOperator(TestCase):
         kwargs = {parameter.name: "foo"}
         if parameter[2]:
             kwargs["parameters"] = parameter.expected_parameters
-        psrp_session_init = Mock(return_value=None)
+        psrp_session_init = Mock(spec=Command)
         op = PsrpOperator(
             task_id='test_task_id',
             psrp_conn_id=CONNECTION_ID,
@@ -88,14 +89,18 @@ class TestPsrpOperator(TestCase):
         else:
             output = op.execute(None)
             assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
-        assert psrp_session_init.mock_calls == [call(ps)]
+        expected_ps_calls = [
+            call.add_command(psrp_session_init),
+            call.add_statement(),
+            parameter[1],
+        ]
         if parameter.expected_parameters:
-            expected_ps_calls = [call.add_cmdlet('foo'), call.add_parameters({'bar': 'baz'})]
-            if do_xcom_push:
-                expected_ps_calls.append(
-                    call.add_cmdlet('ConvertTo-Json'),
-                )
-            assert ps.mock_calls == expected_ps_calls
+            expected_ps_calls.extend([call.add_parameters({'bar': 'baz'})])
+        if do_xcom_push:
+            expected_ps_calls.append(
+                call.add_cmdlet('ConvertTo-Json'),
+            )
+        assert ps.mock_calls == expected_ps_calls
 
     def test_securestring_sandboxed(self):
         op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet='test')
