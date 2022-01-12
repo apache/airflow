@@ -20,8 +20,9 @@ import json
 import random
 import string
 import unittest
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 
+import pendulum
 import pytest
 from freezegun import freeze_time
 
@@ -66,8 +67,17 @@ class TestLocalClient(unittest.TestCase):
         with pytest.raises(AirflowException):
             self.client.trigger_dag(dag_id="blablabla")
 
+        dag_model = DagModel.get_current(test_dag_id)
+        dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
+        dag = dagbag.get_dag(test_dag_id)
+        expected_dag_hash = dagbag.dags_hash.get(test_dag_id)
+        expected_data_interval = dag.timetable.infer_manual_data_interval(
+            run_after=pendulum.instance(EXECDATE_NOFRACTIONS)
+        )
+
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
+
             self.client.trigger_dag(dag_id=test_dag_id)
             mock.assert_called_once_with(
                 run_id=run_id,
@@ -75,7 +85,8 @@ class TestLocalClient(unittest.TestCase):
                 state=State.QUEUED,
                 conf=None,
                 external_trigger=True,
-                dag_hash=ANY,
+                dag_hash=expected_dag_hash,
+                data_interval=expected_data_interval,
             )
             mock.reset_mock()
 
@@ -87,7 +98,8 @@ class TestLocalClient(unittest.TestCase):
                 state=State.QUEUED,
                 conf=None,
                 external_trigger=True,
-                dag_hash=ANY,
+                dag_hash=expected_dag_hash,
+                data_interval=expected_data_interval,
             )
             mock.reset_mock()
 
@@ -100,7 +112,8 @@ class TestLocalClient(unittest.TestCase):
                 state=State.QUEUED,
                 conf=None,
                 external_trigger=True,
-                dag_hash=ANY,
+                dag_hash=expected_dag_hash,
+                data_interval=expected_data_interval,
             )
             mock.reset_mock()
 
@@ -113,7 +126,8 @@ class TestLocalClient(unittest.TestCase):
                 state=State.QUEUED,
                 conf=json.loads(conf),
                 external_trigger=True,
-                dag_hash=ANY,
+                dag_hash=expected_dag_hash,
+                data_interval=expected_data_interval,
             )
             mock.reset_mock()
 

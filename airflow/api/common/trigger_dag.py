@@ -20,6 +20,8 @@ import json
 from datetime import datetime
 from typing import List, Optional, Union
 
+import pendulum
+
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
@@ -88,6 +90,9 @@ def _trigger_dag(
             conf=run_conf,
             external_trigger=True,
             dag_hash=dag_bag.dags_hash.get(dag_id),
+            data_interval=_dag.timetable.infer_manual_data_interval(
+                run_after=pendulum.instance(execution_date)
+            ),
         )
         dag_runs.append(dag_run)
 
