@@ -18,12 +18,17 @@
 
 """Table to store "mapped" task instances (AIP-42)."""
 
+import collections.abc
 import enum
+from typing import TYPE_CHECKING, Any, Collection, List, Optional
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, String
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import ExtendedJSON
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 class TaskMapVariant(enum.Enum):
@@ -68,6 +73,35 @@ class TaskMap(Base):
             ondelete="CASCADE",
         ),
     )
+
+    def __init__(
+        self,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int,
+        length: int,
+        keys: Optional[List[Any]],
+    ) -> None:
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.length = length
+        self.keys = keys
+
+    @classmethod
+    def from_task_instance_xcom(cls, ti: "TaskInstance", value: Collection) -> "TaskMap":
+        if ti.run_id is None:
+            raise ValueError("cannot record task map for unrun task instance")
+        return cls(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            length=len(value),
+            keys=(list(value) if isinstance(value, collections.abc.Mapping) else None),
+        )
 
     @property
     def variant(self) -> TaskMapVariant:

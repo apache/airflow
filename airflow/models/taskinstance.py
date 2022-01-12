@@ -2135,27 +2135,12 @@ class TaskInstance(Base, LoggingMixin):
             self.duration = None
         self.log.debug("Task Duration set to %s", self.duration)
 
-    @provide_session
-    def _record_task_map_for_downstreams(self, value: Any, *, session: Session = NEW_SESSION) -> None:
+    def _record_task_map_for_downstreams(self, value: Any, *, session: Session) -> None:
         if not self.task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection):
             return  # TODO: Error if the pushed value is not mappable?
-        session.query(TaskMap).filter_by(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            map_index=self.map_index,
-        ).delete()
-        instance = TaskMap(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            map_index=self.map_index,
-            length=len(value),
-            keys=(list(value) if isinstance(value, collections.abc.Mapping) else None),
-        )
-        session.merge(instance)
+        session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session
     def xcom_push(
