@@ -193,9 +193,12 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}"
 
     def execute(self, context: "Context") -> None:
-        artifact_data = self.hook.get_job_run_artifact(
+        response = self.hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
 
         with open(self.output_file_name, "w") as file:
-            json.dump(artifact_data.json(), file)
+            if self.path.endswith(".json"):
+                json.dump(response.json(), file)
+            else:
+                file.write(response.text)
