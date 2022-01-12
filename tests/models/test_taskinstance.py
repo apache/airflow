@@ -1643,7 +1643,7 @@ class TestTaskInstance:
         assert len(recorded_message) == 1
         assert recorded_message[0].startswith(message_beginning)
 
-    def test_templte_with_custom_timetable_deprecated_context(self, create_task_instance):
+    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
         ti = create_task_instance(
             start_date=DEFAULT_DATE,
             timetable=AfterWorkdayTimetable(),
