@@ -28,6 +28,8 @@ by particular dag.
 
 To include listener in your Airflow installation, include it as a part of an :doc:`Airflow Plugin </plugins>`
 
+|experimental|
+
 Interface
 ---------
 

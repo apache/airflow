@@ -52,8 +52,7 @@ class ListenerManager:
 
     def add_listener(self, listener):
         if not isinstance(listener, ModuleType):
-            log.warning("Listener %s is not module", str(listener))
-            return
+            raise TypeError("Listener %s is not module", str(listener))
         if self.pm.is_registered(listener):
             return
         self.pm.register(listener)
