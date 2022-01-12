@@ -2040,7 +2040,7 @@ class TaskInstance(Base, LoggingMixin):
             date=self.execution_date,
             args=self.command_as_list(),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
-            scheduler_job_id=0,
+            scheduler_job_id="0",
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
         )
