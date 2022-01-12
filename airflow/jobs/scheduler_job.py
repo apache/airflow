@@ -403,13 +403,14 @@ class SchedulerJob(BaseJob):
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
                     serialized_dag = self.dagbag.get_dag(dag_id, session=session)
-                    # If the dag is missing, continue to the next task.
+                    # If the dag is missing, fail the task and continue to the next task.
                     if not serialized_dag:
                         self.log.error(
                             "DAG '%s' for task instance %s not found in serialized_dag table",
                             dag_id,
                             task_instance,
                         )
+                        task_instance.set_state(State.FAILED, session=session)
                         continue
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
