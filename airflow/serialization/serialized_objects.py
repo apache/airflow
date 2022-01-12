@@ -35,6 +35,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink, MappedOp
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
 from airflow.models.param import Param, ParamsDict
+from airflow.models.taskmixin import DAGNode
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -255,7 +256,7 @@ class BaseSerialization:
 
     @classmethod
     def serialize_to_json(
-        cls, object_to_serialize: Union[BaseOperator, DAG], decorated_fields: Set
+        cls, object_to_serialize: Union["BaseOperator", "MappedOperator", DAG], decorated_fields: Set
     ) -> Dict[str, Any]:
         """Serializes an object to json"""
         serialized_object: Dict[str, Any] = {}
@@ -541,7 +542,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialize_op = cls.serialize_operator(op)
+        serialize_op = cls._serialize_node(op)
+        # It must be a class at this point for it to work, not a string
+        assert isinstance(op.operator_class, type)
         serialize_op['_task_type'] = op.operator_class.__name__
         serialize_op['_task_module'] = op.operator_class.__module__
         serialize_op['_is_mapped'] = True
@@ -549,10 +552,14 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
+        return cls._serialize_node(op)
+
+    @classmethod
+    def _serialize_node(cls, op: Union[BaseOperator, MappedOperator]) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
-        serialize_op['_task_type'] = op.__class__.__name__
-        serialize_op['_task_module'] = op.__class__.__module__
+        serialize_op['_task_type'] = type(op).__name__
+        serialize_op['_task_module'] = type(op).__module__
 
         # Used to determine if an Operator is inherited from DummyOperator
         serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
@@ -571,6 +578,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 klass = type(dep)
                 module_name = klass.__module__
                 if not module_name.startswith("airflow.ti_deps.deps."):
+                    assert op.dag  # for type checking
                     raise SerializationError(
                         f"Cannot serialize {(op.dag.dag_id + '.' + op.task_id)!r} with `deps` from non-core "
                         f"module {module_name!r}"
@@ -598,6 +606,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Union[BaseOperator, MappedOperator]:
         """Deserializes an operator from a JSON object."""
+        op: Union[BaseOperator, MappedOperator]
         # Check if it's a mapped operator
         if "mapped_kwargs" in encoded_op:
             op = MappedOperator(
@@ -679,10 +688,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize(v)
             # else use v as it is
 
-            if hasattr(op, k) and isinstance(v, set):
-                getattr(op, k).update(v)
-            else:
+            try:
                 setattr(op, k, v)
+            except AttributeError:
+                # Likely read-only attribute, try updating it in place
+                getattr(op, k).update(v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
             if not hasattr(op, k):
@@ -704,7 +714,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return cls.dependency_detector.detect_task_dependencies(op)
 
     @classmethod
-    def _is_excluded(cls, var: Any, attrname: str, op: BaseOperator):
+    def _is_excluded(cls, var: Any, attrname: str, op: "DAGNode"):
         if var is not None and op.has_dag() and attrname.endswith("_date"):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.

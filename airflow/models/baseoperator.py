@@ -1707,31 +1707,25 @@ def _validate_kwarg_names_for_mapping(
         raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
 
 
-def _MappedOperator_minimal_repr(cls, fields):
-    results = []
-    fields = iter(fields)
-    for field in fields:
-        results.append(field)
-        if field.name == "dag":
-            # Everything after 'dag' attribute is exluced form repr
-            break
-
-    for field in fields:
-        results.append(field.evolve(repr=False))
-    return results
-
-
-@attr.define(kw_only=True, field_transformer=_MappedOperator_minimal_repr)
+@attr.define(kw_only=True)
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
 
+    @staticmethod
     def _operator_class_repr(val):
         # Can be a string if we are de-serialized
         if isinstance(val, str):
             return val.rsplit('.', 1)[-1]
         return val.__name__
 
-    operator_class: Union[Type[BaseOperator], str] = attr.ib(repr=_operator_class_repr)
+    def __repr__(self) -> str:
+        return (
+            'MappedOperator(operator_class={self._operator_class_repr(self.operator_class)}, '
+            + 'task_id={self.task_id!r}, partial_kwargs={self.partial_kwargs!r}, '
+            + 'mapped_kwargs={self.mapped_kwargs!r}, dag={self.dag})'
+        )
+
+    operator_class: Union[Type[BaseOperator], str]
     task_type: str = attr.ib()
     task_id: str
     partial_kwargs: Dict[str, Any]
@@ -1756,8 +1750,6 @@ class MappedOperator(DAGNode):
     operator_extra_links: Iterable['BaseOperatorLink'] = ()
     params: Union[ParamsDict, dict] = attr.ib(factory=ParamsDict)
     template_fields: Iterable[str] = attr.ib()
-
-    del _operator_class_repr
 
     @_is_dummy.default
     def _is_dummy_default(self):
