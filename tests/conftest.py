@@ -597,6 +597,7 @@ def dag_maker(request):
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             for attempt in run_with_db_retries(logger=self.log):
@@ -611,16 +612,19 @@ def dag_maker(request):
                         SerializedDagModel.dag_id.in_(dag_ids)
                     ).delete(synchronize_session=False)
                     self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
+                    )
+                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False,
                     )
                     self.session.commit()
                     if self._own_session:

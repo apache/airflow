@@ -83,6 +83,7 @@ from airflow.exceptions import (
     DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
+    UnmappableXComPushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
@@ -109,7 +110,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State
 from airflow.utils.timeout import timeout
 
 try:
@@ -2140,11 +2141,9 @@ class TaskInstance(Base, LoggingMixin):
     def _record_task_map_for_downstreams(self, value: Any, *, session: Session) -> None:
         if not self.task.has_mapped_dependants():
             return
-        if not isinstance(value, collections.abc.Collection):
-            self.log.error("Failing %s for unmappable XCom push %r", self.key, value)
-            self.state = TaskInstanceState.FAILED
-            session.merge(self)
-            return
+        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
+            self.log.info("Failing %s for unmappable XCom push %r", self.key, value)
+            raise UnmappableXComPushed(value)
         session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session
