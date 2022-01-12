@@ -17,7 +17,7 @@
 # under the License.
 
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Dict, List, Optional, Union
 
 from croniter import croniter
@@ -257,10 +257,10 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
-    today = datetime.now(timezone.TIMEZONE).replace(
-        hour=hour, minute=minute, second=second, microsecond=microsecond
+    return datetime.combine(
+        datetime.now(timezone.TIMEZONE) - timedelta(days=n),
+        time(hour, minute, second, microsecond, tzinfo=timezone.TIMEZONE),
     )
-    return today - timedelta(days=n)
 
 
 def parse_execution_date(execution_date_str):
