@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):
+    """
+    Operator link for DbtCloudRunJobOperator. This link allows users to directly monitor the triggered job
+    run directly in dbt Cloud.
+    """
+
     name = "Monitor Job Run"
 
     def get_link(self, operator, dttm):
@@ -107,9 +112,9 @@ class DbtCloudRunJobOperator(BaseOperator):
     def execute(self, context: "Context") -> int:
         if self.trigger_reason is None:
             self.trigger_reason = (
-                f"Triggered in Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
+                f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
-        print(self.additional_run_config)
+
         trigger_job_response = self.hook.trigger_job_run(
             account_id=self.account_id,
             job_id=self.job_id,
@@ -190,7 +195,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.path = path
         self.account_id = account_id
         self.step = step
-        self.output_file_name = output_file_name or f"{self.run_id}_{self.path}"
+        self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
 
     def execute(self, context: "Context") -> None:
         response = self.hook.get_job_run_artifact(
