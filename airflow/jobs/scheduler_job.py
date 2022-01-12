@@ -406,7 +406,7 @@ class SchedulerJob(BaseJob):
                     # If the dag is missing, continue to the next task.
                     if not serialized_dag:
                         self.log.error(
-                            "DAG '%s' for taskinstance %s not found in serialized_dag table",
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
                             dag_id,
                             task_instance,
                         )
