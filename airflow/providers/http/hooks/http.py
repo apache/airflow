@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 from typing import Any, Callable, Dict, Optional, Union
 
 import requests
@@ -23,6 +24,12 @@ from requests.auth import HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models.connection import Connection
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 
 class HttpHook(BaseHook):
@@ -54,6 +61,10 @@ class HttpHook(BaseHook):
         self._retry_obj: Callable[..., Any]
         self.auth_type: Any = auth_type
 
+    @cached_property
+    def connection(self) -> Connection:
+        return self.get_connection(self.http_conn_id)
+
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: Optional[Dict[Any, Any]] = None) -> requests.Session:
@@ -65,25 +76,23 @@ class HttpHook(BaseHook):
         session = requests.Session()
 
         if self.http_conn_id:
-            conn = self.get_connection(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
+            if self.connection.host and "://" in self.connection.host:
+                self.base_url = self.connection.host
             else:
                 # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
+                schema = self.connection.schema if self.connection.schema else "http"
+                host = self.connection.host if self.connection.host else ""
                 self.base_url = schema + "://" + host
 
-            if conn.port:
-                self.base_url = self.base_url + ":" + str(conn.port)
-            if conn.login:
-                session.auth = self.auth_type(conn.login, conn.password)
-            if conn.extra:
+            if self.connection.port:
+                self.base_url = self.base_url + ":" + str(self.connection.port)
+            if self.connection.login:
+                session.auth = self.auth_type(self.connection.login, self.connection.password)
+            if self.connection.extra:
                 try:
-                    session.headers.update(conn.extra_dejson)
+                    session.headers.update(self.connection.extra_dejson)
                 except TypeError:
-                    self.log.warning('Connection to %s has invalid extra field.', conn.host)
+                    self.log.warning('Connection to %s has invalid extra field.', self.connection.host)
         if headers:
             session.headers.update(headers)
 
