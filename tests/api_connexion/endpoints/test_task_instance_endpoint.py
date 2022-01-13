@@ -1179,7 +1179,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                "{'_schema': ['You must provide either the dag_run_id or the execution_date']}",
+                "{'_schema': ['Exactly one of execution_date or dag_run_id must be provided']}",
                 400,
                 {
                     "dry_run": True,
@@ -1221,7 +1221,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 },
             ],
             [
-                "{'_schema': ['You cannot provide both the dag_run_id and the execution_date']}",
+                "{'_schema': ['Exactly one of execution_date or dag_run_id must be provided']}",
                 400,
                 {
                     "dry_run": True,

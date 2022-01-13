@@ -763,7 +763,6 @@ class TaskInstance(Base, LoggingMixin):
         :type run_id: Optional[str]
         :param session: SQLAlchemy ORM Session
         :type session: Session
-
         """
         return (
             session.query(cls)

@@ -25,6 +25,7 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import SlaMiss, TaskInstance
+from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
 
 
@@ -140,10 +141,8 @@ class SetTaskInstanceStateFormSchema(Schema):
     @validates_schema
     def validate_form(self, data, **kwargs):
         """Validates set task instance state form"""
-        if data.get("execution_date") and data.get('dag_run_id'):
-            raise ValidationError("You cannot provide both the dag_run_id and the execution_date")
-        if not data.get("execution_date") and not data.get('dag_run_id'):
-            raise ValidationError("You must provide either the dag_run_id or the execution_date")
+        if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
+            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
 class TaskInstanceReferenceSchema(Schema):
