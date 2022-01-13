@@ -128,6 +128,7 @@ class EksHook(AwsBaseHook):
         nodegroupName: str,
         subnets: List[str],
         nodeRole: str,
+        *,
         tags: Optional[Dict] = None,
         **kwargs,
     ) -> Dict:
