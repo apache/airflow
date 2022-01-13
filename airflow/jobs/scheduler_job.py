@@ -411,7 +411,7 @@ class SchedulerJob(BaseJob):
                             task_instance,
                         )
                         session.query(TI).filter(TI.dag_id == dag_id, TI.state == State.SCHEDULED).update(
-                            {TI.state: State.NONE}, synchronize_session='fetch'
+                            {TI.state: State.FAILED}, synchronize_session='fetch'
                         )
                         continue
                     if serialized_dag.has_task(task_instance.task_id):

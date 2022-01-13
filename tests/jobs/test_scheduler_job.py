@@ -671,7 +671,7 @@ class TestSchedulerJob:
         assert 0 == len(res)
         tis = dr.get_task_instances(session=session)
         assert len(tis) == 2
-        assert all(ti.state == State.NONE for ti in tis)
+        assert all(ti.state == State.FAILED for ti in tis)
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
