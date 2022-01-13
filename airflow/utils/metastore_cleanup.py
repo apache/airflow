@@ -86,7 +86,7 @@ class _TableConfig:
         )
 
 
-objects_list: List[_TableConfig] = [
+config_list: List[_TableConfig] = [
     _TableConfig(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
     _TableConfig(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
     _TableConfig(
@@ -112,7 +112,7 @@ if str(conf.get("core", "executor")) == "CeleryExecutor":
     try:
         from celery.backends.database.models import Task, TaskSet
 
-        objects_list.extend(
+        config_list.extend(
             [
                 _TableConfig(orm_model=Task, recency_column=Task.date_done),
                 _TableConfig(orm_model=TaskSet, recency_column=TaskSet.date_done),
@@ -121,7 +121,7 @@ if str(conf.get("core", "executor")) == "CeleryExecutor":
     except Exception as e:
         logging.error(e)
 
-objects_dict: Dict[str, _TableConfig] = {x.orm_model.__tablename__: x for x in sorted(objects_list)}
+config_dict: Dict[str, _TableConfig] = {x.orm_model.__tablename__: x for x in sorted(config_list)}
 
 
 def _print_entities(*, query: "Query", print_rows=False):
@@ -220,7 +220,7 @@ def _cleanup_table(
         session.commit()
 
 
-def _confirm_delete(*, date, tables):
+def _confirm_delete(*, date: DateTime, tables: List[str]):
     for_tables = f" for tables {tables!r}" if tables else ''
     question = '\n'.join(
         [
@@ -235,8 +235,8 @@ def _confirm_delete(*, date, tables):
         raise SystemExit("User did not confirm; exiting.")
 
 
-def _print_config(*, table_subset):
-    data = [x.readable_config for x in table_subset.values()]
+def _print_config(*, configs: List[_TableConfig]):
+    data = [x.readable_config for x in configs.values()]
     AirflowConsole().print_as_table(data=data)
 
 
@@ -267,17 +267,18 @@ def run_cleanup(
     :type session: Session
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    table_subset = {k: v for k, v in objects_dict.items() if (k in table_names if table_names else True)}
+    effective_table_names = table_names if table_names else list(config_dict.keys())
+    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
     if dry_run:
         print('Performing dry run for metastore table cleanup.')
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
-            f"from tables {list(table_subset.keys())} with the following config:\n"
+            f"from tables {effective_table_names} with the following config:\n"
         )
-        _print_config(table_subset=table_subset)
+        _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
-        _confirm_delete(date=clean_before_timestamp, tables=list(table_subset.keys()))
-    for table_name, table_config in table_subset.items():
+        _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
+    for table_name, table_config in effective_config_dict.items():
         _cleanup_table(
             clean_before_timestamp=clean_before_timestamp,
             dry_run=dry_run,
