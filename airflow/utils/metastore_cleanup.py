@@ -50,8 +50,10 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class _Config:
+class _TableConfig:
     """
+    Config class for performing cleanup on a table
+
     :param orm_model: the table
     :type: orm_model: Base
     :param recency_column: date column to filter by
@@ -84,24 +86,26 @@ class _Config:
         )
 
 
-objects_list: List[_Config] = [
-    _Config(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
-    _Config(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
-    _Config(
+objects_list: List[_TableConfig] = [
+    _TableConfig(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
+    _TableConfig(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
+    _TableConfig(
         orm_model=DagRun,
         recency_column=DagRun.start_date,
         keep_last=True,
         keep_last_filters=[DagRun.external_trigger.is_(False)],
         keep_last_group_by=DagRun.dag_id,
     ),
-    _Config(orm_model=ImportError, recency_column=ImportError.timestamp),
-    _Config(orm_model=Log, recency_column=Log.dttm),
-    _Config(orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date),
-    _Config(orm_model=SlaMiss, recency_column=SlaMiss.timestamp),
-    _Config(orm_model=TaskFail, recency_column=TaskFail.start_date),
-    _Config(orm_model=TaskInstance, recency_column=TaskInstance.start_date),
-    _Config(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
-    _Config(orm_model=XCom, recency_column=XCom.timestamp),
+    _TableConfig(orm_model=ImportError, recency_column=ImportError.timestamp),
+    _TableConfig(orm_model=Log, recency_column=Log.dttm),
+    _TableConfig(
+        orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date
+    ),
+    _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp),
+    _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date),
+    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date),
+    _TableConfig(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
+    _TableConfig(orm_model=XCom, recency_column=XCom.timestamp),
 ]
 
 if str(conf.get("core", "executor")) == "CeleryExecutor":
@@ -110,14 +114,14 @@ if str(conf.get("core", "executor")) == "CeleryExecutor":
 
         objects_list.extend(
             [
-                _Config(orm_model=Task, recency_column=Task.date_done),
-                _Config(orm_model=TaskSet, recency_column=TaskSet.date_done),
+                _TableConfig(orm_model=Task, recency_column=Task.date_done),
+                _TableConfig(orm_model=TaskSet, recency_column=TaskSet.date_done),
             ]
         )
     except Exception as e:
         logging.error(e)
 
-objects_dict: Dict[str, _Config] = {x.orm_model.__tablename__: x for x in sorted(objects_list)}
+objects_dict: Dict[str, _TableConfig] = {x.orm_model.__tablename__: x for x in sorted(objects_list)}
 
 
 def _print_entities(*, query: "Query", print_rows=False):
