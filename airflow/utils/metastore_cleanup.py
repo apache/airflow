@@ -15,14 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-orm_model: the table
-recency_column: date column to filter by
-keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
-keep_last_filters:
-keep_last_group_by: if keeping the last record, can keep the last record for each group
-"""
-
 
 import logging
 from dataclasses import dataclass
@@ -59,6 +51,19 @@ if TYPE_CHECKING:
 
 @dataclass
 class _Config:
+    """
+    :param orm_model: the table
+    :type: orm_model: Base
+    :param recency_column: date column to filter by
+    :type: recency_column: Union["Column", "InstrumentedAttribute"]
+    :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
+    :type: keep_last: bool
+    :param keep_last_filters:
+    :type: keep_last_filters: Optional[Any]
+    :param keep_last_group_by: if keeping the last record, can keep the last record for each group
+    :type: keep_last_group_by: Optional[Any]
+    """
+
     orm_model: Base
     recency_column: Union["Column", "InstrumentedAttribute"]
     keep_last: bool = False
