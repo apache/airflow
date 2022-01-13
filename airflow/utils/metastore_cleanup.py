@@ -64,78 +64,45 @@ class _Config:
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
 
+    def __le__(self, other):
+        return self.orm_model.__table_name__ < self.orm_model.__table_name__
 
-objects: Dict[str, _Config] = {
-    'job': _Config(
-        orm_model=BaseJob,
-        recency_column=BaseJob.latest_heartbeat,
-    ),
-    'dag': _Config(
-        orm_model=DagModel,
-        recency_column=DagModel.last_parsed_time,
-    ),
-    'dag_run': _Config(
+
+objects_list: List[_Config] = [
+    _Config(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
+    _Config(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
+    _Config(
         keep_last=True,
         keep_last_filters=[DagRun.external_trigger.is_(False)],
         keep_last_group_by=DagRun.dag_id,
         orm_model=DagRun,
         recency_column=DagRun.execution_date,
     ),
-    'import_error': _Config(
-        orm_model=ImportError,
-        recency_column=ImportError.timestamp,
-    ),
-    'log': _Config(
-        orm_model=Log,
-        recency_column=Log.dttm,
-    ),
-    'rendered_task_instance_fields': _Config(
-        orm_model=RenderedTaskInstanceFields,
-        recency_column=RenderedTaskInstanceFields.execution_date,
-    ),
-    'sla_miss': _Config(
-        orm_model=SlaMiss,
-        recency_column=SlaMiss.execution_date,
-    ),
-    'task_fail': _Config(
-        orm_model=TaskFail,
-        recency_column=TaskFail.execution_date,
-    ),
-    'task_instance': _Config(
-        orm_model=TaskInstance,
-        recency_column=TaskInstance.execution_date,
-    ),
-    'task_reschedule': _Config(
-        orm_model=TaskReschedule,
-        recency_column=TaskReschedule.execution_date,
-    ),
-    'xcom': _Config(
-        orm_model=XCom,
-        recency_column=XCom.execution_date,
-    ),
-}
-
+    _Config(orm_model=ImportError, recency_column=ImportError.timestamp),
+    _Config(orm_model=Log, recency_column=Log.dttm),
+    _Config(orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date),
+    _Config(orm_model=SlaMiss, recency_column=SlaMiss.execution_date),
+    _Config(orm_model=TaskFail, recency_column=TaskFail.execution_date),
+    _Config(orm_model=TaskInstance, recency_column=TaskInstance.execution_date),
+    _Config(orm_model=TaskReschedule, recency_column=TaskReschedule.execution_date),
+    _Config(orm_model=XCom, recency_column=XCom.execution_date),
+]
 
 airflow_executor = str(conf.get("core", "executor"))
 if airflow_executor == "CeleryExecutor":
     from celery.backends.database.models import Task, TaskSet
 
-    print("Including Celery Modules")
     try:
-        objects.update(
-            **{
-                'task': _Config(
-                    orm_model=Task,
-                    recency_column=Task.date_done,
-                ),
-                'task_set': _Config(
-                    orm_model=TaskSet,
-                    recency_column=TaskSet.date_done,
-                ),
-            }
+        objects_list.extend(
+            [
+                _Config(orm_model=Task, recency_column=Task.date_done),
+                _Config(orm_model=TaskSet, recency_column=TaskSet.date_done),
+            ]
         )
     except Exception as e:
         logging.error(e)
+
+objects_dict: Dict[str, _Config] = {x.orm_model.__table__name: x for x in sorted(objects_list)}
 
 
 def print_entities(*, query: "Query", print_rows=False):
@@ -276,7 +243,7 @@ def run_cleanup(
     :type session: Session
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    table_subset = {k: v for k, v in objects.items() if (k in table_names if table_names else True)}
+    table_subset = {k: v for k, v in objects_dict.items() if (k in table_names if table_names else True)}
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=list(table_subset.keys()))
     for table_name, table_config in table_subset.items():
