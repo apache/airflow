@@ -1634,7 +1634,13 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         return MappedOperator.from_operator(self, kwargs)
 
     def has_mapped_dependants(self) -> bool:
-        """Whether any downstream dependencies depend on this task for mapping."""
+        """Whether any downstream dependencies depend on this task for mapping.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
         from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
         if not self.has_dag():
