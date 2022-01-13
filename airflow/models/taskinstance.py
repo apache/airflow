@@ -742,34 +742,6 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
-    @classmethod
-    @provide_session
-    def find(
-        cls,
-        task_id: str,
-        dag_id: str,
-        run_id: Optional[str] = None,
-        *,
-        session: Session = NEW_SESSION,
-    ) -> bool:
-        """
-        Find a TaskInstance for the given criteria.
-
-        :param task_id: the task id to find the TaskInstance for
-        :type task_id: str
-        :param dag_id: the dag_id to find the TaskInstance in
-        :type dag_id: str
-        :run_id: the run id to find the TaskInstance in
-        :type run_id: Optional[str]
-        :param session: SQLAlchemy ORM Session
-        :type session: Session
-        """
-        return (
-            session.query(cls)
-            .filter(cls.task_id == task_id, cls.dag_id == dag_id, cls.run_id == run_id)
-            .one_or_none()
-        )
-
     @provide_session
     def refresh_from_db(self, session=NEW_SESSION, lock_for_update=False) -> None:
         """

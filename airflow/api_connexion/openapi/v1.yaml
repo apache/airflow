@@ -3081,7 +3081,7 @@ components:
           description: |
             The task instance's DAG run ID. Either set this or execution_date but not both.
 
-            *New in version 2.2.3*
+            *New in version 2.3.0*
           type: string
 
         include_upstream:
