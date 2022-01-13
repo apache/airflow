@@ -107,7 +107,7 @@ class UnmappableXComPushed(AirflowException):
         self.value = value
 
     def __str__(self) -> str:
-        return f"unmappable return value {self.value!r}"
+        return f"unmappable return type {type(self.value).__qualname__!r}"
 
 
 class AirflowDagCycleException(AirflowException):

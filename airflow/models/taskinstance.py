@@ -2142,7 +2142,7 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            self.log.info("Failing %s for unmappable XCom push %r", self.key, value)
+            self.log.info("Failing %s for unmappable XCom push %r", self.key, type(value).__qualname__)
             raise UnmappableXComPushed(value)
         session.merge(TaskMap.from_task_instance_xcom(self, value))
 

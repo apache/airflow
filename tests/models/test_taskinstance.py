@@ -2290,7 +2290,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
-        assert str(ctx.value) == "unmappable return value 'abc'"
+        assert str(ctx.value) == "unmappable return type 'str'"
 
     @pytest.mark.parametrize(
         "xcom_value, expected_length, expected_keys",
