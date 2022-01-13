@@ -165,7 +165,7 @@ def positive_int(*, allow_zero):
 
 
 def string_list_type(val):
-    """Splits comma-separated list and returns the lists (strips whitespace)"""
+    """Parses comma-separated list and returns list of string (strips whitespace)"""
     return [x.strip() for x in val.split(',')]
 
 
