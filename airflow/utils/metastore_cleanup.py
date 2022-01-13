@@ -25,16 +25,16 @@ keep_last_group_by: if keeping the last record, can keep the last record for eac
 
 
 import logging
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from pendulum import DateTime
 from sqlalchemy import and_, func
-from sqlalchemy.orm import Query
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
 from airflow.models import (
+    Base,
     DagModel,
     DagRun,
     ImportError,
@@ -46,89 +46,73 @@ from airflow.models import (
     TaskReschedule,
     XCom,
 )
+from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.utils.session import NEW_SESSION, provide_session
 
-now = timezone.utcnow
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
+    from sqlalchemy.orm.attributes import InstrumentedAttribute
+    from sqlalchemy.sql.schema import Column
 
 
-objects = {
-    'job': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': BaseJob,
-        'recency_column': BaseJob.latest_heartbeat,
-    },
-    'dag': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': DagModel,
-        'recency_column': DagModel.last_parsed_time,
-    },
-    'dag_run': {
-        'keep_last': True,
-        "keep_last_filters": [DagRun.external_trigger.is_(False)],
-        "keep_last_group_by": DagRun.dag_id,
-        'orm_model': DagRun,
-        'recency_column': DagRun.execution_date,
-    },
-    'import_error': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': ImportError,
-        'recency_column': ImportError.timestamp,
-    },
-    'log': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': Log,
-        'recency_column': Log.dttm,
-    },
-    'rendered_task_instance_fields': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': RenderedTaskInstanceFields,
-        'recency_column': RenderedTaskInstanceFields.execution_date,
-    },
-    'sla_miss': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': SlaMiss,
-        'recency_column': SlaMiss.execution_date,
-    },
-    'task_fail': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': TaskFail,
-        'recency_column': TaskFail.execution_date,
-    },
-    'task_instance': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': TaskInstance,
-        'recency_column': TaskInstance.execution_date,
-    },
-    'task_reschedule': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': TaskReschedule,
-        'recency_column': TaskReschedule.execution_date,
-    },
-    'xcom': {
-        'keep_last': False,
-        'keep_last_filters': None,
-        'keep_last_group_by': None,
-        'orm_model': XCom,
-        'recency_column': XCom.execution_date,
-    },
+@dataclass
+class _Config:
+    orm_model: Base
+    recency_column: Union["Column", "InstrumentedAttribute"]
+    keep_last: bool = False
+    keep_last_filters: Optional[Any] = None
+    keep_last_group_by: Optional[Any] = None
+
+
+objects: Dict[str, _Config] = {
+    'job': _Config(
+        orm_model=BaseJob,
+        recency_column=BaseJob.latest_heartbeat,
+    ),
+    'dag': _Config(
+        orm_model=DagModel,
+        recency_column=DagModel.last_parsed_time,
+    ),
+    'dag_run': _Config(
+        keep_last=True,
+        keep_last_filters=[DagRun.external_trigger.is_(False)],
+        keep_last_group_by=DagRun.dag_id,
+        orm_model=DagRun,
+        recency_column=DagRun.execution_date,
+    ),
+    'import_error': _Config(
+        orm_model=ImportError,
+        recency_column=ImportError.timestamp,
+    ),
+    'log': _Config(
+        orm_model=Log,
+        recency_column=Log.dttm,
+    ),
+    'rendered_task_instance_fields': _Config(
+        orm_model=RenderedTaskInstanceFields,
+        recency_column=RenderedTaskInstanceFields.execution_date,
+    ),
+    'sla_miss': _Config(
+        orm_model=SlaMiss,
+        recency_column=SlaMiss.execution_date,
+    ),
+    'task_fail': _Config(
+        orm_model=TaskFail,
+        recency_column=TaskFail.execution_date,
+    ),
+    'task_instance': _Config(
+        orm_model=TaskInstance,
+        recency_column=TaskInstance.execution_date,
+    ),
+    'task_reschedule': _Config(
+        orm_model=TaskReschedule,
+        recency_column=TaskReschedule.execution_date,
+    ),
+    'xcom': _Config(
+        orm_model=XCom,
+        recency_column=XCom.execution_date,
+    ),
 }
 
 
@@ -140,30 +124,21 @@ if airflow_executor == "CeleryExecutor":
     try:
         objects.update(
             **{
-                'task': {
-                    'keep_last': False,
-                    'keep_last_filters': None,
-                    'keep_last_group_by': None,
-                    'orm_model': Task,
-                    'recency_column': Task.date_done,
-                },
-                'task_set': {
-                    'keep_last': False,
-                    'keep_last_filters': None,
-                    'keep_last_group_by': None,
-                    'orm_model': TaskSet,
-                    'recency_column': TaskSet.date_done,
-                },
+                'task': _Config(
+                    orm_model=Task,
+                    recency_column=Task.date_done,
+                ),
+                'task_set': _Config(
+                    orm_model=TaskSet,
+                    recency_column=TaskSet.date_done,
+                ),
             }
         )
     except Exception as e:
         logging.error(e)
 
 
-session = settings.Session()
-
-
-def print_entities(query: Query, print_rows=False):
+def print_entities(*, query: "Query", print_rows=False):
     num_entities = query.count()
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if not print_rows:
@@ -177,7 +152,7 @@ def print_entities(query: Query, print_rows=False):
         print(entry.__dict__)
 
 
-def do_delete(query):
+def do_delete(*, query, session):
     print("Performing Delete...")
     # using bulk delete
     query.delete(synchronize_session=False)
@@ -185,7 +160,7 @@ def do_delete(query):
     print("Finished Performing Delete")
 
 
-def subquery_keep_last(keep_last_filters, keep_last_group_by):
+def subquery_keep_last(*, keep_last_filters, keep_last_group_by, session):
     # workaround for MySQL "table specified twice" issue
     # https://github.com/teamclairvoyant/airflow-maintenance-dags/issues/41
     subquery = session.query(func.max(DagRun.execution_date))
@@ -202,13 +177,22 @@ def subquery_keep_last(keep_last_filters, keep_last_group_by):
 
 
 def build_query(
-    orm_model, recency_column, keep_last, keep_last_filters, keep_last_group_by, clean_before_timestamp
+    *,
+    orm_model,
+    recency_column,
+    keep_last,
+    keep_last_filters,
+    keep_last_group_by,
+    clean_before_timestamp,
+    session,
 ):
     query = session.query(orm_model)
     conditions = [recency_column < clean_before_timestamp]
     if keep_last:
         subquery = subquery_keep_last(
-            keep_last_filters=keep_last_filters, keep_last_group_by=keep_last_group_by
+            keep_last_filters=keep_last_filters,
+            keep_last_group_by=keep_last_group_by,
+            session=session,
         )
         conditions.append(recency_column.notin_(subquery))
     query = query.filter(and_(*conditions))
@@ -228,6 +212,7 @@ def _cleanup_table(
     clean_before_timestamp,
     dry_run=True,
     verbose=False,
+    session=None,
 ):
     print()
     if dry_run:
@@ -239,15 +224,17 @@ def _cleanup_table(
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        session=session,
     )
 
-    print_entities(query, print_rows=False)
+    print_entities(query=query, print_rows=False)
 
     if not dry_run:
-        do_delete(query)
+        do_delete(query=query, session=session)
+        session.commit()
 
 
-def _confirm_delete(date, tables):
+def _confirm_delete(*, date, tables):
     for_tables = f" for tables {tables!r}" if tables else ''
     question = '\n'.join(
         [
@@ -259,9 +246,10 @@ def _confirm_delete(date, tables):
     print(question)
     answer = input().strip()
     if not answer == 'delete rows':
-        SystemExit("User did not confirm; exiting.")
+        raise SystemExit("User did not confirm; exiting.")
 
 
+@provide_session
 def run_cleanup(
     *,
     clean_before_timestamp: DateTime,
@@ -269,6 +257,7 @@ def run_cleanup(
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
+    session: Session = NEW_SESSION,
 ):
     """
     Purges old records in airflow metastore database.
@@ -283,24 +272,18 @@ def run_cleanup(
     :type verbose: bool
     :param confirm: Require user input to confirm before processing deletions.
     :type confirm: bool
+    :param session: Session representing connection to the metastore database.
+    :type session: Session
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
+    table_subset = {k: v for k, v in objects.items() if (k in table_names if table_names else True)}
     if not dry_run and confirm:
-        _confirm_delete(clean_before_timestamp, table_names)
-    if table_names:
-        for table_name in table_names:
-            table_config = objects[table_name]
-            _cleanup_table(
-                **table_config,
-                clean_before_timestamp=clean_before_timestamp,
-                dry_run=dry_run,
-                verbose=verbose,
-            )
-    else:
-        for table_name, table_config in objects.items():
-            _cleanup_table(
-                **table_config,
-                clean_before_timestamp=clean_before_timestamp,
-                dry_run=dry_run,
-                verbose=verbose,
-            )
+        _confirm_delete(date=clean_before_timestamp, tables=list(table_subset.keys()))
+    for table_name, table_config in table_subset.items():
+        _cleanup_table(
+            clean_before_timestamp=clean_before_timestamp,
+            dry_run=dry_run,
+            verbose=verbose,
+            **table_config.__dict__,
+            session=session,
+        )
