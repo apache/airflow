@@ -91,23 +91,30 @@ Example pod templates
 
 With these requirements in mind, here are some examples of basic ``pod_template_file`` YAML files.
 
+.. note::
+
+    The examples below should work when using default Airflow configuration values. However, many custom
+    configuration values need to be explicitly passed to the pod via this template too. This includes,
+    but is not limited to, sql configuration, required Airflow connections, dag folder path and
+    logging settings. See :doc:`../configurations-ref` for details.
+
 Storing DAGs in the image:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
 Storing DAGs in a ``persistentVolume``:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
 Pulling DAGs from ``git``:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]
@@ -210,7 +217,7 @@ In contrast to CeleryExecutor, KubernetesExecutor does not require additional co
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
 Historically, in scenarios such as burstable workloads, this presented a resource utilization advantage over CeleryExecutor, where you needed
-a fixed number of long-running celery worker pods, whether or not there were tasks to run.
+a fixed number of long-running Celery worker pods, whether or not there were tasks to run.
 
 However, the :doc:`official Apache Airflow Helm chart <helm-chart:index>` can automatically scale celery workers down to zero based on the number of tasks in the queue,
 so when using the official chart, this is no longer an advantage.

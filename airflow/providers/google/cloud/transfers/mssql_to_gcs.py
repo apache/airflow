@@ -46,6 +46,11 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
                 google_cloud_storage_conn_id='google_cloud_default',
                 dag=dag
             )
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MSSQLToGCSOperator`
+
     """
 
     ui_color = '#e0a98c'

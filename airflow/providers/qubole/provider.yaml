@@ -33,7 +33,10 @@ additional-dependencies:
 
 integrations:
   - integration-name: Qubole
-    external-doc-url: https://www.qubole.com/
+    external-doc-url: https://docs.qubole.com/en/latest/
+    how-to-guide:
+      - /docs/apache-airflow-providers-qubole/operators/qubole.rst
+      - /docs/apache-airflow-providers-qubole/operators/qubole_check.rst
     logo: /integration-logos/qubole/Qubole.png
     tags: [service]
 

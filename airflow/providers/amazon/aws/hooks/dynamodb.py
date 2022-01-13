@@ -18,13 +18,14 @@
 
 
 """This module contains the AWS DynamoDB hook"""
+import warnings
 from typing import Iterable, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsDynamoDBHook(AwsBaseHook):
+class DynamoDBHook(AwsBaseHook):
     """
     Interact with AWS DynamoDB.
 
@@ -59,3 +60,19 @@ class AwsDynamoDBHook(AwsBaseHook):
             return True
         except Exception as general_error:
             raise AirflowException(f"Failed to insert items in dynamodb, error: {str(general_error)}")
+
+
+class AwsDynamoDBHook(DynamoDBHook):
+    """
+    This class is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

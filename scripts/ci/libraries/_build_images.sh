@@ -20,9 +20,11 @@
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
 function build_images::add_build_args_for_remote_install() {
-    # entrypoint is used as AIRFLOW_SOURCES_FROM/TO in order to avoid costly copying of all sources of
+    # entrypoint is used as AIRFLOW_SOURCES_(WWW)_FROM/TO in order to avoid costly copying of all sources of
     # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
     EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=empty"
+        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/empty"
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
@@ -115,7 +117,7 @@ function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     set +u
     if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}" >"${DETECTED_TERMINAL}"
         echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     fi
     if [[ ${ACTION} == "pull and rebuild" ]]; then
@@ -133,8 +135,8 @@ function build_images::confirm_via_terminal() {
     RES=$?
 }
 
-# Confirms if the image should be rebuild and interactively checks it with the user.
-# In case iit needs to be rebuild. It only ask the user if it determines that the rebuild
+# Confirms if the image should be rebuilt and interactively checks it with the user.
+# In case iit needs to be rebuilt. It only ask the user if it determines that the rebuild
 # is needed and that the rebuild is not already forced. It asks the user using available terminals
 # So that the script works also from within pre-commit run via git hooks - where stdin is not
 # available - it tries to find usable terminal and ask the user via this terminal.
@@ -176,7 +178,7 @@ function build_images::confirm_image_rebuild() {
         echo
         set +u
         if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}"
+            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}"
             echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}"
         fi
         echo
@@ -309,9 +311,10 @@ function build_images::get_local_build_cache_hash() {
 function build_images::get_remote_image_build_cache_hash() {
     set +e
     local remote_image_container_id_file
-    remote_image_container_id_file="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image-${PYTHON_MAJOR_MINOR_VERSION}"
+    remote_image_container_id_file="$(mktemp)"
     local remote_image_build_cache_file
-    remote_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
+    remote_image_build_cache_file=$(mktemp)
+    local target_remote_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Pull remote manifest image
     if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
@@ -330,10 +333,13 @@ function build_images::get_remote_image_build_cache_hash() {
     # Extract manifest and store it in local file
     docker_v cp "$(cat "${remote_image_container_id_file}"):/build-cache-hash" \
         "${remote_image_build_cache_file}"
+    # The `mv` is an atomic operation so even if we run it in parallel (for example in flake) it will
+    # never be empty (happened in the past)
+    mv "${remote_image_build_cache_file}" "${target_remote_cache_file}"
     docker_v rm --force "$(cat "${remote_image_container_id_file}")"
     rm -f "${remote_image_container_id_file}"
     verbosity::print_info
-    verbosity::print_info "Remote build cache hash: '$(cat "${remote_image_build_cache_file}")'"
+    verbosity::print_info "Remote build cache hash: '$(cat "${target_remote_cache_file}")'"
     verbosity::print_info
 }
 
@@ -738,6 +744,8 @@ function build_images::prepare_prod_build() {
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}"
             "--build-arg" "AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}"
+            "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM}"
+            "--build-arg" "AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO}"
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}"
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
@@ -942,7 +950,8 @@ function build_images::build_prod_images_from_locally_built_airflow_packages() {
     build_images::cleanup_docker_context_files
 
     # Build necessary provider packages
-    runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
+    IFS=$'\n' read -d '' -r -a installed_providers < "${AIRFLOW_SOURCES}/scripts/ci/installed_providers.txt" || true
+    runs::run_prepare_provider_packages "${installed_providers[@]}"
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
     # Build apache airflow packages

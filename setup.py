@@ -189,7 +189,7 @@ alibaba = [
 ]
 amazon = [
     'boto3>=1.15.0,<1.19.0',
-    'watchtower~=1.0.6',
+    'watchtower~=2.0.1',
     'jsonpath_ng>=1.5.3',
     'redshift_connector~=2.0.888',
     'sqlalchemy_redshift~=0.8.6',
@@ -227,7 +227,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=5.1,>=5.1.2',
+    'celery>=5.2.3',
     'flower~=1.0.0',
 ]
 cgroups = [
@@ -238,8 +238,7 @@ cloudant = [
 ]
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
-    'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
+    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
@@ -253,17 +252,16 @@ deprecated_api = [
 ]
 doc = [
     'click>=7.1,<9',
-    # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
-    'sphinx>=2.1.2, <3.5.0',
+    'sphinx>=4.0.0, <5.0.0',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi==1.0.0',
+    'sphinx-autoapi~=1.8.0',
     'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
-    'sphinxcontrib-spelling==7.2.1',
+    'sphinxcontrib-spelling~=7.3',
 ]
 docker = [
     'docker>=5.0.3',
@@ -306,7 +304,7 @@ google = [
     'google-cloud-build>=3.0.0,<4.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
-    'google-cloud-dataproc>=2.2.0,<4.0.0',
+    'google-cloud-dataproc>=3.1.0,<4.0.0',
     'google-cloud-dataproc-metastore>=1.2.0,<2.0.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0,<3.0.0',
@@ -383,7 +381,7 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0, <12.0.0',
+    'kubernetes>=3.0.0',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
@@ -393,7 +391,8 @@ ldap = [
 leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<3.0.0',
-    'pymongo>=3.6.0',
+    # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
+    'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
     'pymssql~=2.1,>=2.1.5',
@@ -405,6 +404,9 @@ mysql = [
 neo4j = ['neo4j>=4.2.1']
 odbc = [
     'pyodbc',
+]
+opsgenie = [
+    'opsgenie-sdk>=2.1.5',
 ]
 oracle = [
     'cx_Oracle>=5.1.2',
@@ -469,8 +471,13 @@ slack = [
     'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
-    'snowflake-connector-python>=2.4.1',
-    'snowflake-sqlalchemy>=1.1.0',
+    # Snowflake connector 2.7.2 requires pyarrow >=6.0.0 but apache-beam requires < 6.0.0
+    # We should remove the limitation when apache-beam upgrades pyarrow
+    'snowflake-connector-python>=2.4.1,<2.7.2',
+    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
+    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
+    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
+    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
 ]
 spark = [
     'pyspark',
@@ -506,13 +513,42 @@ winrm = [
     'pywinrm~=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.97.0',
+    'yandexcloud>=0.122.0',
 ]
 zendesk = [
     'zdesk',
 ]
 # End dependencies group
 
+# Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
+# manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+# for details. Wy want to install them explicitly because we want to eventually move to
+# mypyd which does not support installing the types dynamically with --install-types
+mypy_dependencies = [
+    'mypy==0.910',
+    'types-boto',
+    'types-certifi',
+    'types-croniter',
+    'types-Deprecated',
+    'types-docutils',
+    'types-freezegun',
+    'types-paramiko',
+    'types-protobuf',
+    'types-python-dateutil',
+    'types-python-slugify',
+    'types-pytz',
+    'types-redis',
+    'types-requests',
+    'types-setuptools',
+    'types-termcolor',
+    'types-tabulate',
+    'types-toml',
+    'types-Markdown',
+    'types-PyMySQL',
+    'types-PyYAML',
+]
+
+# Dependencies needed for development only
 devel_only = [
     'aws_xray_sdk',
     'beautifulsoup4~=4.7.1',
@@ -533,7 +569,6 @@ devel_only = [
     'jsondiff',
     'mongomock',
     'moto~=2.2, >=2.2.12',
-    'mypy==0.770',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -554,11 +589,12 @@ devel_only = [
     'pytest-httpx',
     'requests_mock',
     'semver',
+    'twine',
     'wheel',
     'yamllint',
 ]
 
-devel = cgroups + devel_only + doc + kubernetes + mysql + pandas + password
+devel = cgroups + devel_only + doc + kubernetes + mypy_dependencies + mysql + pandas + password
 devel_hadoop = devel + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
@@ -609,7 +645,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
-    'opsgenie': http_provider,
+    'opsgenie': opsgenie,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
@@ -837,7 +873,7 @@ EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
 def sort_extras_requirements() -> Dict[str, List[str]]:
     """
-    For Python 3.6+ the dictionary order remains when keys() are retrieved.
+    The dictionary order remains when keys() are retrieved.
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
@@ -892,6 +928,10 @@ def get_all_provider_packages() -> str:
 
 class AirflowDistribution(Distribution):
     """The setuptools.Distribution subclass with Airflow specific behaviour"""
+
+    def __init__(self, attrs=None):
+        super().__init__(attrs)
+        self.install_requires = None
 
     def parse_config_files(self, *args, **kwargs) -> None:
         """
@@ -989,7 +1029,7 @@ def add_all_provider_packages() -> None:
 class Develop(develop_orig):
     """Forces removal of providers in editable mode."""
 
-    def run(self) -> None:
+    def run(self) -> None:  # type: ignore
         self.announce('Installing in editable mode. Uninstalling provider packages!', level=log.INFO)
         # We need to run "python3 -m pip" because it might be that older PIP binary is in the path
         # And it results with an error when running pip directly (cannot import pip module)
@@ -1052,11 +1092,11 @@ def do_setup() -> None:
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets,
             'list_extras': ListExtras,
-            'install': Install,
+            'install': Install,  # type: ignore
             'develop': Develop,
         },
         test_suite='setup.airflow_test_suite',
-        **setup_kwargs,
+        **setup_kwargs,  # type: ignore
     )
 
 

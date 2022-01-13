@@ -46,6 +46,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -106,7 +107,6 @@ serialized_simple_dag_ground_truth = {
                 "template_fields": ['bash_command', 'env'],
                 "template_fields_renderers": {'bash_command': 'bash', 'env': 'json'},
                 "bash_command": "echo {{ task.task_id }}",
-                'label': 'bash_task',
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
@@ -140,7 +140,6 @@ serialized_simple_dag_ground_truth = {
                 "_task_type": "CustomOperator",
                 "_task_module": "tests.test_utils.mock_operators",
                 "pool": "default_pool",
-                'label': 'custom_task',
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -789,7 +788,7 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["my_param"] == param.value
-        observed_param = dict.get(dag.params, 'my_param')
+        observed_param = dag.params.get_param('my_param')
         assert isinstance(observed_param, Param)
         assert observed_param.description == param.description
         assert observed_param.schema == param.schema
@@ -888,7 +887,7 @@ class TestStringifiedDAGs:
 
             operator_extra_links = [TaskStateLink()]
 
-            def execute(self, context):
+            def execute(self, context: Context):
                 pass
 
         with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1)) as dag:
@@ -1093,15 +1092,12 @@ class TestStringifiedDAGs:
         tests should be added for it.
         """
         base_operator = BaseOperator(task_id="10")
-        fields = base_operator.__dict__
-        assert {
-            '_BaseOperator__instantiated': True,
-            '_dag': None,
+        fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
+        assert fields == {
             '_downstream_task_ids': set(),
             '_inlets': [],
             '_log': base_operator.log,
             '_outlets': [],
-            '_upstream_task_ids': set(),
             '_pre_execute_hook': None,
             '_post_execute_hook': None,
             'depends_on_past': False,
@@ -1114,18 +1110,14 @@ class TestStringifiedDAGs:
             'email': None,
             'email_on_failure': True,
             'email_on_retry': True,
-            'end_date': None,
             'execution_timeout': None,
             'executor_config': {},
-            'inlets': [],
-            'label': '10',
             'max_active_tis_per_dag': None,
             'max_retry_delay': None,
             'on_execute_callback': None,
             'on_failure_callback': None,
             'on_retry_callback': None,
             'on_success_callback': None,
-            'outlets': [],
             'owner': 'airflow',
             'params': {},
             'pool': 'default_pool',
@@ -1138,13 +1130,11 @@ class TestStringifiedDAGs:
             'retry_exponential_backoff': False,
             'run_as_user': None,
             'sla': None,
-            'start_date': None,
-            'subdag': None,
             'task_id': '10',
             'trigger_rule': 'all_success',
             'wait_for_downstream': False,
             'weight_rule': 'downstream',
-        } == fields, """
+        }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY
@@ -1337,7 +1327,7 @@ class TestStringifiedDAGs:
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
-            def poke(self, context):
+            def poke(self, context: Context):
                 return False
 
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
@@ -1475,7 +1465,7 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["none"] is None
-        assert isinstance(dict.__getitem__(dag.params, "none"), Param)
+        assert isinstance(dag.params.get_param("none"), Param)
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default_2_2_0(self):
@@ -1495,7 +1485,7 @@ class TestStringifiedDAGs:
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
-        assert isinstance(dict.__getitem__(dag.params, "str"), Param)
+        assert isinstance(dag.params.get_param("str"), Param)
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default(self):
@@ -1520,7 +1510,7 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["my_param"] == "a string value"
-        param = dict.get(dag.params, 'my_param')
+        param = dag.params.get_param('my_param')
         assert isinstance(param, Param)
         assert param.description == 'hello'
         assert param.schema == {'type': 'string'}

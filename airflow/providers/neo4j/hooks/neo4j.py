@@ -44,8 +44,6 @@ class Neo4jHook(BaseHook):
         self.neo4j_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client = None
-        self.extras = None
-        self.uri = None
 
     def get_conn(self) -> Neo4jDriver:
         """
@@ -56,15 +54,14 @@ class Neo4jHook(BaseHook):
             return self.client
 
         self.connection = self.get_connection(self.neo4j_conn_id)
-        self.extras = self.connection.extra_dejson.copy()
 
-        self.uri = self.get_uri(self.connection)
-        self.log.info('URI: %s', self.uri)
+        uri = self.get_uri(self.connection)
+        self.log.info('URI: %s', uri)
 
         is_encrypted = self.connection.extra_dejson.get('encrypted', False)
 
         self.client = GraphDatabase.driver(
-            self.uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
+            uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
         )
 
         return self.client

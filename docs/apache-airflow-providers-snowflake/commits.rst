@@ -28,14 +28,45 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.4.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`a632b7484 <https://github.com/apache/airflow/commit/a632b74846bae28408fb4c1b38671fae23ca005c>`_  2021-12-28   ``Improvements for 'SnowflakeHook.get_sqlalchemy_engine'  (#20509)``
+`fcc3b92fb <https://github.com/apache/airflow/commit/fcc3b92fb6770597c4058c547a49f391de4dba44>`_  2021-12-13   ``Fix MyPy Errors for Snowflake provider. (#20212)``
+`89a66ae02 <https://github.com/apache/airflow/commit/89a66ae02319a20d6170187527d4535a26078378>`_  2021-12-13   ``Support insecure mode in SnowflakeHook (#20106)``
+`7fb301b0b <https://github.com/apache/airflow/commit/7fb301b0b466f470c737ded99b670b3f0605f1a4>`_  2021-12-08   ``Remove unused code in SnowflakeHook (#20107)``
+================================================================================================  ===========  =========================================================================
+
+2.3.1
+.....
+
+Latest change: 2021-11-30
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`de9900539 <https://github.com/apache/airflow/commit/de9900539c9731325e29fd1bbac37c4bc1363bc4>`_  2021-11-12   ``Remove duplicate get_connection in SnowflakeHook (#19543)``
+================================================================================================  ===========  ======================================================================
+
 2.3.0
 .....
 
-Latest change: 2021-10-25
+Latest change: 2021-10-29
 
 ================================================================================================  ===========  ===============================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `d53d4f9c7 <https://github.com/apache/airflow/commit/d53d4f9c7c1280970fc4b9ee3240c8d1db5f2c57>`_  2021-10-25   ``Moving the example tag a little bit up to include the part where you specify the snowflake_conn_id (#19180)``
 `acfb7b5ac <https://github.com/apache/airflow/commit/acfb7b5acf887d38aa8751c18d17dbfe85e78b7c>`_  2021-10-25   ``Add test_connection method for Snowflake Hook (#19041)``
 `0a37be3e3 <https://github.com/apache/airflow/commit/0a37be3e3cf9289f63f1506bc31db409c2b46738>`_  2021-09-30   ``Add region to Snowflake URI. (#18650)``

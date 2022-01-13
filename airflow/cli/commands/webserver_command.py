@@ -313,7 +313,7 @@ class GunicornMonitor(LoggingMixin):
                 self._reload_gunicorn()
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def webserver(args):
     """Starts Airflow Webserver"""
     print(settings.HEADER)

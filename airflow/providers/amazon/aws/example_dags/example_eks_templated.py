@@ -14,18 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
-    EKSCreateClusterOperator,
-    EKSCreateNodegroupOperator,
-    EKSDeleteClusterOperator,
-    EKSDeleteNodegroupOperator,
-    EKSPodOperator,
+    EksCreateClusterOperator,
+    EksCreateNodegroupOperator,
+    EksDeleteClusterOperator,
+    EksDeleteNodegroupOperator,
+    EksPodOperator,
 )
-from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSNodegroupStateSensor
+from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 
 # Example Jinja Template format, substitute your values:
 """
@@ -54,34 +55,39 @@ with DAG(
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.
     render_template_as_native_obj=True,
 ) as dag:
-
+    SUBNETS = os.environ.get('EKS_DEMO_SUBNETS', 'subnet-12345ab subnet-67890cd').split(' ')
+    VPC_CONFIG = {
+        'subnetIds': SUBNETS,
+        'endpointPublicAccess': True,
+        'endpointPrivateAccess': False,
+    }
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
-    create_cluster = EKSCreateClusterOperator(
+    create_cluster = EksCreateClusterOperator(
         task_id='create_eks_cluster',
         compute=None,
         cluster_role_arn="{{ dag_run.conf['cluster_role_arn'] }}",
-        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",
+        resources_vpc_config=VPC_CONFIG,
     )
 
-    await_create_cluster = EKSClusterStateSensor(
+    await_create_cluster = EksClusterStateSensor(
         task_id='wait_for_create_cluster',
         target_state=ClusterStates.ACTIVE,
     )
 
-    create_nodegroup = EKSCreateNodegroupOperator(
+    create_nodegroup = EksCreateNodegroupOperator(
         task_id='create_eks_nodegroup',
         nodegroup_name="{{ dag_run.conf['nodegroup_name'] }}",
         nodegroup_subnets="{{ dag_run.conf['nodegroup_subnets'] }}",
         nodegroup_role_arn="{{ dag_run.conf['nodegroup_role_arn'] }}",
     )
 
-    await_create_nodegroup = EKSNodegroupStateSensor(
+    await_create_nodegroup = EksNodegroupStateSensor(
         task_id='wait_for_create_nodegroup',
         nodegroup_name="{{ dag_run.conf['nodegroup_name'] }}",
         target_state=NodegroupStates.ACTIVE,
     )
 
-    start_pod = EKSPodOperator(
+    start_pod = EksPodOperator(
         task_id="run_pod",
         pod_name="run_pod",
         image="amazon/aws-cli:latest",
@@ -92,22 +98,22 @@ with DAG(
         is_delete_operator_pod=True,
     )
 
-    delete_nodegroup = EKSDeleteNodegroupOperator(
+    delete_nodegroup = EksDeleteNodegroupOperator(
         task_id='delete_eks_nodegroup',
         nodegroup_name="{{ dag_run.conf['nodegroup_name'] }}",
     )
 
-    await_delete_nodegroup = EKSNodegroupStateSensor(
+    await_delete_nodegroup = EksNodegroupStateSensor(
         task_id='wait_for_delete_nodegroup',
         nodegroup_name="{{ dag_run.conf['nodegroup_name'] }}",
         target_state=NodegroupStates.NONEXISTENT,
     )
 
-    delete_cluster = EKSDeleteClusterOperator(
+    delete_cluster = EksDeleteClusterOperator(
         task_id='delete_eks_cluster',
     )
 
-    await_delete_cluster = EKSClusterStateSensor(
+    await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
         target_state=ClusterStates.NONEXISTENT,
     )

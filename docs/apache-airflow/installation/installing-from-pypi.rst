@@ -89,8 +89,8 @@ In order to simplify the installation, we have prepared examples of how to upgra
 Installing Airflow with extras and providers
 ============================================
 
-If you need to install extra dependencies of airflow, you can use the script below to make an installation
-a one-liner (the example below installs postgres and google provider, as well as ``async`` extra.
+If you need to install extra dependencies of Airflow, you can use the script below to make an installation
+a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
 
 .. code-block:: bash
     :substitutions:
@@ -118,7 +118,7 @@ being installed.
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    pip install --upgrade "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
+    pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 Installation and upgrading of Airflow providers separately
 ==========================================================

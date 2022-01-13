@@ -26,14 +26,18 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-from typing import Any, Dict, Optional
+import warnings
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
-class AwsBatchOperator(BaseOperator):
+class BatchOperator(BaseOperator):
     """
     Execute a job on AWS Batch
 
@@ -59,9 +63,9 @@ class AwsBatchOperator(BaseOperator):
         submit_job operation gets the jobId defined by AWS Batch
     :type job_id: Optional[str]
 
-    :param waiters: an :py:class:`.AwsBatchWaiters` object (see note below);
+    :param waiters: an :py:class:`.BatchWaiters` object (see note below);
         if None, polling is used with max_retries and status_retries.
-    :type waiters: Optional[AwsBatchWaiters]
+    :type waiters: Optional[BatchWaiters]
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
@@ -94,7 +98,7 @@ class AwsBatchOperator(BaseOperator):
 
     ui_color = "#c3dae0"
     arn = None  # type: Optional[str]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_name",
         "overrides",
         "parameters",
@@ -130,14 +134,14 @@ class AwsBatchOperator(BaseOperator):
         self.parameters = parameters or {}
         self.waiters = waiters
         self.tags = tags or {}
-        self.hook = AwsBatchClientHook(
+        self.hook = BatchClientHook(
             max_retries=max_retries,
             status_retries=status_retries,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
         )
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         """
         Submit and monitor an AWS Batch job
 
@@ -150,7 +154,7 @@ class AwsBatchOperator(BaseOperator):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
-    def submit_job(self, context: Dict):
+    def submit_job(self, context: 'Context'):
         """
         Submit an AWS Batch job
 
@@ -180,7 +184,7 @@ class AwsBatchOperator(BaseOperator):
             self.log.error("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
-    def monitor_job(self, context: Dict):
+    def monitor_job(self, context: 'Context'):
         """
         Monitor an AWS Batch job
         monitor_job can raise an exception or an AirflowTaskTimeout can be raised if execution_timeout
@@ -199,3 +203,19 @@ class AwsBatchOperator(BaseOperator):
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)
+
+
+class AwsBatchOperator(BatchOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

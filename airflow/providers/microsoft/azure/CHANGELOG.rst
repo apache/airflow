@@ -19,6 +19,48 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Azure: New sftp to wasb operator (#18877)``
+* ``Removes InputRequired validation with azure extra (#20084)``
+* ``Add operator link to monitor Azure Data Factory pipeline runs (#20207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixing MyPy issues inside providers/microsoft (#20409)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix mypy errors in Microsoft Azure provider (#19923)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Use isort on pyi files (#20556)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove unnecessary connection form customizations in Azure (#19595)``
+* ``Update Azure modules to comply with AIP-21 (#19431)``
+* ``Remove 'host' from hidden fields in 'WasbHook' (#19475)``
+* ``use DefaultAzureCredential if login not provided for Data Factory (#19079)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix argument error in AzureContainerInstancesOperator (#19668)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ensure ''catchup=False'' is used in example dags (#19396)``
+
 3.3.0
 .....
 
@@ -43,7 +85,7 @@ Other
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``More f-strings (#18855)``
-   * ``Revert &#34;update azure cosmos version (#18663)&#34; (#18694)``
+   * ``Revert 'update azure cosmos version (#18663)' (#18694)``
    * ``update azure cosmos version (#18663)``
 
 3.2.0

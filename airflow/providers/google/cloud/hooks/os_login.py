@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.retry import Retry
 from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse, OsLoginServiceClient
 
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class OSLoginHook(GoogleBaseHook):
@@ -53,7 +54,13 @@ class OSLoginHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def import_ssh_public_key(
-        self, user: str, ssh_public_key: Dict, project_id: str, retry=None, timeout=None, metadata=None
+        self,
+        user: str,
+        ssh_public_key: Dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:
         """
         Adds an SSH public key and returns the profile information. Default POSIX
@@ -73,7 +80,7 @@ class OSLoginHook(GoogleBaseHook):
             if ``retry`` is specified, the timeout applies to each individual attempt.
         :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
+        :type metadata: Sequence[Tuple[str, str]]
         :return: A :class:`~google.cloud.oslogin_v1.ImportSshPublicKeyResponse` instance.
         """
         conn = self.get_conn()
@@ -85,5 +92,5 @@ class OSLoginHook(GoogleBaseHook):
             ),
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )

@@ -24,12 +24,12 @@ import logging
 import os
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 try:
     import importlib_metadata
 except ImportError:
-    from importlib import metadata as importlib_metadata
+    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
@@ -458,7 +458,7 @@ def integrate_macros_plugins() -> None:
             setattr(macros, plugin.name, macros_module)
 
 
-def get_plugin_info(attrs_to_dump: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[str, Any]]:
     """
     Dump plugins attributes
 
@@ -475,7 +475,7 @@ def get_plugin_info(attrs_to_dump: Optional[List[str]] = None) -> List[Dict[str,
     plugins_info = []
     if plugins:
         for plugin in plugins:
-            info = {"name": plugin.name}
+            info: Dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
                 if attr in ('global_operator_extra_links', 'operator_extra_links'):
                     info[attr] = [

@@ -260,6 +260,16 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         os.environ['AIRFLOW__LOGGING__COLORED_CONSOLE_LOG'] = 'False'
         # Replicating the behavior of how logging module was loaded
         # in logging_config.py
+
+        # TODO: This reloading should be removed when we fix our logging behaviour
+        # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
+        # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
+        # in a parent process (likely via resources shared in memory by the ORM libraries).
+        # This caused flaky tests in our CI for many months and has been discovered while
+        # iterating on https://github.com/apache/airflow/pull/19860
+        # The issue that describes the problem and possible remediation is
+        # at https://github.com/apache/airflow/issues/19934
+
         importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))  # type: ignore
         importlib.reload(airflow.settings)
         airflow.settings.initialize()
@@ -430,7 +440,7 @@ class DagFileProcessorManager(LoggingMixin):
         if conf.get('core', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
             self.log.warning(
                 "Because we cannot use more than 1 thread (parsing_processes = "
-                "%d ) when using sqlite. So we set parallelism to 1.",
+                "%d) when using sqlite. So we set parallelism to 1.",
                 self._parallelism,
             )
             self._parallelism = 1
@@ -900,17 +910,18 @@ class DagFileProcessorManager(LoggingMixin):
             count_import_errors = -1
             num_dags = 0
 
+        last_duration = (last_finish_time - processor.start_time).total_seconds()
         stat = DagFileStat(
             num_dags=num_dags,
             import_errors=count_import_errors,
             last_finish_time=last_finish_time,
-            last_duration=(last_finish_time - processor.start_time).total_seconds(),
+            last_duration=last_duration,
             run_count=self.get_run_count(processor.file_path) + 1,
         )
         self._file_stats[processor.file_path] = stat
 
         file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, '.')
-        Stats.timing(f'dag_processing.last_duration.{file_name}', stat.last_duration)
+        Stats.timing(f'dag_processing.last_duration.{file_name}', last_duration)
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors"""
@@ -1056,7 +1067,6 @@ class DagFileProcessorManager(LoggingMixin):
             TI = airflow.models.TaskInstance
             DM = airflow.models.DagModel
             limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
             zombies = (
                 session.query(TI, DM.fileloc)
@@ -1072,6 +1082,9 @@ class DagFileProcessorManager(LoggingMixin):
                 .all()
             )
 
+            if zombies:
+                self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+
             self._last_zombie_query_time = timezone.utcnow()
             for ti, file_loc in zombies:
                 request = TaskCallbackRequest(
@@ -1079,7 +1092,7 @@ class DagFileProcessorManager(LoggingMixin):
                     simple_task_instance=SimpleTaskInstance(ti),
                     msg=f"Detected {ti} as zombie",
                 )
-                self.log.info("Detected zombie job: %s", request)
+                self.log.error("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)
                 Stats.incr('zombies_killed')
 

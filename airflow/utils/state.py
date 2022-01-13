@@ -32,6 +32,7 @@ class TaskInstanceState(str, Enum):
 
     # Set by the scheduler
     # None - Task is created but should not run yet
+    NONE = None
     REMOVED = "removed"  # Task vanished from DAG before it ran
     SCHEDULED = "scheduled"  # Task should run and will be handed to executor soon
 

@@ -47,7 +47,7 @@ from airflow.utils.callback_requests import (
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 DR = models.DagRun
@@ -544,6 +544,12 @@ class DagFileProcessor(LoggingMixin):
 
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
+            (
+                session.query(DagModel)
+                .filter(DagModel.fileloc == filename)
+                .update({'has_import_errors': True}, synchronize_session='fetch')
+            )
+
             session.add(
                 errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
             )
@@ -551,7 +557,7 @@ class DagFileProcessor(LoggingMixin):
 
     @provide_session
     def execute_callbacks(
-        self, dagbag: DagBag, callback_requests: List[CallbackRequest], session: Session = None
+        self, dagbag: DagBag, callback_requests: List[CallbackRequest], session: Session = NEW_SESSION
     ) -> None:
         """
         Execute on failure callbacks. These objects can come from SchedulerJob or from
@@ -568,7 +574,7 @@ class DagFileProcessor(LoggingMixin):
                 if isinstance(request, TaskCallbackRequest):
                     self._execute_task_callbacks(dagbag, request)
                 elif isinstance(request, SlaCallbackRequest):
-                    self.manage_slas(dagbag.dags.get(request.dag_id))
+                    self.manage_slas(dagbag.get_dag(request.dag_id), session=session)
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
             except Exception:

@@ -17,8 +17,10 @@
 # under the License.
 import copy
 import logging
+import os
 import sys
 import unittest.mock
+import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
@@ -39,10 +41,12 @@ from airflow.operators.python import (
     get_current_context,
 )
 from airflow.utils import timezone
+from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -56,6 +60,8 @@ TI_CONTEXT_ENV_VARS = [
     'AIRFLOW_CTX_EXECUTION_DATE',
     'AIRFLOW_CTX_DAG_RUN_ID',
 ]
+
+TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, 'tests', 'config_templates')
 
 
 class Call:
@@ -703,6 +709,25 @@ class TestShortCircuitOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
+    def test_xcom_push(self):
+        dag = DAG(
+            'shortcircuit_operator_test_xcom_push',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
+        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: 'signature')
+        dag.clear()
+        dr = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        tis = dr.get_task_instances()
+        xcom_value = tis[0].xcom_pull(task_ids='make_choice', key='return_value')
+        assert xcom_value == 'signature'
+
 
 virtualenv_string_args: List[str] = []
 
@@ -713,6 +738,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self.dag = DAG(
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            template_searchpath=TEMPLATE_SEARCHPATH,
             schedule_interval=INTERVAL,
         )
         self.dag.create_dagrun(
@@ -739,10 +765,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_add_dill(self):
         def f():
-            pass
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
 
-        task = self._run_as_operator(f, use_dill=True, system_site_packages=False)
-        assert 'dill' in task.requirements
+        self._run_as_operator(f, use_dill=True, system_site_packages=False)
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
@@ -789,25 +815,32 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
+    def test_requirements_file(self):
+        def f():
+            import funcsigs  # noqa: F401
+
+        self._run_as_operator(f, requirements='requirements.txt', system_site_packages=False)
+
+    def test_templated_requirements_file(self):
+        def f():
+            import funcsigs
+
+            assert funcsigs.__version__ == '1.0.2'
+
+        self._run_as_operator(
+            f,
+            requirements='requirements.txt',
+            use_dill=True,
+            params={'environ': 'templated_unit_test'},
+            system_site_packages=False,
+        )
+
     def test_fail(self):
         def f():
             raise Exception
 
         with pytest.raises(CalledProcessError):
             self._run_as_operator(f)
-
-    def test_python_2(self):
-        def f():
-            {}.iteritems()
-
-        self._run_as_operator(f, python_version=2, requirements=['dill'])
-
-    def test_python_2_7(self):
-        def f():
-            {}.iteritems()
-            return True
-
-        self._run_as_operator(f, python_version='2.7', requirements=['dill'])
 
     def test_python_3(self):
         def f():
@@ -822,25 +855,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
-    @staticmethod
-    def _invert_python_major_version():
-        if sys.version_info[0] == 2:
-            return 3
-        else:
-            return 2
-
-    def test_wrong_python_version_with_op_args(self):
-        def f():
-            pass
-
-        version = self._invert_python_major_version()
-
-        with pytest.raises(AirflowException):
-            self._run_as_operator(f, python_version=version, op_args=[1])
-
-        with pytest.raises(AirflowException):
-            self._run_as_operator(f, python_version=version, op_kwargs={"arg": 1})
-
     def test_without_dill(self):
         def f(a):
             return a
@@ -854,7 +868,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
 
-        self._run_as_operator(f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+        self._run_as_operator(f, string_args=[1, 2, 1])
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
@@ -898,6 +912,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_airflow_context(self):
         def f(
             # basic
@@ -938,6 +953,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_pendulum_context(self):
         def f(
             # basic
@@ -969,10 +985,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         ):
             pass
 
-        self._run_as_operator(
-            f, use_dill=True, system_site_packages=False, requirements=['pendulum', 'lazy_object_proxy']
-        )
+        self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=['pendulum'])
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_base_context(self):
         def f(
             # basic
@@ -1070,13 +1085,15 @@ class TestCurrentContext:
 
 
 class MyContextAssertOperator(BaseOperator):
-    def execute(self, context):
+    def execute(self, context: Context):
         assert context == get_current_context()
 
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
+        assert context == current_context._context
 
 
 @pytest.fixture()

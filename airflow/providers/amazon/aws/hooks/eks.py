@@ -75,7 +75,7 @@ class NodegroupStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
-class EKSHook(AwsBaseHook):
+class EksHook(AwsBaseHook):
     """
     Interact with Amazon EKS, using the boto3 library.
 
@@ -366,6 +366,7 @@ class EKSHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
+            raise
 
     def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
@@ -392,6 +393,7 @@ class EKSHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return FargateProfileStates.NONEXISTENT
+            raise
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
@@ -416,6 +418,7 @@ class EKSHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return NodegroupStates.NONEXISTENT
+            raise
 
     def list_clusters(
         self,
@@ -493,7 +496,7 @@ class EKSHook(AwsBaseHook):
         :return: A List of the combined results of the provided API call.
         :rtype: List
         """
-        name_collection = []
+        name_collection: List = []
         token = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:
@@ -644,3 +647,18 @@ class EKSHook(AwsBaseHook):
 
         # remove any base64 encoding padding:
         return 'k8s-aws-v1.' + base64_url.rstrip("=")
+
+
+class EKSHook(EksHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.eks.EksHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. " "Please use `airflow.providers.amazon.aws.hooks.eks.EksHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

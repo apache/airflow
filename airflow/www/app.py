@@ -114,7 +114,8 @@ def create_app(config=None, testing=False):
 
     init_robots(flask_app)
 
-    Cache(app=flask_app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': gettempdir()})
+    cache_config = {'CACHE_TYPE': 'flask_caching.backends.filesystem', 'CACHE_DIR': gettempdir()}
+    Cache(app=flask_app, config=cache_config)
 
     init_flash_views(flask_app)
 

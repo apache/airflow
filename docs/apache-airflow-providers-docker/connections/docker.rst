@@ -27,7 +27,7 @@ The Docker connection type enables connection to the Docker registry.
 Authenticating to Docker
 ------------------------
 
-Authenticate to docker by using the login information for docker registry.
+Authenticate to Docker by using the login information for Docker registry.
 More information on `Docker authentication here
 <https://docker-py.readthedocs.io/en/1.2.3/api/>`_.
 
@@ -40,13 +40,13 @@ Configuring the Connection
 --------------------------
 
 Login
-    Specify the docker registry username.
+    Specify the Docker registry username.
 
 Password
-    Specify the docker registry plaintext password.
+    Specify the Docker registry plaintext password.
 
 Host
-    Specify the URL to the docker registry. Ex: ``https://index.docker.io/v1``
+    Specify the URL to the Docker registry. Ex: ``https://index.docker.io/v1``
 
 Port (optional)
     Specify the port if not specified in host.
@@ -56,7 +56,7 @@ Extra
     The following parameters are all optional:
 
     * ``email``: Specify the email used for the registry account.
-    * ``reauth``: Specify whether refresh existing authentication on the docker server. (bool)
+    * ``reauth``: Specify whether refresh existing authentication on the Docker server. (bool)
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

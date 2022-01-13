@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Optional, SupportsAbs
+from typing import Any, List, Optional, Sequence, SupportsAbs
 
 from airflow.models import BaseOperator
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
@@ -85,8 +85,8 @@ class SnowflakeOperator(BaseOperator):
     :type session_parameters: dict
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -117,7 +117,7 @@ class SnowflakeOperator(BaseOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -198,8 +198,8 @@ class SnowflakeCheckOperator(SQLCheckOperator):
     :type session_parameters: dict
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -230,7 +230,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -311,7 +311,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -405,7 +405,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)

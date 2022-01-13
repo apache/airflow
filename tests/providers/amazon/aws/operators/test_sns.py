@@ -50,7 +50,7 @@ class TestSnsPublishOperator(unittest.TestCase):
         assert SUBJECT == operator.subject
         assert MESSAGE_ATTRIBUTES == operator.message_attributes
 
-    @mock.patch('airflow.providers.amazon.aws.operators.sns.AwsSnsHook')
+    @mock.patch('airflow.providers.amazon.aws.operators.sns.SnsHook')
     def test_execute(self, mock_hook):
         # Given
         hook_response = {'MessageId': 'foobar'}

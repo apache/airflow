@@ -30,6 +30,7 @@ import pytest
 from freezegun import freeze_time
 
 from airflow import models, settings
+from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -63,7 +64,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -331,7 +332,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id='test_mark_non_runnable_task_as_success',
             task_id='test_mark_non_runnable_task_as_success_op',
-            dagrun_state=non_runnable_state,
+            state=non_runnable_state,
         )
         ti.run(mark_success=True)
         assert ti.state == State.SUCCESS
@@ -357,7 +358,7 @@ class TestTaskInstance:
         test that try to create a task with pool_slots less than 1
         """
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
             dag = models.DAG(dag_id='test_run_pooling_task')
             DummyOperator(
                 task_id='test_run_pooling_task_op',
@@ -483,50 +484,31 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-        "state",
-        [State.FAILED, State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE, State.UP_FOR_RETRY],
+        "state, exception, retries",
+        [
+            (State.FAILED, AirflowException, 0),
+            (State.SKIPPED, AirflowSkipException, 0),
+            (State.SUCCESS, None, 0),
+            (State.UP_FOR_RESCHEDULE, AirflowRescheduleException(timezone.utcnow()), 0),
+            (State.UP_FOR_RETRY, AirflowException, 1),
+        ],
     )
-    def test_task_wipes_next_fields(self, session, state, dag_maker):
+    def test_task_wipes_next_fields(self, session, dag_maker, state, exception, retries):
         """
         Test that ensures that tasks wipe their next_method and next_kwargs
-        when they go into a state of FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, or UP_FOR_RETRY.
+        when the TI enters one of the configured states.
         """
 
-        def failure():
-            raise AirflowException
-
-        def skip():
-            raise AirflowSkipException
-
-        def success():
-            return None
-
-        def reschedule():
-            reschedule_date = timezone.utcnow()
-            raise AirflowRescheduleException(reschedule_date)
-
-        _retries = 0
-        _retry_delay = datetime.timedelta(seconds=0)
-
-        if state == State.FAILED:
-            _python_callable = failure
-        elif state == State.SKIPPED:
-            _python_callable = skip
-        elif state == State.SUCCESS:
-            _python_callable = success
-        elif state == State.UP_FOR_RESCHEDULE:
-            _python_callable = reschedule
-        elif state in [State.FAILED, State.UP_FOR_RETRY]:
-            _python_callable = failure
-            _retries = 1
-            _retry_delay = datetime.timedelta(seconds=2)
+        def _raise_if_exception():
+            if exception:
+                raise exception
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-                python_callable=_python_callable,
-                retries=_retries,
-                retry_delay=_retry_delay,
+                python_callable=_raise_if_exception,
+                retries=retries,
+                retry_delay=datetime.timedelta(seconds=2),
             )
 
         dr = dag_maker.create_dagrun()
@@ -538,9 +520,9 @@ class TestTaskInstance:
 
         ti.task = task
         if state in [State.FAILED, State.UP_FOR_RETRY]:
-            with pytest.raises(AirflowException):
+            with pytest.raises(exception):
                 ti.run()
-        elif state in [State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE]:
+        else:
             ti.run()
         ti.refresh_from_db()
 
@@ -972,7 +954,8 @@ class TestTaskInstance:
             for i in range(5):
                 task = DummyOperator(task_id=f'runme_{i}', dag=dag)
                 task.set_downstream(downstream)
-        run_date = task.start_date + datetime.timedelta(days=5)
+            assert task.start_date is not None
+            run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
         ti.task = downstream
@@ -1374,7 +1357,10 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: Union[str, datetime.timedelta, None], catchup: bool, scenario: List[str], dag_maker
+        schedule_interval: Union[str, datetime.timedelta, None],
+        catchup: bool,
+        scenario: List[TaskInstanceState],
+        dag_maker,
     ) -> list:
         dag_id = 'test_previous_dates'
         with dag_maker(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup):
@@ -1512,6 +1498,27 @@ class TestTaskInstance:
         assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
         assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
 
+    def test_template_render(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_template_render",
+            task_id="test_template_render_task",
+            schedule_interval="0 12 * * *",
+        )
+        template_context = ti.get_template_context()
+        result = ti.task.render_template("Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context)
+        assert result == "Task: test_template_render -> test_template_render_task"
+
+    def test_template_render_deprecated(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_template_render",
+            task_id="test_template_render_task",
+            schedule_interval="0 12 * * *",
+        )
+        template_context = ti.get_template_context()
+        with pytest.deprecated_call():
+            result = ti.task.render_template("Execution date: {{ execution_date }}", template_context)
+        assert result.startswith("Execution date: ")
+
     @pytest.mark.parametrize(
         "content, expected_output",
         [
@@ -1608,6 +1615,57 @@ class TestTaskInstance:
         context = ti.get_template_context()
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    @pytest.mark.parametrize(
+        ("field", "expected"),
+        [
+            ("next_ds", "2016-01-01"),
+            ("next_ds_nodash", "20160101"),
+            ("prev_ds", "2015-12-31"),
+            ("prev_ds_nodash", "20151231"),
+            ("yesterday_ds", "2015-12-31"),
+            ("yesterday_ds_nodash", "20151231"),
+            ("tomorrow_ds", "2016-01-02"),
+            ("tomorrow_ds_nodash", "20160102"),
+        ],
+    )
+    def test_deprecated_context(self, field, expected, create_task_instance):
+        ti = create_task_instance(execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with pytest.deprecated_call() as recorder:
+            assert context[field] == expected
+        message_beginning = (
+            f"Accessing {field!r} from the template is deprecated and "
+            f"will be removed in a future version."
+        )
+
+        recorded_message = [str(m.message) for m in recorder]
+        assert len(recorded_message) == 1
+        assert recorded_message[0].startswith(message_beginning)
+
+    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
+        ti = create_task_instance(
+            start_date=DEFAULT_DATE,
+            timetable=AfterWorkdayTimetable(),
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.datetime(2021, 9, 6),
+            data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
+        )
+        context = ti.get_template_context()
+        with pytest.deprecated_call():
+            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=timezone.TIMEZONE)
+        with pytest.deprecated_call():
+            assert context["next_ds"] == "2021-09-07"
+        with pytest.deprecated_call():
+            assert context["next_ds_nodash"] == "20210907"
+        with pytest.deprecated_call():
+            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=timezone.TIMEZONE)
+        with pytest.deprecated_call():
+            assert context["prev_ds"] is None, "Does not make sense for custom timetable"
+        with pytest.deprecated_call():
+            assert context["prev_ds_nodash"] is None, "Does not make sense for custom timetable"
+        with pytest.deprecated_call():
+            assert context["prev_execution_date"] is None, "Does not make sense for custom timetable"
 
     def test_execute_callback(self, create_task_instance):
         called = False
@@ -1922,7 +1980,7 @@ class TestTaskInstance:
                     'try_number': '1',
                 },
                 'labels': {
-                    'airflow-worker': 'worker-config',
+                    'airflow-worker': '0',
                     'airflow_version': version,
                     'dag_id': 'test_render_k8s_pod_yaml',
                     'execution_date': '2016-01-01T00_00_00_plus_00_00',
@@ -2118,14 +2176,7 @@ class TestRunRawTaskQueriesCount:
     def teardown_method(self) -> None:
         self._clean()
 
-    @pytest.mark.parametrize(
-        "expected_query_count, mark_success",
-        [
-            # Expected queries, mark_success
-            (10, False),
-            (5, True),
-        ],
-    )
+    @pytest.mark.parametrize("expected_query_count, mark_success", [(12, False), (5, True)])
     @provide_session
     def test_execute_queries_count(
         self, expected_query_count, mark_success, create_task_instance, session=None

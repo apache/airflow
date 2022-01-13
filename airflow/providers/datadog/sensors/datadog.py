@@ -15,13 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from datadog import api
 
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DatadogSensor(BaseSensorOperator):
@@ -75,7 +78,7 @@ class DatadogSensor(BaseSensorOperator):
         self.tags = tags
         self.response_check = response_check
 
-    def poke(self, context: Dict[str, Any]) -> bool:
+    def poke(self, context: 'Context') -> bool:
         # This instantiates the hook, but doesn't need it further,
         # because the API authenticates globally (unfortunately),
         # but for airflow this shouldn't matter too much, because each

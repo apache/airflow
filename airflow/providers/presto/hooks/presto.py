@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -148,9 +148,10 @@ class PrestoHook(DbApiHook):
         hql,
         autocommit: bool = False,
         parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Presto. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters)
+        return super().run(sql=self._strip_sql(hql), parameters=parameters, handler=handler)
 
     def insert_rows(
         self,

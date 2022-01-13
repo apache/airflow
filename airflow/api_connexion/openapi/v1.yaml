@@ -607,6 +607,7 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterState'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -2357,6 +2358,13 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        description:
+          type: string
+          description: |
+            The description of the pool.
+
+            *New in version 2.3.0*
+          nullable: true
 
     PoolCollection:
       type: object
@@ -3119,6 +3127,15 @@ components:
             type: string
           description:
             Return objects with specific DAG IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+        states:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific states.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 

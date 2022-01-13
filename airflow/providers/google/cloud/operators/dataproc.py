@@ -26,11 +26,12 @@ import time
 import uuid
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Union
 
+from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1 import Cluster
+from google.cloud.dataproc_v1 import Batch, Cluster
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -40,6 +41,10 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
 DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
@@ -507,7 +512,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'region',
         'cluster_config',
@@ -532,7 +537,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         use_if_exists: bool = True,
         retry: Optional[Retry] = None,
         timeout: float = 1 * 60 * 60,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -657,7 +662,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster = self._get_cluster(hook)
         return cluster
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
@@ -742,7 +747,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain']
+    template_fields: Sequence[str] = ('cluster_name', 'project_id', 'region', 'impersonation_chain')
 
     operator_extra_links = (DataprocClusterLink(),)
 
@@ -815,7 +820,7 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         return {'seconds': timeout}
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
@@ -883,7 +888,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('project_id', 'region', 'cluster_name', 'impersonation_chain')
+    template_fields: Sequence[str] = ('project_id', 'region', 'cluster_name', 'impersonation_chain')
 
     def __init__(
         self,
@@ -895,7 +900,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -912,7 +917,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
@@ -1031,23 +1036,30 @@ class DataprocJobBaseOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self.project_id = self.hook.project_id if project_id is None else project_id
-        self.job_template = None
-        self.job = None
+        self.job_template: Optional[DataProcJobBuilder] = None
+        self.job: Optional[dict] = None
         self.dataproc_job_id = None
         self.asynchronous = asynchronous
 
-    def create_job_template(self):
+    def create_job_template(self) -> DataProcJobBuilder:
         """Initialize `self.job_template` with default values"""
-        self.job_template = DataProcJobBuilder(
+        if self.project_id is None:
+            raise AirflowException(
+                "project id should either be set via project_id "
+                "parameter or retrieved from the connection,"
+            )
+        job_template = DataProcJobBuilder(
             project_id=self.project_id,
             task_id=self.task_id,
             cluster_name=self.cluster_name,
             job_type=self.job_type,
             properties=self.dataproc_properties,
         )
-        self.job_template.set_job_name(self.job_name)
-        self.job_template.add_jar_file_uris(self.dataproc_jars)
-        self.job_template.add_labels(self.labels)
+        job_template.set_job_name(self.job_name)
+        job_template.add_jar_file_uris(self.dataproc_jars)
+        job_template.add_labels(self.labels)
+        self.job_template = job_template
+        return job_template
 
     def _generate_job_template(self) -> str:
         if self.job_template:
@@ -1055,7 +1067,7 @@ class DataprocJobBaseOperator(BaseOperator):
             return job['job']
         raise Exception("Create a job template before")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         if self.job_template:
             self.job = self.job_template.build()
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
@@ -1132,7 +1144,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'query',
         'variables',
         'job_name',
@@ -1141,7 +1153,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     template_ext = ('.pg', '.pig')
     ui_color = '#0273d4'
     job_type = 'pig_job'
@@ -1175,23 +1187,26 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
 
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         return self._generate_job_template()
 
-    def execute(self, context):
-        self.create_job_template()
-
+    def execute(self, context: 'Context'):
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
 
         super().execute(context)
 
@@ -1208,7 +1223,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'query',
         'variables',
         'job_name',
@@ -1217,7 +1232,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     template_ext = ('.q', '.hql')
     ui_color = '#0273d4'
     job_type = 'hive_job'
@@ -1251,22 +1266,25 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         return self._generate_job_template()
 
-    def execute(self, context):
-        self.create_job_template()
+    def execute(self, context: 'Context'):
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
-
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         super().execute(context)
 
 
@@ -1282,7 +1300,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'query',
         'variables',
         'job_name',
@@ -1291,7 +1309,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'spark_sql_job'
@@ -1325,22 +1343,23 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         return self._generate_job_template()
 
-    def execute(self, context):
-        self.create_job_template()
+    def execute(self, context: 'Context'):
+        job_template = self.create_job_template()
         if self.query is None:
-            self.job_template.add_query_uri(self.query_uri)
+            if self.query_uri is None:
+                raise AirflowException('One of query or query_uri should be set here')
+            job_template.add_query_uri(self.query_uri)
         else:
-            self.job_template.add_query(self.query)
-        self.job_template.add_variables(self.variables)
-
+            job_template.add_query(self.query)
+        job_template.add_variables(self.variables)
         super().execute(context)
 
 
@@ -1363,7 +1382,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     :type files: list
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'arguments',
         'job_name',
         'cluster_name',
@@ -1371,7 +1390,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
     job_type = 'spark_job'
 
@@ -1406,20 +1425,19 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         return self._generate_job_template()
 
-    def execute(self, context):
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-
+    def execute(self, context: 'Context'):
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         super().execute(context)
 
 
@@ -1442,7 +1460,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     :type files: list
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'arguments',
         'job_name',
         'cluster_name',
@@ -1450,7 +1468,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
     job_type = 'hadoop_job'
 
@@ -1485,20 +1503,19 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         return self._generate_job_template()
 
-    def execute(self, context):
-        self.create_job_template()
-        self.job_template.set_main(self.main_jar, self.main_class)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-
+    def execute(self, context: 'Context'):
+        job_template = self.create_job_template()
+        job_template.set_main(self.main_jar, self.main_class)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
         super().execute(context)
 
 
@@ -1521,7 +1538,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'main',
         'arguments',
         'job_name',
@@ -1530,7 +1547,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         'dataproc_jars',
         'dataproc_properties',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#0273d4'
     job_type = 'pyspark_job'
 
@@ -1589,7 +1606,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         Helper method for easier migration to `DataprocSubmitJobOperator`.
         :return: Dict representing Dataproc job
         """
-        self.create_job_template()
+        job_template = self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
@@ -1597,16 +1614,16 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = f"gs://{bucket}/{self.main}"
-        self.job_template.set_python_main(self.main)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-        self.job_template.add_python_file_uris(self.pyfiles)
+        job_template.set_python_main(self.main)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
+        job_template.add_python_file_uris(self.pyfiles)
 
         return self._generate_job_template()
 
-    def execute(self, context):
-        self.create_job_template()
+    def execute(self, context: 'Context'):
+        job_template = self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
@@ -1615,12 +1632,11 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             bucket = cluster_info['config']['config_bucket']
             self.main = self._upload_file_temp(bucket, self.main)
 
-        self.job_template.set_python_main(self.main)
-        self.job_template.add_args(self.arguments)
-        self.job_template.add_archive_uris(self.archives)
-        self.job_template.add_file_uris(self.files)
-        self.job_template.add_python_file_uris(self.pyfiles)
-
+        job_template.set_python_main(self.main)
+        job_template.add_args(self.arguments)
+        job_template.add_archive_uris(self.archives)
+        job_template.add_file_uris(self.files)
+        job_template.add_python_file_uris(self.pyfiles)
         super().execute(context)
 
 
@@ -1647,7 +1663,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("region", "template")
+    template_fields: Sequence[str] = ("region", "template")
     template_fields_renderers = {"template": "json"}
 
     def __init__(
@@ -1655,11 +1671,11 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         *,
         template: Dict,
         project_id: str,
-        region: str = None,
+        region: Optional[str] = None,
         location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1685,7 +1701,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating template")
         try:
@@ -1750,7 +1766,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template_id', 'impersonation_chain', 'request_id', 'parameters']
+    template_fields: Sequence[str] = ('template_id', 'impersonation_chain', 'request_id', 'parameters')
     template_fields_renderers = {"parameters": "json"}
 
     def __init__(
@@ -1764,7 +1780,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         parameters: Optional[Dict[str, str]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1783,7 +1799,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info('Instantiating template %s', self.template_id)
         operation = hook.instantiate_workflow_template(
@@ -1849,7 +1865,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template', 'impersonation_chain']
+    template_fields: Sequence[str] = ('template', 'impersonation_chain')
     template_fields_renderers = {"template": "json"}
 
     def __init__(
@@ -1861,7 +1877,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1878,7 +1894,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Instantiating Inline Template')
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.instantiate_inline_workflow_template(
@@ -1942,7 +1958,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'region', 'job', 'impersonation_chain', 'request_id')
+    template_fields: Sequence[str] = ('project_id', 'region', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
@@ -1952,12 +1968,12 @@ class DataprocSubmitJobOperator(BaseOperator):
         *,
         project_id: str,
         job: Dict,
-        region: str = None,
+        region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
@@ -1992,7 +2008,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.job_id: Optional[str] = None
         self.wait_timeout = wait_timeout
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         self.log.info("Submitting job")
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_object = self.hook.submit_job(
@@ -2086,7 +2102,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('impersonation_chain', 'cluster_name')
+    template_fields: Sequence[str] = ('impersonation_chain', 'cluster_name')
     operator_extra_links = (DataprocClusterLink(),)
 
     def __init__(
@@ -2096,13 +2112,13 @@ class DataprocUpdateClusterOperator(BaseOperator):
         cluster: Union[Dict, Cluster],
         update_mask: Union[Dict, FieldMask],
         graceful_decommission_timeout: Union[Dict, Duration],
-        region: str = None,
+        region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
         project_id: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2132,7 +2148,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required by extra links no matter what the cluster status will be
         self.xcom_push(
@@ -2159,3 +2175,338 @@ class DataprocUpdateClusterOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Updated %s cluster.", self.cluster_name)
+
+
+class DataprocCreateBatchOperator(BaseOperator):
+    """
+    Creates a batch workload.
+
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+    :type project_id: str
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param batch: Required. The batch to create.
+    :type batch: google.cloud.dataproc_v1.types.Batch
+    :param batch_id: Optional. The ID to use for the batch, which will become the final component
+        of the batch's resource name.
+        This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+    :type batch_id: str
+    :param request_id: Optional. A unique id used to identify the request. If the server receives two
+        ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
+        the first ``google.longrunning.Operation`` created and stored in the backend is returned.
+    :type request_id: str
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields: Sequence[str] = (
+        'project_id',
+        'batch_id',
+        'region',
+        'impersonation_chain',
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Optional[str] = None,
+        project_id: str,
+        batch: Union[Dict, Batch],
+        batch_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.region = region
+        self.project_id = project_id
+        self.batch = batch
+        self.batch_id = batch_id
+        self.request_id = request_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.operation: Optional[operation.Operation] = None
+
+    def execute(self, context: 'Context'):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Creating batch")
+        if self.region is None:
+            raise AirflowException('Region should be set here')
+        try:
+            self.operation = hook.create_batch(
+                region=self.region,
+                project_id=self.project_id,
+                batch=self.batch,
+                batch_id=self.batch_id,
+                request_id=self.request_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            if self.timeout is None:
+                raise AirflowException('Timeout should be set here')
+            result = hook.wait_for_operation(self.timeout, self.operation)
+            self.log.info("Batch %s created", self.batch_id)
+        except AlreadyExists:
+            self.log.info("Batch with given id already exists")
+            if self.batch_id is None:
+                raise AirflowException('Batch Id should be set here')
+            result = hook.get_batch(
+                batch_id=self.batch_id,
+                region=self.region,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return Batch.to_dict(result)
+
+    def on_kill(self):
+        if self.operation:
+            self.operation.cancel()
+
+
+class DataprocDeleteBatchOperator(BaseOperator):
+    """
+    Deletes the batch workload resource.
+
+    :param batch_id: Required. The ID to use for the batch, which will become the final component
+        of the batch's resource name.
+        This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+    :type batch_id: str
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+    :type project_id: str
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+
+    def __init__(
+        self,
+        *,
+        batch_id: str,
+        region: str,
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.batch_id = batch_id
+        self.region = region
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: 'Context'):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Deleting batch: %s", self.batch_id)
+        hook.delete_batch(
+            batch_id=self.batch_id,
+            region=self.region,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        self.log.info("Batch deleted.")
+
+
+class DataprocGetBatchOperator(BaseOperator):
+    """
+    Gets the batch workload resource representation.
+
+    :param batch_id: Required. The ID to use for the batch, which will become the final component
+        of the batch's resource name.
+        This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+    :type batch_id: str
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+    :type project_id: str
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+
+    def __init__(
+        self,
+        *,
+        batch_id: str,
+        region: str,
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.batch_id = batch_id
+        self.region = region
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: 'Context'):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Getting batch: %s", self.batch_id)
+        batch = hook.get_batch(
+            batch_id=self.batch_id,
+            region=self.region,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        return Batch.to_dict(batch)
+
+
+class DataprocListBatchesOperator(BaseOperator):
+    """
+    Lists batch workloads.
+
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+    :type project_id: str
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param page_size: Optional. The maximum number of batches to return in each response. The service may
+        return fewer than this value. The default page size is 20; the maximum page size is 1000.
+    :type page_size: int
+    :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
+        Provide this token to retrieve the subsequent page.
+    :type page_token: str
+    :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[Retry]
+    :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Optional, additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
+    :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
+    :rtype: List[dict]
+    """
+
+    template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
+
+    def __init__(
+        self,
+        *,
+        region: str,
+        project_id: Optional[str] = None,
+        page_size: Optional[int] = None,
+        page_token: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.region = region
+        self.project_id = project_id
+        self.page_size = page_size
+        self.page_token = page_token
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: 'Context'):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        results = hook.list_batches(
+            region=self.region,
+            project_id=self.project_id,
+            page_size=self.page_size,
+            page_token=self.page_token,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        return [Batch.to_dict(result) for result in results]

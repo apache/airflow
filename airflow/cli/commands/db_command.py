@@ -41,7 +41,7 @@ def resetdb(args):
         print("Cancelled")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
@@ -54,7 +54,7 @@ def check_migrations(args):
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def shell(args):
     """Run a shell that allows to access metadata database"""
     url = settings.engine.url
@@ -90,7 +90,7 @@ def shell(args):
         raise AirflowException(f"Unknown driver: {url.drivername}")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def check(_):
     """Runs a check command that checks if db is available."""
     db.check()

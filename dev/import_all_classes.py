@@ -22,7 +22,7 @@ import sys
 import traceback
 import warnings
 from inspect import isclass
-from typing import List, Set, Tuple
+from typing import List, Optional, Set, Tuple
 from warnings import WarningMessage
 
 from rich import print
@@ -31,7 +31,7 @@ from rich import print
 def import_all_classes(
     paths: List[str],
     prefix: str,
-    provider_ids: List[str] = None,
+    provider_ids: Optional[List[str]] = None,
     print_imports: bool = False,
     print_skips: bool = False,
 ) -> Tuple[List[str], List[WarningMessage]]:

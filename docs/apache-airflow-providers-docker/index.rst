@@ -53,7 +53,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 2.3.0
+Release: 2.4.0
 
 Provider package
 ----------------
@@ -64,7 +64,7 @@ are in ``airflow.providers.docker`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-docker``
 
 PIP requirements

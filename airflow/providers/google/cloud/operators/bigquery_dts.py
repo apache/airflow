@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery Data Transfer Service operators."""
-from typing import Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryCreateDataTransferOperator(BaseOperator):
@@ -39,6 +42,8 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
     :type project_id: str
+    :param: location: BigQuery Transfer Service location for regional transfers.
+    :type location: Optional[str]
     :param authorization_code: authorization code to use with this transfer configuration.
         This is required if new credentials are needed.
     :type authorization_code: Optional[str]
@@ -64,7 +69,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config",
         "project_id",
         "authorization_code",
@@ -77,10 +82,11 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         *,
         transfer_config: dict,
         project_id: Optional[str] = None,
+        location: Optional[str] = None,
         authorization_code: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -89,15 +95,16 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         self.transfer_config = transfer_config
         self.authorization_code = authorization_code
         self.project_id = project_id
+        self.location = location
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
         self.log.info("Creating DTS transfer config")
         response = hook.create_transfer_config(
@@ -127,6 +134,8 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
+    :param: location: BigQuery Transfer Service location for regional transfers.
+    :type location: Optional[str]
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :type retry: Optional[google.api_core.retry.Retry]
@@ -149,7 +158,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config_id",
         "project_id",
         "gcp_conn_id",
@@ -161,15 +170,17 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
+        location: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
+        self.location = location
         self.transfer_config_id = transfer_config_id
         self.retry = retry
         self.timeout = timeout
@@ -177,9 +188,9 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
         hook.delete_transfer_config(
             transfer_config_id=self.transfer_config_id,
@@ -215,6 +226,8 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
+    :param: location: BigQuery Transfer Service location for regional transfers.
+    :type location: Optional[str]
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :type retry: Optional[google.api_core.retry.Retry]
@@ -237,7 +250,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config_id",
         "project_id",
         "requested_time_range",
@@ -251,17 +264,19 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
+        location: Optional[str] = None,
         requested_time_range: Optional[dict] = None,
         requested_run_time: Optional[dict] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
+        self.location = location
         self.transfer_config_id = transfer_config_id
         self.requested_time_range = requested_time_range
         self.requested_run_time = requested_run_time
@@ -271,9 +286,9 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
         self.log.info('Submitting manual transfer for %s', self.transfer_config_id)
         response = hook.start_manual_transfer_runs(
