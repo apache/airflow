@@ -26,6 +26,8 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
+import lazy_object_proxy
+
 from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
@@ -406,7 +408,10 @@ ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG",
 # maintenance
 ARG_MAINTENANCE_TABLES = Arg(
     ("-t", "--tables"),
-    help="Table names to perform maintenance on (use comma-separated list)",
+    help=lazy_object_proxy.Proxy(
+        lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
+        f"Options: {import_string('airflow.cli.commands.maintenance_command.all_tables')}"
+    ),
     type=string_list_type,
 )
 ARG_MAINTENANCE_TIMESTAMP = Arg(
@@ -1106,7 +1111,7 @@ MAINTENANCE_COMMANDS = (
     ActionCommand(
         name='cleanup-tables',
         help="Purge old records in metastore tables",
-        func=lazy_load_command('airflow.cli.commands.maintenance_command.cleanup'),
+        func=lazy_load_command('airflow.cli.commands.maintenance_command.cleanup_tables'),
         args=(ARG_MAINTENANCE_TABLES, ARG_MAINTENANCE_DRY_RUN, ARG_MAINTENANCE_TIMESTAMP, ARG_VERBOSE),
     ),
 )

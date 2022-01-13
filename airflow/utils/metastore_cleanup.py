@@ -24,11 +24,15 @@ keep_last_group_by: if keeping the last record, can keep the last record for eac
 """
 
 
+import logging
+
 from pendulum import DateTime
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Query
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.jobs.base_job import BaseJob
 from airflow.models import (
     DagModel,
     DagRun,
@@ -38,19 +42,9 @@ from airflow.models import (
     SlaMiss,
     TaskFail,
     TaskInstance,
+    TaskReschedule,
     XCom,
 )
-
-try:
-    from airflow.jobs import BaseJob
-except Exception as e:
-    from airflow.jobs.base_job import BaseJob
-
-import logging
-
-from sqlalchemy import and_, func
-
-from airflow.models import TaskReschedule
 from airflow.utils import timezone
 
 now = timezone.utcnow

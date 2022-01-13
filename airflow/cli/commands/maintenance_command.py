@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Maintenance sub-commands"""
-from airflow.utils.metastore_cleanup import run_cleanup
+from airflow.utils.metastore_cleanup import objects, run_cleanup
+
+all_tables = list(sorted(objects.keys()))
 
 
-def cleanup(args):
+def cleanup_tables(args):
     """Purges old records in metastore database"""
     print(args.dry_run)
     kwargs = dict(
