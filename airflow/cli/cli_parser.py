@@ -212,7 +212,7 @@ ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
 ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
 ARG_YES = Arg(
-    ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
+    ("-y", "--yes"), help="Do not prompt to confirm. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
     (
@@ -1112,7 +1112,13 @@ MAINTENANCE_COMMANDS = (
         name='cleanup-tables',
         help="Purge old records in metastore tables",
         func=lazy_load_command('airflow.cli.commands.maintenance_command.cleanup_tables'),
-        args=(ARG_MAINTENANCE_TABLES, ARG_MAINTENANCE_DRY_RUN, ARG_MAINTENANCE_TIMESTAMP, ARG_VERBOSE),
+        args=(
+            ARG_MAINTENANCE_TABLES,
+            ARG_MAINTENANCE_DRY_RUN,
+            ARG_MAINTENANCE_TIMESTAMP,
+            ARG_VERBOSE,
+            ARG_YES,
+        ),
     ),
 )
 TASKS_COMMANDS = (

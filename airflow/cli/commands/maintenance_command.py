@@ -27,4 +27,5 @@ def cleanup_tables(args):
         dry_run=args.dry_run,
         clean_before_timestamp=args.clean_before_timestamp,
         verbose=args.verbose,
+        confirm=not args.yes,
     )
