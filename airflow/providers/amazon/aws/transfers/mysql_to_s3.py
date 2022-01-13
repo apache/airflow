@@ -48,6 +48,14 @@ class MySQLToS3Operator(SqlToS3Operator):
         header: bool = False,
         **kwargs,
     ) -> None:
+        warnings.warn(
+            """
+            MySQLToS3Operator is deprecated.
+            Please use `airflow.providers.amazon.aws.transfers.sql_to_s3.SqlToS3Operator`.
+            """,
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         pd_kwargs = kwargs.get('pd_kwargs', {})
         if kwargs.get('file_format', "csv") == "csv":
