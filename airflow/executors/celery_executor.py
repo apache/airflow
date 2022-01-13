@@ -393,7 +393,8 @@ class CeleryExecutor(BaseExecutor):
         the task is queued but has not been picked up by any worker prior to the scaling.
 
         In such situation, we update the task instance state to scheduled so that
-        it can be queued again. We chose to use task_adoption_timeout to decide
+        it can be queued again. We chose to use task_adoption_timeout to decide when
+        a queued task is considered stuck and should be reschelduled.
         """
         if not isinstance(app.backend, DatabaseBackend):
             # We only want to do this for database backends where
