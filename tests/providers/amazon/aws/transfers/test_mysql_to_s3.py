@@ -23,8 +23,6 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
-
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
 
@@ -32,6 +30,8 @@ class TestMySqlToS3Operator(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_csv(self, mock_s3_hook, temp_mock):
+        from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
+
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -73,6 +73,8 @@ class TestMySqlToS3Operator(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_parquet(self, mock_s3_hook, temp_mock):
+        from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
+
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -108,6 +110,8 @@ class TestMySqlToS3Operator(unittest.TestCase):
             )
 
     def test_fix_int_dtypes(self):
+        from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
+
         op = MySQLToS3Operator(query="query", s3_bucket="s3_bucket", s3_key="s3_key", task_id="task_id")
         dirty_df = pd.DataFrame({"strings": ["a", "b", "c"], "ints": [1, 2, None]})
         op._fix_int_dtypes(df=dirty_df)
