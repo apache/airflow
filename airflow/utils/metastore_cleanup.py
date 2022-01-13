@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from pendulum import DateTime
 from sqlalchemy import and_, func
 
+from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
 from airflow.models import (
@@ -67,13 +68,23 @@ class _Config:
     def __lt__(self, other):
         return self.orm_model.__tablename__ < self.orm_model.__tablename__
 
+    @property
+    def readable_config(self):
+        return dict(
+            table=self.orm_model.__tablename__,
+            recency_column=str(self.recency_column),
+            keep_last=self.keep_last,
+            keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            keep_last_group_by=str(self.keep_last_group_by),
+        )
+
 
 objects_list: List[_Config] = [
     _Config(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
     _Config(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
     _Config(
         orm_model=DagRun,
-        recency_column=DagRun.execution_date,
+        recency_column=DagRun.start_date,
         keep_last=True,
         keep_last_filters=[DagRun.external_trigger.is_(False)],
         keep_last_group_by=DagRun.dag_id,
@@ -81,11 +92,11 @@ objects_list: List[_Config] = [
     _Config(orm_model=ImportError, recency_column=ImportError.timestamp),
     _Config(orm_model=Log, recency_column=Log.dttm),
     _Config(orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date),
-    _Config(orm_model=SlaMiss, recency_column=SlaMiss.execution_date),
-    _Config(orm_model=TaskFail, recency_column=TaskFail.execution_date),
-    _Config(orm_model=TaskInstance, recency_column=TaskInstance.execution_date),
-    _Config(orm_model=TaskReschedule, recency_column=TaskReschedule.execution_date),
-    _Config(orm_model=XCom, recency_column=XCom.execution_date),
+    _Config(orm_model=SlaMiss, recency_column=SlaMiss.timestamp),
+    _Config(orm_model=TaskFail, recency_column=TaskFail.start_date),
+    _Config(orm_model=TaskInstance, recency_column=TaskInstance.start_date),
+    _Config(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
+    _Config(orm_model=XCom, recency_column=XCom.timestamp),
 ]
 
 if str(conf.get("core", "executor")) == "CeleryExecutor":
@@ -215,6 +226,11 @@ def _confirm_delete(*, date, tables):
         raise SystemExit("User did not confirm; exiting.")
 
 
+def _print_config(*, table_subset):
+    data = [x.readable_config for x in table_subset.values()]
+    AirflowConsole().print_as_table(data=data)
+
+
 @provide_session
 def run_cleanup(
     *,
@@ -243,6 +259,13 @@ def run_cleanup(
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     table_subset = {k: v for k, v in objects_dict.items() if (k in table_names if table_names else True)}
+    if dry_run:
+        print('Performing dry run for metastore table cleanup.')
+        print(
+            f"Data prior to {clean_before_timestamp} would be purged "
+            f"from tables {list(table_subset.keys())} with the following config:\n"
+        )
+        _print_config(table_subset=table_subset)
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=list(table_subset.keys()))
     for table_name, table_config in table_subset.items():
