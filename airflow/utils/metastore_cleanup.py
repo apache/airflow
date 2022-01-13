@@ -64,19 +64,19 @@ class _Config:
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
 
-    def __le__(self, other):
-        return self.orm_model.__table_name__ < self.orm_model.__table_name__
+    def __lt__(self, other):
+        return self.orm_model.__tablename__ < self.orm_model.__tablename__
 
 
 objects_list: List[_Config] = [
     _Config(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
     _Config(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
     _Config(
+        orm_model=DagRun,
+        recency_column=DagRun.execution_date,
         keep_last=True,
         keep_last_filters=[DagRun.external_trigger.is_(False)],
         keep_last_group_by=DagRun.dag_id,
-        orm_model=DagRun,
-        recency_column=DagRun.execution_date,
     ),
     _Config(orm_model=ImportError, recency_column=ImportError.timestamp),
     _Config(orm_model=Log, recency_column=Log.dttm),
@@ -88,11 +88,10 @@ objects_list: List[_Config] = [
     _Config(orm_model=XCom, recency_column=XCom.execution_date),
 ]
 
-airflow_executor = str(conf.get("core", "executor"))
-if airflow_executor == "CeleryExecutor":
-    from celery.backends.database.models import Task, TaskSet
-
+if str(conf.get("core", "executor")) == "CeleryExecutor":
     try:
+        from celery.backends.database.models import Task, TaskSet
+
         objects_list.extend(
             [
                 _Config(orm_model=Task, recency_column=Task.date_done),
@@ -102,10 +101,10 @@ if airflow_executor == "CeleryExecutor":
     except Exception as e:
         logging.error(e)
 
-objects_dict: Dict[str, _Config] = {x.orm_model.__table__name: x for x in sorted(objects_list)}
+objects_dict: Dict[str, _Config] = {x.orm_model.__tablename__: x for x in sorted(objects_list)}
 
 
-def print_entities(*, query: "Query", print_rows=False):
+def _print_entities(*, query: "Query", print_rows=False):
     num_entities = query.count()
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if not print_rows:
@@ -119,7 +118,7 @@ def print_entities(*, query: "Query", print_rows=False):
         print(entry.__dict__)
 
 
-def do_delete(*, query, session):
+def _do_delete(*, query, session):
     print("Performing Delete...")
     # using bulk delete
     query.delete(synchronize_session=False)
@@ -127,7 +126,7 @@ def do_delete(*, query, session):
     print("Finished Performing Delete")
 
 
-def subquery_keep_last(*, keep_last_filters, keep_last_group_by, session):
+def _subquery_keep_last(*, keep_last_filters, keep_last_group_by, session):
     # workaround for MySQL "table specified twice" issue
     # https://github.com/teamclairvoyant/airflow-maintenance-dags/issues/41
     subquery = session.query(func.max(DagRun.execution_date))
@@ -143,7 +142,7 @@ def subquery_keep_last(*, keep_last_filters, keep_last_group_by, session):
     return subquery
 
 
-def build_query(
+def _build_query(
     *,
     orm_model,
     recency_column,
@@ -156,7 +155,7 @@ def build_query(
     query = session.query(orm_model)
     conditions = [recency_column < clean_before_timestamp]
     if keep_last:
-        subquery = subquery_keep_last(
+        subquery = _subquery_keep_last(
             keep_last_filters=keep_last_filters,
             keep_last_group_by=keep_last_group_by,
             session=session,
@@ -184,7 +183,7 @@ def _cleanup_table(
     print()
     if dry_run:
         print(f"Performing dry run for table {orm_model.__tablename__!r}")
-    query = build_query(
+    query = _build_query(
         orm_model=orm_model,
         recency_column=recency_column,
         keep_last=keep_last,
@@ -194,10 +193,10 @@ def _cleanup_table(
         session=session,
     )
 
-    print_entities(query=query, print_rows=False)
+    _print_entities(query=query, print_rows=False)
 
     if not dry_run:
-        do_delete(query=query, session=session)
+        _do_delete(query=query, session=session)
         session.commit()
 
 

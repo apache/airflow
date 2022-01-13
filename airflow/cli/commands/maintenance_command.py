@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Maintenance sub-commands"""
-from airflow.utils.metastore_cleanup import objects, run_cleanup
+from airflow.utils.metastore_cleanup import objects_dict, run_cleanup
 
-all_tables = list(sorted(objects.keys()))
+all_tables = list(sorted(objects_dict.keys()))
 
 
 def cleanup_tables(args):
