@@ -1104,7 +1104,7 @@ DAGS_COMMANDS = (
 )
 MAINTENANCE_COMMANDS = (
     ActionCommand(
-        name='cleanup',
+        name='cleanup-tables',
         help="Purge old records in metastore tables",
         func=lazy_load_command('airflow.cli.commands.maintenance_command.cleanup'),
         args=(ARG_MAINTENANCE_TABLES, ARG_MAINTENANCE_DRY_RUN, ARG_MAINTENANCE_TIMESTAMP, ARG_VERBOSE),
