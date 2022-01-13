@@ -98,8 +98,7 @@ RUN apt-get update \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
 COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
-RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_mysql.sh dev \
-    && bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_mssql.sh \
+RUN /scripts/docker/install_mysql.sh dev && /scripts/docker/install_mssql.sh \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
               --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
@@ -187,7 +186,7 @@ ARG BATS_FILE_VERSION="0.2.0"
 
 RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.tar.gz -o /tmp/bats.tgz \
     && tar -zxf /tmp/bats.tgz -C /tmp \
-    && bash -o pipefail -o errexit -o nounset -o nolog /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf \
+    && /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf \
     && mkdir -p /opt/bats/lib/bats-support \
     && curl -sSL https://github.com/bats-core/bats-support/archive/v${BATS_SUPPORT_VERSION}.tar.gz -o /tmp/bats-support.tgz \
     && tar -zxf /tmp/bats-support.tgz -C /opt/bats/lib/bats-support --strip 1 && rm -rf /tmp/* \
@@ -269,8 +268,14 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
-COPY scripts/docker/*.sh scripts/docker/install_pip_version.sh /scripts/docker/
+# Copy all scripts required for installation - changing any of those should lead to
+# rebuilding from here
+COPY scripts/docker/install_pip_version.sh scripts/docker/install_airflow_dependencies_from_branch_tip.sh \
+     scripts/docker/common.sh \
+     /scripts/docker/
 
+# We are first creating a venv where all python packages and .so binaries needed by those are
+# installed.
 # In case of CI builds we want to pre-install main version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
@@ -280,10 +285,10 @@ COPY scripts/docker/*.sh scripts/docker/install_pip_version.sh /scripts/docker/
 # account for removed dependencies (we do not install them in the first place)
 RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not valid but we can't disable them :(\e[0m\n"; \
     echo -e "\n\e[34mSee https://github.com/pypa/pip/issues/10556 for details.\e[0m\n" ; \
-    bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_pip_version.sh; \
+    /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
+        /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -291,11 +296,24 @@ RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not v
 # the new image (when it is different)
 RUN head -c 30 /dev/urandom | xxd -ps >/build-cache-hash
 
-# Link dumb-init for backwards compatibility (so that older images also work)
-RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
+# Copy package.json and yarn.lock to install node modules
+# this way even if other static check files change, node modules will not need to be installed
+# we want to keep node_modules so we can do this step separately from compiling assets
+COPY airflow/www/package.json airflow/www/yarn.lock ${AIRFLOW_SOURCES}/airflow/www/
+COPY scripts/docker/prepare_node_modules.sh /scripts/docker/
 
-# Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
-# This is fine as root user will be able to use those dirs anyway.
+# Package JS/css for production
+RUN /scripts/docker/prepare_node_modules.sh
+
+# Copy all the needed www/ for assets compilation. Done as two separate COPY
+# commands so as otherwise it copies the _contents_ of static/ in to www/
+COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
+COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
+COPY scripts/docker/compile_www_assets.sh /scripts/docker/
+
+# Build artifacts without removing temporary artifacts (we will need them for incremental changes)
+# in build  mode
+RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" /scripts/docker/compile_www_assets.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
@@ -305,6 +323,8 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
+COPY scripts/docker/install_airflow.sh /scripts/docker/
+
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
@@ -312,28 +332,22 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_airflow.sh; \
+        /scripts/docker/install_airflow.sh; \
     fi
-
-# Copy all the www/ files we need to compile assets. Done as two separate COPY
-# commands so as otherwise it copies the _contents_ of static/ in to www/
-COPY airflow/www/webpack.config.js airflow/www/package.json airflow/www/yarn.lock ${AIRFLOW_SOURCES}/airflow/www/
-COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
-
-# Package JS/css for production
-RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/compile_www_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
 COPY scripts/docker/load.bash /opt/bats/lib/
+COPY scripts/docker/install_pip_version.sh scripts/docker/install_additional_dependencies.sh /scripts/docker/
+
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-RUN bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_pip_version.sh; \
+RUN /scripts/docker/install_pip_version.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-            bash -o pipefail -o errexit -o nounset -o nolog /scripts/docker/install_additional_dependencies.sh; \
+        /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 # Install autocomplete for airflow
@@ -356,10 +370,24 @@ ARG BUILD_ID
 ARG COMMIT_SHA
 ARG AIRFLOW_IMAGE_DATE_CREATED
 
-ENV PATH="/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}" \
+ENV PATH="/files/bin/:/opt/airflow/scripts/in_container/bin/:${PATH}" \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/" \
     BUILD_ID=${BUILD_ID} \
     COMMIT_SHA=${COMMIT_SHA}
+
+# This one is to workaround https://github.com/apache/airflow/issues/17546
+# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
+# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
+# by users of the prod image, we implement the workaround now.
+# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
+# binary started and a little memory used for Heap allocated by initialization of libstdc++
+# This overhead is not happening for binaries that already link dynamically libstdc++
+ENV LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+
+# Link dumb-init for backwards compatibility (so that older images also work)
+RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
+
+EXPOSE 8080
 
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
@@ -385,16 +413,5 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.title="Continuous Integration Airflow Image" \
   org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
 
-# This one is to workaround https://github.com/apache/airflow/issues/17546
-# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
-# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
-# by users of the prod image, we implement the workaround now.
-# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
-# binary started and a little memory used for Heap allocated by initialization of libstdc++
-# This overhead is not happening for binaries that already link dynamically libstdc++
-ENV LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
-
-
-EXPOSE 8080
-
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
+CMD []

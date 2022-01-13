@@ -160,6 +160,7 @@ spec:
             periodSeconds: {{ .Values.triggerer.livenessProbe.periodSeconds }}
             exec:
               command:
+              - CONNECTION_CHECK_MAX_COUNT=0
               - /entrypoint
               - python
               - -Wignore

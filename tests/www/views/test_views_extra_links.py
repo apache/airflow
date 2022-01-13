@@ -29,7 +29,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
+from tests.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
 from tests.test_utils.www import check_content_in_response
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -56,13 +56,6 @@ class FooBarLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         return f"http://www.example.com/{operator.task_id}/foo-bar/{dttm}"
-
-
-class AirflowLink(BaseOperatorLink):
-    name = 'airflow'
-
-    def get_link(self, operator, dttm):
-        return 'https://airflow.apache.org'
 
 
 class DummyTestOperator(BaseOperator):

@@ -1616,7 +1616,34 @@ class TestTaskInstance:
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
-    def test_tempalte_with_custom_timetable_deprecated_context(self, create_task_instance):
+    @pytest.mark.parametrize(
+        ("field", "expected"),
+        [
+            ("next_ds", "2016-01-01"),
+            ("next_ds_nodash", "20160101"),
+            ("prev_ds", "2015-12-31"),
+            ("prev_ds_nodash", "20151231"),
+            ("yesterday_ds", "2015-12-31"),
+            ("yesterday_ds_nodash", "20151231"),
+            ("tomorrow_ds", "2016-01-02"),
+            ("tomorrow_ds_nodash", "20160102"),
+        ],
+    )
+    def test_deprecated_context(self, field, expected, create_task_instance):
+        ti = create_task_instance(execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with pytest.deprecated_call() as recorder:
+            assert context[field] == expected
+        message_beginning = (
+            f"Accessing {field!r} from the template is deprecated and "
+            f"will be removed in a future version."
+        )
+
+        recorded_message = [str(m.message) for m in recorder]
+        assert len(recorded_message) == 1
+        assert recorded_message[0].startswith(message_beginning)
+
+    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
         ti = create_task_instance(
             start_date=DEFAULT_DATE,
             timetable=AfterWorkdayTimetable(),
