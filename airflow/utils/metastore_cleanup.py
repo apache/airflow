@@ -220,7 +220,7 @@ def build_query(
     return query
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__file__)
 
 
 def _cleanup_table(
