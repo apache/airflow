@@ -25,6 +25,7 @@ keep_last_group_by: if keeping the last record, can keep the last record for eac
 
 
 import logging
+from typing import List, Optional
 
 from pendulum import DateTime
 from sqlalchemy import and_, func
@@ -218,6 +219,7 @@ logger = logging.getLogger(__file__)
 
 
 def _cleanup_table(
+    *,
     orm_model,
     recency_column,
     keep_last,
@@ -245,7 +247,7 @@ def _cleanup_table(
         do_delete(query)
 
 
-def confirm(date, tables):
+def _confirm_delete(date, tables):
     for_tables = f" for tables {tables!r}" if tables else ''
     question = '\n'.join(
         [
@@ -260,10 +262,31 @@ def confirm(date, tables):
         SystemExit("User did not confirm; exiting.")
 
 
-def run_cleanup(clean_before_timestamp: DateTime, table_names=None, dry_run=False, verbose=False):
+def run_cleanup(
+    *,
+    clean_before_timestamp: DateTime,
+    table_names: Optional[List[str]] = None,
+    dry_run: bool = False,
+    verbose: bool = False,
+    confirm: bool = True,
+):
+    """
+    Purges old records in airflow metastore database.
+
+    :param clean_before_timestamp: The timestamp before which data should be purged
+    :type clean_before_timestamp: DateTime
+    :param table_names: Optional. List of table names to perform maintenance on.  If list not provided, will perform maintenance on all tables.
+    :type table_names: Optional[List[str]]
+    :param dry_run: If true, print rows meeting deletion criteria
+    :type dry_run: bool
+    :param verbose: If true, may provide more detailed output.
+    :type verbose: bool
+    :param confirm: Require user input to confirm before processing deletions.
+    :type confirm: bool
+    """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    if not dry_run:
-        confirm(clean_before_timestamp, table_names)
+    if not dry_run and confirm:
+        _confirm_delete(clean_before_timestamp, table_names)
     if table_names:
         for table_name in table_names:
             table_config = objects[table_name]

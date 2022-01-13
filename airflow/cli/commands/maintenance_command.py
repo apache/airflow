@@ -22,12 +22,9 @@ all_tables = list(sorted(objects.keys()))
 
 def cleanup_tables(args):
     """Purges old records in metastore database"""
-    print(args.dry_run)
-    kwargs = dict(
-        dry_run=args.dry_run, clean_before_timestamp=args.clean_before_timestamp, verbose=args.verbose
+    run_cleanup(
+        table_names=args.tables,
+        dry_run=args.dry_run,
+        clean_before_timestamp=args.clean_before_timestamp,
+        verbose=args.verbose,
     )
-    if args.tables:
-        kwargs.update(
-            table_names=args.tables,
-        )
-    run_cleanup(**kwargs)
