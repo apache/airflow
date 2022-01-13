@@ -18,7 +18,7 @@
 """Marks tasks APIs."""
 
 from datetime import datetime
-from typing import Iterable, List, Optional
+from typing import TYPE_CHECKING, Iterable, List, Optional
 
 from sqlalchemy import or_
 from sqlalchemy.orm import contains_eager
@@ -136,7 +136,7 @@ def set_state(
 
     confirmed_dates = verify_dag_run_integrity(dag, dag_run_ids)
 
-    sub_dag_run_ids = get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates)
+    sub_dag_run_ids = get_subdag_runs(dag, session, DagRunState(state), task_ids, commit, confirmed_dates)
 
     # now look for the task instances that are affected
 
@@ -194,7 +194,7 @@ def get_all_dag_task_query(
 def get_subdag_runs(
     dag: DAG,
     session: SASession,
-    state: TaskInstanceState,
+    state: DagRunState,
     task_ids: List[str],
     commit: bool,
     confirmed_dates: List[datetime],
@@ -216,8 +216,8 @@ def get_subdag_runs(
                 # this works as a kind of integrity check
                 # it creates missing dag runs for subdag operators,
                 # maybe this should be moved to dagrun.verify_integrity
-                if not current_task.subdag:
-                    raise ValueError(f"SubdagOperator {current_task.task_id} doesn't have a subdag")
+                if TYPE_CHECKING:
+                    assert current_task.subdag
                 dag_runs = _create_dagruns(
                     current_task.subdag,
                     execution_dates=confirmed_dates,
@@ -235,7 +235,7 @@ def get_subdag_runs(
 def verify_dagruns(
     dag_runs: List[DagRun],
     commit: bool,
-    state: TaskInstanceState,
+    state: DagRunState,
     session: SASession,
     current_task: BaseOperator,
 ):
@@ -285,17 +285,16 @@ def find_task_relatives(tasks, downstream, upstream):
 
 @provide_session
 def get_execution_dates(
-    dag: DAG, execution_date: datetime, future: bool, past: bool, session: SASession = NEW_SESSION
+    dag: DAG, execution_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
 ) -> List[datetime]:
     """Returns dates of DAG execution"""
-    latest_execution_date = dag.get_latest_execution_date(session)
+    latest_execution_date = dag.get_latest_execution_date(session=session)
     if latest_execution_date is None:
         raise ValueError(f"Received non-localized date {execution_date}")
+    execution_date = timezone.coerce_datetime(execution_date)
     # determine date range of dag runs and tasks to consider
     end_date = latest_execution_date if future else execution_date
-    if 'start_date' in dag.default_args:
-        start_date = dag.default_args['start_date']
-    elif dag.start_date:
+    if dag.start_date:
         start_date = dag.start_date
     else:
         start_date = execution_date
