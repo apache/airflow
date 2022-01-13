@@ -326,7 +326,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
             detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
         )
 
-    if run_id and not suession.query(TI).get{'task_id': task_id, 'dag_id': dag_id, 'run_id': run_id})):
+    if run_id and not session.query(TI).get({'task_id': task_id, 'dag_id': dag_id, 'run_id': run_id}):
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
         raise NotFound(detail=error_message)
 
