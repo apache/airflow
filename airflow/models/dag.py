@@ -1672,19 +1672,21 @@ class DAG(LoggingMixin):
 
         if not exactly_one(execution_date, dag_run_id):
             raise ValueError("Exactly one of execution_date or dag_run_id must be provided")
-        input_execution_date = execution_date
-        if dag_run_id:
+
+        if execution_date is None:
             dag_run = (
                 session.query(DagRun).filter(DagRun.run_id == dag_run_id, DagRun.dag_id == self.dag_id).one()
             )  # Raises an error if not found
             resolve_execution_date = dag_run.execution_date
+        else:
+            resolve_execution_date = execution_date
 
         task = self.get_task(task_id)
         task.dag = self
 
         altered = set_state(
             tasks=[task],
-            execution_date=input_execution_date,
+            execution_date=execution_date,
             dag_run_id=dag_run_id,
             upstream=upstream,
             downstream=downstream,
@@ -1707,8 +1709,8 @@ class DAG(LoggingMixin):
             include_upstream=False,
         )
 
-        end_date = input_execution_date or resolve_execution_date if not future else None
-        start_date = input_execution_date or resolve_execution_date if not past else None
+        end_date = resolve_execution_date if not future else None
+        start_date = resolve_execution_date if not past else None
 
         subdag.clear(
             start_date=start_date,
