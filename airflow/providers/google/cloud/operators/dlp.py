@@ -22,7 +22,7 @@ This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.retry import Retry
@@ -44,6 +44,9 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudDLPCancelDLPJobOperator(BaseOperator):
@@ -82,7 +85,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -110,7 +113,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -168,7 +171,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "deidentify_template",
@@ -202,7 +205,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -218,6 +221,8 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.template_id is None:
+                raise RuntimeError("The template_id should be set here!")
             template = hook.get_deidentify_template(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -275,7 +280,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_job",
         "risk_job",
@@ -311,7 +316,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -328,6 +333,8 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 wait_until_finished=self.wait_until_finished,
             )
         except AlreadyExists:
+            if self.job_id is None:
+                raise RuntimeError("The job_id must be set here!")
             job = hook.get_dlp_job(
                 project_id=self.project_id,
                 dlp_job_id=self.job_id,
@@ -382,7 +389,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "inspect_template",
@@ -397,7 +404,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         inspect_template: Optional[InspectTemplate] = None,
-        template_id: Optional[Union[Dict, InspectTemplate]] = None,
+        template_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -416,7 +423,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -432,6 +439,8 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.template_id is None:
+                raise RuntimeError("The template_id should be set here!")
             template = hook.get_inspect_template(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -484,7 +493,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "job_trigger",
         "trigger_id",
@@ -515,7 +524,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -532,6 +541,8 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         except InvalidArgument as e:
             if "already in use" not in e.message:
                 raise
+            if self.trigger_id is None:
+                raise RuntimeError("The trigger_id should be set here!")
             trigger = hook.get_job_trigger(
                 project_id=self.project_id,
                 job_trigger_id=self.trigger_id,
@@ -585,7 +596,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "config",
@@ -619,7 +630,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -637,6 +648,8 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         except InvalidArgument as e:
             if "already exists" not in e.message:
                 raise
+            if self.stored_info_type_id is None:
+                raise RuntimeError("The stored_info_type_id should be set here!")
             info = hook.get_stored_info_type(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -701,7 +714,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "deidentify_config",
         "inspect_config",
@@ -741,7 +754,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -799,7 +812,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -830,7 +843,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -885,7 +898,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -913,7 +926,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -969,7 +982,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1000,7 +1013,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1054,7 +1067,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "gcp_conn_id",
@@ -1082,7 +1095,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1138,7 +1151,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -1169,7 +1182,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1228,7 +1241,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1259,7 +1272,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1313,7 +1326,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -1341,7 +1354,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1397,7 +1410,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1428,7 +1441,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1482,7 +1495,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "gcp_conn_id",
@@ -1510,7 +1523,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1566,7 +1579,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -1597,7 +1610,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1658,7 +1671,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.InspectContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_config",
         "item",
@@ -1692,7 +1705,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1754,7 +1767,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.DeidentifyTemplate]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -1786,7 +1799,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1800,7 +1813,8 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(template)
+        # the MessageToDict does not have the right type defined as possible to pass in constructor
+        return MessageToDict(template)  # type: ignore[arg-type]
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1849,7 +1863,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.DlpJob]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -1882,7 +1896,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1897,7 +1911,8 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(job)
+        # the MessageToDict does not have the right type defined as possible to pass in constructor
+        return MessageToDict(job)  # type: ignore[arg-type]
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
@@ -1938,7 +1953,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
     :rtype: ListInfoTypesResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "language_code",
         "gcp_conn_id",
         "impersonation_chain",
@@ -1965,7 +1980,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2025,7 +2040,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.InspectTemplate]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -2057,7 +2072,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2118,7 +2133,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.JobTrigger]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -2149,7 +2164,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2211,7 +2226,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     :rtype: list[google.cloud.dlp_v2.types.StoredInfoType]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -2243,7 +2258,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2309,7 +2324,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.RedactImageResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_config",
         "image_redaction_configs",
@@ -2324,7 +2339,9 @@ class CloudDLPRedactImageOperator(BaseOperator):
         *,
         project_id: Optional[str] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        image_redaction_configs: Optional[Union[Dict, RedactImageRequest.ImageRedactionConfig]] = None,
+        image_redaction_configs: Optional[
+            Union[List[dict], List[RedactImageRequest.ImageRedactionConfig]]
+        ] = None,
         include_findings: Optional[bool] = None,
         byte_item: Optional[Union[Dict, ByteContentItem]] = None,
         retry: Optional[Retry] = None,
@@ -2346,7 +2363,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2414,7 +2431,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "reidentify_config",
         "inspect_config",
@@ -2454,7 +2471,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2518,7 +2535,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -2555,7 +2572,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2618,7 +2635,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -2655,7 +2672,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2715,7 +2732,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "job_trigger",
@@ -2749,7 +2766,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2812,7 +2829,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -2849,7 +2866,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

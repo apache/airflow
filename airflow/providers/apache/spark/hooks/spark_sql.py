@@ -90,10 +90,8 @@ class SparkSqlHook(BaseHook):
             conn = self.get_connection(conn_id)
         except AirflowNotFoundException:
             conn = None
-            options: Dict = {}
-        else:
-            if conn:
-                options = conn.extra_dejson
+        if conn:
+            options = conn.extra_dejson
 
         # Set arguments to values set in Connection if not explicitly provided.
         if master is None:

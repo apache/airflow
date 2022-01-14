@@ -18,13 +18,16 @@
 
 import time
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from kylinpy import kylinpy
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class KylinCubeOperator(BaseOperator):
@@ -85,7 +88,7 @@ class KylinCubeOperator(BaseOperator):
     :type eager_error_status: tuple
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project',
         'cube',
         'dsn',
@@ -144,11 +147,13 @@ class KylinCubeOperator(BaseOperator):
         self.eager_error_status = eager_error_status
         self.jobs_error_status = [stat.upper() for stat in eager_error_status]
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
 
         _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
 
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command
+        if not self.command:
+            raise AirflowException(f'Kylin:Command {self.command} can not be empty')
         if self.command.lower() not in _support_invoke_command:
             raise AirflowException(
                 f'Kylin:Command {self.command} can not match kylin command list {_support_invoke_command}'

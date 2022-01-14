@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -61,7 +61,7 @@ class LocalFilesystemToADLSOperator(BaseOperator):
     :type azure_data_lake_conn_id: str
     """
 
-    template_fields = ("local_path", "remote_path")
+    template_fields: Sequence[str] = ("local_path", "remote_path")
     ui_color = '#e4f0e8'
 
     def __init__(

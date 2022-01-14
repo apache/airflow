@@ -135,7 +135,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 )
     """
 
-    template_fields = ('name', 'image', 'command', 'environment_variables')
+    template_fields: Sequence[str] = ('name', 'image', 'command', 'environment_variables')
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     def __init__(

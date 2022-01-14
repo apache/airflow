@@ -16,11 +16,14 @@
 # under the License.
 
 import time
-from typing import Optional, Set
+from typing import TYPE_CHECKING, Optional, Sequence, Set
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SageMakerBaseSensor(BaseSensorOperator):
@@ -45,7 +48,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         response = self.get_sagemaker_response()
         if not (response['ResponseMetadata']['HTTPStatusCode'] == 200):
             self.log.info('Bad HTTP response: %s', response)
@@ -67,7 +70,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         """Placeholder for returning states with are considered failed."""
         raise NotImplementedError('Please implement failed_states() in subclass')
 
-    def get_sagemaker_response(self) -> Optional[dict]:
+    def get_sagemaker_response(self) -> dict:
         """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
@@ -91,8 +94,8 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     :type job_name: str
     """
 
-    template_fields = ['endpoint_name']
-    template_ext = ()
+    template_fields: Sequence[str] = ('endpoint_name',)
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, endpoint_name, **kwargs):
         super().__init__(**kwargs)
@@ -128,8 +131,8 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     :type job_name: str
     """
 
-    template_fields = ['job_name']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_name',)
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
@@ -165,8 +168,8 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     job_name: str
     """
 
-    template_fields = ['job_name']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_name',)
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
@@ -202,8 +205,8 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     :type print_log: bool
     """
 
-    template_fields = ['job_name']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_name',)
+    template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name, print_log=True, **kwargs):
         super().__init__(**kwargs)

@@ -54,14 +54,6 @@ class TaskInstanceState(str, Enum):
         return self.value
 
 
-class PoolSlotState(str, Enum):
-    """Enum that represents all possible states of Pool slots."""
-
-    OPEN = "open"  # open pool slots
-    QUEUED = "queued"  # queued task slots
-    RUNNING = "running"  # running task slots
-
-
 class DagRunState(str, Enum):
     """
     Enum that represents all possible states that a DagRun can be in.

@@ -19,11 +19,15 @@
 """This module contains Databricks operators."""
 
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -257,7 +261,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields = ('json',)
+    template_fields: Sequence[str] = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -326,7 +330,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id = None
+        self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -336,15 +340,20 @@ class DatabricksSubmitRunOperator(BaseOperator):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = self._get_hook()
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self._get_hook()
-        hook.cancel_run(self.run_id)
-        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
+        if self.run_id:
+            hook = self._get_hook()
+            hook.cancel_run(self.run_id)
+            self.log.info(
+                'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
+            )
+        else:
+            self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)
 
 
 class DatabricksRunNowOperator(BaseOperator):
@@ -496,7 +505,7 @@ class DatabricksRunNowOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields = ('json',)
+    template_fields: Sequence[str] = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -540,7 +549,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id = None
+        self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -550,12 +559,17 @@ class DatabricksRunNowOperator(BaseOperator):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = self._get_hook()
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self._get_hook()
-        hook.cancel_run(self.run_id)
-        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
+        if self.run_id:
+            hook = self._get_hook()
+            hook.cancel_run(self.run_id)
+            self.log.info(
+                'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
+            )
+        else:
+            self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)

@@ -24,6 +24,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
+   Successful installation requires a Python 3 environment.
+
    Only ``pip`` installation is currently officially supported.
 
    While there have been successes with using other tools like `poetry <https://python-poetry.org/>`_ or

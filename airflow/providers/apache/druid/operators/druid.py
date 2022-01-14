@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DruidOperator(BaseOperator):
@@ -38,8 +41,8 @@ class DruidOperator(BaseOperator):
     :type max_ingestion_time: int
     """
 
-    template_fields = ('json_index_file',)
-    template_ext = ('.json',)
+    template_fields: Sequence[str] = ('json_index_file',)
+    template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {'json_index_file': 'json'}
 
     def __init__(
@@ -57,7 +60,7 @@ class DruidOperator(BaseOperator):
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: "Context") -> None:
         hook = DruidHook(
             druid_ingest_conn_id=self.conn_id,
             timeout=self.timeout,

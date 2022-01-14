@@ -315,7 +315,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
     @task
     def create_queue():
         """This is a Python function that creates an SQS queue"""
-        hook = SQSHook()
+        hook = SqsHook()
         result = hook.create_queue(queue_name="sample-queue")
 
         return result["QueueUrl"]
@@ -323,7 +323,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
 
     sqs_queue = create_queue()
 
-    publish_to_queue = SQSPublishOperator(
+    publish_to_queue = SqsPublishOperator(
         task_id="publish_to_queue",
         sqs_queue=sqs_queue,
         message_content="{{ task_instance }}-{{ execution_date }}",
@@ -332,7 +332,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
     )
 
 Take note in the code example above, the output from the ``create_queue`` TaskFlow function, the URL of a
-newly-created Amazon SQS Queue, is then passed to a :class:`~airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator`
+newly-created Amazon SQS Queue, is then passed to a :class:`~airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`
 task as the ``sqs_queue`` arg.
 
 Finally, not only can you use traditional operator outputs as inputs for TaskFlow functions, but also as inputs to

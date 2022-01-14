@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OpsgenieCreateAlertOperator(BaseOperator):
@@ -70,7 +73,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
     :type note: str
     """
 
-    template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
+    template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
     def __init__(
         self,
@@ -138,7 +141,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
                 payload[key] = val
         return payload
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Call the OpsgenieAlertHook to post message"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.create_alert(self._build_opsgenie_payload())
@@ -217,7 +220,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
                 payload[key] = val
         return payload
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Call the OpsgenieAlertHook to close alert"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.close_alert(

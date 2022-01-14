@@ -284,7 +284,7 @@ class DatabricksHook(BaseHook):
         """
         try:
             jsn = requests.get(
-                AZURE_METADATA_SERVICE_TOKEN_URL,
+                AZURE_METADATA_SERVICE_INSTANCE_URL,
                 params={"api-version": "2021-02-01"},
                 headers={"Metadata": "true"},
                 timeout=2,

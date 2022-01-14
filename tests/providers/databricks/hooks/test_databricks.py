@@ -32,7 +32,7 @@ from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
     AZURE_DEFAULT_AD_ENDPOINT,
     AZURE_MANAGEMENT_ENDPOINT,
-    AZURE_METADATA_SERVICE_TOKEN_URL,
+    AZURE_METADATA_SERVICE_INSTANCE_URL,
     AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     SUBMIT_RUN_ENDPOINT,
@@ -808,7 +808,7 @@ class TestDatabricksHookAadTokenManagedIdentity(unittest.TestCase):
         run_id = self.hook.submit_run(data)
 
         ad_call_args = mock_requests.method_calls[0]
-        assert ad_call_args[1][0] == AZURE_METADATA_SERVICE_TOKEN_URL
+        assert ad_call_args[1][0] == AZURE_METADATA_SERVICE_INSTANCE_URL
         assert ad_call_args[2]['params']['api-version'] > '2018-02-01'
         assert ad_call_args[2]['headers']['Metadata'] == 'true'
 

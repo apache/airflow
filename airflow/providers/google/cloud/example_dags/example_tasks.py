@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -136,7 +137,7 @@ with models.DAG(
         task_queue=Queue(stackdriver_logging_config=dict(sampling_ratio=1)),
         location=LOCATION,
         queue_name=QUEUE_ID,
-        update_mask={"paths": ["stackdriver_logging_config.sampling_ratio"]},
+        update_mask=FieldMask(paths=["stackdriver_logging_config.sampling_ratio"]),
         task_id="update_queue",
     )
     # [END update_queue]

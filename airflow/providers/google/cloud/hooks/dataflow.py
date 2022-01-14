@@ -503,7 +503,8 @@ class _DataflowJobsController(LoggingMixin):
                 timeout_error_message = (
                     f"Canceling jobs failed due to timeout ({self._cancel_timeout}s): {', '.join(job_ids)}"
                 )
-                with timeout(seconds=self._cancel_timeout, error_message=timeout_error_message):
+                tm = timeout(seconds=self._cancel_timeout, error_message=timeout_error_message)
+                with tm:
                     self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
         else:
             self.log.info("No jobs to cancel")

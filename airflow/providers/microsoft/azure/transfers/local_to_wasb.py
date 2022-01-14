@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -42,7 +42,7 @@ class LocalFilesystemToWasbOperator(BaseOperator):
     :type load_options: Optional[dict]
     """
 
-    template_fields = ('file_path', 'container_name', 'blob_name')
+    template_fields: Sequence[str] = ('file_path', 'container_name', 'blob_name')
 
     def __init__(
         self,

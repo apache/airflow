@@ -17,12 +17,15 @@
 # under the License.
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 import warnings
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from google.cloud.bigquery.table import TableReference
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryToGCSOperator(BaseOperator):
@@ -76,13 +79,13 @@ class BigQueryToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_project_dataset_table',
         'destination_cloud_storage_uris',
         'labels',
         'impersonation_chain',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#e4e6f0'
 
     def __init__(
@@ -125,7 +128,7 @@ class BigQueryToGCSOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Executing extract of %s into: %s',
             self.source_project_dataset_table,
