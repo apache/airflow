@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):
     """
-    Operator link for DbtCloudRunJobOperator. This link allows users to directly monitor the triggered job
-    run directly in dbt Cloud.
+    Operator link for DbtCloudRunJobOperator. This link allows users to monitor the triggered job run
+    directly in dbt Cloud.
     """
 
     name = "Monitor Job Run"

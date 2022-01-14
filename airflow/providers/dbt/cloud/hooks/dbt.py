@@ -21,7 +21,7 @@ import time
 from enum import Enum
 from functools import wraps
 from inspect import signature
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from requests import PreparedRequest, Session
 from requests.auth import AuthBase
@@ -51,7 +51,7 @@ def fallback_to_default_account(func: Callable) -> Callable:
 
         # Check if ``account_id`` was not included in the function signature or, if it is, the value is not
         # provided.
-        if "account_id" not in bound_args.arguments or bound_args.arguments["account_id"] is None:
+        if bound_args.arguments.get("account_id") is None:
             self = args[0]
             default_account_id = self.conn.login
             if not default_account_id:
@@ -96,16 +96,19 @@ class DbtCloudJobRunStatus(Enum):
     TERMINAL_STATUSES = (SUCCESS, ERROR, CANCELLED)
 
     @classmethod
-    def is_valid(cls, statuses: Union[int, Sequence[int]]) -> bool:
+    def check_is_valid(cls, statuses: Union[int, Sequence[int], Set[int]]) -> bool:
         """Validates input statuses are a known value."""
-        if isinstance(statuses, int):
-            return bool(cls(statuses))
+        if isinstance(statuses, (Sequence, Set)):
+            for status in statuses:
+                cls(status)
         else:
-            return all(cls(status) for status in statuses)
+            cls(statuses)
 
     @classmethod
     def is_terminal(cls, status: int) -> bool:
         """Checks if the input status is that of a terminal type."""
+        cls.check_is_valid(statuses=status)
+
         return status in cls.TERMINAL_STATUSES.value
 
 
@@ -308,7 +311,7 @@ class DbtCloudHook(HttpHook):
         if additional_run_config is None:
             additional_run_config = {}
 
-        payload={
+        payload = {
             "cause": cause,
             "steps_override": steps_override,
             "schema_override": schema_override,
@@ -398,7 +401,7 @@ class DbtCloudHook(HttpHook):
         self,
         run_id: int,
         account_id: Optional[int] = None,
-        expected_statuses: Union[int, Sequence[int]] = DbtCloudJobRunStatus.SUCCESS.value,
+        expected_statuses: Union[int, Sequence[int], Set[int]] = DbtCloudJobRunStatus.SUCCESS.value,
         check_interval: int = 60,
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
@@ -420,7 +423,7 @@ class DbtCloudHook(HttpHook):
         """
         expected_statuses = (expected_statuses,) if isinstance(expected_statuses, int) else expected_statuses
 
-        DbtCloudJobRunStatus.is_valid(expected_statuses)
+        DbtCloudJobRunStatus.check_is_valid(expected_statuses)
 
         job_run_info = JobRunInfo(account_id=account_id, run_id=run_id)
         job_run_status = self.get_job_run_status(**job_run_info)
