@@ -19,7 +19,7 @@ import sys
 from collections import namedtuple
 from datetime import date, timedelta
 from typing import Dict  # noqa: F401  # This is used by annotation tests.
-from typing import Callable, MutableSequence, Tuple
+from typing import Tuple
 
 import pytest
 
@@ -32,6 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from tests.operators.test_python import Call, assert_calls_equal, build_recording_function
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -45,37 +46,6 @@ TI_CONTEXT_ENV_VARS = [
     'AIRFLOW_CTX_EXECUTION_DATE',
     'AIRFLOW_CTX_DAG_RUN_ID',
 ]
-
-
-class Call:
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
-
-
-def build_recording_function(calls_collection: MutableSequence[Call]) -> Callable[..., None]:
-    """
-    We can not use a Mock instance as a PythonOperator callable function or some tests fail with a
-    TypeError: Object of type Mock is not JSON serializable
-    Then using this custom function recording custom Call objects for further testing
-    (replacing Mock.assert_called_with assertion method)
-    """
-
-    def recording_function(*args, **kwargs):
-        calls_collection.append(Call(*args, **kwargs))
-
-    return recording_function
-
-
-def assert_calls_equal(first: Call, second: Call) -> None:
-    assert isinstance(first, Call)
-    assert isinstance(second, Call)
-    assert first.args == second.args
-    # eliminate context (conf, dag_run, task_instance, etc.)
-    test_args = ["an_int", "a_date", "a_templated_string"]
-    first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
-    second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
-    assert first.kwargs == second.kwargs
 
 
 class TestAirflowTaskDecorator:
