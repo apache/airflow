@@ -247,7 +247,7 @@ class TestStandardTaskRunner:
         ti.refresh_from_db()
         assert re.findall(r'ERROR - Failed to execute job (\S+) for task (\S+)', logged) == [
             (str(ti.job_id), ti.task_id)
-        ]
+        ], logged
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
