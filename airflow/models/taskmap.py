@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Table to store "mapped" task instances (AIP-42)."""
+"""Table to store information about mapped task instances (AIP-42)."""
 
 import collections.abc
 import enum
