@@ -608,11 +608,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """Deserializes an operator from a JSON object."""
         op: Union[BaseOperator, MappedOperator]
         # Check if it's a mapped operator
-        if "mapped_kwargs" in encoded_op:
+        if encoded_op.get("_is_mapped", False):
             op = MappedOperator(
                 task_id=encoded_op['task_id'],
                 dag=None,
-                operator_class='.'.join(filter(None, (encoded_op['_task_module'], encoded_op['_task_type']))),
+                operator_class=f"{encoded_op['_task_module']}.{encoded_op['_task_type']}",
                 # These are all re-set later
                 partial_kwargs={},
                 mapped_kwargs={},
