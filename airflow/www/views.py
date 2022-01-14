@@ -3131,15 +3131,13 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         ]
     )
     @provide_session
     def audit_log(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
 
-        # limit query days to avoid loading too much data
-        query_days = conf.getint('webserver', 'audit_trail_query_days')
         included_events = conf.get('webserver', 'included_events')
         excluded_events = conf.get('webserver', 'excluded_events')
         query_start_dttm = timezone.utcnow() - timedelta(days=query_days)
@@ -3149,19 +3147,27 @@ class Airflow(AirflowBaseView):
             Log.dttm >= query_start_dttm,
         )
         if included_events:
-            included_events = [event.strip() for event in included_events.split(',')]
+            included_events = {event.strip() for event in included_events.split(',')}
             query = query.filter(Log.event.in_(included_events))
         if excluded_events:
-            excluded_events = [event.strip() for event in excluded_events.split(',')]
+            excluded_events = {event.strip() for event in excluded_events.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
-        dag_audit_logs = query.all()
+
+        overlapping_events = included_events & excluded_events
+        if overlapping_events:
+            flash(Markup(f'There exists overlapping events: <b>{overlapping_events}</b>. Please '
+                         f'check included_events and excluded_events to have unique events in each '
+                         f'config. An event cannot be both. Reach out to system administrator '
+                         f'if any questions remain.'))
+            dag_audit_logs = []
+        else:
+            dag_audit_logs = query.all()
 
         content = self.render_template(
             'airflow/dag_audit_log.html',
-            dag=dag,
             dag_id=dag_id,
             dag_logs=dag_audit_logs,
-            max_query_days=query_days
+            page_size=PAGE_SIZE,
         )
         return content
 

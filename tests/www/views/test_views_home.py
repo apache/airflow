@@ -247,7 +247,7 @@ def test_dashboard_flash_messages_type(user_client):
     check_content_in_response("alert-foo", resp)
 
 
-def test_audit_log_view(app, user_client):
+def test_audit_log_view(user_client, working_dags):
     url = 'audit_log?dag_id=filter_test_1'
     resp = user_client.get(url, follow_redirects=True)
     check_content_in_response('Dag Audit Log', resp)
