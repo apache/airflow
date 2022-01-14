@@ -3131,6 +3131,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         ]
     )
     @provide_session
