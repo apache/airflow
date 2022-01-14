@@ -837,6 +837,7 @@ class TestDagBag:
             mock_sync_perm_for_dag.assert_called_once_with(
                 "test_example_bash_operator", {"Public": {"can_read"}}
             )
+        delete_dag_specific_permissions()
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
