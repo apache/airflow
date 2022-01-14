@@ -68,7 +68,7 @@ class TestPsrpOperator(TestCase):
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
     def test_execute(self, parameter, had_errors, do_xcom_push, hook):
         kwargs = {parameter.name: "foo"}
-        if parameter[2]:
+        if parameter.expected_parameters:
             kwargs["parameters"] = parameter.expected_parameters
         psrp_session_init = Mock(spec=Command)
         op = PsrpOperator(
@@ -92,11 +92,11 @@ class TestPsrpOperator(TestCase):
         expected_ps_calls = [
             call.add_command(psrp_session_init),
             call.add_statement(),
-            parameter[1],
+            parameter.expected_method,
         ]
         if parameter.expected_parameters:
             expected_ps_calls.extend([call.add_parameters({'bar': 'baz'})])
-        if do_xcom_push:
+        if parameter.name in ("cmdlet", "powershell") and do_xcom_push:
             expected_ps_calls.append(
                 call.add_cmdlet('ConvertTo-Json'),
             )

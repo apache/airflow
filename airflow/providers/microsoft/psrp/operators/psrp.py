@@ -47,9 +47,12 @@ class PsrpOperator(BaseOperator):
     serialization into a `System.Security.SecureString` (applicable only
     for DAGs which have `render_template_as_native_obj=True`).
 
-    If `do_xcom_push` is enabled, the command output is converted to JSON by
-    PowerShell using the 'ConvertTo-JSON' cmdlet such that the operator
-    return value is serializable to an XCom value.
+    When using the `cmdlet` or `powershell` arguments and when `do_xcom_push`
+    is enabled, the command output is converted to JSON by PowerShell using
+    the `ConvertTo-Json
+    <https://docs.microsoft.com/en-us/powershell/
+    module/microsoft.powershell.utility/convertto-json>`__ cmdlet such
+    that the operator return value is serializable to an XCom value.
 
     :param psrp_conn_id: connection id
     :param command: command to execute on remote host. (templated)
@@ -58,8 +61,9 @@ class PsrpOperator(BaseOperator):
         cmdlet to execute on remote host (templated). Also used as the default
         value for `task_id`.
     :param parameters:
-        parameters to provide to cmdlet (templated). This is allowed only if
-        the `cmdlet` parameter is also given.
+        When using the `cmdlet` or `powershell` arguments, use this parameter to
+        provide parameters (templated). Note that a parameter with a value of `None`
+        becomes an *argument* (i.e., switch).
     :param logging_level:
         Logging level for message streams which are received during remote execution.
         The default is to include all messages in the task log.
@@ -111,7 +115,7 @@ class PsrpOperator(BaseOperator):
         self.command = command
         self.powershell = powershell
         self.cmdlet = cmdlet
-        self.parameters = parameters or {}
+        self.parameters = parameters
         self.logging_level = logging_level
         self.runspace_options = runspace_options
         self.wsman_options = wsman_options
@@ -127,15 +131,17 @@ class PsrpOperator(BaseOperator):
             if self.psrp_session_init is not None:
                 ps.add_command(self.psrp_session_init)
                 ps.add_statement()
-            if self.cmdlet:
-                ps.add_cmdlet(self.cmdlet)
-                ps.add_parameters(self.parameters)
-            elif self.command:
+            if self.command:
                 ps.add_script(f"cmd.exe /c @'\n{self.command}\n'@")
             else:
-                ps.add_script(self.powershell)
-            if self.do_xcom_push:
-                ps.add_cmdlet("ConvertTo-Json")
+                if self.cmdlet:
+                    ps.add_cmdlet(self.cmdlet)
+                else:
+                    ps.add_script(self.powershell)
+                if self.parameters:
+                    ps.add_parameters(self.parameters)
+                if self.do_xcom_push:
+                    ps.add_cmdlet("ConvertTo-Json")
 
         if ps.had_errors:
             raise AirflowException("Process failed")
