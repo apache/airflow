@@ -56,7 +56,7 @@ def prefix_individual_dag_permissions(session):
 
 
 def remove_prefix_in_individual_dag_permissions(session):
-    dag_perms = ['can_dag_read', 'can_dag_edit']
+    dag_perms = ['can_read', 'can_edit']
     prefix = "DAG:"
     perms = (
         session.query(Permission)
