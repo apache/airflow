@@ -165,7 +165,7 @@ def undo_remap_permissions():
     """Unapply Map Airflow permissions"""
     appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
     for old, new in mapping.items():
-        (new_resource_name, new_action_name) = new
+        (new_resource_name, new_action_name) = new[0]
         new_permission = appbuilder.sm.get_permission(new_action_name, new_resource_name)
         if not new_permission:
             continue
