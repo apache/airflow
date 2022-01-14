@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-14T15:46:50Z
+# This constraints file was automatically generated on 2022-01-14T19:06:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -195,7 +195,7 @@ commonmark==0.9.1
 coverage==6.2
 crcmod==1.7
 cron-descriptor==1.2.24
-croniter==1.1.0
+croniter==1.2.0
 cryptography==3.4.8
 curlify==2.2.1
 cx-Oracle==8.3.0
@@ -252,7 +252,7 @@ google-cloud-bigtable==1.7.0
 google-cloud-build==3.7.1
 google-cloud-container==1.0.1
 google-cloud-core==1.7.2
-google-cloud-datacatalog==3.6.1
+google-cloud-datacatalog==3.6.2
 google-cloud-dataproc-metastore==1.3.1
 google-cloud-dataproc==3.1.1
 google-cloud-dlp==1.0.0
