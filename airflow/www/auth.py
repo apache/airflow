@@ -35,7 +35,7 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
             __tracebackhide__ = True  # Hide from pytest traceback.
 
             appbuilder = current_app.appbuilder
-            if not (g.user.is_anonymous or g.user.perms):
+            if not g.user.is_anonymous and not g.user.perms:
                 return (
                     render_template(
                         'airflow/no_roles_permissions.html',

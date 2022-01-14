@@ -24,7 +24,6 @@ from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
 from sqlalchemy.engine.reflection import Inspector
-from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
@@ -332,19 +331,6 @@ class SecurityManager(BaseSecurityManager):
                 self.role_model.id.in_(role_ids),
             )
         ).all()
-
-    def get_permissions_from_roles(self, role_id: int) -> List[Permission]:
-        """Get all DB permissions from a role (one single query)"""
-        return (
-            self.appbuilder.get_session.query(Permission)
-            .join(Action)
-            .join(Resource)
-            .join(Permission.role)
-            .filter(Role.id == role_id)
-            .options(contains_eager(Permission.action))
-            .options(contains_eager(Permission.resource))
-            .all()
-        )
 
     def create_action(self, name):
         """
