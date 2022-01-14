@@ -770,6 +770,7 @@ class Airflow(AirflowBaseView):
         state_color_mapping["null"] = state_color_mapping.pop(None)
 
         page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
+        page_title_markup = conf.getboolean(section="webserver", key="instance_name_markup", fallback=False)
 
         dashboard_alerts = [
             fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
@@ -815,7 +816,7 @@ class Airflow(AirflowBaseView):
             migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
-            page_title=page_title,
+            page_title=Markup(page_title) if page_title_markup else page_title,
             page_size=dags_per_page,
             num_of_pages=num_of_pages,
             num_dag_from=min(start + 1, num_of_all_dags),
