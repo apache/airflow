@@ -18,7 +18,7 @@
 """Marks tasks APIs."""
 
 from datetime import datetime
-from typing import Generator, Iterable, List, Optional
+from typing import TYPE_CHECKING, Generator, Iterable, List, Optional
 
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.session import Session as SASession
@@ -31,12 +31,12 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
 def _create_dagruns(
-    dag: DAG, execution_dates: List[datetime], state: TaskInstanceState, run_type: DagRunType
+    dag: DAG, execution_dates: List[datetime], state: DagRunState, run_type: DagRunType
 ) -> List[DagRun]:
     """
     Infers from the dates which dag runs need to be created and does so.
@@ -108,13 +108,13 @@ def set_state(
     if dag is None:
         raise ValueError("Received tasks with no DAG")
 
-    dates = get_execution_dates(dag, execution_date, future, past)
+    dates = get_execution_dates(dag, execution_date, future, past, session=session)
 
     task_ids = list(find_task_relatives(tasks, downstream, upstream))
 
     confirmed_dates = verify_dag_run_integrity(dag, dates)
 
-    sub_dag_run_ids = get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates)
+    sub_dag_run_ids = get_subdag_runs(dag, session, DagRunState(state), task_ids, commit, confirmed_dates)
 
     # now look for the task instances that are affected
 
@@ -175,7 +175,7 @@ def get_all_dag_task_query(
 def get_subdag_runs(
     dag: DAG,
     session: SASession,
-    state: TaskInstanceState,
+    state: DagRunState,
     task_ids: List[str],
     commit: bool,
     confirmed_dates: List[datetime],
@@ -194,13 +194,15 @@ def get_subdag_runs(
 
             current_task = current_dag.get_task(task_id)
             if isinstance(current_task, SubDagOperator) or current_task.task_type == "SubDagOperator":
+                if TYPE_CHECKING:
+                    assert current_task.subdag
                 # this works as a kind of integrity check
                 # it creates missing dag runs for subdag operators,
                 # maybe this should be moved to dagrun.verify_integrity
                 dag_runs = _create_dagruns(
                     current_task.subdag,
                     execution_dates=confirmed_dates,
-                    state=TaskInstanceState.RUNNING,
+                    state=DagRunState.RUNNING,
                     run_type=DagRunType.BACKFILL_JOB,
                 )
 
@@ -214,7 +216,7 @@ def get_subdag_runs(
 def verify_dagruns(
     dag_runs: List[DagRun],
     commit: bool,
-    state: TaskInstanceState,
+    state: DagRunState,
     session: SASession,
     current_task: BaseOperator,
 ):
@@ -264,20 +266,23 @@ def find_task_relatives(
                 yield relative.task_id
 
 
-def get_execution_dates(dag: DAG, execution_date: datetime, future: bool, past: bool) -> List[datetime]:
+@provide_session
+def get_execution_dates(
+    dag: DAG, execution_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
+) -> List[datetime]:
     """Returns dates of DAG execution"""
-    latest_execution_date = dag.get_latest_execution_date()
+    latest_execution_date = dag.get_latest_execution_date(session=session)
     if latest_execution_date is None:
         raise ValueError(f"Received non-localized date {execution_date}")
+    execution_date = timezone.coerce_datetime(execution_date)
     # determine date range of dag runs and tasks to consider
     end_date = latest_execution_date if future else execution_date
-    if 'start_date' in dag.default_args:
-        start_date = dag.default_args['start_date']
-    elif dag.start_date:
+    if dag.start_date:
         start_date = dag.start_date
     else:
         start_date = execution_date
     start_date = execution_date if not past else start_date
+
     if not dag.timetable.can_run:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
@@ -294,7 +299,7 @@ def get_execution_dates(dag: DAG, execution_date: datetime, future: bool, past: 
 
 @provide_session
 def _set_dag_run_state(
-    dag_id: str, execution_date: datetime, state: TaskInstanceState, session: SASession = NEW_SESSION
+    dag_id: str, execution_date: datetime, state: DagRunState, session: SASession = NEW_SESSION
 ):
     """
     Helper method that set dag run state in the DB.
@@ -308,7 +313,7 @@ def _set_dag_run_state(
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date).one()
     )
     dag_run.state = state
-    if state == TaskInstanceState.RUNNING:
+    if state == DagRunState.RUNNING:
         dag_run.start_date = timezone.utcnow()
         dag_run.end_date = None
     else:
@@ -340,7 +345,7 @@ def set_dag_run_state_to_success(
 
     # Mark the dag run to success.
     if commit:
-        _set_dag_run_state(dag.dag_id, execution_date, TaskInstanceState.SUCCESS, session)
+        _set_dag_run_state(dag.dag_id, execution_date, DagRunState.SUCCESS, session)
 
     # Mark all task instances of the dag run to success.
     for task in dag.tasks:
@@ -378,7 +383,7 @@ def set_dag_run_state_to_failed(
 
     # Mark the dag run to failed.
     if commit:
-        _set_dag_run_state(dag.dag_id, execution_date, TaskInstanceState.FAILED, session)
+        _set_dag_run_state(dag.dag_id, execution_date, DagRunState.FAILED, session)
 
     # Mark only running task instances.
     task_ids = [task.task_id for task in dag.tasks]
@@ -423,13 +428,12 @@ def set_dag_run_state_to_running(
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
     """
-    res = []
     if not dag or not execution_date:
-        return res
+        return []
 
     # Mark the dag run to running.
     if commit:
-        _set_dag_run_state(dag.dag_id, execution_date, TaskInstanceState.RUNNING, session)
+        _set_dag_run_state(dag.dag_id, execution_date, DagRunState.RUNNING, session)
 
     # To keep the return type consistent with the other similar functions.
-    return res
+    return []

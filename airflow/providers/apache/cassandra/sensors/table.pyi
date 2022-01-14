@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This stub exists to work around false MyPY errors in examples due to default_args handling.
+# The difference in the stub file vs. original class are Optional args which are passed
+# by default_args.
+#
+# TODO: Remove this file once we implement a proper solution (MyPy plugin?) that will handle default_args.
+
 from typing import Any, Optional
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook

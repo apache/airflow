@@ -153,7 +153,7 @@ class DecoratedOperator(BaseOperator):
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
-    def _handle_output(self, return_value: Any, context: Dict, xcom_push: Callable):
+    def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
         Handles logic for whether a decorator needs to push a single return value or multiple return values.
 

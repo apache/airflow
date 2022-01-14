@@ -63,6 +63,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
@@ -621,7 +622,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             )
         validate_key(task_id)
         self.task_id = task_id
-        self.label = task_id
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
@@ -1580,6 +1580,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                     'default_args',
                     'dag',
                     '_dag',
+                    'label',
                     '_BaseOperator__instantiated',
                     '_BaseOperator__init_kwargs',
                 }
@@ -1599,6 +1600,10 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             DagContext.pop_context_managed_dag()
 
         return cls.__serialized_fields
+
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """Required by DAGNode."""
+        return DagAttributeTypes.OP, self.task_id
 
     def is_smart_sensor_compatible(self):
         """Return if this operator can use smart service. Default False."""
@@ -1740,6 +1745,10 @@ class MappedOperator(DAGNode):
 
     def has_dag(self):
         return self.dag is not None
+
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """Required by DAGNode."""
+        return DagAttributeTypes.OP, self.task_id
 
 
 # TODO: Deprecate for Airflow 3.0

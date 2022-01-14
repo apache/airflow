@@ -22,7 +22,7 @@ together when the DAG is displayed graphically.
 import functools
 import warnings
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Optional, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Optional, TypeVar, Union, cast, overload
 
 import attr
 
@@ -61,7 +61,7 @@ class TaskGroupDecorator(Generic[R]):
     def _make_task_group(self, **kwargs) -> TaskGroup:
         return TaskGroup(**kwargs)
 
-    def __call__(self, *args, **kwargs) -> R:
+    def __call__(self, *args, **kwargs) -> Union[R, TaskGroup]:
         with self._make_task_group(add_suffix_on_collision=True, **self.kwargs) as task_group:
             # Invoke function to run Tasks inside the TaskGroup
             retval = self.function(*args, **kwargs)
@@ -84,7 +84,7 @@ class TaskGroupDecorator(Generic[R]):
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).partial(**kwargs)
 
-    def map(self, **kwargs) -> R:
+    def map(self, **kwargs) -> Union[R, TaskGroup]:
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).map(**kwargs)
 
 
@@ -112,7 +112,7 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
         self.partial_kwargs.update(kwargs)
         return self
 
-    def map(self, **kwargs) -> R:
+    def map(self, **kwargs) -> Union[R, TaskGroup]:
         if self.mapped_kwargs:
             raise RuntimeError("Already a mapped task group")
         self.mapped_kwargs = kwargs

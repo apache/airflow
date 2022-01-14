@@ -581,6 +581,7 @@ class TestDag(unittest.TestCase):
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
+        assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
 
         dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
         _next = dag.following_schedule(utc)

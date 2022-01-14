@@ -43,7 +43,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 
 T = TypeVar("T")
 
@@ -273,7 +273,10 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
     if not dry_run:
         clear_task_instances(
-            task_instances.all(), session, dag=dag, dag_run_state=State.QUEUED if reset_dag_runs else False
+            task_instances.all(),
+            session,
+            dag=dag,
+            dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
         )
 
     return task_instance_reference_collection_schema.dump(

@@ -88,6 +88,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
+    from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
 
@@ -343,7 +344,9 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[Callable[["DAG", str, str, List[str], List[TaskInstance]], None]] = None,
+        sla_miss_callback: Optional[
+            Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
+        ] = None,
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
@@ -409,6 +412,7 @@ class DAG(LoggingMixin):
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
                 self.default_args['start_date'] = date
+                start_date = date
 
             tzinfo = None if date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(date, tz=tzinfo).timezone
@@ -1232,7 +1236,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session: Session) -> Optional[datetime]:
+    def get_latest_execution_date(self, session: Session = NEW_SESSION) -> Optional[pendulum.DateTime]:
         """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
@@ -1285,11 +1289,11 @@ class DAG(LoggingMixin):
         }
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
+        env: jinja2.Environment
         if self.render_template_as_native_obj:
-            env_class = airflow.templates.NativeEnvironment
+            env = airflow.templates.NativeEnvironment(**jinja_env_options)
         else:
-            env_class = airflow.templates.SandboxedEnvironment
-        env: jinja2.Environment = env_class(**jinja_env_options)
+            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals

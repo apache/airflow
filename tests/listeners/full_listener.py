@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This stub exists to work around false MyPY errors in examples due to default_args handling.
-# The difference in the stub file vs. original class are Optional args which are passed
-# by default_args.
-#
-# TODO: Remove this file once we implement a proper solution (MyPy plugin?) that will handle default_args.
+from airflow.listeners import hookimpl
+from airflow.utils.state import State
 
-from typing import Any, Dict, Optional
+state = []
 
-from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 
-class CassandraRecordSensor:
-    def __init__(
-        self,
-        *,
-        keys: Optional[Dict[str, str]] = None,
-        table: Optional[str] = None,
-        cassandra_conn_id: str = CassandraHook.default_conn_name,
-        **kwargs: Any,
-    ) -> None: ...
+@hookimpl
+def on_task_instance_running(previous_state, task_instance, session):
+    state.append(State.RUNNING)
+
+
+@hookimpl
+def on_task_instance_success(previous_state, task_instance, session):
+    state.append(State.SUCCESS)
+
+
+@hookimpl
+def on_task_instance_failed(previous_state, task_instance, session):
+    state.append(State.FAILED)
