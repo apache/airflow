@@ -33,6 +33,7 @@ from typing import (
     Type,
     TypeVar,
     cast,
+    overload,
 )
 
 import attr
@@ -42,6 +43,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
+from airflow.typing_compat import Protocol
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
@@ -300,13 +302,25 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
         return attr.evolve(self, kwargs=partial_kwargs)
 
 
+class TaskDecorator(Protocol):
+    """Type declaration for ``task_decorator_factory`` return type."""
+
+    @overload
+    def __call__(self, python_callable: T) -> T:
+        """For the "bare decorator" ``@task`` case."""
+
+    @overload
+    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> "TaskDecorator":
+        """For the decorator factory ``@task()`` case."""
+
+
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     *,
     multiple_outputs: Optional[bool] = None,
     decorated_operator_class: Type[BaseOperator],
     **kwargs,
-) -> Callable[[T], T]:
+) -> TaskDecorator:
     """
     A factory that generates a wrapper that raps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
@@ -324,20 +338,19 @@ def task_decorator_factory(
     if multiple_outputs is None:
         multiple_outputs = cast(bool, attr.NOTHING)
     if python_callable:
-        return _TaskDecorator(  # type: ignore
+        decorator = _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
             kwargs=kwargs,
         )
+        return cast(TaskDecorator, decorator)
     elif python_callable is not None:
         raise TypeError('No args allowed while using @task, use kwargs instead')
-    return cast(
-        "Callable[[T], T]",
-        functools.partial(
-            _TaskDecorator,
-            multiple_outputs=multiple_outputs,
-            operator_class=decorated_operator_class,
-            kwargs=kwargs,
-        ),
+    decorator_factory = functools.partial(
+        _TaskDecorator,
+        multiple_outputs=multiple_outputs,
+        operator_class=decorated_operator_class,
+        kwargs=kwargs,
     )
+    return cast(TaskDecorator, decorator_factory)

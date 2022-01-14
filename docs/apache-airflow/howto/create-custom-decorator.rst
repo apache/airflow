@@ -33,23 +33,25 @@ tasks. The steps to create and register ``@task.foo`` are:
 
 2. Create a ``foo_task`` function
 
-    Once you have your decorated class, create a function that takes arguments ``python_callable``, ``multiple_outputs``,
-    and ``kwargs``. This function will use the ``airflow.decorators.base.task_decorator_factory`` function to convert
+    Once you have your decorated class, create a function like this, to convert
     the new ``FooDecoratedOperator`` into a TaskFlow function decorator!
 
     .. code-block:: python
 
-       def foo_task(
-           python_callable: Optional[Callable] = None,
-           multiple_outputs: Optional[bool] = None,
-           **kwargs
-       ):
-           return task_decorator_factory(
-               python_callable=python_callable,
-               multiple_outputs=multiple_outputs,
-               decorated_operator_class=FooDecoratedOperator,
-               **kwargs,
-           )
+        from airflow.decorators.base import TaskDecorator, task_decorator_factory
+
+
+        def foo_task(
+            python_callable: Optional[Callable] = None,
+            multiple_outputs: Optional[bool] = None,
+            **kwargs,
+        ) -> TaskDecorator:
+            return task_decorator_factory(
+                python_callable=python_callable,
+                multiple_outputs=multiple_outputs,
+                decorated_operator_class=FooDecoratedOperator,
+                **kwargs,
+            )
 
 3. Register your new decorator in get_provider_info of your provider
 
@@ -97,24 +99,24 @@ The first step is to create a ``Mixin`` class for your decorator.
 Mixin classes are classes in python that tell the python interpreter that python can import them at any time.
 Because they are not dependent on other classes, Mixin classes are great for multiple inheritance.
 
-In the DockerDecorator we created a Mixin class that looks like this:
+In the DockerDecorator, a "fake" function is declared like this:
 
 .. exampleinclude:: ../../../airflow/providers/docker/decorators/docker.py
     :language: python
-    :start-after: [START decoratormixin]
-    :end-before: [END decoratormixin]
+    :start-after: [START decorator_signature]
+    :end-before: [END decorator_signature]
 
-Notice that the function does not actually need to return anything as we only use this class for type checking. Sadly you will have to duplicate the args, defaults and types from your real FooOperator in order for them to show up in auto-completion prompts.
+Notice that the function does not actually need to return anything, as we only use it for type checking. Sadly, you will have to duplicate the args, defaults and types from your real FooOperator, in order for them to show up in auto-completion prompts.
 
-Once you have your Mixin class ready, go to ``airflow/decorators/__init__.py`` and add section similar to this
+Once you have your function declaration ready, go to ``airflow/decorators/__init__.py``, and add a section similar to this
 
 .. exampleinclude:: ../../../airflow/decorators/__init__.py
     :language: python
     :start-after: [START mixin_for_autocomplete]
     :end-before: [END mixin_for_autocomplete]
 
-The ``if TYPE_CHECKING`` guard means that this code will only be used for type checking (such as mypy) or generating IDE auto-completion. Catching the ``ImportError`` is important as
+The ``if TYPE_CHECKING`` guard means that this code will only be used for type checking (such as mypy) or generating IDE auto-completion.
 
 Once the change is merged and the next Airflow (minor or patch) release comes out, users will be able to see your decorator in IDE auto-complete. This auto-complete will change based on the version of the provider that the user has installed.
 
-Please note that this step is not required to create a working decorator but does create a better experience for users of the provider.
+Please note that this step is not required to create a working decorator, but does create a better experience for users of the provider.

@@ -17,15 +17,32 @@
 
 from typing import TYPE_CHECKING
 
-from airflow.decorators.python import PythonDecoratorMixin, python_task  # noqa
-from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
-from airflow.decorators.task_group import task_group  # noqa
-from airflow.models.dag import dag  # noqa
+from airflow.decorators.base import TaskDecorator
+from airflow.decorators.python import python_task
+from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.task_group import task_group
+from airflow.models.dag import dag
 from airflow.providers_manager import ProvidersManager
 
+__all__ = ["dag", "task", "task_group", "python_task", "virtualenv_task"]
 
-class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
-    def __getattr__(self, name):
+
+class _AutocompleteMixin:
+    # [START mixin_for_autocomplete]
+    if TYPE_CHECKING:
+        from airflow.providers.docker.decorators.docker import docker_task_autocomplete
+
+        docker = staticmethod(docker_task_autocomplete)
+    # [END mixin_for_autocomplete]
+
+
+class TaskDecoratorFactory(_AutocompleteMixin):
+    python = staticmethod(python_task)
+    virtualenv = staticmethod(virtualenv_task)
+
+    __call__ = python  # Alias '@task' to '@task.python'.
+
+    def __getattr__(self, name: str) -> "TaskDecorator":
         if name.startswith("__"):
             raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
         decorators = ProvidersManager().taskflow_decorators
@@ -34,17 +51,4 @@ class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
         return decorators[name]
 
 
-# [START mixin_for_autocomplete]
-if TYPE_CHECKING:
-    try:
-        from airflow.providers.docker.decorators.docker import DockerDecoratorMixin
-
-        class _DockerTask(_TaskDecorator, DockerDecoratorMixin):
-            pass
-
-        _TaskDecorator = _DockerTask  # type: ignore[misc]
-    except ImportError:
-        pass
-# [END mixin_for_autocomplete]
-
-task = _TaskDecorator()
+task = TaskDecoratorFactory()

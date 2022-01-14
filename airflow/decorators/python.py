@@ -17,7 +17,7 @@
 
 from typing import Callable, Optional, Sequence, TypeVar
 
-from airflow.decorators.base import DecoratedOperator, task_decorator_factory
+from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonOperator
 
 
@@ -61,47 +61,12 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
 T = TypeVar("T", bound=Callable)
 
 
-class PythonDecoratorMixin:
-    """
-    Helper class for inheritance. This class is only used for the __init__.pyi so that IDEs
-    will autocomplete docker decorator functions
-
-    :meta private:
-    """
-
-    def __call__(
-        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-    ):
-        return self.python(python_callable, multiple_outputs, **kwargs)
-
-    def python(
-        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-    ):
-        """
-        Python operator decorator. Wraps a function into an Airflow operator.
-
-        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
-
-        :param python_callable: Function to decorate
-        :type python_callable: Optional[Callable]
-        :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
-            multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys.
-            Defaults to False.
-        :type multiple_outputs: bool
-        """
-        return task_decorator_factory(
-            python_callable=python_callable,
-            multiple_outputs=multiple_outputs,
-            decorated_operator_class=_PythonDecoratedOperator,
-            **kwargs,
-        )
-
-
 def python_task(
-    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-):
-    """
-    Wraps a function into an Airflow operator.
+    python_callable: Optional[Callable] = None,
+    multiple_outputs: Optional[bool] = None,
+    **kwargs,
+) -> TaskDecorator:
+    """Wraps a function into an Airflow operator.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
