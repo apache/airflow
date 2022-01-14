@@ -1711,16 +1711,9 @@ def _validate_kwarg_names_for_mapping(
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
 
-    @staticmethod
-    def _operator_class_repr(val):
-        # Can be a string if we are de-serialized
-        if isinstance(val, str):
-            return val.rsplit('.', 1)[-1]
-        return val.__name__
-
     def __repr__(self) -> str:
         return (
-            f'MappedOperator(operator_class={self._operator_class_repr(self.operator_class)}, '
+            f'MappedOperator(task_type={self.task_type}, '
             + f'task_id={self.task_id!r}, partial_kwargs={self.partial_kwargs!r}, '
             + f'mapped_kwargs={self.mapped_kwargs!r}, dag={self.dag})'
         )
@@ -1738,8 +1731,8 @@ class MappedOperator(DAGNode):
 
     task_group: Optional["TaskGroup"] = attr.ib()
     # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
-    start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
-    end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
+    start_date: Optional[pendulum.DateTime] = attr.ib(default=None)
+    end_date: Optional[pendulum.DateTime] = attr.ib(default=None)
     owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
     max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
 
@@ -1819,7 +1812,11 @@ class MappedOperator(DAGNode):
 
     @task_type.default
     def _default_task_type(self):
-        return self.operator_class.__name__
+        # Can be a string if we are de-serialized
+        val = self.operator_class
+        if isinstance(val, str):
+            return val.rsplit('.', 1)[-1]
+        return val.__name__
 
     @task_group.default
     def _default_task_group(self):
@@ -1865,10 +1862,7 @@ class MappedOperator(DAGNode):
     @property
     def inherits_from_dummy_operator(self):
         """Used to determine if an Operator is inherited from DummyOperator"""
-        # This looks like `isinstance(self, DummyOperator) would work, but this also
-        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
-        # of its sub-classes (which don't inherit from anything but BaseOperator).
-        return getattr(self, '_is_dummy', False)
+        return self._is_dummy
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: ClassVar[Optional[FrozenSet[str]]] = None
@@ -1879,7 +1873,13 @@ class MappedOperator(DAGNode):
             fields_dict = attr.fields_dict(cls)
             cls.__serialized_fields = frozenset(
                 fields_dict.keys()
-                - {'deps', 'inherits_from_dummy_operator', 'operator_extra_links', 'upstream_task_ids'}
+                - {
+                    'deps',
+                    'inherits_from_dummy_operator',
+                    'operator_extra_links',
+                    'upstream_task_ids',
+                    'task_type',
+                }
                 | {'template_fields'}
             )
         return cls.__serialized_fields
