@@ -40,10 +40,10 @@ class GithubHook(BaseHook):
     conn_type = 'github'
     hook_name = 'Github'
 
-    def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
+    def __init__(self, github_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.connection = None
-        self.github_conn_id = conn_id
+        self.github_conn_id = github_conn_id
         self.client = None
 
     def get_conn(self) -> GithubClient:
@@ -61,11 +61,6 @@ class GithubHook(BaseHook):
 
         self.client = GithubClient(login_or_token=access_token)
         return self.client
-
-    def find_repos(self) -> PaginatedList:
-        """Function to get bucket id by name."""
-        repos = self.client.get_repos()
-        return repos
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
