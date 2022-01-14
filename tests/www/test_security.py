@@ -29,7 +29,6 @@ from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
-from airflow.www.fab_security.manager import AnonymousUser
 from airflow.www.fab_security.sqla.models import assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import create_user_scope, delete_role, set_user_single_role
