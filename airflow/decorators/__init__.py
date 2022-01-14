@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional, TypeVar, overload
 
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.python import python_task
@@ -26,29 +26,45 @@ from airflow.providers_manager import ProvidersManager
 
 __all__ = ["dag", "task", "task_group", "python_task", "virtualenv_task"]
 
-
-class _AutocompleteMixin:
-    # [START mixin_for_autocomplete]
-    if TYPE_CHECKING:
-        from airflow.providers.docker.decorators.docker import docker_task_autocomplete
-
-        docker = staticmethod(docker_task_autocomplete)
-    # [END mixin_for_autocomplete]
+T = TypeVar("T", bound=Callable)
 
 
-class TaskDecoratorFactory(_AutocompleteMixin):
-    python = staticmethod(python_task)
-    virtualenv = staticmethod(virtualenv_task)
-
-    __call__ = python  # Alias '@task' to '@task.python'.
-
+class _TaskDecoratorMeta(type):
     def __getattr__(self, name: str) -> "TaskDecorator":
+        """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
         if name.startswith("__"):
-            raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
+            raise AttributeError(f'{self.__name__} has no attribute {name!r}')
         decorators = ProvidersManager().taskflow_decorators
         if name not in decorators:
             raise AttributeError(f"task decorator {name!r} not found")
         return decorators[name]
 
 
-task = TaskDecoratorFactory()
+class _TaskDecoratorAutocompletion(metaclass=_TaskDecoratorMeta):
+    # [START mixin_for_autocomplete]
+    if TYPE_CHECKING:
+        from airflow.providers.docker.decorators.docker import docker_task_autocomplete as docker
+    # [END mixin_for_autocomplete]
+
+
+class task(_TaskDecoratorAutocompletion):
+    """Implementation to provide the ``@task`` syntax."""
+
+    python = python_task
+    virtualenv = virtualenv_task
+
+    @overload
+    def __new__(  # type: ignore[misc]
+        cls,
+        multiple_outputs: Optional[bool] = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """For the decorator factory ``@task()`` case."""
+
+    @overload
+    def __new__(cls, python_callable: T) -> T:  # type: ignore[misc]
+        """For the "bare decorator" ``@task`` case."""
+
+    def __new__(cls, python_callable, multiple_outputs, **kwargs):
+        """Alias ``@task`` to ``@task.python``."""
+        return python_task(python_callable, multiple_outputs, **kwargs)
