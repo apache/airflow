@@ -44,7 +44,6 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.permissions import delete_dag_specific_permissions
 
 
 class TestDagBag:
@@ -56,15 +55,17 @@ class TestDagBag:
     def teardown_class(cls):
         shutil.rmtree(cls.empty_dir)
 
-    def setup_methods(self) -> None:
+    def setup_method(self) -> None:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
+        db.clear_dag_specific_permissions()
 
     def teardown_method(self) -> None:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
+        db.clear_dag_specific_permissions()
 
     def test_get_existing_dag(self):
         """
@@ -807,7 +808,6 @@ class TestDagBag:
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
         when DAG specific perm views don't exist already or the DAG has access_control set.
         """
-        delete_dag_specific_permissions()
         with create_session() as session:
             security_manager = ApplessAirflowSecurityManager(session)
             mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
@@ -837,7 +837,6 @@ class TestDagBag:
             mock_sync_perm_for_dag.assert_called_once_with(
                 "test_example_bash_operator", {"Public": {"can_read"}}
             )
-        delete_dag_specific_permissions()
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
