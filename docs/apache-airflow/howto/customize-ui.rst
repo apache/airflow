@@ -121,7 +121,7 @@ After
 
 .. note::
 
-    From version 2.2.4 you can include markup in ``instance_name`` variable for further customization. To enable, set ``instance_name_markup`` under the ``[webserver]`` section inside ``airflow.cfg`` to ``True``.
+    From version 2.3.0 you can include markup in ``instance_name`` variable for further customization. To enable, set ``instance_name_markup`` under the ``[webserver]`` section inside ``airflow.cfg`` to ``True``.
 
 
 Add custom alert messages on the dashboard
