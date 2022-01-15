@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, Any
 
 from github import GithubException
 
@@ -64,7 +64,7 @@ class GithubOperator(BaseOperator):
 
             github_result = getattr(resource, self.method_name)(**self.github_method_args)
             if self.result_processor:
-                return self.result_processor(context, github_result)
+                return self.result_processor(github_result)
 
             return github_result
 

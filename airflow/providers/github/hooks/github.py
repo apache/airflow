@@ -45,6 +45,7 @@ class GithubHook(BaseHook):
         self.connection = None
         self.github_conn_id = github_conn_id
         self.client = None
+        self.get_conn()
 
     def get_conn(self) -> GithubClient:
         """
@@ -56,8 +57,6 @@ class GithubHook(BaseHook):
 
         self.connection = self.get_connection(self.github_conn_id)
         access_token = self.connection.password
-
-        # self.log.info('Organization: %s', self.org_name)
 
         self.client = GithubClient(login_or_token=access_token)
         return self.client
