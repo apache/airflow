@@ -773,7 +773,3 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     def on_kill(self):
         pass
-
-
-if __name__ == '__main__':
-    SmartSensorOperator(task_id='test').execute(Context())

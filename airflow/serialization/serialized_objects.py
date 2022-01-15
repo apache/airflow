@@ -268,7 +268,7 @@ class BaseSerialization:
 
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
-            elif key == "timetable":
+            elif key == "timetable" and value is not None:
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
@@ -622,7 +622,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-
+            if k == "label":
+                # Label shouldn't be set anymore --  it's computed from task_id now
+                continue
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
@@ -973,10 +975,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
             "children": {
-                label: (DAT.OP, child.task_id)
-                if isinstance(child, BaseOperator)
-                else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
-                for label, child in task_group.children.items()
+                label: child.serialize_for_task_group() for label, child in task_group.children.items()
             },
             "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
             "downstream_group_ids": cls._serialize(sorted(task_group.downstream_group_ids)),

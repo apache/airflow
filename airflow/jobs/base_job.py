@@ -76,7 +76,7 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         TaskInstance,
-        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),
+        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),  # type: ignore
         backref=backref('queued_by_job', uselist=False),
     )
 

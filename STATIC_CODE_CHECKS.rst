@@ -383,7 +383,7 @@ Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
+     ./breeze static-check flake8 -- --files tests/core/* --verbose
 
 Run all tests for the currently staged files:
 

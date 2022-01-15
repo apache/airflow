@@ -337,7 +337,7 @@ class PodGenerator:
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: int,
+        scheduler_job_id: str,
         run_id: Optional[str] = None,
     ) -> k8s.V1Pod:
         """
@@ -359,7 +359,7 @@ class PodGenerator:
             'try_number': str(try_number),
         }
         labels = {
-            'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+            'airflow-worker': make_safe_label_value(scheduler_job_id),
             'dag_id': make_safe_label_value(dag_id),
             'task_id': make_safe_label_value(task_id),
             'try_number': str(try_number),

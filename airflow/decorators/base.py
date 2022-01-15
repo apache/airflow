@@ -153,7 +153,7 @@ class DecoratedOperator(BaseOperator):
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
-    def _handle_output(self, return_value: Any, context: Dict, xcom_push: Callable):
+    def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
         Handles logic for whether a decorator needs to push a single return value or multiple return values.
 
@@ -277,24 +277,18 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     def map(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> XComArg:
-
+        self._validate_arg_names("map", kwargs)
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
 
-        self._validate_arg_names("map", kwargs)
-
-        operator = MappedOperator(
-            operator_class=self.operator_class,
-            task_id=task_id,
+        operator = MappedOperator.from_decorator(
+            decorator=self,
             dag=dag,
             task_group=task_group,
-            partial_kwargs=self.kwargs,
-            # Set them to empty to bypass the validation, as for decorated stuff we validate ourselves
-            mapped_kwargs={},
+            task_id=task_id,
+            mapped_kwargs=kwargs,
         )
-        operator.mapped_kwargs.update(kwargs)
-
         return XComArg(operator=operator)
 
     def partial(

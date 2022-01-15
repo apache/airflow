@@ -53,7 +53,7 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
-from airflow.utils.state import DagRunState, PoolSlotState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 TI = models.TaskInstance
@@ -403,6 +403,17 @@ class SchedulerJob(BaseJob):
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
                     serialized_dag = self.dagbag.get_dag(dag_id, session=session)
+                    # If the dag is missing, fail the task and continue to the next task.
+                    if not serialized_dag:
+                        self.log.error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            dag_id,
+                            task_instance,
+                        )
+                        session.query(TI).filter(TI.dag_id == dag_id, TI.state == State.SCHEDULED).update(
+                            {TI.state: State.FAILED}, synchronize_session='fetch'
+                        )
+                        continue
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
@@ -1141,9 +1152,9 @@ class SchedulerJob(BaseJob):
     def _emit_pool_metrics(self, session: Session = None) -> None:
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
-            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats[PoolSlotState.OPEN.value])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[PoolSlotState.QUEUED.value])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[PoolSlotState.RUNNING.value])
+            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats["running"])
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:

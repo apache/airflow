@@ -37,6 +37,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    UnmappableXComPushed,
 )
 from airflow.models import (
     DAG,
@@ -50,6 +51,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.taskinstance import load_error_file, set_error_file
+from airflow.models.taskmap import TaskMap
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -2060,6 +2062,7 @@ class TestTaskInstance:
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
             "run_id": "test",
+            "map_index": -1,
             "start_date": run_date + datetime.timedelta(days=1),
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
@@ -2085,7 +2088,7 @@ class TestTaskInstance:
             "next_method": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
-        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values.keys()}
+        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
         assert {str(c) for c in TI.__table__.columns} == expected_keys, (
             "Please add all non-foreign values of TaskInstance to this list. "
             "This prevents refresh_from_db() from missing a field."
@@ -2224,7 +2227,7 @@ def test_sensor_timeout(mode, retries, dag_maker):
 
     mock_on_failure = mock.MagicMock()
     with dag_maker(dag_id=f'test_sensor_timeout_{mode}_{retries}'):
-        task = PythonSensor(
+        PythonSensor(
             task_id='test_raise_sensor_timeout',
             python_callable=timeout,
             on_failure_callback=mock_on_failure,
@@ -2232,10 +2235,88 @@ def test_sensor_timeout(mode, retries, dag_maker):
             mode=mode,
         )
     ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
-    ti.task = task
 
     with pytest.raises(AirflowSensorTimeout):
         ti.run()
 
     assert mock_on_failure.called
     assert ti.state == State.FAILED
+
+
+class TestTaskInstanceRecordTaskMapXComPush:
+    """Test TI.xcom_push() correctly records return values for task-mapping."""
+
+    def setup_class(self):
+        """Ensure we start fresh."""
+        with create_session() as session:
+            session.query(TaskMap).delete()
+
+    def _run_ti_with_faked_mapped_dependants(self, ti):
+        # TODO: We can't actually put a MappedOperator in a DAG yet due to it
+        # lacking some functions we expect from BaseOperator, so we mock this
+        # instead to test what effect it has to TaskMap recording.
+        with mock.patch.object(ti.task, "has_mapped_dependants", new=lambda: True):
+            ti.run()
+
+    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    def test_not_recorded_for_unused(self, dag_maker, xcom_value):
+        """A value not used for task-mapping should not be recorded."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return xcom_value
+
+            push_something()
+
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+
+    def test_error_if_unmappable(self, caplog, dag_maker):
+        """If an unmappable return value is used to map, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return "abc"
+
+            push_something()
+
+        ti = dag_maker.create_dagrun().task_instances[0]
+        with pytest.raises(UnmappableXComPushed) as ctx:
+            self._run_ti_with_faked_mapped_dependants(ti)
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "unmappable return type 'str'"
+
+    @pytest.mark.parametrize(
+        "xcom_value, expected_length, expected_keys",
+        [
+            ([1, 2, 3], 3, None),
+            ({"a": 1, "b": 2}, 2, ["a", "b"]),
+        ],
+    )
+    def test_written_task_map(self, dag_maker, xcom_value, expected_length, expected_keys):
+        """Return value should be recorded in TaskMap if it's used by a downstream to map."""
+        with dag_maker(dag_id="test_written_task_map") as dag:
+
+            @dag.task()
+            def push_something():
+                return xcom_value
+
+            push_something()
+
+        dag_run = dag_maker.create_dagrun()
+        ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
+        self._run_ti_with_faked_mapped_dependants(ti)
+
+        task_map = dag_maker.session.query(TaskMap).one()
+        assert task_map.dag_id == "test_written_task_map"
+        assert task_map.task_id == "push_something"
+        assert task_map.run_id == dag_run.run_id
+        assert task_map.map_index == -1
+        assert task_map.length == expected_length
+        assert task_map.keys == expected_keys

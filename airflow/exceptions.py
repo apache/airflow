@@ -99,6 +99,17 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
+class UnmappableXComPushed(AirflowException):
+    """Raise when an unmappable value is pushed as a mapped downstream's dependency."""
+
+    def __init__(self, value: Any) -> None:
+        super().__init__(value)
+        self.value = value
+
+    def __str__(self) -> str:
+        return f"unmappable return type {type(self.value).__qualname__!r}"
+
+
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in DAG definition."""
 

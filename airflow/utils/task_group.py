@@ -22,10 +22,11 @@ together when the DAG is displayed graphically.
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Tuple, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 from airflow.utils.types import NOTSET
 
@@ -385,6 +386,12 @@ class TaskGroup(DAGNode):
     def get_child_by_label(self, label: str) -> DAGNode:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
+
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """Required by DAGNode."""
+        from airflow.serialization.serialized_objects import SerializedTaskGroup
+
+        return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
 
     def map(self, arg: Iterable) -> "MappedTaskGroup":
         if self.children:

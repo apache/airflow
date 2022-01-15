@@ -44,6 +44,8 @@ DEFAULT_DATE = dates.days_ago(2)
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
+DEFAULT_DAGRUN = 'TEST_DAGRUN'
+
 
 @pytest.fixture(scope="module", autouse=True)
 def reset_dagruns():
@@ -54,6 +56,7 @@ def reset_dagruns():
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -61,6 +64,7 @@ def init_dagruns(app, reset_dagruns):
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -68,6 +72,7 @@ def init_dagruns(app, reset_dagruns):
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_xcom").create_dagrun(
+        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -210,29 +215,29 @@ def client_ti_without_dag_edit(app):
         ),
         pytest.param(
             f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=success'
-            f'&execution_date={DEFAULT_VAL}',
+            f'&dag_run_id={DEFAULT_DAGRUN}',
             ['Wait a minute'],
             id="confirm-success",
         ),
         pytest.param(
-            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&execution_date={DEFAULT_VAL}',
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&dag_run_id={DEFAULT_DAGRUN}',
             ['Wait a minute'],
             id="confirm-failed",
         ),
         pytest.param(
-            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&execution_date={DEFAULT_VAL}',
+            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&dag_run_id={DEFAULT_DAGRUN}',
             ['DAG invalid_dag not found'],
             id="confirm-failed",
         ),
         pytest.param(
             f'confirm?task_id=invalid_task&dag_id=example_bash_operator&state=failed'
-            f'&execution_date={DEFAULT_VAL}',
+            f'&dag_run_id={DEFAULT_DAGRUN}',
             ['Task invalid_task not found'],
             id="confirm-failed",
         ),
         pytest.param(
             f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=invalid'
-            f'&execution_date={DEFAULT_VAL}',
+            f'&dag_run_id={DEFAULT_DAGRUN}',
             ["Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"],
             id="confirm-invalid",
         ),
@@ -351,7 +356,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
+                dag_run_id=DEFAULT_DAGRUN,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -365,7 +370,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
+                dag_run_id=DEFAULT_DAGRUN,
                 upstream="false",
                 downstream="false",
                 future="false",

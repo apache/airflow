@@ -179,8 +179,9 @@ class S3KeySizeSensor(S3KeySensor):
         s3_objects = self.get_files(s3_hook=self.get_hook())
         if not s3_objects:
             return False
-        check_fn = self.check_fn if self.check_fn_user is None else self.check_fn_user
-        return check_fn(s3_objects)
+        if self.check_fn_user is not None:
+            return self.check_fn_user(s3_objects)
+        return self.check_fn(s3_objects)
 
     def get_files(self, s3_hook: S3Hook, delimiter: Optional[str] = '/') -> List:
         """Gets a list of files in the bucket"""
