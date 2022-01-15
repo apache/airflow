@@ -88,8 +88,11 @@ class SubprocessHook(BaseHook):
                 raise RuntimeError("The subprocess should be created here and is None!")
             if self.sub_process.stdout is not None:
                 for raw_line in iter(self.sub_process.stdout.readline, b''):
-                    line = raw_line.decode(output_encoding, 'backslashreplace').rstrip()
-                    self.log.info("%s", line)
+                    try:
+                        line = raw_line.decode(output_encoding).rstrip()
+                        self.log.info("%s", line)
+                    except Exception as err:
+                        print(err, output_encoding, raw_line)
 
             self.sub_process.wait()
 
