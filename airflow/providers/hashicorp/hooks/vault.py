@@ -112,7 +112,7 @@ class VaultHook(BaseHook):
     """
 
     conn_name_attr = 'vault_conn_id'
-    default_conn_name = 'imap_default'
+    default_conn_name = 'vault_default'
     conn_type = 'vault'
     hook_name = 'Hashicorp Vault'
 
