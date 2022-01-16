@@ -17,6 +17,7 @@
 # under the License.
 
 
+from cProfile import run
 import re
 import unittest
 from unittest import mock
@@ -207,14 +208,14 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_cancel_queries(self, mock_client, mock_poll_job_complete):
-        running_job_id = 3
+        running_job_id = "3"
 
         self.hook.running_job_id = running_job_id
-        self.hook.cancel_query()
+        self.hook.cancel_job(job_id=running_job_id)
 
-        mock_poll_job_complete.assert_has_calls(
-            mock.call(running_job_id), mock.call(running_job_id), any_order=False
-        )
+        calls = [mock.call(job_id=running_job_id)]
+
+        mock_poll_job_complete.assert_has_calls(calls)
         mock_client.assert_called_once_with(project_id=PROJECT_ID, location=None)
         mock_client.return_value.cancel_job.assert_called_once_with(job_id=running_job_id)
 
@@ -610,7 +611,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         poll_job_complete.return_value = True
 
         self.hook.running_job_id = JOB_ID
-        self.hook.cancel_query()
+        self.hook.cancel_job(job_id=JOB_ID)
         poll_job_complete.assert_called_once_with(job_id=JOB_ID)
         mock_logger_info.has_call(mock.call("No running BigQuery jobs to cancel."))
 
@@ -1202,7 +1203,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         bq_cursor.executemany("SELECT %(foo)s", [{"foo": "bar"}, {"foo": "baz"}])
         assert mock_insert.call_count == 2
-        assert mock_insert.assert_has_calls(
+        mock_insert.assert_has_calls([
             mock.call(
                 configuration={
                     'query': {
@@ -1225,7 +1226,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                 },
                 project_id=PROJECT_ID,
             ),
-        )
+        ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_description(self, mock_get_service):
