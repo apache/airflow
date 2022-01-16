@@ -19,7 +19,6 @@
 import unittest
 from typing import Any, Dict
 from unittest import mock
-from unittest.mock import MagicMock
 
 from google.cloud.tasks_v2.types import Queue, Task
 
@@ -41,7 +40,7 @@ def mock_patch_return_object(attribute: str, return_value: Any) -> object:
         pass
 
     obj = Obj()
-    obj.__setattr__(attribute, MagicMock(return_value=return_value))
+    obj.__setattr__(attribute, mock.MagicMock(return_value=return_value))
     return obj
 
 
