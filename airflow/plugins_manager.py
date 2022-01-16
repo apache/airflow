@@ -24,14 +24,12 @@ import logging
 import os
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 try:
     import importlib_metadata
 except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
-
-from types import ModuleType
+    from importlib import metadata as importlib_metadata
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
@@ -40,7 +38,6 @@ from airflow.utils.module_loading import as_importable_string
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
-    from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
@@ -80,7 +77,6 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "operator_extra_links",
     "timetables",
     "source",
-    "listeners",
 }
 
 
@@ -156,8 +152,6 @@ class AirflowPlugin:
 
     # A list of timetable classes that can be used for DAG scheduling.
     timetables: List[Type["Timetable"]] = []
-
-    listeners: List[ModuleType] = []
 
     @classmethod
     def validate(cls):
@@ -464,21 +458,7 @@ def integrate_macros_plugins() -> None:
             setattr(macros, plugin.name, macros_module)
 
 
-def integrate_listener_plugins(listener_manager: "ListenerManager") -> None:
-    global plugins
-
-    ensure_plugins_loaded()
-
-    if plugins:
-        for plugin in plugins:
-            if plugin.name is None:
-                raise AirflowPluginException("Invalid plugin name")
-
-            for listener in plugin.listeners:
-                listener_manager.add_listener(listener)
-
-
-def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[str, Any]]:
+def get_plugin_info(attrs_to_dump: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """
     Dump plugins attributes
 
@@ -495,7 +475,7 @@ def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[
     plugins_info = []
     if plugins:
         for plugin in plugins:
-            info: Dict[str, Any] = {"name": plugin.name}
+            info = {"name": plugin.name}
             for attr in attrs_to_dump:
                 if attr in ('global_operator_extra_links', 'operator_extra_links'):
                     info[attr] = [
@@ -503,9 +483,6 @@ def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[
                     ]
                 elif attr in ('macros', 'timetables', 'hooks', 'executors'):
                     info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
-                elif attr == 'listeners':
-                    # listeners are always modules
-                    info[attr] = [d.__name__ for d in getattr(plugin, attr)]
                 elif attr == 'appbuilder_views':
                     info[attr] = [
                         {**d, 'view': as_importable_string(d['view'].__class__) if 'view' in d else None}

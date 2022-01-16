@@ -17,16 +17,13 @@
 # under the License.
 """This module contains a Google Cloud Storage operator."""
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 WILDCARD = '*'
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GCSToGCSOperator(BaseOperator):
@@ -176,7 +173,7 @@ class GCSToGCSOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'source_bucket',
         'source_object',
         'source_objects',
@@ -232,7 +229,7 @@ class GCSToGCSOperator(BaseOperator):
         self.is_older_than = is_older_than
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
 
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

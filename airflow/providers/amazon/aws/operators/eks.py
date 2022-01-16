@@ -18,16 +18,12 @@
 """This module contains Amazon EKS operators."""
 import warnings
 from time import sleep
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
@@ -79,8 +75,6 @@ class EksCreateClusterOperator(BaseOperator):
     :param compute: The type of compute architecture to generate along with the cluster. (templated)
          Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :type compute: str
-    :param create_cluster_kwargs: Optional parameters to pass to the CreateCluster API (templated)
-    :type: Dict
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -91,45 +85,36 @@ class EksCreateClusterOperator(BaseOperator):
          If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
-    If compute is assigned the value of 'nodegroup':
+    If compute is assigned the value of 'nodegroup', the following are required:
 
-    :param nodegroup_name: *REQUIRED* The unique name to give your Amazon EKS managed node group. (templated)
+    :param nodegroup_name: The unique name to give your Amazon EKS managed node group. (templated)
     :type nodegroup_name: str
-    :param nodegroup_role_arn: *REQUIRED* The Amazon Resource Name (ARN) of the IAM role to associate with
-         the Amazon EKS managed node group. (templated)
+    :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate with the
+         Amazon EKS managed node group. (templated)
     :type nodegroup_role_arn: str
-    :param create_nodegroup_kwargs: Optional parameters to pass to the CreateNodegroup API (templated)
-    :type: Dict
 
+    If compute is assigned the value of 'fargate', the following are required:
 
-    If compute is assigned the value of 'fargate':
-
-    :param fargate_profile_name: *REQUIRED* The unique name to give your AWS Fargate profile. (templated)
+    :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
     :type fargate_profile_name: str
-    :param fargate_pod_execution_role_arn: *REQUIRED* The Amazon Resource Name (ARN) of the pod execution
-         role to use for pods that match the selectors in the AWS Fargate profile. (templated)
+    :param fargate_pod_execution_role_arn: The Amazon Resource Name (ARN) of the pod execution role to
+         use for pods that match the selectors in the AWS Fargate profile. (templated)
     :type podExecutionRoleArn: str
-    :param fargate_selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
-    :type fargate_selectors: List
-    :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
-         (templated)
-    :type: Dict
+    :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
+    :type selectors: List
 
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
-        "create_cluster_kwargs",
         "compute",
         "nodegroup_name",
         "nodegroup_role_arn",
-        "create_nodegroup_kwargs",
         "fargate_profile_name",
         "fargate_pod_execution_role_arn",
         "fargate_selectors",
-        "create_fargate_profile_kwargs",
         "aws_conn_id",
         "region",
     )
@@ -140,14 +125,11 @@ class EksCreateClusterOperator(BaseOperator):
         cluster_role_arn: str,
         resources_vpc_config: Dict,
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
-        create_cluster_kwargs: Optional[Dict] = None,
         nodegroup_name: Optional[str] = DEFAULT_NODEGROUP_NAME,
         nodegroup_role_arn: Optional[str] = None,
-        create_nodegroup_kwargs: Optional[Dict] = None,
         fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
         fargate_pod_execution_role_arn: Optional[str] = None,
         fargate_selectors: Optional[List] = None,
-        create_fargate_profile_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -170,19 +152,16 @@ class EksCreateClusterOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
         self.resources_vpc_config = resources_vpc_config
-        self.create_cluster_kwargs = create_cluster_kwargs or {}
         self.nodegroup_name = nodegroup_name
         self.nodegroup_role_arn = nodegroup_role_arn
-        self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.fargate_profile_name = fargate_profile_name
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
-        self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -192,7 +171,6 @@ class EksCreateClusterOperator(BaseOperator):
             name=self.cluster_name,
             roleArn=self.cluster_role_arn,
             resourcesVpcConfig=self.resources_vpc_config,
-            **self.create_cluster_kwargs,
         )
 
         if not self.compute:
@@ -224,7 +202,6 @@ class EksCreateClusterOperator(BaseOperator):
                 nodegroupName=self.nodegroup_name,
                 subnets=self.resources_vpc_config.get('subnetIds'),
                 nodeRole=self.nodegroup_role_arn,
-                **self.create_nodegroup_kwargs,
             )
         elif self.compute == 'fargate':
             eks_hook.create_fargate_profile(
@@ -232,7 +209,6 @@ class EksCreateClusterOperator(BaseOperator):
                 fargateProfileName=self.fargate_profile_name,
                 podExecutionRoleArn=self.fargate_pod_execution_role_arn,
                 selectors=self.fargate_selectors,
-                **self.create_fargate_profile_kwargs,
             )
 
 
@@ -254,8 +230,6 @@ class EksCreateNodegroupOperator(BaseOperator):
     :param nodegroup_role_arn:
          The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :type nodegroup_role_arn: str
-    :param create_nodegroup_kwargs: Optional parameters to pass to the Create Nodegroup API (templated)
-    :type: Dict
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -268,12 +242,11 @@ class EksCreateNodegroupOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "nodegroup_subnets",
         "nodegroup_role_arn",
         "nodegroup_name",
-        "create_nodegroup_kwargs",
         "aws_conn_id",
         "region",
     )
@@ -284,7 +257,6 @@ class EksCreateNodegroupOperator(BaseOperator):
         nodegroup_subnets: List[str],
         nodegroup_role_arn: str,
         nodegroup_name: Optional[str] = DEFAULT_NODEGROUP_NAME,
-        create_nodegroup_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -293,12 +265,11 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_subnets = nodegroup_subnets
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
-        self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -309,7 +280,6 @@ class EksCreateNodegroupOperator(BaseOperator):
             nodegroupName=self.nodegroup_name,
             subnets=self.nodegroup_subnets,
             nodeRole=self.nodegroup_role_arn,
-            **self.create_nodegroup_kwargs,
         )
 
 
@@ -330,9 +300,6 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :type selectors: List
     :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
     :type fargate_profile_name: str
-    :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargate Profile API
-     (templated)
-    :type: Dict
 
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
@@ -345,12 +312,11 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :type region: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "pod_execution_role_arn",
         "selectors",
         "fargate_profile_name",
-        "create_fargate_profile_kwargs",
         "aws_conn_id",
         "region",
     )
@@ -361,7 +327,6 @@ class EksCreateFargateProfileOperator(BaseOperator):
         pod_execution_role_arn: str,
         selectors: List,
         fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
-        create_fargate_profile_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -370,12 +335,11 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.pod_execution_role_arn = pod_execution_role_arn
         self.selectors = selectors
         self.fargate_profile_name = fargate_profile_name
-        self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -386,7 +350,6 @@ class EksCreateFargateProfileOperator(BaseOperator):
             fargateProfileName=self.fargate_profile_name,
             podExecutionRoleArn=self.pod_execution_role_arn,
             selectors=self.selectors,
-            **self.create_fargate_profile_kwargs,
         )
 
 
@@ -415,7 +378,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "force_delete_compute",
         "aws_conn_id",
@@ -436,7 +399,7 @@ class EksDeleteClusterOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -539,7 +502,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "nodegroup_name",
         "aws_conn_id",
@@ -560,7 +523,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -592,7 +555,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
     :type region: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "fargate_profile_name",
         "aws_conn_id",
@@ -613,7 +576,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region = region
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -654,25 +617,16 @@ class EksPodOperator(KubernetesPodOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
-    :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod.  Current default is False, but this will be
-        changed in the next major release of this provider.
-    :type is_delete_operator_pod: bool
-
     """
 
-    template_fields: Sequence[str] = tuple(
-        {
-            "cluster_name",
-            "in_cluster",
-            "namespace",
-            "pod_name",
-            "aws_conn_id",
-            "region",
-        }
-        | set(KubernetesPodOperator.template_fields)
-    )
+    template_fields: Iterable[str] = {
+        "cluster_name",
+        "in_cluster",
+        "namespace",
+        "pod_name",
+        "aws_conn_id",
+        "region",
+    } | set(KubernetesPodOperator.template_fields)
 
     def __init__(
         self,
@@ -686,7 +640,6 @@ class EksPodOperator(KubernetesPodOperator):
         pod_username: Optional[str] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
-        is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
         if pod_name is None:
@@ -698,17 +651,6 @@ class EksPodOperator(KubernetesPodOperator):
             )
             pod_name = DEFAULT_POD_NAME
 
-        if is_delete_operator_pod is None:
-            warnings.warn(
-                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
-                "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            is_delete_operator_pod = False
-
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster
         self.namespace = namespace
@@ -719,7 +661,6 @@ class EksPodOperator(KubernetesPodOperator):
             in_cluster=self.in_cluster,
             namespace=self.namespace,
             name=self.pod_name,
-            is_delete_operator_pod=is_delete_operator_pod,
             **kwargs,
         )
         if pod_username:
@@ -741,7 +682,7 @@ class EksPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,

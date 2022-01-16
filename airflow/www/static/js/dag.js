@@ -52,7 +52,6 @@ const nextRun = {
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
-let dagRunId = '';
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -110,7 +109,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
+export function callModal(t, d, extraLinks, tryNumbers, sd) {
   taskId = t;
   const location = String(window.location);
   $('#btn_filter').on('click', () => {
@@ -118,8 +117,6 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
   });
   subdagId = sd;
   executionDate = d;
-  dagRunId = drID;
-  $('#dag_run_id').text(drID);
   $('#task_id').text(t);
   $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
@@ -226,7 +223,6 @@ export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
   executionDate = dag.execution_date;
-  dagRunId = dag.run_id;
   updateButtonUrl(buttons.dag_graph_view, {
     dag_id: dag && dag.dag_id,
     execution_date: dag && dag.execution_date,
@@ -241,14 +237,9 @@ export function callModalDag(dag) {
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
-  if (dagRunId || executionDate) {
-    if (form.dag_run_id) {
-      form.dag_run_id.value = dagRunId;
-    }
-    if (form.execution_date) {
-      form.execution_date.value = executionDate;
-    }
+  // Somehow submit is fired twice. Only once is the executionDate valid
+  if (executionDate) {
+    form.execution_date.value = executionDate;
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
@@ -261,14 +252,9 @@ $('form[data-action]').on('submit', function submit(e) {
 // DAG Modal actions
 $('form button[data-action]').on('click', function onClick() {
   const form = $(this).closest('form').get(0);
-  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
-  if (dagRunId || executionDate) {
-    if (form.dag_run_id) {
-      form.dag_run_id.value = dagRunId;
-    }
-    if (form.execution_date) {
-      form.execution_date.value = executionDate;
-    }
+  // Somehow submit is fired twice. Only once is the executionDate valid
+  if (executionDate) {
+    form.execution_date.value = executionDate;
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;

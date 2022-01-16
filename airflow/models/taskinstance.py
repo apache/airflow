@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import collections.abc
 import contextlib
 import hashlib
 import logging
@@ -83,13 +82,11 @@ from airflow.exceptions import (
     DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
-    UnmappableXComPushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.plugins_manager import integrate_macros_plugins
@@ -100,7 +97,7 @@ from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
+from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.email import send_email
 from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -343,8 +340,6 @@ class TaskInstance(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, default=-1)
-
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Float)
@@ -429,12 +424,10 @@ class TaskInstance(Base, LoggingMixin):
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         state: Optional[str] = None,
-        map_index: int = -1,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.map_index = map_index
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
@@ -483,26 +476,6 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = False
         # can be changed when calling 'run'
         self.test_mode = False
-
-    @staticmethod
-    def insert_mapping(run_id: str, task: "BaseOperator") -> dict:
-        """:meta private:"""
-        return {
-            'dag_id': task.dag_id,
-            'task_id': task.task_id,
-            'run_id': run_id,
-            '_try_number': 0,
-            'hostname': '',
-            'unixname': getuser(),
-            'queue': task.queue,
-            'pool': task.pool,
-            'pool_slots': task.pool_slots,
-            'priority_weight': task.priority_weight_total,
-            'run_as_user': task.run_as_user,
-            'max_tries': task.retries,
-            'executor_config': task.executor_config,
-            'operator': task.task_type,
-        }
 
     @reconstructor
     def init_on_load(self):
@@ -767,7 +740,6 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == self.run_id,
-            TaskInstance.map_index == self.map_index,
         )
 
         if lock_for_update:
@@ -1235,8 +1207,7 @@ class TaskInstance(Base, LoggingMixin):
             # Attempt 0 for the first attempt).
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
-            # If the task continues after being deferred (next_method is set), use the original start_date
-            self.start_date = self.start_date if self.next_method else timezone.utcnow()
+            self.start_date = timezone.utcnow()
             if self.state == State.UP_FOR_RESCHEDULE:
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
@@ -1294,7 +1265,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     def _date_or_empty(self, attr: str):
-        result: Optional[datetime] = getattr(self, attr, None)
+        result = getattr(self, attr, None)  # type: datetime
         return result.strftime('%Y%m%dT%H%M%S') if result else ''
 
     def _log_state(self, lead_msg: str = ''):
@@ -1303,7 +1274,7 @@ class TaskInstance(Base, LoggingMixin):
             ' dag_id=%s, task_id=%s,'
             ' execution_date=%s, start_date=%s, end_date=%s',
             lead_msg,
-            str(self.state).upper(),
+            self.state.upper(),
             self.dag_id,
             self.task_id,
             self._date_or_empty('execution_date'),
@@ -1545,9 +1516,7 @@ class TaskInstance(Base, LoggingMixin):
             result = execute_callable(context=context)
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
-            with create_session() as session:
-                self.xcom_push(key=XCOM_RETURN_KEY, value=result, session=session)
-                self._record_task_map_for_downstreams(result, session=session)
+            self.xcom_push(key=XCOM_RETURN_KEY, value=result)
         return result
 
     @provide_session
@@ -1564,8 +1533,6 @@ class TaskInstance(Base, LoggingMixin):
         session.flush()
 
         # Then, update ourselves so it matches the deferral request
-        # Keep an eye on the logic in `check_and_change_state_before_execution()`
-        # depending on self.next_method semantics
         self.state = State.DEFERRED
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name
@@ -1725,7 +1692,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, BaseException] = None,
+        error: Optional[Union[str, BaseException]] = None,
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
@@ -1797,7 +1764,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure_with_callback(
         self,
-        error: Union[None, str, Exception],
+        error: Union[str, Exception],
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         session=NEW_SESSION,
@@ -1878,14 +1845,14 @@ class TaskInstance(Base, LoggingMixin):
 
         @cache
         def get_yesterday_ds() -> str:
-            return (logical_date - timedelta(1)).strftime('%Y-%m-%d')
+            return (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
 
         def get_yesterday_ds_nodash() -> str:
             return get_yesterday_ds().replace('-', '')
 
         @cache
         def get_tomorrow_ds() -> str:
-            return (logical_date + timedelta(1)).strftime('%Y-%m-%d')
+            return (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
 
         def get_tomorrow_ds_nodash() -> str:
             return get_tomorrow_ds().replace('-', '')
@@ -1893,15 +1860,18 @@ class TaskInstance(Base, LoggingMixin):
         @cache
         def get_next_execution_date() -> Optional[pendulum.DateTime]:
             # For manually triggered dagruns that aren't run on a schedule,
-            # the "next" execution date doesn't make sense, and should be set
+            # next/previous execution dates don't make sense, and should be set
             # to execution date for consistency with how execution_date is set
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                return logical_date
-            next_info = dag.next_dagrun_info(data_interval, restricted=False)
-            if next_info is None:
+                next_execution_date = dag_run.execution_date
+            else:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    next_execution_date = dag.following_schedule(self.execution_date)
+            if next_execution_date is None:
                 return None
-            return timezone.coerce_datetime(next_info.logical_date)
+            return timezone.coerce_datetime(next_execution_date)
 
         def get_next_ds() -> Optional[str]:
             execution_date = get_next_execution_date()
@@ -1917,15 +1887,11 @@ class TaskInstance(Base, LoggingMixin):
 
         @cache
         def get_prev_execution_date():
-            # For manually triggered dagruns that aren't run on a schedule,
-            # the "previous" execution date doesn't make sense, and should be set
-            # to execution date for consistency with how execution_date is set
-            # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                return logical_date
+                return timezone.coerce_datetime(self.execution_date)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                return dag.previous_schedule(logical_date)
+                return dag.previous_schedule(self.execution_date)
 
         @cache
         def get_prev_ds() -> Optional[str]:
@@ -2050,7 +2016,7 @@ class TaskInstance(Base, LoggingMixin):
             date=self.execution_date,
             args=self.command_as_list(),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
-            scheduler_job_id="0",
+            scheduler_job_id=0,
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
         )
@@ -2088,7 +2054,7 @@ class TaskInstance(Base, LoggingMixin):
         # This function is called after changing the state from State.RUNNING,
         # so we need to subtract 1 from self.try_number here.
         current_try_number = self.try_number - 1
-        additional_context: Dict[str, Any] = {
+        additional_context = {
             "exception": exception,
             "exception_html": exception_html,
             "try_number": current_try_number,
@@ -2096,18 +2062,18 @@ class TaskInstance(Base, LoggingMixin):
         }
 
         if use_default:
-            default_context = {"ti": self, **additional_context}
+            jinja_context = {"ti": self, **additional_context}
             jinja_env = jinja2.Environment(
                 loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
             )
-            subject = jinja_env.from_string(default_subject).render(**default_context)
-            html_content = jinja_env.from_string(default_html_content).render(**default_context)
-            html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
+            subject = jinja_env.from_string(default_subject).render(**jinja_context)
+            html_content = jinja_env.from_string(default_html_content).render(**jinja_context)
+            html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
 
         else:
-            jinja_env = self.task.get_template_env()
             jinja_context = self.get_template_context()
-            context_merge(jinja_context, additional_context)
+            jinja_context.update(additional_context)
+            jinja_env = self.task.get_template_env()
 
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
@@ -2137,14 +2103,6 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.duration = None
         self.log.debug("Task Duration set to %s", self.duration)
-
-    def _record_task_map_for_downstreams(self, value: Any, *, session: Session) -> None:
-        if not self.task.has_mapped_dependants():
-            return
-        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            self.log.info("Failing %s for unmappable XCom push %r", self.key, type(value).__qualname__)
-            raise UnmappableXComPushed(value)
-        session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session
     def xcom_push(
@@ -2400,6 +2358,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.jobs.base_job import BaseJob
+    from airflow.job.base_job import BaseJob
 
     TaskInstance.queued_by_job = relationship(BaseJob)

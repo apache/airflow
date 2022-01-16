@@ -17,21 +17,17 @@
 # under the License.
 """Reads and then deletes the message from SQS queue"""
 import json
-import warnings
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import Any, Optional
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.sqs import SqsHook
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 from airflow.sensors.base import BaseSensorOperator
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
-
-class SqsSensor(BaseSensorOperator):
+class SQSSensor(BaseSensorOperator):
     """
     Get messages from an SQS queue and then deletes  the message from the SQS queue.
     If deletion of messages fails an AirflowException is thrown otherwise, the message
@@ -64,7 +60,7 @@ class SqsSensor(BaseSensorOperator):
     :type message_filtering_config: Any
     """
 
-    template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
+    template_fields = ('sqs_queue', 'max_messages', 'message_filtering_config')
 
     def __init__(
         self,
@@ -99,9 +95,9 @@ class SqsSensor(BaseSensorOperator):
 
         self.message_filtering_config = message_filtering_config
 
-        self.hook: Optional[SqsHook] = None
+        self.hook: Optional[SQSHook] = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
         """
         Check for message on subscribed queue and write to xcom the message with key ``messages``
 
@@ -111,7 +107,7 @@ class SqsSensor(BaseSensorOperator):
         """
         sqs_conn = self.get_hook().get_conn()
 
-        self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
+        self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
 
         receive_message_kwargs = {
             'QueueUrl': self.sqs_queue,
@@ -156,12 +152,12 @@ class SqsSensor(BaseSensorOperator):
                 'Delete SQS Messages failed ' + str(response) + ' for messages ' + str(messages)
             )
 
-    def get_hook(self) -> SqsHook:
-        """Create and return an SqsHook"""
+    def get_hook(self) -> SQSHook:
+        """Create and return an SQSHook"""
         if self.hook:
             return self.hook
 
-        self.hook = SqsHook(aws_conn_id=self.aws_conn_id)
+        self.hook = SQSHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
     def filter_messages(self, messages):
@@ -197,18 +193,3 @@ class SqsSensor(BaseSensorOperator):
                     filtered_messages.append(message)
                     break
         return filtered_messages
-
-
-class SQSSensor(SqsSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

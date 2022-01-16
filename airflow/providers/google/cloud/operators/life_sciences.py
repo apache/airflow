@@ -17,14 +17,11 @@
 # under the License.
 """Operators that interact with Google Cloud Life Sciences service."""
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class LifeSciencesRunPipelineOperator(BaseOperator):
@@ -57,7 +54,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "body",
         "gcp_conn_id",
         "api_version",
@@ -90,7 +87,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context) -> dict:
         hook = LifeSciencesHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

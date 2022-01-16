@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class LocalFilesystemToS3Operator(BaseOperator):
@@ -69,7 +66,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields: Sequence[str] = ('filename', 'dest_key', 'dest_bucket')
+    template_fields = ('filename', 'dest_key', 'dest_bucket')
 
     def __init__(
         self,
@@ -101,7 +98,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
         if 's3://' in self.dest_key and self.dest_bucket is not None:
             raise TypeError('dest_bucket should be None when dest_key is provided as a full s3:// file path.')
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self._check_inputs()
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         s3_hook.load_file(

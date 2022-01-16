@@ -102,7 +102,6 @@ class TestLogView:
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 3
-        ti.hostname = 'localhost'
         self.ti = ti
         yield
         clear_db_runs()
@@ -114,7 +113,7 @@ class TestLogView:
 
         assert [
             (
-                'localhost',
+                '',
                 f"*** Reading local file: "
                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                 f"try_number=1.\n",
@@ -129,7 +128,7 @@ class TestLogView:
         assert [
             [
                 (
-                    'localhost',
+                    '',
                     "*** Reading local file: "
                     f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                     "try_number=1.\n",
@@ -137,7 +136,7 @@ class TestLogView:
             ],
             [
                 (
-                    'localhost',
+                    '',
                     f"*** Reading local file: "
                     f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
                     f"try_number=2.\n",
@@ -145,7 +144,7 @@ class TestLogView:
             ],
             [
                 (
-                    'localhost',
+                    '',
                     f"*** Reading local file: "
                     f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
                     f"try_number=3.\n",
@@ -159,7 +158,7 @@ class TestLogView:
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
 
         assert [
-            "localhost\n*** Reading local file: "
+            "\n*** Reading local file: "
             f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
             "try_number=1.\n"
             "\n"
@@ -169,15 +168,15 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert [
-            "localhost\n*** Reading local file: "
+            "\n*** Reading local file: "
             f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
             "try_number=1.\n"
             "\n",
-            "localhost\n*** Reading local file: "
+            "\n*** Reading local file: "
             f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
             "try_number=2.\n"
             "\n",
-            "localhost\n*** Reading local file: "
+            "\n*** Reading local file: "
             f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
             "try_number=3.\n"
             "\n",

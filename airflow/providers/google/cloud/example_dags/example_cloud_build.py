@@ -33,7 +33,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-import yaml
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
@@ -191,7 +190,7 @@ with models.DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=GCP_PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'example_cloud_build.yaml').read_text()),
+        build=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
         params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]

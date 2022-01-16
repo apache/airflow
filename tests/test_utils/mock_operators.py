@@ -15,26 +15,33 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import Sequence
+from typing import NamedTuple
+from unittest import mock
 
 import attr
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
-from airflow.utils.context import Context
+from airflow.providers.apache.hive.operators.hive import HiveOperator
+
+
+# Namedtuple for testing purposes
+class MockNamedTuple(NamedTuple):
+    var1: str
+    var2: str
 
 
 class MockOperator(BaseOperator):
     """Operator for testing purposes."""
 
-    template_fields: Sequence[str] = ("arg1", "arg2")
+    template_fields = ("arg1", "arg2")
 
     def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
 
-    def execute(self, context: Context):
+    def execute(self, context):
         pass
 
 
@@ -46,7 +53,7 @@ class AirflowLink(BaseOperatorLink):
     name = 'airflow'
 
     def get_link(self, operator, dttm):
-        return 'https://airflow.apache.org'
+        return 'should_be_overridden'
 
 
 class Dummy2TestOperator(BaseOperator):
@@ -114,7 +121,7 @@ class CustomOperator(BaseOperator):
         super().__init__(**kwargs)
         self.bash_command = bash_command
 
-    def execute(self, context: Context):
+    def execute(self, context):
         self.log.info("Hello World!")
         context['task_instance'].xcom_push(key='search_query', value="dummy_value")
 
@@ -154,10 +161,16 @@ class GithubLink(BaseOperatorLink):
         return 'https://github.com/apache/airflow'
 
 
+class MockHiveOperator(HiveOperator):
+    def __init__(self, *args, **kwargs):
+        self.run = mock.MagicMock()
+        super().__init__(*args, **kwargs)
+
+
 class DeprecatedOperator(BaseOperator):
     def __init__(self, **kwargs):
         warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
         super().__init__(**kwargs)
 
-    def execute(self, context: Context):
+    def execute(self, context):
         pass

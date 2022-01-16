@@ -47,13 +47,12 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
     def test_add_dill(self):
         @task.virtualenv(use_dill=True, system_site_packages=False)
         def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
+            pass
 
         with self.dag:
             ret = f()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        assert 'dill' in ret.operator.requirements
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
@@ -140,6 +139,27 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    def test_python_2(self):
+        @task.virtualenv(python_version=2, requirements=['dill'])
+        def f():
+            {}.iteritems()
+
+        with self.dag:
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_python_2_7(self):
+        @task.virtualenv(python_version='2.7', requirements=['dill'])
+        def f():
+            {}.iteritems()
+            return True
+
+        with self.dag:
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_python_3(self):
         @task.virtualenv(python_version=3, use_dill=False, requirements=['dill'])
         def f():
@@ -151,6 +171,26 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
             except AttributeError:
                 return
             raise Exception
+
+        with self.dag:
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    @staticmethod
+    def _invert_python_major_version():
+        if sys.version_info[0] == 2:
+            return 3
+        else:
+            return 2
+
+    def test_string_args(self):
+        @task.virtualenv(python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+        def f():
+            global virtualenv_string_args
+            print(virtualenv_string_args)
+            if virtualenv_string_args[0] != virtualenv_string_args[2]:
+                raise Exception
 
         with self.dag:
             ret = f()

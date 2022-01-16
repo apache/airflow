@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class PostgresOperator(BaseOperator):
@@ -44,9 +41,9 @@ class PostgresOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields = ('sql',)
     template_fields_renderers = {'sql': 'sql'}
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -65,9 +62,9 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
-        self.hook: Optional[PostgresHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:

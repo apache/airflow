@@ -18,15 +18,12 @@
 """This module contains Google Search Ads operators."""
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GoogleSearchAdsInsertReportOperator(BaseOperator):
@@ -62,11 +59,11 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "report",
         "impersonation_chain",
     )
-    template_ext: Sequence[str] = (".json",)
+    template_ext = (".json",)
 
     def __init__(
         self,
@@ -91,7 +88,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
             with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -146,7 +143,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "report_name",
         "report_id",
         "bucket_name",
@@ -200,7 +197,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             return fragment_records[1]
         return b""
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

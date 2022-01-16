@@ -25,8 +25,6 @@ from sqlalchemy.exc import OperationalError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
-from airflow.listeners.events import register_task_instance_state_events
-from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.sentry import Sentry
@@ -76,7 +74,6 @@ class LocalTaskJob(BaseJob):
         super().__init__(*args, **kwargs)
 
     def _execute(self):
-        self._enable_task_listeners()
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -294,12 +291,3 @@ class LocalTaskJob(BaseJob):
             if dag_run:
                 dag_run.dag = dag
                 dag_run.update_state(session=session, execute_callbacks=True)
-
-    @staticmethod
-    def _enable_task_listeners():
-        """
-        Check if we have any registered listeners, then register sqlalchemy hooks for
-        TI state change if we do.
-        """
-        if get_listener_manager().has_listeners:
-            register_task_instance_state_events()

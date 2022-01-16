@@ -20,11 +20,9 @@
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
 function build_images::add_build_args_for_remote_install() {
-    # entrypoint is used as AIRFLOW_SOURCES_(WWW)_FROM/TO in order to avoid costly copying of all sources of
+    # entrypoint is used as AIRFLOW_SOURCES_FROM/TO in order to avoid costly copying of all sources of
     # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
     EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=empty"
-        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/empty"
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
@@ -117,7 +115,7 @@ function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     set +u
     if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}" >"${DETECTED_TERMINAL}"
         echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     fi
     if [[ ${ACTION} == "pull and rebuild" ]]; then
@@ -135,8 +133,8 @@ function build_images::confirm_via_terminal() {
     RES=$?
 }
 
-# Confirms if the image should be rebuilt and interactively checks it with the user.
-# In case iit needs to be rebuilt. It only ask the user if it determines that the rebuild
+# Confirms if the image should be rebuild and interactively checks it with the user.
+# In case iit needs to be rebuild. It only ask the user if it determines that the rebuild
 # is needed and that the rebuild is not already forced. It asks the user using available terminals
 # So that the script works also from within pre-commit run via git hooks - where stdin is not
 # available - it tries to find usable terminal and ask the user via this terminal.
@@ -178,7 +176,7 @@ function build_images::confirm_image_rebuild() {
         echo
         set +u
         if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}"
+            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}"
             echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}"
         fi
         echo
@@ -744,8 +742,6 @@ function build_images::prepare_prod_build() {
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}"
             "--build-arg" "AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}"
-            "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM}"
-            "--build-arg" "AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO}"
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}"
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )

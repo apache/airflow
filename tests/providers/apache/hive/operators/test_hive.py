@@ -24,12 +24,14 @@ from airflow.configuration import conf
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
-from tests.providers.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
+from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.test_utils.mock_operators import MockHiveOperator
+from tests.test_utils.mock_process import MockSubProcess
 
 
 class HiveOperatorConfigTest(TestHiveEnvironment):
     def test_hive_airflow_default_config_queue(self):
-        op = HiveOperator(
+        op = MockHiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue_priority='HIGH',
@@ -43,7 +45,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
 
     def test_hive_airflow_default_config_queue_override(self):
         specific_mapred_queue = 'default'
-        op = HiveOperator(
+        op = MockHiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue=specific_mapred_queue,
@@ -58,13 +60,15 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
 class HiveOperatorTest(TestHiveEnvironment):
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
-        op = HiveOperator(hiveconf_jinja_translate=True, task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
+        op = MockHiveOperator(
+            hiveconf_jinja_translate=True, task_id='dry_run_basic_hql', hql=hql, dag=self.dag
+        )
         op.prepare_template()
         assert op.hql == "SELECT {{ num_col }} FROM {{ table }};"
 
     def test_hiveconf(self):
         hql = "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
-        op = HiveOperator(
+        op = MockHiveOperator(
             hiveconfs={'table': 'static_babynames', 'day': '{{ ds }}'},
             task_id='dry_run_basic_hql',
             hql=hql,
@@ -77,7 +81,7 @@ class HiveOperatorTest(TestHiveEnvironment):
     def test_mapred_job_name(self, mock_get_hook):
         mock_hook = mock.MagicMock()
         mock_get_hook.return_value = mock_hook
-        op = HiveOperator(task_id='test_mapred_job_name', hql=self.hql, dag=self.dag)
+        op = MockHiveOperator(task_id='test_mapred_job_name', hql=self.hql, dag=self.dag)
 
         fake_dagrun_id = "test_mapred_job_name"
         fake_execution_date = timezone.datetime(2018, 6, 19)

@@ -18,19 +18,18 @@
 import re
 import sys
 import time
-import warnings
 from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
 from threading import Event, Thread
-from typing import Dict, Generator, Optional, Sequence
+from typing import Dict, Generator, Optional
 
 from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError
+from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
@@ -39,7 +38,7 @@ from airflow.utils.session import provide_session
 
 def should_retry(exception: Exception):
     """Check if exception is related to ECS resource quota (CPU, MEM)."""
-    if isinstance(exception, EcsOperatorError):
+    if isinstance(exception, ECSOperatorError):
         return any(
             quota_reason in failure['reason']
             for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
@@ -49,10 +48,10 @@ def should_retry(exception: Exception):
 
 
 @runtime_checkable
-class EcsProtocol(Protocol):
+class ECSProtocol(Protocol):
     """
     A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
-    :py:meth:`.EcsOperator.client`.
+    :py:meth:`.ECSOperator.client`.
 
     .. seealso::
 
@@ -85,7 +84,7 @@ class EcsProtocol(Protocol):
         ...
 
 
-class EcsTaskLogFetcher(Thread):
+class ECSTaskLogFetcher(Thread):
     """
     Fetches Cloudwatch log events with specific interval as a thread
     and sends the log events to the info channel of the provided logger.
@@ -152,13 +151,13 @@ class EcsTaskLogFetcher(Thread):
         self._event.set()
 
 
-class EcsOperator(BaseOperator):
+class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EcsOperator`
+        :ref:`howto/operator:ECSOperator`
 
     :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str
@@ -226,7 +225,7 @@ class EcsOperator(BaseOperator):
     """
 
     ui_color = '#f0ede4'
-    template_fields: Sequence[str] = ('overrides',)
+    template_fields = ('overrides',)
     template_fields_renderers = {
         "overrides": "json",
         "network_configuration": "json",
@@ -290,17 +289,17 @@ class EcsOperator(BaseOperator):
             self.awslogs_region = region_name
 
         self.hook: Optional[AwsBaseHook] = None
-        self.client: Optional[EcsProtocol] = None
+        self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
         self.retry_args = quota_retry
-        self.task_log_fetcher: Optional[EcsTaskLogFetcher] = None
+        self.task_log_fetcher: Optional[ECSTaskLogFetcher] = None
 
     @provide_session
     def execute(self, context, session=None):
         self.log.info(
             'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
-        self.log.info('EcsOperator overrides: %s', self.overrides)
+        self.log.info('ECSOperator overrides: %s', self.overrides)
 
         self.client = self.get_hook().get_conn()
 
@@ -372,7 +371,7 @@ class EcsOperator(BaseOperator):
 
         failures = response['failures']
         if len(failures) > 0:
-            raise EcsOperatorError(failures, response)
+            raise ECSOperatorError(failures, response)
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
@@ -431,12 +430,11 @@ class EcsOperator(BaseOperator):
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
+    def _get_task_log_fetcher(self) -> ECSTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
-
-        return EcsTaskLogFetcher(
+        return ECSTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,
@@ -511,50 +509,3 @@ class EcsOperator(BaseOperator):
             cluster=self.cluster, task=self.arn, reason='Task killed by the user'
         )
         self.log.info(response)
-
-
-class ECSOperator(EcsOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class ECSTaskLogFetcher(EcsTaskLogFetcher):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsTaskLogFetcher`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsTaskLogFetcher`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class ECSProtocol(EcsProtocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.
-    """
-
-    def __init__(self):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )

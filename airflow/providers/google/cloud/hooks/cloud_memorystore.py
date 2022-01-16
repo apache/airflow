@@ -939,7 +939,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         parameters: Union[Dict, cloud_memcache.MemcacheParameters],
         project_id: str,
         location: str,
-        instance_id: str,
+        instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),

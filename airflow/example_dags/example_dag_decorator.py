@@ -23,7 +23,6 @@ import httpx
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.email import EmailOperator
-from airflow.utils.context import Context
 
 
 class GetRequestOperator(BaseOperator):
@@ -33,7 +32,7 @@ class GetRequestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.url = url
 
-    def execute(self, context: Context):
+    def execute(self, context):
         return httpx.get(self.url).json()
 
 

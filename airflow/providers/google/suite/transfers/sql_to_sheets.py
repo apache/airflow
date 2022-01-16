@@ -58,7 +58,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "sql",
         "spreadsheet_id",
         "spreadsheet_range",
@@ -66,7 +66,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     )
 
     template_fields_renderers = {"sql": "sql"}
-    template_ext: Sequence[str] = (".sql",)
+    template_ext = (".sql",)
 
     ui_color = "#a0e08c"
 

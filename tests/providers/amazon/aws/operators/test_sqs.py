@@ -23,8 +23,8 @@ from unittest.mock import MagicMock
 from moto import mock_sqs
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook
+from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
@@ -33,12 +33,12 @@ QUEUE_NAME = 'test-queue'
 QUEUE_URL = f'https://{QUEUE_NAME}'
 
 
-class TestSqsPublishOperator(unittest.TestCase):
+class TestSQSPublishOperator(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
-        self.operator = SqsPublishOperator(
+        self.operator = SQSPublishOperator(
             task_id='test_task',
             dag=self.dag,
             sqs_queue=QUEUE_URL,
@@ -47,7 +47,7 @@ class TestSqsPublishOperator(unittest.TestCase):
         )
 
         self.mock_context = MagicMock()
-        self.sqs_hook = SqsHook()
+        self.sqs_hook = SQSHook()
 
     @mock_sqs
     def test_execute_success(self):

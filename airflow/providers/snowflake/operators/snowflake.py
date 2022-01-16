@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, List, Optional, Sequence, SupportsAbs
+from typing import Any, List, Optional, SupportsAbs
 
 from airflow.models import BaseOperator
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
@@ -85,8 +85,8 @@ class SnowflakeOperator(BaseOperator):
     :type session_parameters: dict
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -198,8 +198,8 @@ class SnowflakeCheckOperator(SQLCheckOperator):
     :type session_parameters: dict
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(

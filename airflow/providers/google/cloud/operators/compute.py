@@ -18,7 +18,7 @@
 """This module contains Google Compute Engine operators."""
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 from json_merge_patch import merge
@@ -28,9 +28,6 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class ComputeEngineBaseOperator(BaseOperator):
@@ -64,7 +61,7 @@ class ComputeEngineBaseOperator(BaseOperator):
         if not self.resource_id:
             raise AirflowException("The required parameter 'resource_id' is missing")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         pass
 
 
@@ -102,7 +99,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_start_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'zone',
         'resource_id',
@@ -112,7 +109,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_start_template_fields]
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -155,7 +152,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_stop_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'zone',
         'resource_id',
@@ -165,7 +162,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_stop_template_fields]
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -220,7 +217,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_set_machine_type_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'zone',
         'resource_id',
@@ -264,7 +261,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -383,7 +380,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
 
     # [START gce_instance_template_copy_operator_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'resource_id',
         'request_id',
@@ -433,7 +430,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body_patch)
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -516,7 +513,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     """
 
     # [START gce_igm_update_template_operator_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'resource_id',
         'zone',
@@ -571,7 +568,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             dictionary['instanceTemplate'] = self.destination_template
             self._change_performed = True
 
-    def execute(self, context: 'Context') -> Optional[bool]:
+    def execute(self, context) -> Optional[bool]:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

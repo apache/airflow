@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Sequence
+from typing import Dict
 
 from airflow.models import BaseOperator
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class InfluxDBOperator(BaseOperator):
@@ -39,7 +36,7 @@ class InfluxDBOperator(BaseOperator):
     :type influxdb_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields = ['sql']
 
     def __init__(
         self,
@@ -52,7 +49,7 @@ class InfluxDBOperator(BaseOperator):
         self.influxdb_conn_id = influxdb_conn_id
         self.sql = sql
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
         self.hook = InfluxDBHook(conn_id=self.influxdb_conn_id)
         self.hook.query(self.sql)

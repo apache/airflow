@@ -15,15 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from typing import Any, Callable, Dict, Optional
 
 from jira.resources import Issue, Resource
 
 from airflow.providers.jira.operators.jira import JIRAError, JiraOperator
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class JiraSensor(BaseSensorOperator):
@@ -64,7 +61,7 @@ class JiraSensor(BaseSensorOperator):
             result_processor=self.result_processor,
         )
 
-    def poke(self, context: 'Context') -> Any:
+    def poke(self, context: Dict) -> Any:
         return self.jira_operator.execute(context=context)
 
 
@@ -84,7 +81,7 @@ class JiraTicketSensor(JiraSensor):
     :type result_processor: function
     """
 
-    template_fields: Sequence[str] = ("ticket_id",)
+    template_fields = ("ticket_id",)
 
     def __init__(
         self,
@@ -106,7 +103,7 @@ class JiraTicketSensor(JiraSensor):
 
         super().__init__(jira_conn_id=jira_conn_id, result_processor=field_checker_func, **kwargs)
 
-    def poke(self, context: 'Context') -> Any:
+    def poke(self, context: Dict) -> Any:
         self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
         self.jira_operator.method_name = "issue"

@@ -534,7 +534,7 @@ def dag_maker(request):
 
             if "run_type" not in kwargs:
                 kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
-            if kwargs.get("execution_date") is None:
+            if "execution_date" not in kwargs:
                 if kwargs["run_type"] == DagRunType.MANUAL:
                     kwargs["execution_date"] = self.start_date
                 else:
@@ -597,7 +597,6 @@ def dag_maker(request):
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
-            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             for attempt in run_with_db_retries(logger=self.log):
@@ -612,19 +611,16 @@ def dag_maker(request):
                         SerializedDagModel.dag_id.in_(dag_ids)
                     ).delete(synchronize_session=False)
                     self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
+                        synchronize_session=False
                     )
                     self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
+                        synchronize_session=False
                     )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
+                        synchronize_session=False
                     )
                     self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
+                        synchronize_session=False
                     )
                     self.session.commit()
                     if self._own_session:
@@ -703,15 +699,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
     Uses ``create_dummy_dag`` to create the dag structure.
     """
 
-    def maker(
-        execution_date=None,
-        dagrun_state=None,
-        state=None,
-        run_id=None,
-        run_type=None,
-        data_interval=None,
-        **kwargs,
-    ):
+    def maker(execution_date=None, dagrun_state=None, state=None, run_id=None, run_type=None, **kwargs):
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -723,8 +711,6 @@ def create_task_instance(dag_maker, create_dummy_dag):
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:
             dagrun_kwargs["run_type"] = run_type
-        if data_interval is not None:
-            dagrun_kwargs["data_interval"] = data_interval
         dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
         (ti,) = dagrun.task_instances
         ti.state = state

@@ -93,18 +93,7 @@ spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{- if $affinity }}
 {{ toYaml $affinity | indent 8 }}
-{{- else }}
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  component: scheduler
-              topologyKey: kubernetes.io/hostname
-            weight: 100
-{{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
@@ -157,7 +146,6 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-              - CONNECTION_CHECK_MAX_COUNT=0
               - /entrypoint
               - python
               - -Wignore

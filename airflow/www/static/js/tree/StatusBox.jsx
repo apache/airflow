@@ -33,9 +33,9 @@ const StatusBox = ({
   group, instance, containerRef, extraLinks = [], ...rest
 }) => {
   const {
-    executionDate, taskId, tryNumber = 0, operator, runId,
+    executionDate, taskId, tryNumber = 0, operator,
   } = instance;
-  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined, runId);
+  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined);
 
   return (
     <Tooltip

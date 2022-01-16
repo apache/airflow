@@ -268,7 +268,7 @@ class BaseSerialization:
 
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
-            elif key == "timetable" and value is not None:
+            elif key == "timetable":
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
@@ -446,18 +446,11 @@ class BaseSerialization:
         """Serialize Params dict for a DAG/Task"""
         serialized_params = {}
         for k, v in params.items():
-            # TODO: As of now, we would allow serialization of params which are of type Param only.
-            try:
-                class_identity = f"{v.__module__}.{v.__class__.__name__}"
-            except AttributeError:
-                class_identity = ""
-            if class_identity == "airflow.models.param.Param":
+            # TODO: As of now, we would allow serialization of params which are of type Param only
+            if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
                 serialized_params[k] = cls._serialize_param(v)
             else:
-                raise ValueError(
-                    f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
-                    f"but param {k!r} is {v.__class__}"
-                )
+                raise ValueError('Params to a DAG or a Task can be only of type airflow.models.param.Param')
         return serialized_params
 
     @classmethod
@@ -622,9 +615,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-            if k == "label":
-                # Label shouldn't be set anymore --  it's computed from task_id now
-                continue
+
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
@@ -975,7 +966,10 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
             "children": {
-                label: child.serialize_for_task_group() for label, child in task_group.children.items()
+                label: (DAT.OP, child.task_id)
+                if isinstance(child, BaseOperator)
+                else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+                for label, child in task_group.children.items()
             },
             "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
             "downstream_group_ids": cls._serialize(sorted(task_group.downstream_group_ids)),
@@ -1008,10 +1002,10 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
             for label, (_type, val) in encoded_group["children"].items()
         }
-        group.upstream_group_ids.update(cls._deserialize(encoded_group["upstream_group_ids"]))
-        group.downstream_group_ids.update(cls._deserialize(encoded_group["downstream_group_ids"]))
-        group.upstream_task_ids.update(cls._deserialize(encoded_group["upstream_task_ids"]))
-        group.downstream_task_ids.update(cls._deserialize(encoded_group["downstream_task_ids"]))
+        group.upstream_group_ids = set(cls._deserialize(encoded_group["upstream_group_ids"]))
+        group.downstream_group_ids = set(cls._deserialize(encoded_group["downstream_group_ids"]))
+        group.upstream_task_ids = set(cls._deserialize(encoded_group["upstream_task_ids"]))
+        group.downstream_task_ids = set(cls._deserialize(encoded_group["downstream_task_ids"]))
         return group
 
 

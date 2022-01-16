@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.settings import WEB_COLORS
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SparkSubmitOperator(BaseOperator):
@@ -97,7 +94,7 @@ class SparkSubmitOperator(BaseOperator):
     :type spark_binary: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         '_application',
         '_conf',
         '_files',
@@ -175,7 +172,7 @@ class SparkSubmitOperator(BaseOperator):
         self._hook: Optional[SparkSubmitHook] = None
         self._conn_id = conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         """Call the SparkSubmitHook to run the provided spark job"""
         if self._hook is None:
             self._hook = self._get_hook()

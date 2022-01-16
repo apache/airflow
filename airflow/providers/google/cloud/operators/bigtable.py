@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Cloud Bigtable operators."""
 import enum
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
@@ -26,9 +26,6 @@ from google.cloud.bigtable_admin_v2 import enums
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class BigtableValidationMixin:
@@ -104,13 +101,13 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ('instance_id', 'main_cluster_id', 'main_cluster_zone')
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = [
         'project_id',
         'instance_id',
         'main_cluster_id',
         'main_cluster_zone',
         'impersonation_chain',
-    )
+    ]
 
     def __init__(
         self,
@@ -150,7 +147,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -225,11 +222,11 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ['instance_id']
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = [
         'project_id',
         'instance_id',
         'impersonation_chain',
-    )
+    ]
 
     def __init__(
         self,
@@ -255,7 +252,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -308,11 +305,11 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id',)  # type: Iterable[str]
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'instance_id',
         'impersonation_chain',
-    )
+    ]  # type: Iterable[str]
 
     def __init__(
         self,
@@ -330,7 +327,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -388,12 +385,12 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    )
+    ]  # type: Iterable[str]
 
     def __init__(
         self,
@@ -438,7 +435,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
                 return False
         return True
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -497,12 +494,12 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    )
+    ]  # type: Iterable[str]
 
     def __init__(
         self,
@@ -524,7 +521,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -581,13 +578,13 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'cluster_id', 'nodes')  # type: Iterable[str]
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'instance_id',
         'cluster_id',
         'nodes',
         'impersonation_chain',
-    )
+    ]  # type: Iterable[str]
 
     def __init__(
         self,
@@ -609,7 +606,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.segment.hooks.segment import SegmentHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SegmentTrackEventOperator(BaseOperator):
@@ -41,7 +38,7 @@ class SegmentTrackEventOperator(BaseOperator):
     :type segment_debug_mode: bool
     """
 
-    template_fields: Sequence[str] = ('user_id', 'event', 'properties')
+    template_fields = ('user_id', 'event', 'properties')
     ui_color = '#ffd700'
 
     def __init__(
@@ -62,7 +59,7 @@ class SegmentTrackEventOperator(BaseOperator):
         self.segment_debug_mode = segment_debug_mode
         self.segment_conn_id = segment_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Dict) -> None:
         hook = SegmentHook(segment_conn_id=self.segment_conn_id, segment_debug_mode=self.segment_debug_mode)
 
         self.log.info(

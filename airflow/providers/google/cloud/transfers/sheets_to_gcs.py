@@ -17,14 +17,11 @@
 
 import csv
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GoogleSheetsToGCSOperator(BaseOperator):
@@ -63,13 +60,13 @@ class GoogleSheetsToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = [
         "spreadsheet_id",
         "destination_bucket",
         "destination_path",
         "sheet_filter",
         "impersonation_chain",
-    )
+    ]
 
     def __init__(
         self,
@@ -120,7 +117,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
             )
         return dest_file_name
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         sheet_hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

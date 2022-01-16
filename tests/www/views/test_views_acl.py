@@ -34,7 +34,6 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 NEXT_YEAR = datetime.datetime.now().year + 1
 DEFAULT_DATE = timezone.datetime(NEXT_YEAR, 6, 1)
-DEFAULT_RUN_ID = "TEST_RUN_ID"
 USER_DATA = {
     "dag_tester": (
         "dag_acl_tester",
@@ -151,7 +150,6 @@ def reset_dagruns():
 @pytest.fixture(autouse=True)
 def init_dagruns(acl_app, reset_dagruns):
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
-        run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -730,7 +728,7 @@ def test_failed_success(client_all_dags_edit_tis):
     form = dict(
         task_id="run_this_last",
         dag_id="example_bash_operator",
-        dag_run_id=DEFAULT_RUN_ID,
+        execution_date=DEFAULT_DATE,
         upstream="false",
         downstream="false",
         future="false",

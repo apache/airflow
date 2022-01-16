@@ -20,12 +20,13 @@
 
 if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
   echo "::set-output name=branch::constraints-main"
+elif [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
+  echo "::set-output name=branch::constraints-main"
 elif [[ ${GITHUB_REF} =~ refs/heads/v([0-9\-]*)\-(test|stable) ]]; then
   echo "::set-output name=branch::constraints-${BASH_REMATCH[1]}"
 else
-  # Assume PR to constraints-main here
   echo
-  echo "[${COLOR_YELLOW}Assuming that the PR is to 'main' branch!${COLOR_RESET}"
+  echo "Unexpected ref ${GITHUB_REF}. Exiting!"
   echo
-  echo "::set-output name=branch::constraints-main"
+  exit 1
 fi

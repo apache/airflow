@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.dingding.hooks.dingding import DingdingHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class DingdingOperator(BaseOperator):
@@ -46,7 +43,7 @@ class DingdingOperator(BaseOperator):
     :type at_all: bool
     """
 
-    template_fields: Sequence[str] = ('message',)
+    template_fields = ('message',)
     ui_color = '#4ea4d4'  # Dingding icon color
 
     def __init__(
@@ -66,7 +63,7 @@ class DingdingOperator(BaseOperator):
         self.at_mobiles = at_mobiles
         self.at_all = at_all
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         self.log.info('Sending Dingding message.')
         hook = DingdingHook(
             self.dingding_conn_id, self.message_type, self.message, self.at_mobiles, self.at_all

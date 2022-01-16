@@ -18,7 +18,7 @@
 #
 
 """This module contains Azure Data Explorer operators"""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -47,8 +47,8 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     """
 
     ui_color = '#00a1f2'
-    template_fields: Sequence[str] = ('query', 'database')
-    template_ext: Sequence[str] = ('.kql',)
+    template_fields = ('query', 'database')
+    template_ext = ('.kql',)
 
     def __init__(
         self,

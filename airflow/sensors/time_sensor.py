@@ -20,7 +20,6 @@ import datetime
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
-from airflow.utils.context import Context
 
 
 class TimeSensor(BaseSensorOperator):
@@ -35,7 +34,7 @@ class TimeSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.target_time = target_time
 
-    def poke(self, context: Context):
+    def poke(self, context):
         self.log.info('Checking if the time (%s) has come', self.target_time)
         return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
 
@@ -57,7 +56,7 @@ class TimeSensorAsync(BaseSensorOperator):
             datetime.datetime.combine(datetime.datetime.today(), self.target_time)
         )
 
-    def execute(self, context: Context):
+    def execute(self, context):
         self.defer(
             trigger=DateTimeTrigger(moment=self.target_datetime),
             method_name="execute_complete",

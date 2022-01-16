@@ -19,15 +19,12 @@
 import ast
 import os
 import shutil
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 from spython.main import Client
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SingularityOperator(BaseOperator):
@@ -64,11 +61,11 @@ class SingularityOperator(BaseOperator):
     :type working_dir: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'command',
         'environment',
     )
-    template_ext: Sequence[str] = (
+    template_ext = (
         '.sh',
         '.bash',
     )
@@ -105,7 +102,7 @@ class SingularityOperator(BaseOperator):
         self.cli = None
         self.container = None
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
 
         self.log.info('Preparing Singularity container %s', self.image)
         self.cli = Client

@@ -19,15 +19,12 @@
 """This module allows you to transfer data from any Google API endpoint into a S3 Bucket."""
 import json
 import sys
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator, TaskInstance
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GoogleApiToS3Operator(BaseOperator):
@@ -95,12 +92,12 @@ class GoogleApiToS3Operator(BaseOperator):
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'google_api_endpoint_params',
         's3_destination_key',
         'google_impersonation_chain',
     )
-    template_ext: Sequence[str] = ()
+    template_ext = ()
     ui_color = '#cc181e'
 
     def __init__(
@@ -140,7 +137,7 @@ class GoogleApiToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.google_impersonation_chain = google_impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         """
         Transfers Google APIs json data to S3.
 

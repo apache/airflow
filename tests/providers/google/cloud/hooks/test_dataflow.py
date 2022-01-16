@@ -19,6 +19,7 @@
 
 import copy
 import shlex
+import subprocess
 import unittest
 from typing import Any, Dict
 from unittest import mock
@@ -1107,7 +1108,8 @@ class TestDataflowTemplateHook(unittest.TestCase):
                 '--bigquery-table=beam_output',
                 '--bigquery-write-disposition=write-truncate',
             ],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         mock_controller.assert_called_once_with(
             dataflow=mock_get_conn.return_value,

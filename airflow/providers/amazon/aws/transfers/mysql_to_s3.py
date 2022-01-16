@@ -21,7 +21,7 @@ import warnings
 from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -31,10 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 FILE_FORMAT = Enum(
     "FILE_FORMAT",
@@ -60,8 +56,6 @@ class MySQLToS3Operator(BaseOperator):
     :type s3_bucket: str
     :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :type s3_key: str
-    :param replace: whether or not to replace the file in S3 if it previously existed
-    :type replace: bool
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
@@ -89,12 +83,12 @@ class MySQLToS3Operator(BaseOperator):
     :type pd_kwargs: dict
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         's3_bucket',
         's3_key',
         'query',
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext = ('.sql',)
     template_fields_renderers = {
         "query": "sql",
         "pd_csv_kwargs": "json",
@@ -107,7 +101,6 @@ class MySQLToS3Operator(BaseOperator):
         query: str,
         s3_bucket: str,
         s3_key: str,
-        replace: bool = False,
         mysql_conn_id: str = 'mysql_default',
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
@@ -125,7 +118,6 @@ class MySQLToS3Operator(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.replace = replace
 
         if file_format == "csv":
             self.file_format = FILE_FORMAT.CSV
@@ -169,7 +161,7 @@ class MySQLToS3Operator(BaseOperator):
                     df[col] = np.where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(pd.Int64Dtype())
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         mysql_hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = mysql_hook.get_pandas_df(self.query)
@@ -182,9 +174,7 @@ class MySQLToS3Operator(BaseOperator):
                 data_df.to_csv(tmp_file.name, **self.pd_kwargs)
             else:
                 data_df.to_parquet(tmp_file.name, **self.pd_kwargs)
-            s3_conn.load_file(
-                filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
-            )
+            s3_conn.load_file(filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)

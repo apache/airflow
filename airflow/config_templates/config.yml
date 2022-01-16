@@ -71,14 +71,6 @@
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
-    - name: sql_alchemy_engine_args
-      description: |
-        Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
-      version_added: 2.3.0
-      type: string
-      sensitive: true
-      example: '{"arg1": True}'
-      default: ~
     - name: sql_engine_encoding
       description: |
         The encoding for the databases
@@ -479,7 +471,7 @@
     - name: remote_log_conn_id
       description: |
         Users must supply an Airflow connection id that provides access to the storage
-        location. Note: This is only used for reading logs, not writing logs
+        location.
       version_added: 2.0.0
       type: string
       example: ~
@@ -1678,13 +1670,6 @@
       type: string
       example: ~
       default: "False"
-    - name: stuck_queued_task_check_interval
-      description: |
-        How often to check for stuck queued task (in seconds)
-      version_added: 2.3.0
-      type: integer
-      example: ~
-      default: "300"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the

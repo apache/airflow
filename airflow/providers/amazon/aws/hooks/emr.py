@@ -39,7 +39,7 @@ class EmrHook(AwsBaseHook):
     conn_name_attr = 'emr_conn_id'
     default_conn_name = 'emr_default'
     conn_type = 'emr'
-    hook_name = 'Amazon Elastic MapReduce'
+    hook_name = 'Elastic MapReduce'
 
     def __init__(self, emr_conn_id: Optional[str] = default_conn_name, *args, **kwargs) -> None:
         self.emr_conn_id = emr_conn_id
@@ -118,7 +118,7 @@ class EmrContainerHook(AwsBaseHook):
     )
     SUCCESS_STATES = ("COMPLETED",)
 
-    def __init__(self, *args: Any, virtual_cluster_id: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, virtual_cluster_id: str = None, **kwargs: Any) -> None:
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 

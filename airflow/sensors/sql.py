@@ -16,13 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Sequence
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
 
 
 class SqlSensor(BaseSensorOperator):
@@ -55,8 +54,8 @@ class SqlSensor(BaseSensorOperator):
     :type hook_params: dict
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = (
+    template_fields: Iterable[str] = ('sql',)
+    template_ext: Iterable[str] = (
         '.hql',
         '.sql',
     )
@@ -93,7 +92,7 @@ class SqlSensor(BaseSensorOperator):
             )
         return hook
 
-    def poke(self, context: Context):
+    def poke(self, context):
         hook = self._get_hook()
 
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)

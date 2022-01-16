@@ -17,13 +17,10 @@
 # under the License.
 #
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class EC2InstanceStateSensor(BaseSensorOperator):
@@ -39,7 +36,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields: Sequence[str] = ("target_state", "instance_id", "region_name")
+    template_fields = ("target_state", "instance_id", "region_name")
     ui_color = "#cc8811"
     ui_fgcolor = "#ffffff"
     valid_states = ["running", "stopped", "terminated"]
@@ -61,7 +58,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         instance_state = ec2_hook.get_instance_state(instance_id=self.instance_id)
         self.log.info("instance state: %s", instance_state)

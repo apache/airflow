@@ -48,7 +48,6 @@ class TestMySqlToS3Operator(unittest.TestCase):
                 aws_conn_id="aws_conn_id",
                 task_id="task_id",
                 index=True,
-                replace=True,
                 header=True,
                 pd_csv_kwargs={'index': False, 'header': False},
                 dag=None,
@@ -61,10 +60,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
 
             temp_mock.assert_called_once_with(mode='r+', suffix=".csv")
             mock_s3_hook.return_value.load_file.assert_called_once_with(
-                filename=f.name,
-                key=s3_key,
-                bucket_name=s3_bucket,
-                replace=True,
+                filename=f.name, key=s3_key, bucket_name=s3_bucket
             )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.NamedTemporaryFile")
@@ -89,7 +85,6 @@ class TestMySqlToS3Operator(unittest.TestCase):
                 aws_conn_id="aws_conn_id",
                 task_id="task_id",
                 file_format="parquet",
-                replace=False,
                 dag=None,
             )
             op.execute(None)
@@ -100,7 +95,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
 
             temp_mock.assert_called_once_with(mode='rb+', suffix=".parquet")
             mock_s3_hook.return_value.load_file.assert_called_once_with(
-                filename=f.name, key=s3_key, bucket_name=s3_bucket, replace=False
+                filename=f.name, key=s3_key, bucket_name=s3_bucket
             )
 
     def test_fix_int_dtypes(self):

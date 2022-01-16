@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.providers.amazon.aws.hooks.sqs import SqsHook
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 
 try:
     from moto import mock_sqs
@@ -28,8 +28,8 @@ except ImportError:
 
 
 @unittest.skipIf(mock_sqs is None, 'moto sqs package missing')
-class TestSqsHook(unittest.TestCase):
+class TestAwsSQSHook(unittest.TestCase):
     @mock_sqs
     def test_get_conn(self):
-        hook = SqsHook(aws_conn_id='aws_default')
+        hook = SQSHook(aws_conn_id='aws_default')
         assert hook.get_conn() is not None

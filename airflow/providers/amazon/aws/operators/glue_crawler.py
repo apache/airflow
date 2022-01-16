@@ -17,11 +17,6 @@
 # under the License.
 import sys
 import warnings
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -65,7 +60,7 @@ class GlueCrawlerOperator(BaseOperator):
         """Create and return an GlueCrawlerHook."""
         return GlueCrawlerHook(self.aws_conn_id)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         """
         Executes AWS Glue Crawler from Airflow
 

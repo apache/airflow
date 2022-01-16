@@ -23,8 +23,6 @@ import pkgutil
 import platform
 import sys
 
-from airflow.compat.functools import cache
-
 IS_WINDOWS = platform.system() == 'Windows'
 
 log = logging.getLogger(__name__)
@@ -65,7 +63,6 @@ def get_airflow_git_version():
     return git_version
 
 
-@cache
 def getuser() -> str:
     """
     Gets the username associated with the current user, or error with a nice

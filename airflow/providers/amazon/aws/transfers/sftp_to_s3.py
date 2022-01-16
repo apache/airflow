@@ -16,15 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SFTPToS3Operator(BaseOperator):
@@ -56,7 +52,7 @@ class SFTPToS3Operator(BaseOperator):
     :type use_temp_file: bool
     """
 
-    template_fields: Sequence[str] = ('s3_key', 'sftp_path')
+    template_fields = ('s3_key', 'sftp_path')
 
     def __init__(
         self,
@@ -83,7 +79,7 @@ class SFTPToS3Operator(BaseOperator):
         parsed_s3_key = urlparse(s3_key)
         return parsed_s3_key.path.lstrip('/')
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.s3_conn_id)

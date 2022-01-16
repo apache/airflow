@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service"""
-from typing import IO, Any, Optional, Sequence, Union
+from io import TextIOWrapper
+from typing import Any, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import HttpRequest, MediaFileUpload
@@ -219,7 +220,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
         return file.get("id")
 
-    def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 104857600):
+    def download_file(self, file_id: str, file_handle: TextIOWrapper, chunk_size: int = 104857600):
         """
         Download a file from Google Drive.
 

@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Union
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.utils.context import Context
 
 
 class GenericTransfer(BaseOperator):
@@ -46,8 +45,8 @@ class GenericTransfer(BaseOperator):
     :type insert_args: dict
     """
 
-    template_fields: Sequence[str] = ('sql', 'destination_table', 'preoperator')
-    template_ext: Sequence[str] = (
+    template_fields = ('sql', 'destination_table', 'preoperator')
+    template_ext = (
         '.sql',
         '.hql',
     )
@@ -73,37 +72,18 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
-    def execute(self, context: Context):
+    def execute(self, context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
-        destination_hook = BaseHook.get_hook(self.destination_conn_id)
 
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Executing: \n %s", self.sql)
-        get_records = getattr(source_hook, 'get_records', None)
-        if not callable(get_records):
-            raise RuntimeError(
-                f"Hook for connection {self.source_conn_id!r} "
-                f"({type(source_hook).__name__}) has no `get_records` method"
-            )
-        else:
-            results = get_records(self.sql)
+        results = source_hook.get_records(self.sql)
 
+        destination_hook = BaseHook.get_hook(self.destination_conn_id)
         if self.preoperator:
-            run = getattr(destination_hook, 'run', None)
-            if not callable(run):
-                raise RuntimeError(
-                    f"Hook for connection {self.destination_conn_id!r} "
-                    f"({type(destination_hook).__name__}) has no `run` method"
-                )
             self.log.info("Running preoperator")
             self.log.info(self.preoperator)
-            run(self.preoperator)
+            destination_hook.run(self.preoperator)
 
-        insert_rows = getattr(destination_hook, 'insert_rows', None)
-        if not callable(insert_rows):
-            raise RuntimeError(
-                f"Hook for connection {self.destination_conn_id!r} "
-                f"({type(destination_hook).__name__}) has no `insert_rows` method"
-            )
         self.log.info("Inserting rows into %s", self.destination_conn_id)
-        insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+        destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)

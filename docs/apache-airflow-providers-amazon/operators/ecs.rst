@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _howto/operator:EcsOperator:
+.. _howto/operator:ECSOperator:
 
 ECS Operator
 ============
@@ -30,14 +30,14 @@ Using Operator
 --------------
 
 Use the
-:class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`
+:class:`~airflow.providers.amazon.aws.operators.ecs.ECSOperator`
 to run a task defined in AWS ECS.
 
 In the following example,
 the task "hello_world" runs ``hello-world`` task in ``c`` cluster.
 It overrides the command in the ``hello-world-container`` container.
 
-Before using EcsOperator, *cluster* and *task definition* need to be created.
+Before using ECSOperator, *cluster* and *task definition* need to be created.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python

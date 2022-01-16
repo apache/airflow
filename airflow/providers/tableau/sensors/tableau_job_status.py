@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
@@ -22,9 +22,6 @@ from airflow.providers.tableau.hooks.tableau import (
     TableauJobFinishCode,
 )
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class TableauJobStatusSensor(BaseSensorOperator):
@@ -42,7 +39,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
     :type tableau_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields = ('job_id',)
 
     def __init__(
         self,
@@ -57,7 +54,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
         self.job_id = job_id
         self.site_id = site_id
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: dict) -> bool:
         """
         Pokes until the job has successfully finished.
 

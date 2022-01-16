@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -44,10 +43,10 @@ class TimeoutTestSensor(BaseSensorOperator):
         self.return_value = return_value
         super().__init__(**kwargs)
 
-    def poke(self, context: Context):
+    def poke(self, context):
         return self.return_value
 
-    def execute(self, context: Context):
+    def execute(self, context):
         started_at = timezone.utcnow()
         time_jump = self.params['time_jump']
         while not self.poke(context):

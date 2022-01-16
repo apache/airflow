@@ -227,7 +227,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery>=5.2.3',
+    'celery~=5.1,>=5.1.2',
     'flower~=1.0.0',
 ]
 cgroups = [
@@ -381,7 +381,7 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0',
+    'kubernetes>=3.0.0, <12.0.0',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
@@ -391,8 +391,7 @@ ldap = [
 leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<3.0.0',
-    # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
-    'pymongo>=3.6.0,<4.0.0',
+    'pymongo>=3.6.0',
 ]
 mssql = [
     'pymssql~=2.1,>=2.1.5',
@@ -589,7 +588,6 @@ devel_only = [
     'pytest-httpx',
     'requests_mock',
     'semver',
-    'twine',
     'wheel',
     'yamllint',
 ]

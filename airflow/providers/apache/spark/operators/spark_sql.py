@@ -16,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import Any, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SparkSqlOperator(BaseOperator):
@@ -63,8 +60,8 @@ class SparkSqlOperator(BaseOperator):
     :type yarn_queue: str
     """
 
-    template_fields: Sequence[str] = ('_sql',)
-    template_ext: Sequence[str] = (".sql", ".hql")
+    template_fields = ["_sql"]
+    template_ext = [".sql", ".hql"]
 
     def __init__(
         self,
@@ -100,7 +97,7 @@ class SparkSqlOperator(BaseOperator):
         self._yarn_queue = yarn_queue
         self._hook: Optional[SparkSqlHook] = None
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         """Call the SparkSqlHook to run the provided sql query"""
         if self._hook is None:
             self._hook = self._get_hook()

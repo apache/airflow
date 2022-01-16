@@ -16,15 +16,12 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):
@@ -74,7 +71,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'bucket',
         'object_name',
         'filename',
@@ -99,9 +96,8 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         # To preserve backward compatibility
         # TODO: Remove one day
         if object_name is None:
-            object_name = kwargs.get('object')
-            if object_name is not None:
-                self.object_name = object_name
+            if 'object' in kwargs:
+                object_name = kwargs['object']
                 DeprecationWarning("Use 'object_name' instead of 'object'.")
             else:
                 TypeError("__init__() missing 1 required positional argument: 'object_name'")
@@ -120,14 +116,14 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
         super().__init__(**kwargs)
         self.bucket = bucket
-        self.filename = filename
         self.object_name = object_name
+        self.filename = filename
         self.store_to_xcom_key = store_to_xcom_key
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Executing download: %s, %s, %s', self.bucket, self.object_name, self.filename)
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

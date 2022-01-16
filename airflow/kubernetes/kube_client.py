@@ -63,6 +63,7 @@ try:
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
 
+
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
     # in the code base

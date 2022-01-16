@@ -32,7 +32,6 @@ import { callModal } from './dag';
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const executionDate = getMetaValue('execution_date');
-const dagRunId = getMetaValue('dag_run_id');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
 
@@ -147,8 +146,8 @@ function draw() {
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
 
-      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId);
-      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId);
+      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
+      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
     }
   });
 

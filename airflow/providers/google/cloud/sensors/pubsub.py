@@ -17,15 +17,12 @@
 # under the License.
 """This module contains a Google PubSub sensor."""
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class PubSubPullSensor(BaseSensorOperator):
@@ -97,11 +94,11 @@ class PubSubPullSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'subscription',
         'impersonation_chain',
-    )
+    ]
     ui_color = '#ff7f50'
 
     def __init__(
@@ -154,12 +151,12 @@ class PubSubPullSensor(BaseSensorOperator):
 
         self._return_value = None
 
-    def execute(self, context: "Context") -> Any:
+    def execute(self, context: dict):
         """Overridden to allow messages to be passed"""
         super().execute(context)
         return self._return_value
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: dict) -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -189,7 +186,7 @@ class PubSubPullSensor(BaseSensorOperator):
     def _default_message_callback(
         self,
         pulled_messages: List[ReceivedMessage],
-        context: "Context",
+        context: Dict[str, Any],
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

@@ -92,13 +92,7 @@ class EksHook(AwsBaseHook):
         kwargs["client_type"] = self.client_type
         super().__init__(*args, **kwargs)
 
-    def create_cluster(
-        self,
-        name: str,
-        roleArn: str,
-        resourcesVpcConfig: Dict,
-        **kwargs,
-    ) -> Dict:
+    def create_cluster(self, name: str, roleArn: str, resourcesVpcConfig: Dict, **kwargs) -> Dict:
         """
         Creates an Amazon EKS control plane.
 
@@ -123,14 +117,7 @@ class EksHook(AwsBaseHook):
         return response
 
     def create_nodegroup(
-        self,
-        clusterName: str,
-        nodegroupName: str,
-        subnets: List[str],
-        nodeRole: str,
-        *,
-        tags: Optional[Dict] = None,
-        **kwargs,
+        self, clusterName: str, nodegroupName: str, subnets: List[str], nodeRole: str, **kwargs
     ) -> Dict:
         """
         Creates an Amazon EKS managed node group for an Amazon EKS Cluster.
@@ -143,28 +130,25 @@ class EksHook(AwsBaseHook):
         :type subnets: List[str]
         :param nodeRole: The Amazon Resource Name (ARN) of the IAM role to associate with your nodegroup.
         :type nodeRole: str
-        :param tags: Optional tags to apply to your nodegroup.
-        :type tags: Dict
 
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
         :rtype: Dict
         """
         eks_client = self.conn
-
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        cluster_tag_key = f'kubernetes.io/cluster/{clusterName}'
-        resolved_tags = tags or {}
-        if cluster_tag_key not in resolved_tags:
-            resolved_tags[cluster_tag_key] = 'owned'
+        tags = {'kubernetes.io/cluster/' + clusterName: 'owned'}
+        if "tags" in kwargs:
+            tags = {**tags, **kwargs["tags"]}
+            kwargs.pop("tags")
 
         response = eks_client.create_nodegroup(
             clusterName=clusterName,
             nodegroupName=nodegroupName,
             subnets=subnets,
             nodeRole=nodeRole,
-            tags=resolved_tags,
+            tags=tags,
             **kwargs,
         )
 
@@ -176,12 +160,7 @@ class EksHook(AwsBaseHook):
         return response
 
     def create_fargate_profile(
-        self,
-        clusterName: str,
-        fargateProfileName: str,
-        podExecutionRoleArn: str,
-        selectors: List,
-        **kwargs,
+        self, clusterName: str, fargateProfileName: str, podExecutionRoleArn: str, selectors: List, **kwargs
     ) -> Dict:
         """
         Creates an AWS Fargate profile for an Amazon EKS cluster.
@@ -387,7 +366,6 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
-            raise
 
     def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
@@ -414,7 +392,6 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return FargateProfileStates.NONEXISTENT
-            raise
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
@@ -439,7 +416,6 @@ class EksHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return NodegroupStates.NONEXISTENT
-            raise
 
     def list_clusters(
         self,
@@ -517,7 +493,7 @@ class EksHook(AwsBaseHook):
         :return: A List of the combined results of the provided API call.
         :rtype: List
         """
-        name_collection: List = []
+        name_collection = []
         token = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:

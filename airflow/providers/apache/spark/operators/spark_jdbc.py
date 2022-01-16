@@ -16,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import Any, Dict, Optional
 
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SparkJDBCOperator(SparkSubmitOperator):
@@ -184,7 +181,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._create_table_column_types = create_table_column_types
         self._hook: Optional[SparkJDBCHook] = None
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         """Call the SparkSubmitHook to run the provided spark job"""
         if self._hook is None:
             self._hook = self._get_hook()

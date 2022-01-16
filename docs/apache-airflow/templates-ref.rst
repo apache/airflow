@@ -166,9 +166,9 @@ Variable                            Description
 ``macros.datetime``                 The standard lib's :class:`datetime.datetime`
 ``macros.timedelta``                The standard lib's :class:`datetime.timedelta`
 ``macros.dateutil``                 A reference to the ``dateutil`` package
-``macros.time``                     The standard lib's :mod:`time`
+``macros.time``                     The standard lib's :class:`datetime.time`
 ``macros.uuid``                     The standard lib's :mod:`uuid`
-``macros.random``                   The standard lib's :class:`random.random`
+``macros.random``                   The standard lib's :mod:`random`
 =================================   ==============================================
 
 Some airflow specific macros are also defined:

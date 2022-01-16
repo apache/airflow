@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Union
 
 import dill
 
@@ -131,14 +131,14 @@ class PythonOperator(BaseOperator):
     :type show_return_value_in_logs: bool
     """
 
-    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     BLUE = '#ffefeb'
     ui_color = BLUE
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = (
+    shallow_copy_attrs = (
         'python_callable',
         'op_kwargs',
     )
@@ -149,8 +149,8 @@ class PythonOperator(BaseOperator):
         python_callable: Callable,
         op_args: Optional[Collection[Any]] = None,
         op_kwargs: Optional[Mapping[str, Any]] = None,
-        templates_dict: Optional[Dict[str, Any]] = None,
-        templates_exts: Optional[Sequence[str]] = None,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[List[str]] = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
@@ -173,7 +173,8 @@ class PythonOperator(BaseOperator):
         self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Context) -> Any:
-        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
+        context_merge(context, self.op_kwargs)
+        context_merge(context, {'templates_dict': self.templates_dict})
         self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
@@ -284,9 +285,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
     :type python_callable: function
-    :param requirements: Either a list of requirement strings, or a (templated)
-        "requirements file" as specified by pip.
-    :type requirements: list[str] | str
+    :param requirements: A list of requirements as specified in a pip install command
+    :type requirements: list[str]
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
     :type python_version: Optional[Union[str, int, float]]
@@ -316,8 +316,6 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_exts: list[str]
     """
 
-    template_fields: Sequence[str] = ('requirements',)
-    template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',
         'ds_nodash',
@@ -356,7 +354,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Union[None, Iterable[str], str] = None,
+        requirements: Optional[Iterable[str]] = None,
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
@@ -392,16 +390,14 @@ class PythonVirtualenvOperator(PythonOperator):
             templates_exts=templates_exts,
             **kwargs,
         )
-        if not requirements:
-            self.requirements: Union[List[str], str] = []
-        elif isinstance(requirements, str):
-            self.requirements = requirements
-        else:
-            self.requirements = list(requirements)
+        self.requirements = list(requirements or [])
         self.string_args = string_args or []
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
+        if not self.system_site_packages:
+            if self.use_dill and 'dill' not in self.requirements:
+                self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Context) -> Any:
@@ -414,19 +410,6 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
-            requirements_file_name = f'{tmp_dir}/requirements.txt'
-
-            if not isinstance(self.requirements, str):
-                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
-            else:
-                requirements_file_contents = self.requirements
-
-            if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += '\ndill'
-
-            with open(requirements_file_name, 'w') as file:
-                file.write(requirements_file_contents)
-
             if self.templates_dict:
                 self.op_kwargs['templates_dict'] = self.templates_dict
 
@@ -439,7 +422,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements_file_path=requirements_file_name,
+                requirements=self.requirements,
             )
 
             self._write_args(input_filename)

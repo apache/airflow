@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HttpSensor(BaseSensorOperator):
@@ -74,7 +71,7 @@ class HttpSensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields: Sequence[str] = ('endpoint', 'request_params', 'headers')
+    template_fields = ('endpoint', 'request_params', 'headers')
 
     def __init__(
         self,
@@ -98,7 +95,7 @@ class HttpSensor(BaseSensorOperator):
 
         self.hook = HttpHook(method=method, http_conn_id=http_conn_id)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Dict[Any, Any]) -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
 
         self.log.info('Poking: %s', self.endpoint)

@@ -19,10 +19,8 @@
 import os
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
-from typing import Sequence
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
 
 
 class BashSensor(BaseSensorOperator):
@@ -43,7 +41,7 @@ class BashSensor(BaseSensorOperator):
     :type output_encoding: str
     """
 
-    template_fields: Sequence[str] = ('bash_command', 'env')
+    template_fields = ('bash_command', 'env')
 
     def __init__(self, *, bash_command, env=None, output_encoding='utf-8', **kwargs):
         super().__init__(**kwargs)
@@ -51,7 +49,7 @@ class BashSensor(BaseSensorOperator):
         self.env = env
         self.output_encoding = output_encoding
 
-    def poke(self, context: Context):
+    def poke(self, context):
         """
         Execute the bash command in a temporary directory
         which will be cleaned afterwards
@@ -76,10 +74,10 @@ class BashSensor(BaseSensorOperator):
                     env=self.env,
                     preexec_fn=os.setsid,
                 ) as resp:
-                    if resp.stdout:
-                        self.log.info("Output:")
-                        for line in iter(resp.stdout.readline, b''):
-                            self.log.info(line.decode(self.output_encoding).strip())
+                    self.log.info("Output:")
+                    for line in iter(resp.stdout.readline, b''):
+                        line = line.decode(self.output_encoding).strip()
+                        self.log.info(line)
                     resp.wait()
                     self.log.info("Command exited with return code %s", resp.returncode)
 

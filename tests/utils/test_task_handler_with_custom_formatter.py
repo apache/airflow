@@ -70,13 +70,7 @@ def custom_prefix_template(task_instance):
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     custom_prefix_template = "{{ ti.dag_id }}-{{ ti.task_id }}"
     with create_session() as session:
-        log_template = session.merge(
-            LogTemplate(
-                filename="irrelevant",
-                task_prefix=custom_prefix_template,
-                elasticsearch_id="irrelevant",
-            ),
-        )
+        log_template = session.merge(LogTemplate(filename="irrelevant", task_prefix=custom_prefix_template))
         session.flush()  # To populate 'log_template.id'.
         session.query(DagRun).filter(*run_filters).update({"log_template_id": log_template.id})
     yield custom_prefix_template

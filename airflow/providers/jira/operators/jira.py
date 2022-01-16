@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jira.hooks.jira import JIRAError, JiraHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class JiraOperator(BaseOperator):
@@ -44,7 +41,7 @@ class JiraOperator(BaseOperator):
     :type get_jira_resource_method: function
     """
 
-    template_fields: Sequence[str] = ("jira_method_args",)
+    template_fields = ("jira_method_args",)
 
     def __init__(
         self,
@@ -63,7 +60,7 @@ class JiraOperator(BaseOperator):
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Dict) -> Any:
         try:
             if self.get_jira_resource_method is not None:
                 # if get_jira_resource_method is provided, jira_method will be executed on

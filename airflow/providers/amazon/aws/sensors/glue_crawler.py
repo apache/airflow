@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GlueCrawlerSensor(BaseSensorOperator):
@@ -45,7 +42,7 @@ class GlueCrawlerSensor(BaseSensorOperator):
         self.errored_statuses = ('FAILED', 'CANCELLED')
         self.hook: Optional[GlueCrawlerHook] = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
         hook = self.get_hook()
         self.log.info("Poking for AWS Glue crawler: %s", self.crawler_name)
         crawler_state = hook.get_crawler(self.crawler_name)['State']

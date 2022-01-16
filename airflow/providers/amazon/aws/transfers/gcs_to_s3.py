@@ -17,14 +17,11 @@
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GCSToS3Operator(BaseOperator):
@@ -87,7 +84,7 @@ class GCSToS3Operator(BaseOperator):
     :type s3_acl_policy: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         'bucket',
         'prefix',
         'delimiter',
@@ -138,7 +135,7 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
 
-    def execute(self, context: 'Context') -> List[str]:
+    def execute(self, context) -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -182,7 +179,7 @@ class GCSToS3Operator(BaseOperator):
                 self.log.info("Saving file to %s", dest_key)
 
                 s3_hook.load_bytes(
-                    file_bytes, key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
+                    cast(bytes, file_bytes), key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
                 )
 
             self.log.info("All done, uploaded %d files to S3", len(files))

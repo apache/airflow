@@ -110,14 +110,11 @@ class TestCliTasks(unittest.TestCase):
 
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
 
-        with self.assertLogs('airflow.models', level='INFO') as cm:
+        with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
-            assert any(
-                [
-                    f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in log
-                    for log in cm.output
-                ]
-            )
+
+        # Check that prints, and log messages, are shown
+        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in stdout.getvalue()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):

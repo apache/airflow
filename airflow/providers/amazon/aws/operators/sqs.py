@@ -16,23 +16,19 @@
 # under the License.
 
 """Publish message to SQS queue"""
-import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 
 
-class SqsPublishOperator(BaseOperator):
+class SQSPublishOperator(BaseOperator):
     """
     Publish message to a SQS queue.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SqsPublishOperator`
+        :ref:`howto/operator:SQSPublishOperator`
 
     :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
@@ -47,7 +43,7 @@ class SqsPublishOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
+    template_fields = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
     template_fields_renderers = {'message_attributes': 'json'}
     ui_color = '#6ad3fa'
 
@@ -68,7 +64,7 @@ class SqsPublishOperator(BaseOperator):
         self.delay_seconds = delay_seconds
         self.message_attributes = message_attributes or {}
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         """
         Publish the message to SQS queue
 
@@ -78,7 +74,7 @@ class SqsPublishOperator(BaseOperator):
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-        hook = SqsHook(aws_conn_id=self.aws_conn_id)
+        hook = SQSHook(aws_conn_id=self.aws_conn_id)
 
         result = hook.send_message(
             queue_url=self.sqs_queue,
@@ -90,19 +86,3 @@ class SqsPublishOperator(BaseOperator):
         self.log.info('result is send_message is %s', result)
 
         return result
-
-
-class SQSPublishOperator(SqsPublishOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

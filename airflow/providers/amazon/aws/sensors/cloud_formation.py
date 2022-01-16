@@ -17,10 +17,7 @@
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
 import sys
-from typing import TYPE_CHECKING, Optional, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Optional
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -44,7 +41,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
+    template_fields = ['stack_name']
     ui_color = '#C5CAE9'
 
     def __init__(self, *, stack_name, aws_conn_id='aws_default', region_name=None, **kwargs):
@@ -53,7 +50,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status == 'CREATE_COMPLETE':
             return True
@@ -80,7 +77,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
+    template_fields = ['stack_name']
     ui_color = '#C5CAE9'
 
     def __init__(
@@ -96,7 +93,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         self.region_name = region_name
         self.stack_name = stack_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status in ('DELETE_COMPLETE', None):
             return True

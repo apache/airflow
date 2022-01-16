@@ -149,14 +149,6 @@ function breeze::setup_default_breeze_constants() {
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
     export AIRFLOW_SOURCES_TO
 
-    # Sources by default are installed from local sources when using breeze
-    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="./airflow/www"}
-    export AIRFLOW_SOURCES_WWW_FROM
-
-    # They are copied to /opt/airflow by default in breeze
-    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/opt/airflow/airflow/www"}
-    export AIRFLOW_SOURCES_WWW_TO
-
     # Unlike in CI scripts, in breeze by default production image is installed from sources
     export AIRFLOW_INSTALLATION_METHOD="."
 
@@ -657,7 +649,6 @@ export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_IMAGE_KUBERNETES="${AIRFLOW_IMAGE_KUBERNETES}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
-export SKIP_TWINE_CHECK="${SKIP_TWINE_CHECK}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
 export EXECUTOR="${EXECUTOR}"
 export START_AIRFLOW="${START_AIRFLOW}"
@@ -983,7 +974,7 @@ function breeze::parse_arguments() {
             echo "Clean build of images without cache"
             echo
             export DOCKER_CACHE="disabled"
-            # if not set here, docker cached is determined later, depending on type of image to be built
+            # if not set here, docker cached is determined later, depending on type of image to be build
             export FORCE_BUILD_IMAGES="true"
             shift
             ;;
@@ -998,21 +989,21 @@ function breeze::parse_arguments() {
             echo "Use local cache to build images"
             echo
             export DOCKER_CACHE="local"
-            # if not set here, docker cached is determined later, depending on type of image to be built
+            # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
         -U | --build-cache-pulled)
             echo "Use pulled cache to build images"
             echo
             export DOCKER_CACHE="pulled"
-            # if not set here, docker cached is determined later, depending on type of image to be built
+            # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
         -X | --build-cache-disabled)
             echo "Use disabled cache to build images"
             echo
             export DOCKER_CACHE="disabled"
-            # if not set here, docker cached is determined later, depending on type of image to be built
+            # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
         -P | --force-pull-images)

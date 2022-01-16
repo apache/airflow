@@ -17,7 +17,6 @@
 # under the License.
 import os
 import warnings
-from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
@@ -51,7 +50,6 @@ from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import callback_requests, timezone
-from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
@@ -59,7 +57,6 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
 
 
@@ -303,9 +300,9 @@ class DagRun(Base, LoggingMixin):
     def find(
         cls,
         dag_id: Optional[Union[str, List[str]]] = None,
-        run_id: Optional[Iterable[str]] = None,
-        execution_date: Optional[Union[datetime, Iterable[datetime]]] = None,
-        state: Optional[DagRunState] = None,
+        run_id: Optional[str] = None,
+        execution_date: Optional[Union[datetime, List[datetime]]] = None,
+        state: Optional[Union[str, DagRunState]] = None,
         external_trigger: Optional[bool] = None,
         no_backfills: bool = False,
         run_type: Optional[DagRunType] = None,
@@ -342,15 +339,13 @@ class DagRun(Base, LoggingMixin):
         dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
         if dag_ids:
             qry = qry.filter(cls.dag_id.in_(dag_ids))
-
-        if is_container(run_id):
-            qry = qry.filter(cls.run_id.in_(run_id))
-        elif run_id is not None:
+        if run_id:
             qry = qry.filter(cls.run_id == run_id)
-        if is_container(execution_date):
-            qry = qry.filter(cls.execution_date.in_(execution_date))
-        elif execution_date is not None:
-            qry = qry.filter(cls.execution_date == execution_date)
+        if execution_date:
+            if isinstance(execution_date, list):
+                qry = qry.filter(cls.execution_date.in_(execution_date))
+            else:
+                qry = qry.filter(cls.execution_date == execution_date)
         if execution_start_date and execution_end_date:
             qry = qry.filter(cls.execution_date.between(execution_start_date, execution_end_date))
         elif execution_start_date:
@@ -809,40 +804,18 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
             session.merge(ti)
 
-        def task_filter(task: "BaseOperator"):
-            return task.task_id not in task_ids and (
-                self.is_backfill or task.start_date <= self.execution_date
-            )
+        # check for missing tasks
+        for task in dag.task_dict.values():
+            if task.start_date > self.execution_date and not self.is_backfill:
+                continue
 
-        created_counts: Dict[str, int] = defaultdict(int)
-
-        # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
-        hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
-
-        if hook_is_noop:
-
-            def create_ti_mapping(task: "BaseOperator"):
-                created_counts[task.task_type] += 1
-                return TI.insert_mapping(self.run_id, task)
-
-        else:
-
-            def create_ti(task: "BaseOperator") -> TI:
+            if task.task_id not in task_ids:
+                Stats.incr(f"task_instance_created-{task.task_type}", 1, 1)
                 ti = TI(task, run_id=self.run_id)
                 task_instance_mutation_hook(ti)
-                created_counts[ti.operator] += 1
-                return ti
+                session.add(ti)
 
-        # Create missing tasks
-        tasks = list(filter(task_filter, dag.task_dict.values()))
         try:
-            if hook_is_noop:
-                session.bulk_insert_mappings(TI, map(create_ti_mapping, tasks))
-            else:
-                session.bulk_save_objects(map(create_ti, tasks))
-
-            for task_type, count in created_counts.items():
-                Stats.incr(f"task_instance_created-{task_type}", count)
             session.flush()
         except IntegrityError as err:
             self.log.info(str(err))

@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class JdbcOperator(BaseOperator):
@@ -47,8 +44,8 @@ class JdbcOperator(BaseOperator):
     :type parameters: dict or iterable
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -67,7 +64,7 @@ class JdbcOperator(BaseOperator):
         self.autocommit = autocommit
         self.hook = None
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
         hook.run(self.sql, self.autocommit, parameters=self.parameters)

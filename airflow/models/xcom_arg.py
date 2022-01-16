@@ -17,11 +17,13 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator, MappedOperator
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskmixin import DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class XComArg(DependencyMixin):
@@ -59,7 +61,7 @@ class XComArg(DependencyMixin):
     :type key: str
     """
 
-    def __init__(self, operator: Union[BaseOperator, MappedOperator], key: str = XCOM_RETURN_KEY):
+    def __init__(self, operator: BaseOperator, key: str = XCOM_RETURN_KEY):
         self._operator = operator
         self._key = key
 
@@ -93,17 +95,17 @@ class XComArg(DependencyMixin):
         return xcom_pull
 
     @property
-    def operator(self) -> Union[BaseOperator, MappedOperator]:
+    def operator(self) -> BaseOperator:
         """Returns operator of this XComArg."""
         return self._operator
 
     @property
-    def roots(self) -> List[DAGNode]:
+    def roots(self) -> List[BaseOperator]:
         """Required by TaskMixin"""
         return [self._operator]
 
     @property
-    def leaves(self) -> List[DAGNode]:
+    def leaves(self) -> List[BaseOperator]:
         """Required by TaskMixin"""
         return [self._operator]
 
@@ -128,15 +130,18 @@ class XComArg(DependencyMixin):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Context) -> Any:
+    def resolve(self, context: "Context") -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = context['ti'].xcom_pull(task_ids=[self.operator.task_id], key=str(self.key))
+        resolved_value = self.operator.xcom_pull(
+            context=context,
+            task_ids=[self.operator.task_id],
+            key=str(self.key),  # xcom_pull supports only key as str
+            dag_id=self.operator.dag.dag_id,
+        )
         if not resolved_value:
-            if TYPE_CHECKING:
-                assert self.operator.dag
             raise AirflowException(
                 f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
                 f'with key="{self.key}"" is not found!'

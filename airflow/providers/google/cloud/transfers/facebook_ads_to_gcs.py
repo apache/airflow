@@ -20,7 +20,7 @@ import csv
 import tempfile
 import warnings
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
@@ -28,9 +28,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class FlushAction(Enum):
@@ -97,7 +94,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "facebook_conn_id",
         "bucket_name",
         "object_name",
@@ -144,7 +141,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             )
             self.parameters = params
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )

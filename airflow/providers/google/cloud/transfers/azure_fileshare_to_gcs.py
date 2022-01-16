@@ -17,15 +17,12 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class AzureFileShareToGCSOperator(BaseOperator):
@@ -71,7 +68,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         'share_name',
         'directory_name',
         'prefix',
@@ -117,7 +114,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(self.azure_fileshare_conn_id)
         files = azure_fileshare_hook.list_files(
@@ -155,25 +152,27 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         if files:
             self.log.info('%s files are going to be synced.', len(files))
-            if self.directory_name is None:
-                raise RuntimeError("The directory_name must be set!.")
-            for file in files:
-                with NamedTemporaryFile() as temp_file:
-                    azure_fileshare_hook.get_file_to_stream(
-                        stream=temp_file,
-                        share_name=self.share_name,
-                        directory_name=self.directory_name,
-                        file_name=file,
-                    )
-                    temp_file.flush()
-
-                    # There will always be a '/' before file because it is
-                    # enforced at instantiation time
-                    dest_gcs_object = dest_gcs_object_prefix + file
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
-            self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
             self.log.info('There are no new files to sync. Have a nice day!')
+
+        for file in files:
+            with NamedTemporaryFile() as temp_file:
+                azure_fileshare_hook.get_file_to_stream(
+                    stream=temp_file,
+                    share_name=self.share_name,
+                    directory_name=self.directory_name,
+                    file_name=file,
+                )
+                temp_file.flush()
+
+                # There will always be a '/' before file because it is
+                # enforced at instantiation time
+                dest_gcs_object = dest_gcs_object_prefix + file
+                gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
+
+        if files:
+            self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
+        else:
             self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
 
         return files

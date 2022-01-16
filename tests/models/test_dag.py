@@ -27,7 +27,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional, Sequence
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -548,7 +548,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = template_file
-            task.template_fields: Sequence[str] = ('test_field',)
+            task.template_fields = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -566,7 +566,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = [template_file, 'some_string']
-            task.template_fields: Sequence[str] = ('test_field',)
+            task.template_fields = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -581,7 +581,6 @@ class TestDag(unittest.TestCase):
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
-        assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
 
         dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
         _next = dag.following_schedule(utc)
@@ -2189,8 +2188,7 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.params['value'] == self.VALUE
 
 
-@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
-def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
+def test_set_task_instance_state(session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2203,12 +2201,7 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    dagrun = dag_maker.create_dagrun(
-        run_id=run_id,
-        execution_date=execution_date,
-        state=State.FAILED,
-        run_type=DagRunType.SCHEDULED,
-    )
+    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
 
     def get_ti_from_db(task):
         return (
@@ -2230,11 +2223,7 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     session.flush()
 
     altered = dag.set_task_instance_state(
-        task_id=task_1.task_id,
-        dag_run_id=run_id,
-        execution_date=execution_date,
-        state=State.SUCCESS,
-        session=session,
+        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS, session=session
     )
 
     # After _mark_task_instance_state, task_1 is marked as SUCCESS

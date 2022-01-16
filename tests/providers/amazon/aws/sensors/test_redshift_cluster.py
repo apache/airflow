@@ -19,7 +19,7 @@ import unittest
 
 import boto3
 
-from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+from airflow.providers.amazon.aws.sensors.redshift_cluster import AwsRedshiftClusterSensor
 
 try:
     from moto import mock_redshift
@@ -27,7 +27,7 @@ except ImportError:
     mock_redshift = None
 
 
-class TestRedshiftClusterSensor(unittest.TestCase):
+class TestAwsRedshiftClusterSensor(unittest.TestCase):
     @staticmethod
     def _create_cluster():
         client = boto3.client('redshift', region_name='us-east-1')
@@ -44,7 +44,7 @@ class TestRedshiftClusterSensor(unittest.TestCase):
     @mock_redshift
     def test_poke(self):
         self._create_cluster()
-        op = RedshiftClusterSensor(
+        op = AwsRedshiftClusterSensor(
             task_id='test_cluster_sensor',
             poke_interval=1,
             timeout=5,
@@ -52,13 +52,13 @@ class TestRedshiftClusterSensor(unittest.TestCase):
             cluster_identifier='test_cluster',
             target_status='available',
         )
-        assert op.poke({})
+        assert op.poke(None)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
-        op = RedshiftClusterSensor(
+        op = AwsRedshiftClusterSensor(
             task_id='test_cluster_sensor',
             poke_interval=1,
             timeout=5,
@@ -67,13 +67,13 @@ class TestRedshiftClusterSensor(unittest.TestCase):
             target_status='available',
         )
 
-        assert not op.poke({})
+        assert not op.poke(None)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
     def test_poke_cluster_not_found(self):
         self._create_cluster()
-        op = RedshiftClusterSensor(
+        op = AwsRedshiftClusterSensor(
             task_id='test_cluster_sensor',
             poke_interval=1,
             timeout=5,
@@ -82,4 +82,4 @@ class TestRedshiftClusterSensor(unittest.TestCase):
             target_status='cluster_not_found',
         )
 
-        assert op.poke({})
+        assert op.poke(None)

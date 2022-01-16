@@ -20,7 +20,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -28,9 +28,6 @@ import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class BaseSQLToGCSOperator(BaseOperator):
@@ -91,7 +88,7 @@ class BaseSQLToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'sql',
         'bucket',
         'filename',
@@ -100,7 +97,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         'parameters',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
     def __init__(
@@ -149,7 +146,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info("Executing query")
         cursor = self.query()
 

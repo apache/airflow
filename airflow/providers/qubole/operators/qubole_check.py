@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Iterable, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.sql import SQLCheckOperator, SQLValueCheckOperator
@@ -105,8 +105,8 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 
     """
 
-    template_fields: Sequence[str] = tuple(
-        set(QuboleOperator.template_fields) | set(SQLCheckOperator.template_fields)
+    template_fields: Iterable[str] = set(QuboleOperator.template_fields) | set(
+        SQLCheckOperator.template_fields
     )
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
@@ -168,7 +168,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
             QuboleOperator and SQLValueCheckOperator are template-supported.
     """
 
-    template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
+    template_fields = set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields)
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 

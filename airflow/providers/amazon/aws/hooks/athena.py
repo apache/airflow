@@ -247,8 +247,6 @@ class AthenaHook(AwsBaseHook):
                 except KeyError:
                     self.log.error("Error retrieving OutputLocation")
                     raise
-            else:
-                raise
         else:
             raise ValueError("Invalid Query execution id")
 

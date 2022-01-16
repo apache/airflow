@@ -17,14 +17,11 @@
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SalesforceToGcsOperator(BaseOperator):
@@ -63,12 +60,12 @@ class SalesforceToGcsOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'query',
         'bucket_name',
         'object_name',
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext = ('.sql',)
 
     def __init__(
         self,
@@ -99,7 +96,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.include_deleted = include_deleted
         self.query_params = query_params
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params

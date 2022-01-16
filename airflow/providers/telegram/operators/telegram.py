@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operator for Telegram"""
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.telegram.hooks.telegram import TelegramHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class TelegramOperator(BaseOperator):
@@ -48,7 +45,7 @@ class TelegramOperator(BaseOperator):
     :type telegram_kwargs: dict
     """
 
-    template_fields: Sequence[str] = ('text', 'chat_id')
+    template_fields = ('text', 'chat_id')
     ui_color = '#FFBA40'
 
     def __init__(
@@ -73,7 +70,7 @@ class TelegramOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Dict) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
         if self.text:
             self.telegram_kwargs['text'] = self.text

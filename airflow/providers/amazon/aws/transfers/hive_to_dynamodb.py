@@ -19,14 +19,11 @@
 """This module contains operator to move data from Hive to DynamoDB."""
 
 import json
-from typing import TYPE_CHECKING, Callable, Optional, Sequence
+from typing import Callable, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HiveToDynamoDBOperator(BaseOperator):
@@ -58,8 +55,8 @@ class HiveToDynamoDBOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
     def __init__(
@@ -89,14 +86,14 @@ class HiveToDynamoDBOperator(BaseOperator):
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info('Extracting data from Hive')
         self.log.info(self.sql)
 
         data = hive.get_pandas_df(self.sql, schema=self.schema)
-        dynamodb = DynamoDBHook(
+        dynamodb = AwsDynamoDBHook(
             aws_conn_id=self.aws_conn_id,
             table_name=self.table_name,
             table_keys=self.table_keys,

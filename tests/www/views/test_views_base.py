@@ -326,7 +326,6 @@ def test_create_user(app, admin_client, non_exist_username):
             'last_name': 'fake_last_name',
             'username': non_exist_username,
             'email': 'fake_email@email.com',
-            'roles': [1],
             'password': 'test',
             'conf_password': 'test',
         },

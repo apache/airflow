@@ -15,16 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Type
+from typing import Any, Callable, Dict, Optional, Type
 
 from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SimpleHttpOperator(BaseOperator):
@@ -68,13 +65,13 @@ class SimpleHttpOperator(BaseOperator):
     :type auth_type: AuthBase of python requests lib
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = [
         'endpoint',
         'data',
         'headers',
-    )
+    ]
     template_fields_renderers = {'headers': 'json', 'data': 'py'}
-    template_ext: Sequence[str] = ()
+    template_ext = ()
     ui_color = '#f4a460'
 
     def __init__(
@@ -106,7 +103,7 @@ class SimpleHttpOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Dict[str, Any]) -> Any:
         from airflow.utils.operator_helpers import determine_kwargs
 
         http = HttpHook(self.method, http_conn_id=self.http_conn_id, auth_type=self.auth_type)

@@ -17,7 +17,6 @@
 # under the License.
 """Hook for SSH connections."""
 import os
-import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
@@ -26,11 +25,6 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -129,12 +123,12 @@ class SSHHook(BaseHook):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
-        self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
         self.allow_host_key_change = False
+        self.host_proxy = None
         self.host_key = None
         self.look_for_keys = True
 
@@ -248,18 +242,13 @@ class SSHHook(BaseHook):
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
-                self.host_proxy_cmd = host_info['proxycommand']
+                self.host_proxy = paramiko.ProxyCommand(host_info['proxycommand'])
 
             if not (self.password or self.key_file):
                 if host_info and host_info.get('identityfile'):
                     self.key_file = host_info['identityfile'][0]
 
         self.port = self.port or SSH_PORT
-
-    @cached_property
-    def host_proxy(self) -> Optional[paramiko.ProxyCommand]:
-        cmd = self.host_proxy_cmd
-        return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
         """

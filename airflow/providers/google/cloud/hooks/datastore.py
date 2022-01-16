@@ -262,21 +262,21 @@ class DatastoreHook(GoogleBaseHook):
 
         return resp
 
-    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> Dict:
+    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: int) -> Dict:
         """
         Poll backup operation state until it's completed.
 
         :param name: the name of the operation resource
         :type name: str
         :param polling_interval_in_seconds: The number of seconds to wait before calling another request.
-        :type polling_interval_in_seconds: float
+        :type polling_interval_in_seconds: int
         :return: a resource operation instance.
         :rtype: dict
         """
         while True:
-            result: Dict = self.get_operation(name)
+            result = self.get_operation(name)  # type: Dict
 
-            state: str = result['metadata']['common']['state']
+            state = result['metadata']['common']['state']  # type: str
             if state == 'PROCESSING':
                 self.log.info(
                     'Operation is processing. Re-polling state in %s seconds', polling_interval_in_seconds

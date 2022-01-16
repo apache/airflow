@@ -705,8 +705,8 @@ def check_and_run_migrations():
                     print(error)
                     print(
                         "You still have unapplied migrations. "
-                        f"You may need to {verb} the database by running `airflow db {command_name}`. ",
-                        f"Make sure the command is run using Airflow version {version}.",
+                        "You may need to {verb} the database by running `airflow db {command_name}`",
+                        f"Make sure the command is run using airflow version {version}.",
                         file=sys.stderr,
                     )
                     sys.exit(1)
@@ -714,8 +714,8 @@ def check_and_run_migrations():
             pass
     elif source_heads != db_heads:
         print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
-            f"Make sure the command is run using Airflow version {version}.",
+            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}` ."
+            f"Make sure the command is run using airflow version {version}.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -730,16 +730,10 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """
     stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
     filename = conf.get("logging", "log_filename_template")
-    task_prefix = conf.get("logging", "task_log_prefix_template")
-    elasticsearch_id = conf.get("elasticsearch", "log_id_template")
-    if (
-        stored
-        and stored.filename == filename
-        and stored.task_prefix == task_prefix
-        and stored.elasticsearch_id == elasticsearch_id
-    ):
+    prefix = conf.get("logging", "task_log_prefix_template")
+    if stored and stored.filename == filename and stored.task_prefix == prefix:
         return
-    session.merge(LogTemplate(filename=filename, task_prefix=task_prefix, elasticsearch_id=elasticsearch_id))
+    session.merge(LogTemplate(filename=filename, task_prefix=prefix))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:

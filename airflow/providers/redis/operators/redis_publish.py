@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Sequence
+
+from typing import Dict
 
 from airflow.models import BaseOperator
 from airflow.providers.redis.hooks.redis import RedisHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class RedisPublishOperator(BaseOperator):
@@ -36,7 +34,7 @@ class RedisPublishOperator(BaseOperator):
     :type redis_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('channel', 'message')
+    template_fields = ('channel', 'message')
 
     def __init__(self, *, channel: str, message: str, redis_conn_id: str = 'redis_default', **kwargs) -> None:
 
@@ -45,7 +43,7 @@ class RedisPublishOperator(BaseOperator):
         self.channel = channel
         self.message = message
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Dict) -> None:
         """
         Publish the message to Redis channel
 

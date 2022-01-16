@@ -21,7 +21,8 @@ import unittest
 from unittest.mock import patch
 
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
-from tests.providers.apache.hive import DEFAULT_DATE, MockHiveMetastoreHook, TestHiveEnvironment
+from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.test_utils.mock_hooks import MockHiveMetastoreHook
 
 
 @unittest.skipIf('AIRFLOW_RUNALL_TESTS' not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")

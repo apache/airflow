@@ -44,8 +44,6 @@ DEFAULT_DATE = dates.days_ago(2)
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
-DEFAULT_DAGRUN = 'TEST_DAGRUN'
-
 
 @pytest.fixture(scope="module", autouse=True)
 def reset_dagruns():
@@ -56,7 +54,6 @@ def reset_dagruns():
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -64,7 +61,6 @@ def init_dagruns(app, reset_dagruns):
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -72,7 +68,6 @@ def init_dagruns(app, reset_dagruns):
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_xcom").create_dagrun(
-        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -215,29 +210,29 @@ def client_ti_without_dag_edit(app):
         ),
         pytest.param(
             f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=success'
-            f'&dag_run_id={DEFAULT_DAGRUN}',
+            f'&execution_date={DEFAULT_VAL}',
             ['Wait a minute'],
             id="confirm-success",
         ),
         pytest.param(
-            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&dag_run_id={DEFAULT_DAGRUN}',
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&execution_date={DEFAULT_VAL}',
             ['Wait a minute'],
             id="confirm-failed",
         ),
         pytest.param(
-            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&dag_run_id={DEFAULT_DAGRUN}',
+            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&execution_date={DEFAULT_VAL}',
             ['DAG invalid_dag not found'],
             id="confirm-failed",
         ),
         pytest.param(
             f'confirm?task_id=invalid_task&dag_id=example_bash_operator&state=failed'
-            f'&dag_run_id={DEFAULT_DAGRUN}',
+            f'&execution_date={DEFAULT_VAL}',
             ['Task invalid_task not found'],
             id="confirm-failed",
         ),
         pytest.param(
             f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=invalid'
-            f'&dag_run_id={DEFAULT_DAGRUN}',
+            f'&execution_date={DEFAULT_VAL}',
             ["Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"],
             id="confirm-invalid",
         ),
@@ -356,7 +351,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
-                dag_run_id=DEFAULT_DAGRUN,
+                execution_date=DEFAULT_DATE,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -370,7 +365,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
-                dag_run_id=DEFAULT_DAGRUN,
+                execution_date=DEFAULT_DATE,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -622,15 +617,13 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
         task_id="test_task_instance_delete_permission_denied",
         execution_date=timezone.utcnow(),
         state=State.DEFERRED,
-        session=session,
     )
-    session.commit()
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
     task_id = task_instance_to_delete.task_id
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
     resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    check_content_in_response(f"Access denied for dag_id {task_instance_to_delete.dag_id}", resp)
+    assert resp.status_code == 404  # If it doesn't fully succeed it gives a 404.
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
@@ -674,9 +667,8 @@ def test_task_instance_clear_failure(admin_client):
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
-        ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry", "skipped"],
+    ids=["running", "failed", "success", "retry"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -703,7 +695,6 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
         "set_failed",
         "set_success",
         "set_retry",
-        "set_skipped",
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
@@ -715,6 +706,30 @@ def test_task_instance_set_state_failure(admin_client, action):
     )
     assert resp.status_code == 200
     check_content_in_response("Failed to set state", resp)
+
+
+@pytest.mark.parametrize(
+    "action",
+    ["clear", "set_success", "set_failed", "set_running"],
+    ids=["clear", "success", "failed", "running"],
+)
+def test_set_task_instance_action_permission_denied(session, client_ti_without_dag_edit, action):
+    task_id = "runme_0"
+
+    # Set the state to success for clearing.
+    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
+    ti_q.update({"state": State.SUCCESS})
+    session.commit()
+
+    # Send a request to clear.
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    expected_message = f"Access denied for dag_id {ti_q.one().dag_id}"
+    resp = client_ti_without_dag_edit.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": [rowid]},
+        follow_redirects=True,
+    )
+    check_content_in_response(expected_message, resp)
 
 
 @pytest.mark.parametrize(

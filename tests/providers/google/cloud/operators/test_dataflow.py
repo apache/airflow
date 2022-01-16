@@ -238,7 +238,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_id=mock.ANY,
             job_name=job_name,
             location=TEST_LOCATION,
-            multiple_jobs=False,
+            multiple_jobs=None,
         )
 
         provide_gcloud_mock.assert_called_once_with()
@@ -322,7 +322,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_id=mock.ANY,
             job_name=job_name,
             location=TEST_LOCATION,
-            multiple_jobs=False,
+            multiple_jobs=None,
         )
 
     @mock.patch(

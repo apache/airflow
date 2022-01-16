@@ -16,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains CloudFormation create/delete stack operators."""
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class CloudFormationCreateStackOperator(BaseOperator):
@@ -40,8 +37,8 @@ class CloudFormationCreateStackOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
-    template_ext: Sequence[str] = ()
+    template_fields: List[str] = ['stack_name']
+    template_ext = ()
     ui_color = '#6b9659'
 
     def __init__(self, *, stack_name: str, params: dict, aws_conn_id: str = 'aws_default', **kwargs):
@@ -50,7 +47,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
         self.params = params
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Parameters: %s', self.params)
 
         cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
@@ -72,8 +69,8 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
-    template_ext: Sequence[str] = ()
+    template_fields: List[str] = ['stack_name']
+    template_ext = ()
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'
 
@@ -85,7 +82,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         self.stack_name = stack_name
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Parameters: %s', self.params)
 
         cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)

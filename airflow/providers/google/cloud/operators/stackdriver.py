@@ -16,16 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Union
 
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class StackdriverListAlertPoliciesOperator(BaseOperator):
@@ -67,7 +64,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -88,7 +85,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'filter_',
         'impersonation_chain',
     )
@@ -102,8 +99,8 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -122,9 +119,9 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info(
             'List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
@@ -174,7 +171,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -196,7 +193,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     """
 
     ui_color = "#e5ffcc"
-    template_fields: Sequence[str] = (
+    template_fields = (
         'filter_',
         'impersonation_chain',
     )
@@ -206,8 +203,8 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -223,9 +220,9 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Enable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -264,7 +261,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -286,7 +283,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     """
 
     ui_color = "#e5ffcc"
-    template_fields: Sequence[str] = (
+    template_fields = (
         'filter_',
         'impersonation_chain',
     )
@@ -296,8 +293,8 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -313,9 +310,9 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Disable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -354,7 +351,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -375,11 +372,11 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'alerts',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.json',)
+    template_ext = ('.json',)
 
     ui_color = "#e5ffcc"
 
@@ -388,8 +385,8 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         *,
         alerts: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -405,9 +402,9 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Upsert Alert Policies: Alerts: %s Project id: %s', self.alerts, self.project_id)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -443,7 +440,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -464,7 +461,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'name',
         'impersonation_chain',
     )
@@ -476,8 +473,8 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         *,
         name: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -493,9 +490,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Delete Alert Policy: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -550,7 +547,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -571,7 +568,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'filter_',
         'impersonation_chain',
     )
@@ -586,8 +583,8 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -606,9 +603,9 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info(
             'List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
@@ -658,7 +655,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -679,7 +676,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'filter_',
         'impersonation_chain',
     )
@@ -691,8 +688,8 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -708,9 +705,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info(
             'Enable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
         )
@@ -750,7 +747,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -771,7 +768,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'filter_',
         'impersonation_chain',
     )
@@ -783,8 +780,8 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -800,9 +797,9 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info(
             'Disable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
         )
@@ -843,7 +840,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -864,11 +861,11 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'channels',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.json',)
+    template_ext = ('.json',)
 
     ui_color = "#e5ffcc"
 
@@ -877,8 +874,8 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         *,
         channels: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -894,9 +891,9 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info(
             'Upsert Notification Channels: Channels: %s Project id: %s', self.channels, self.project_id
         )
@@ -934,7 +931,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
+    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -955,7 +952,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'name',
         'impersonation_chain',
     )
@@ -967,8 +964,8 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         *,
         name: str,
         retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -984,9 +981,9 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         self.log.info('Delete Notification Channel: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(

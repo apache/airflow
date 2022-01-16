@@ -16,11 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from typing import Any, Dict, Iterable, Optional
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -52,8 +48,8 @@ class EmrBaseSensor(BaseSensorOperator):
     def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
-        self.target_states: Iterable[str] = []  # will be set in subclasses
-        self.failed_states: Iterable[str] = []  # will be set in subclasses
+        self.target_states: Optional[Iterable[str]] = None  # will be set in subclasses
+        self.failed_states: Optional[Iterable[str]] = None  # will be set in subclasses
         self.hook: Optional[EmrHook] = None
 
     def get_hook(self) -> EmrHook:
@@ -64,7 +60,7 @@ class EmrBaseSensor(BaseSensorOperator):
         self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
         response = self.get_emr_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -149,8 +145,8 @@ class EmrContainerSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ("COMPLETED",)
 
-    template_fields: Sequence[str] = ('virtual_cluster_id', 'job_id')
-    template_ext: Sequence[str] = ()
+    template_fields = ['virtual_cluster_id', 'job_id']
+    template_ext = ()
     ui_color = '#66c3ff'
 
     def __init__(
@@ -170,7 +166,7 @@ class EmrContainerSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
         self.max_retries = max_retries
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: dict) -> bool:
         state = self.hook.poll_query_status(self.job_id, self.max_retries, self.poll_interval)
 
         if state in self.FAILURE_STATES:
@@ -206,8 +202,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields: Sequence[str] = ('job_flow_id', 'target_states', 'failed_states')
-    template_ext: Sequence[str] = ()
+    template_fields = ['job_flow_id', 'target_states', 'failed_states']
+    template_ext = ()
 
     def __init__(
         self,
@@ -287,8 +283,8 @@ class EmrStepSensor(EmrBaseSensor):
     :type failed_states: list[str]
     """
 
-    template_fields: Sequence[str] = ('job_flow_id', 'step_id', 'target_states', 'failed_states')
-    template_ext: Sequence[str] = ()
+    template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
+    template_ext = ()
 
     def __init__(
         self,

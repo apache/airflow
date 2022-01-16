@@ -19,34 +19,6 @@
 Changelog
 ---------
 
-2.4.1
-.....
-
-Bug Fixes
-~~~~~~~~~
-
-* ``Bugfix: ''SFTPHook'' does not respect ''ssh_conn_id'' arg (#20756)``
-* ``fix deprecation messages for SFTPHook (#20692)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
-2.4.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Making SFTPHook's constructor consistent with its superclass SSHHook (#20164)``
-
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Fix MyPy Errors for SFTP provider (#20242)``
-   * ``Use typed Context EVERYWHERE (#20565)``
-   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
-   * ``Update documentation for provider December 2021 release (#20523)``
-
 2.3.0
 .....
 

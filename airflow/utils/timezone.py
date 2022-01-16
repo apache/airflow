@@ -17,7 +17,7 @@
 # under the License.
 #
 import datetime as dt
-from typing import Optional, Union, overload
+from typing import TYPE_CHECKING, Optional, Union, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
@@ -27,6 +27,9 @@ from airflow.settings import TIMEZONE
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.tz.timezone('UTC')
+
+if TYPE_CHECKING:
+    from pendulum.tz.timezone import Timezone
 
 
 def is_localized(value):
@@ -81,17 +84,7 @@ def utc_epoch() -> dt.datetime:
     return result
 
 
-@overload
-def convert_to_utc(value: None) -> None:
-    ...
-
-
-@overload
-def convert_to_utc(value: dt.datetime) -> DateTime:
-    ...
-
-
-def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
+def convert_to_utc(value):
     """
     Returns the datetime with the default timezone added if timezone
     information was not associated
@@ -99,31 +92,26 @@ def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
     :param value: datetime
     :return: datetime with tzinfo
     """
-    if value is None:
+    if not value:
         return value
 
     if not is_localized(value):
         value = pendulum.instance(value, TIMEZONE)
 
-    return pendulum.instance(value.astimezone(utc))
+    return value.astimezone(utc)
 
 
 @overload
-def make_aware(value: None, timezone: Optional[dt.tzinfo] = None) -> None:
+def make_aware(v: None, timezone: Optional["Timezone"] = None) -> None:
     ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: Optional[dt.tzinfo] = None) -> DateTime:
+def make_aware(v: dt.datetime, timezone: Optional["Timezone"] = None) -> dt.datetime:
     ...
 
 
-@overload
-def make_aware(value: dt.datetime, timezone: Optional[dt.tzinfo] = None) -> dt.datetime:
-    ...
-
-
-def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = None) -> Optional[dt.datetime]:
+def make_aware(value: Optional[dt.datetime], timezone: Optional["Timezone"] = None) -> Optional[dt.datetime]:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -134,9 +122,6 @@ def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = Non
     if timezone is None:
         timezone = TIMEZONE
 
-    if not value:
-        return None
-
     # Check that we won't overwrite the timezone of an aware datetime.
     if is_localized(value):
         raise ValueError(f"make_aware expects a naive datetime, got {value}")
@@ -146,16 +131,15 @@ def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = Non
         # instance of the same clock time rather than the first one.
         # Fold parameter has no impact in other cases so we can safely set it to 1 here
         value = value.replace(fold=1)
-    localized = getattr(timezone, 'localize', None)
-    if localized is not None:
-        # This method is available for pytz time zones
-        return localized(value)
-    convert = getattr(timezone, 'convert', None)
-    if convert is not None:
+    if hasattr(timezone, 'localize'):
+        # This method is available for pytz time zones.
+        return timezone.localize(value)
+    elif hasattr(timezone, 'convert'):
         # For pendulum
-        return convert(value)
-    # This may be wrong around DST changes!
-    return value.replace(tzinfo=timezone)
+        return timezone.convert(value)
+    else:
+        # This may be wrong around DST changes!
+        return value.replace(tzinfo=timezone)
 
 
 def make_naive(value, timezone=None):
@@ -211,11 +195,6 @@ def coerce_datetime(v: None) -> None:
 
 
 @overload
-def coerce_datetime(v: DateTime) -> DateTime:
-    ...
-
-
-@overload
 def coerce_datetime(v: dt.datetime) -> DateTime:
     ...
 
@@ -241,7 +220,7 @@ def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]
     if isinstance(td_object, dt.timedelta):
         delta = relativedelta() + td_object
     else:
-        delta = relativedelta(seconds=int(td_object))
+        delta = relativedelta(seconds=td_object)
     # relativedelta for timedelta cannot convert days to months
     # so calculate months by assuming 30 day months and normalize
     months, delta.days = divmod(delta.days, 30)

@@ -19,20 +19,6 @@
 Changelog
 ---------
 
-2.0.4
-.....
-
-Bug Fixes
-~~~~~~~~~
-
-* ``Clean up JenkinsJobTriggerOperator (#19019)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
-   * ``Even more typing in operators (template_fields/ext) (#20608)``
-   * ``Update documentation for provider December 2021 release (#20523)``
-
 2.0.3
 .....
 

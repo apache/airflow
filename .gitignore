@@ -17,7 +17,6 @@ airflow/www/static/dist
 
 /logs/
 airflow-webserver.pid
-standalone_admin_password.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

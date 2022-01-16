@@ -17,16 +17,13 @@
 
 """This module contains Google DataFusion operators."""
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -63,7 +60,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "impersonation_chain",
     )
@@ -89,7 +86,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -139,7 +136,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "impersonation_chain",
     )
@@ -165,7 +162,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -218,7 +215,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "instance",
         "impersonation_chain",
@@ -247,7 +244,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -325,7 +322,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "instance",
         "impersonation_chain",
@@ -356,7 +353,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -408,7 +405,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "impersonation_chain",
     )
@@ -434,7 +431,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -490,7 +487,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",
@@ -523,7 +520,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -585,7 +582,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "version_id",
         "pipeline_name",
@@ -619,7 +616,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -682,7 +679,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "artifact_name",
         "artifact_version",
@@ -716,7 +713,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -789,7 +786,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type asynchronous: bool
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "pipeline_name",
         "runtime_args",
@@ -833,7 +830,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         else:
             self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: dict) -> str:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -906,7 +903,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",
@@ -937,7 +934,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

@@ -20,21 +20,14 @@ import os
 import re
 import unittest
 from collections import OrderedDict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
-from airflow.providers.presto.hooks.presto import PrestoHook
-from tests.providers.apache.hive import (
-    DEFAULT_DATE,
-    DEFAULT_DATE_DS,
-    MockConnectionCursor,
-    MockHiveMetastoreHook,
-    MockMySqlHook,
-    TestHiveEnvironment,
-)
+from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
+from tests.test_utils.mock_hooks import MockHiveMetastoreHook, MockMySqlHook, MockPrestoHook
 
 
 class _FakeCol:
@@ -44,20 +37,6 @@ class _FakeCol:
 
 
 fake_col = _FakeCol('col', 'string')
-
-
-class MockPrestoHook(PrestoHook):
-    def __init__(self, *args, **kwargs):
-        self.conn = MockConnectionCursor()
-
-        self.conn.execute = MagicMock()
-        self.get_conn = MagicMock(return_value=self.conn)
-        self.get_first = MagicMock(return_value=[['val_0', 'val_1'], 'val_2'])
-
-        super().__init__(*args, **kwargs)
-
-    def get_connection(self, *args):
-        return self.conn
 
 
 class TestHiveStatsCollectionOperator(TestHiveEnvironment):

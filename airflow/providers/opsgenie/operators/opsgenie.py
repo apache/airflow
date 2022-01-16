@@ -16,16 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
-
-class OpsgenieCreateAlertOperator(BaseOperator):
+class OpsgenieAlertOperator(BaseOperator):
     """
     This operator allows you to post alerts to Opsgenie.
     Accepts a connection that has an Opsgenie API key as the connection's password.
@@ -37,7 +34,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:OpsgenieCreateAlertOperator`
+        :ref:`howto/operator:OpsgenieAlertOperator`
 
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
     :type opsgenie_conn_id: str
@@ -73,7 +70,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
     :type note: str
     """
 
-    template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
+    template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
     def __init__(
         self,
@@ -141,7 +138,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
                 payload[key] = val
         return payload
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         """Call the OpsgenieAlertHook to post message"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.create_alert(self._build_opsgenie_payload())
@@ -220,7 +217,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
                 payload[key] = val
         return payload
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         """Call the OpsgenieAlertHook to close alert"""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.close_alert(

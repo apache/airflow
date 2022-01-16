@@ -19,13 +19,10 @@
 import os
 import warnings
 from glob import glob
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class LocalFilesystemToGCSOperator(BaseOperator):
@@ -68,7 +65,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'src',
         'dst',
         'bucket',
@@ -109,7 +106,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

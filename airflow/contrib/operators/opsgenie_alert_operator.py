@@ -19,26 +19,10 @@
 
 import warnings
 
-from airflow.providers.opsgenie.operators.opsgenie import OpsgenieCreateAlertOperator
+from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie`.",
     DeprecationWarning,
     stacklevel=2,
 )
-
-
-class OpsgenieAlertOperator(OpsgenieCreateAlertOperator):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.opsgenie.operators.opsgenie.OpsgenieCreateAlertOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use :class:`airflow.providers.opsgenie.operators.opsgenie.OpsgenieCreateAlertOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

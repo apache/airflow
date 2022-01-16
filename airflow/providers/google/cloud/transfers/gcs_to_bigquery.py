@@ -18,14 +18,11 @@
 """This module contains a Google Cloud Storage to BigQuery operator."""
 
 import json
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GCSToBigQueryOperator(BaseOperator):
@@ -163,14 +160,14 @@ class GCSToBigQueryOperator(BaseOperator):
     :type description: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'bucket',
         'source_objects',
         'schema_object',
         'destination_project_dataset_table',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
     def __init__(
@@ -256,7 +253,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.labels = labels
         self.description = description
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         bq_hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -341,16 +338,12 @@ class GCSToBigQueryOperator(BaseOperator):
             escaped_table_name = f'`{self.destination_project_dataset_table}`'
 
         if self.max_id_key:
-            select_command = f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}'
-            cursor.execute(select_command)
+            cursor.execute(f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}')
             row = cursor.fetchone()
-            if row:
-                max_id = row[0] if row[0] else 0
-                self.log.info(
-                    'Loaded BQ data with max %s.%s=%s',
-                    self.destination_project_dataset_table,
-                    self.max_id_key,
-                    max_id,
-                )
-            else:
-                raise RuntimeError(f"The f{select_command} returned no rows!")
+            max_id = row[0] if row[0] else 0
+            self.log.info(
+                'Loaded BQ data with max %s.%s=%s',
+                self.destination_project_dataset_table,
+                self.max_id_key,
+                max_id,
+            )

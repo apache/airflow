@@ -19,12 +19,11 @@ import time
 
 from airflow.models import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.utils.context import Context
 from airflow.utils.timezone import datetime
 
 
 class DummyWithOnKill(DummyOperator):
-    def execute(self, context: Context):
+    def execute(self, context):
         import os
 
         self.log.info("Signalling that I am running")

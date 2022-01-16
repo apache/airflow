@@ -37,7 +37,6 @@ configuring an Airflow environment.
     customize-ui
     custom-operator
     create-custom-decorator
-    export-more-env-vars
     connection
     variable
     run-behind-proxy

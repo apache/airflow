@@ -20,16 +20,13 @@
 import unittest
 
 from airflow.models.dag import DAG
-from airflow.providers.opsgenie.operators.opsgenie import (
-    OpsgenieCloseAlertOperator,
-    OpsgenieCreateAlertOperator,
-)
+from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator, OpsgenieCloseAlertOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestOpsgenieCreateAlertOperator(unittest.TestCase):
+class TestOpsgenieAlertOperator(unittest.TestCase):
     _config = {
         'message': 'An example alert message',
         'alias': 'Life is too short for no alias',
@@ -82,7 +79,7 @@ class TestOpsgenieCreateAlertOperator(unittest.TestCase):
 
     def test_build_opsgenie_payload(self):
         # Given / When
-        operator = OpsgenieCreateAlertOperator(task_id='opsgenie_alert_job', dag=self.dag, **self._config)
+        operator = OpsgenieAlertOperator(task_id='opsgenie_alert_job', dag=self.dag, **self._config)
 
         payload = operator._build_opsgenie_payload()
 
@@ -91,7 +88,7 @@ class TestOpsgenieCreateAlertOperator(unittest.TestCase):
 
     def test_properties(self):
         # Given / When
-        operator = OpsgenieCreateAlertOperator(task_id='opsgenie_alert_job', dag=self.dag, **self._config)
+        operator = OpsgenieAlertOperator(task_id='opsgenie_alert_job', dag=self.dag, **self._config)
 
         assert 'opsgenie_default' == operator.opsgenie_conn_id
         assert self._config['message'] == operator.message

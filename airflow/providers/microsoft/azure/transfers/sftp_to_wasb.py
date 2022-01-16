@@ -20,11 +20,7 @@ import os
 import sys
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from typing import Dict, List, Optional, Tuple
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -76,7 +72,7 @@ class SFTPToWasbOperator(BaseOperator):
     :type move_object: bool
     """
 
-    template_fields: Sequence[str] = ("sftp_source_path", "container_name", "blob_prefix")
+    template_fields = ("sftp_source_path", "container_name", "blob_prefix")
 
     def __init__(
         self,
@@ -115,7 +111,7 @@ class SFTPToWasbOperator(BaseOperator):
             if self.move_object:
                 self.log.info("Executing delete of %s", file)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Dict) -> None:
         """Upload a file from SFTP to Azure Blob Storage."""
         sftp_files: List[SftpFile] = self.get_sftp_files_map()
         uploaded_files = self.copy_files_to_wasb(sftp_files)

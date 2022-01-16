@@ -84,6 +84,8 @@ class TestPythonSensor(TestPythonBase):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ds_templated = DEFAULT_DATE.date().isoformat()
+        # 2 calls: first: at start, second: before timeout
+        assert 2 == len(recorded_calls)
         self._assert_calls_equal(
             recorded_calls[0],
             Call(
@@ -101,7 +103,7 @@ class TestPythonSensor(TestPythonBase):
         task = PythonSensor(
             task_id='python_sensor',
             timeout=0.01,
-            poke_interval=0.01,
+            poke_interval=0.3,
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             python_callable=build_recording_function(recorded_calls),
@@ -123,6 +125,8 @@ class TestPythonSensor(TestPythonBase):
         with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+        # 2 calls: first: at start, second: before timeout
+        assert 2 == len(recorded_calls)
         self._assert_calls_equal(
             recorded_calls[0],
             Call(

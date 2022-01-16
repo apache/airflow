@@ -17,13 +17,10 @@
 # under the License.
 """This module contains Google BigQuery to BigQuery operator."""
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class BigQueryToBigQueryOperator(BaseOperator):
@@ -79,13 +76,13 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'source_project_dataset_tables',
         'destination_project_dataset_table',
         'labels',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext = ('.sql',)
     ui_color = '#e6f0e4'
 
     def __init__(
@@ -126,7 +123,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         self.log.info(
             'Executing copy of %s into: %s',
             self.source_project_dataset_tables,

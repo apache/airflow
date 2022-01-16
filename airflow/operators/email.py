@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.utils.context import Context
 from airflow.utils.email import send_email
 
 
@@ -48,9 +47,9 @@ class EmailOperator(BaseOperator):
     :type custom_headers: dict
     """
 
-    template_fields: Sequence[str] = ('to', 'subject', 'html_content', 'files')
+    template_fields = ('to', 'subject', 'html_content', 'files')
     template_fields_renderers = {"html_content": "html"}
-    template_ext: Sequence[str] = ('.html',)
+    template_ext = ('.html',)
     ui_color = '#e6faf9'
 
     def __init__(
@@ -80,7 +79,7 @@ class EmailOperator(BaseOperator):
         self.conn_id = conn_id
         self.custom_headers = custom_headers
 
-    def execute(self, context: Context):
+    def execute(self, context):
         send_email(
             self.to,
             self.subject,

@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class ExasolOperator(BaseOperator):
@@ -43,8 +40,8 @@ class ExasolOperator(BaseOperator):
     :type schema: string
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -64,7 +61,7 @@ class ExasolOperator(BaseOperator):
         self.parameters = parameters
         self.schema = schema
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = ExasolHook(exasol_conn_id=self.exasol_conn_id, schema=self.schema)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

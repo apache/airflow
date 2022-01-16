@@ -17,16 +17,13 @@
 # under the License.
 import os
 import re
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
 from airflow.utils.operator_helpers import context_to_airflow_vars
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HiveOperator(BaseOperator):
@@ -65,7 +62,7 @@ class HiveOperator(BaseOperator):
     :type  mapred_job_name: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'hql',
         'schema',
         'hive_cli_conn_id',
@@ -74,7 +71,7 @@ class HiveOperator(BaseOperator):
         'mapred_job_name',
         'mapred_queue_priority',
     )
-    template_ext: Sequence[str] = (
+    template_ext = (
         '.hql',
         '.sql',
     )
@@ -136,7 +133,7 @@ class HiveOperator(BaseOperator):
         if self.script_begin_tag and self.script_begin_tag in self.hql:
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         self.log.info('Executing: %s', self.hql)
         self.hook = self.get_hook()
 

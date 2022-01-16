@@ -18,7 +18,8 @@
 #
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional
+from uuid import uuid4
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -27,9 +28,6 @@ else:
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class AthenaOperator(BaseOperator):
@@ -63,8 +61,8 @@ class AthenaOperator(BaseOperator):
     """
 
     ui_color = '#44b5e2'
-    template_fields: Sequence[str] = ('query', 'database', 'output_location')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields = ('query', 'database', 'output_location')
+    template_ext = ('.sql',)
     template_fields_renderers = {"query": "sql"}
 
     def __init__(
@@ -87,7 +85,7 @@ class AthenaOperator(BaseOperator):
         self.database = database
         self.output_location = output_location
         self.aws_conn_id = aws_conn_id
-        self.client_request_token = client_request_token
+        self.client_request_token = client_request_token or str(uuid4())
         self.workgroup = workgroup
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}
@@ -100,7 +98,7 @@ class AthenaOperator(BaseOperator):
         """Create and return an AthenaHook."""
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: dict) -> Optional[str]:
         """Run Presto Query on Athena"""
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location

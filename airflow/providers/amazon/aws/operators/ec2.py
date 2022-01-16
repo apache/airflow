@@ -17,13 +17,10 @@
 # under the License.
 #
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class EC2StartInstanceOperator(BaseOperator):
@@ -41,7 +38,7 @@ class EC2StartInstanceOperator(BaseOperator):
     :type check_interval: float
     """
 
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -60,7 +57,7 @@ class EC2StartInstanceOperator(BaseOperator):
         self.region_name = region_name
         self.check_interval = check_interval
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Starting EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
@@ -87,7 +84,7 @@ class EC2StopInstanceOperator(BaseOperator):
     :type check_interval: float
     """
 
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -106,7 +103,7 @@ class EC2StopInstanceOperator(BaseOperator):
         self.region_name = region_name
         self.check_interval = check_interval
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Stopping EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)

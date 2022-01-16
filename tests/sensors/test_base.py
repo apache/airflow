@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
@@ -27,7 +29,6 @@ from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils import db
@@ -44,7 +45,7 @@ class DummySensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.return_value = return_value
 
-    def poke(self, context: Context):
+    def poke(self, context):
         return self.return_value
 
 
@@ -620,7 +621,7 @@ class DummyPokeOnlySensor(BaseSensorOperator):
         self.poke_changes_mode = poke_changes_mode
         self.return_value = True
 
-    def poke(self, context: Context):
+    def poke(self, context):
         if self.poke_changes_mode:
             self.change_mode('reschedule')
         return self.return_value

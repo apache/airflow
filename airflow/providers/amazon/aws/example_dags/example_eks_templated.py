@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -55,18 +54,13 @@ with DAG(
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.
     render_template_as_native_obj=True,
 ) as dag:
-    SUBNETS = os.environ.get('EKS_DEMO_SUBNETS', 'subnet-12345ab subnet-67890cd').split(' ')
-    VPC_CONFIG = {
-        'subnetIds': SUBNETS,
-        'endpointPublicAccess': True,
-        'endpointPrivateAccess': False,
-    }
+
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EksCreateClusterOperator(
         task_id='create_eks_cluster',
         compute=None,
         cluster_role_arn="{{ dag_run.conf['cluster_role_arn'] }}",
-        resources_vpc_config=VPC_CONFIG,
+        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",
     )
 
     await_create_cluster = EksClusterStateSensor(

@@ -64,11 +64,11 @@ Examples for the **Extra** field
 
 If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for ``ssl.wrap_socket()``. For example:
 
-.. code-block:: json
+.. code-block:: JSON
 
     {
-      "ssl_options": {
-        "ca_certs": "PATH/TO/CA_CERTS"
+      "ssl_options" : {
+        "ca_certs" : "PATH/TO/CA_CERTS"
       }
     }
 
@@ -78,7 +78,7 @@ Default load balancing policy is ``RoundRobinPolicy``. Following are a few sampl
 
 DCAwareRoundRobinPolicy:
 
-.. code-block:: json
+.. code-block:: JSON
 
     {
       "load_balancing_policy": "DCAwareRoundRobinPolicy",
@@ -90,7 +90,7 @@ DCAwareRoundRobinPolicy:
 
 WhiteListRoundRobinPolicy:
 
-.. code-block:: json
+.. code-block:: JSON
 
     {
       "load_balancing_policy": "WhiteListRoundRobinPolicy",
@@ -101,7 +101,7 @@ WhiteListRoundRobinPolicy:
 
 TokenAwarePolicy:
 
-.. code-block:: json
+.. code-block:: JSON
 
     {
       "load_balancing_policy": "TokenAwarePolicy",

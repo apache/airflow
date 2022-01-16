@@ -15,12 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Sequence, Tuple
+from typing import Any, Dict, List, Tuple
 
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class NamedHivePartitionSensor(BaseSensorOperator):
@@ -40,7 +37,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     :type metastore_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('partition_names',)
+    template_fields = ('partition_names',)
     ui_color = '#8d99ae'
     poke_context_fields = ('partition_names', 'metastore_conn_id')
 
@@ -95,7 +92,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         self.log.info('Poking for %s.%s/%s', schema, table, partition)
         return self.hook.check_for_named_partition(schema, table, partition)
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Dict[str, Any]) -> bool:
 
         number_of_partitions = len(self.partition_names)
         poke_index_start = self.next_index_to_poke

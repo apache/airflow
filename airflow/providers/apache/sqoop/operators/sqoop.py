@@ -19,14 +19,11 @@
 """This module contains a sqoop 1 operator"""
 import os
 import signal
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SqoopOperator(BaseOperator):
@@ -83,7 +80,7 @@ class SqoopOperator(BaseOperator):
         Don't include prefix of -- for sqoop options.
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'conn_id',
         'cmd_type',
         'table',
@@ -186,7 +183,7 @@ class SqoopOperator(BaseOperator):
         self.hook: Optional[SqoopHook] = None
         self.schema = schema
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Dict[str, Any]) -> None:
         """Execute sqoop job"""
         if self.hook is None:
             self.hook = self._get_hook()

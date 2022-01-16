@@ -15,14 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class CloudFirestoreExportDatabaseOperator(BaseOperator):
@@ -58,7 +55,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "body",
         "gcp_conn_id",
         "api_version",
@@ -89,7 +86,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         hook = CloudFirestoreHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

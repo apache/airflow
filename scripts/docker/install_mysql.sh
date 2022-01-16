@@ -15,22 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
+set -exuo pipefail
 declare -a packages
 
 MYSQL_VERSION="8.0"
 readonly MYSQL_VERSION
 
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
-
-: "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-
 install_mysql_client() {
     echo
-    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}${COLOR_RESET}"
+    echo Installing mysql client
     echo
 
     if [[ "${1}" == "dev" ]]; then
@@ -53,13 +46,14 @@ install_mysql_client() {
     for keyserver in $(shuf -e ha.pool.sks-keyservers.net hkp://p80.pool.sks-keyservers.net:80 \
                                keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80)
     do
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
+        gpg --keyserver "${keyserver}" --recv-keys "${key}" && break
     done
     set -e
     gpg --export "${key}" > /etc/apt/trusted.gpg.d/mysql.gpg
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
     unset GNUPGHOME
+    apt-key list > /dev/null 2>&1
     echo "deb http://repo.mysql.com/apt/debian/ buster mysql-${MYSQL_VERSION}" | tee -a /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators for Google Cloud Memorystore service"""
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2.types import cloud_memcache
@@ -28,9 +28,6 @@ from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
     CloudMemorystoreMemcachedHook,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class CloudMemorystoreCreateInstanceOperator(BaseOperator):
@@ -84,7 +81,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance_id",
         "instance",
@@ -121,7 +118,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -173,7 +170,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "project_id",
@@ -207,7 +204,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -263,7 +260,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "output_config",
@@ -300,7 +297,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -355,7 +352,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "data_protection_mode",
@@ -392,7 +389,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -442,7 +439,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "project_id",
@@ -476,7 +473,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -534,7 +531,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "input_config",
@@ -571,7 +568,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -625,7 +622,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "page_size",
         "project_id",
@@ -659,7 +656,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -728,7 +725,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "update_mask",
         "instance",
         "location",
@@ -768,7 +765,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -822,7 +819,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "memory_size_gb",
         "location",
         "instance_id",
@@ -859,7 +856,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -933,7 +930,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance_id",
         "instance",
@@ -973,7 +970,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1042,7 +1039,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "output_config",
@@ -1079,7 +1076,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1135,7 +1132,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "node_ids",
         "apply_all",
         "location",
@@ -1175,7 +1172,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1233,7 +1230,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance_id",
         "instance",
@@ -1267,7 +1264,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.create_instance(
             location=self.location,
@@ -1308,15 +1305,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields: Sequence[str] = (
-        "location",
-        "instance",
-        "project_id",
-        "retry",
-        "timeout",
-        "metadata",
-        "gcp_conn_id",
-    )
+    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
 
     def __init__(
         self,
@@ -1339,7 +1328,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
         hook.delete_instance(
             location=self.location,
@@ -1386,7 +1375,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "instance",
         "project_id",
@@ -1420,7 +1409,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1471,7 +1460,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "project_id",
         "retry",
@@ -1502,7 +1491,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1567,7 +1556,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "update_mask",
         "instance",
         "location",
@@ -1607,7 +1596,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1659,7 +1648,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "update_mask",
         "parameters",
         "location",
@@ -1699,7 +1688,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Dict):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )

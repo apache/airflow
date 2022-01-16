@@ -17,22 +17,17 @@
 # under the License.
 set -euo pipefail
 
-function common::get_colors() {
-    COLOR_BLUE=$'\e[34m'
-    COLOR_GREEN=$'\e[32m'
-    COLOR_RED=$'\e[31m'
-    COLOR_RESET=$'\e[0m'
-    COLOR_YELLOW=$'\e[33m'
-    export COLOR_BLUE
-    export COLOR_GREEN
-    export COLOR_RED
-    export COLOR_RESET
-    export COLOR_YELLOW
-}
+test -v INSTALL_MYSQL_CLIENT
+test -v INSTALL_MSSQL_CLIENT
+test -v AIRFLOW_INSTALL_USER_FLAG
+test -v AIRFLOW_REPO
+test -v AIRFLOW_BRANCH
+test -v AIRFLOW_PIP_VERSION
 
+set -x
 
 function common::get_airflow_version_specification() {
-    if [[ -z ${AIRFLOW_VERSION_SPECIFICATION=}
+    if [[ -z ${AIRFLOW_VERSION_SPECIFICATION}
         && -n ${AIRFLOW_VERSION}
         && ${AIRFLOW_INSTALLATION_METHOD} != "." ]]; then
         AIRFLOW_VERSION_SPECIFICATION="==${AIRFLOW_VERSION}"
@@ -47,9 +42,10 @@ function common::override_pip_version_if_needed() {
     fi
 }
 
+
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
-    if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
+    if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
             AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
         else
@@ -57,16 +53,10 @@ function common::get_constraints_location() {
         fi
     fi
 
-    if [[ -z ${AIRFLOW_CONSTRAINTS_LOCATION=} ]]; then
+    if [[ -z ${AIRFLOW_CONSTRAINTS_LOCATION} ]]; then
         local constraints_base="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}"
         local python_version
         python_version="$(python --version 2>/dev/stdout | cut -d " " -f 2 | cut -d "." -f 1-2)"
         AIRFLOW_CONSTRAINTS_LOCATION="${constraints_base}/${AIRFLOW_CONSTRAINTS}-${python_version}.txt"
     fi
-}
-
-function common::show_pip_version_and_location() {
-   echo "PATH=${PATH}"
-   echo "pip on path: $(which pip)"
-   echo "Using pip: $(pip --version)"
 }

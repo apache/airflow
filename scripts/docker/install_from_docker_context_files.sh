@@ -25,8 +25,6 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
-
 function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -36,6 +34,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     local pip_flags=(
         # Don't quote this -- if it is empty we don't want it to create an
         # empty array element
+        ${AIRFLOW_INSTALL_USER_FLAG}
         --find-links="file:///docker-context-files"
     )
 
@@ -67,7 +66,7 @@ function install_airflow_and_providers_from_docker_context_files(){
 
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
         echo
-        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
+        echo Force re-installing airflow and providers from local files with eager upgrade
         echo
         # force reinstall all airflow + provider package local files with eager upgrade
         pip install "${pip_flags[@]}" --upgrade --upgrade-strategy eager \
@@ -75,7 +74,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     else
         echo
-        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with constraints and upgrade if needed${COLOR_RESET}"
+        echo Force re-installing airflow and providers from local files with constraints and upgrade if needed
         echo
         if [[ ${AIRFLOW_CONSTRAINTS_LOCATION} == "/"* ]]; then
             grep -ve '^apache-airflow' <"${AIRFLOW_CONSTRAINTS_LOCATION}" > /tmp/constraints.txt
@@ -89,14 +88,14 @@ function install_airflow_and_providers_from_docker_context_files(){
             --constraint /tmp/constraints.txt
         rm /tmp/constraints.txt
         # make sure correct PIP version is used \
-        pip install "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         # then upgrade if needed without using constraints to account for new limits in setup.py
-        pip install --upgrade --upgrade-strategy only-if-needed \
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy only-if-needed \
              ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
     fi
 
     # make sure correct PIP version is left installed
-    pip install "pip==${AIRFLOW_PIP_VERSION}"
+    pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
     pip check
 
 }
@@ -105,29 +104,24 @@ function install_airflow_and_providers_from_docker_context_files(){
 # without dependencies. This is extremely useful in case you want to install via pip-download
 # method on air-gaped system where you do not want to download any dependencies from remote hosts
 # which is a requirement for serious installations
-function install_all_other_packages_from_docker_context_files() {
-
+install_all_other_packages_from_docker_context_files() {
     echo
-    echo "${COLOR_BLUE}Force re-installing all other package from local files without dependencies${COLOR_RESET}"
+    echo Force re-installing all other package from local files without dependencies
     echo
     local reinstalling_other_packages
     # shellcheck disable=SC2010
     reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
         grep -v apache_airflow | grep -v apache-airflow || true)
     if [[ -n "${reinstalling_other_packages}" ]]; then \
-        pip install --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
-        pip install "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
     fi
 }
 
-common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
-common::show_pip_version_and_location
 
 install_airflow_and_providers_from_docker_context_files
-
-common::show_pip_version_and_location
 install_all_other_packages_from_docker_context_files

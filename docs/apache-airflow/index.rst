@@ -94,7 +94,6 @@ unit of work and continuity.
     integration
     kubernetes
     lineage
-    listeners
     dag-serialization
     modules_management
     Release Policies <release-process>

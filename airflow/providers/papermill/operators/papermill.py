@@ -15,16 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import Dict, Optional
 
 import attr
 import papermill as pm
 
 from airflow.lineage.entities import File
 from airflow.models import BaseOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 @attr.s(auto_attribs=True)
@@ -54,7 +51,7 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    template_fields: Sequence[str] = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
+    template_fields = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
 
     def __init__(
         self,
@@ -76,7 +73,7 @@ class PapermillOperator(BaseOperator):
         if output_nb:
             self.outlets.append(NoteBook(url=output_nb))
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         if not self.inlets or not self.outlets:
             raise ValueError("Input notebook or output notebook is not specified")
 

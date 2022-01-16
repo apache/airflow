@@ -17,13 +17,9 @@
 # under the License.
 import ftplib
 import re
-from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class FTPSensor(BaseSensorOperator):
@@ -40,7 +36,7 @@ class FTPSensor(BaseSensorOperator):
     :type ftp_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('path',)
+    template_fields = ('path',)
 
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
@@ -69,7 +65,7 @@ class FTPSensor(BaseSensorOperator):
         except ValueError:
             return e
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: dict) -> bool:
         with self._create_hook() as hook:
             self.log.info('Poking for %s', self.path)
             try:

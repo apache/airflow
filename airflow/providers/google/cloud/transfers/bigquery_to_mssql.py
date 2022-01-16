@@ -16,15 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MSSQL operator."""
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
+
+from google.cloud.bigquery.table import TableReference
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class BigQueryToMsSqlOperator(BaseOperator):
@@ -56,7 +54,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     :type source_project_dataset_table: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
-    :type selected_fields: List[str] | str
+    :type selected_fields: str
     :param gcp_conn_id: reference to a specific Google Cloud hook.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
@@ -81,17 +79,17 @@ class BigQueryToMsSqlOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: str | Sequence[str]
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
+    template_fields = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
 
     def __init__(
         self,
         *,
         source_project_dataset_table: str,
         mssql_table: str,
-        selected_fields: Optional[Union[List[str], str]] = None,
+        selected_fields: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         mssql_conn_id: str = 'mssql_default',
         database: Optional[str] = None,
@@ -113,33 +111,47 @@ class BigQueryToMsSqlOperator(BaseOperator):
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
-        try:
-            _, self.dataset_id, self.table_id = source_project_dataset_table.split('.')
-        except ValueError:
-            raise ValueError(
-                f'Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>'
-            ) from None
         self.source_project_dataset_table = source_project_dataset_table
 
-    def execute(self, context: 'Context') -> None:
-        big_query_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
+    def _bq_get_data(self):
+
+        hook = BigQueryHook(
+            bigquery_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        mssql_hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
-        for rows in bigquery_get_data(
-            self.log,
-            self.dataset_id,
-            self.table_id,
-            big_query_hook,
-            self.batch_size,
-            self.selected_fields,
-        ):
-            mssql_hook.insert_rows(
-                table=self.mssql_table,
-                rows=rows,
-                target_fields=self.selected_fields,
-                replace=self.replace,
+        table_ref = TableReference.from_string(self.source_project_dataset_table)
+        self.log.info('Fetching Data from:')
+        self.log.info('Dataset: %s, Table: %s', table_ref.dataset_id, table_ref.table_id)
+
+        conn = hook.get_conn()
+        cursor = conn.cursor()
+        i = 0
+        while True:
+            response = cursor.get_tabledata(
+                dataset_id=table_ref.dataset_id,
+                table_id=table_ref.table_id,
+                max_results=self.batch_size,
+                selected_fields=self.selected_fields,
+                start_index=i * self.batch_size,
             )
+
+            if 'rows' not in response:
+                self.log.info('Job Finished')
+                return
+
+            rows = response['rows']
+
+            self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
+
+            table_data = []
+            table_data = [[fields['v'] for fields in dict_row['f']] for dict_row in rows]
+
+            yield table_data
+            i += 1
+
+    def execute(self, context):
+        mssql_hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
+        for rows in self._bq_get_data():
+            mssql_hook.insert_rows(self.mssql_table, rows, replace=self.replace)

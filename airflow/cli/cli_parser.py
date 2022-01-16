@@ -30,6 +30,7 @@ from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors import celery_executor, celery_kubernetes_executor
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import ColorMode
@@ -62,24 +63,10 @@ class DefaultHelpParser(argparse.ArgumentParser):
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
                 executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
-                classes = ()
-                try:
-                    from airflow.executors.celery_executor import CeleryExecutor
-
-                    classes += (CeleryExecutor,)
-                except ImportError:
-                    message = (
-                        "The celery subcommand requires that you pip install the celery module. "
-                        "To do it, run: pip install 'apache-airflow[celery]'"
-                    )
-                    raise ArgumentError(action, message)
-                try:
-                    from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
-
-                    classes += (CeleryKubernetesExecutor,)
-                except ImportError:
-                    pass
-                if not issubclass(executor_cls, classes):
+                if not issubclass(
+                    executor_cls,
+                    (celery_executor.CeleryExecutor, celery_kubernetes_executor.CeleryKubernetesExecutor),
+                ):
                     message = (
                         f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
                         f'executors derived from them, your current executor: {executor}, subclassed from: '
@@ -91,7 +78,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                 import kubernetes.client  # noqa: F401
             except ImportError:
                 message = (
-                    "The kubernetes subcommand requires that you pip install the kubernetes python client. "
+                    'The kubernetes subcommand requires that you pip install the kubernetes python client.'
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
@@ -749,16 +736,6 @@ ARG_NAMESPACE = Arg(
     ("--namespace",),
     default=conf.get('kubernetes', 'namespace'),
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
-)
-
-ARG_MIN_PENDING_MINUTES = Arg(
-    ("--min-pending-minutes",),
-    default=30,
-    type=positive_int(allow_zero=False),
-    help=(
-        "Pending pods created before the time interval are to be cleaned up, "
-        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
-    ),
 )
 
 # jobs check
@@ -1549,10 +1526,10 @@ KUBERNETES_COMMANDS = (
         help=(
             "Clean up Kubernetes pods "
             "(created by KubernetesExecutor/KubernetesPodOperator) "
-            "in evicted/failed/succeeded/pending states"
+            "in evicted/failed/succeeded states"
         ),
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES),
+        args=(ARG_NAMESPACE,),
     ),
     ActionCommand(
         name='generate-dag-yaml',

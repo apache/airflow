@@ -18,32 +18,23 @@
 import logging
 import uuid
 from datetime import date, datetime
-from typing import Any, NamedTuple
+from typing import Any
 from unittest import mock
 
 import jinja2
-import pendulum
 import pytest
 
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
-from airflow.models.baseoperator import (
-    BaseOperator,
-    BaseOperatorMeta,
-    MappedOperator,
-    chain,
-    cross_downstream,
-)
-from airflow.utils.context import Context
+from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
+from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -87,11 +78,6 @@ class DummySubClass(DummyClass):
         self.test_sub_param = test_sub_param
 
 
-class MockNamedTuple(NamedTuple):
-    var1: str
-    var2: str
-
-
 class TestBaseOperator:
     def test_apply(self):
         dummy = DummyClass(test_param=True)
@@ -131,30 +117,6 @@ class TestBaseOperator:
         error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
-
-    def test_illegal_args(self):
-        """
-        Tests that Operators reject illegal arguments
-        """
-        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
-        with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
-            with pytest.warns(PendingDeprecationWarning, match=msg):
-                BaseOperator(
-                    task_id='test_illegal_args',
-                    illegal_argument_1234='hello?',
-                )
-
-    def test_illegal_args_forbidden(self):
-        """
-        Tests that operators raise exceptions on illegal arguments when
-        illegal arguments are not allowed.
-        """
-        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
-        with pytest.raises(AirflowException, match=msg):
-            BaseOperator(
-                task_id='test_illegal_args',
-                illegal_argument_1234='hello?',
-            )
 
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
@@ -623,7 +585,7 @@ def test_init_subclass_args():
             cls._class_arg = class_arg
             super().__init_subclass__()
 
-        def execute(self, context: Context):
+        def execute(self, context):
             self.context_arg = context
 
     class_arg = "foo"
@@ -677,78 +639,3 @@ def test_operator_retries(caplog, dag_maker, retries, expected):
                 retries=retries,
             )
     assert caplog.record_tuples == expected
-
-
-def test_task_mapping_with_dag():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-        literal = ['a', 'b', 'c']
-        mapped = MockOperator(task_id='task_2').map(arg2=literal)
-        finish = MockOperator(task_id="finish")
-
-        task1 >> mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    # At parse time there should only be three tasks!
-    assert len(dag.tasks) == 3
-
-    assert finish.upstream_list == [mapped]
-    assert mapped.downstream_list == [finish]
-
-
-def test_task_mapping_without_dag_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-    literal = ['a', 'b', 'c']
-    mapped = MockOperator(task_id='task_2').map(arg2=literal)
-
-    task1 >> mapped
-
-    assert isinstance(mapped, MappedOperator)
-    assert mapped in dag.tasks
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    # At parse time there should only be two tasks!
-    assert len(dag.tasks) == 2
-
-
-def test_task_mapping_default_args():
-    default_args = {'start_date': DEFAULT_DATE.now(), 'owner': 'test'}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
-        task1 = BaseOperator(task_id="op1")
-        literal = ['a', 'b', 'c']
-        mapped = MockOperator(task_id='task_2').map(arg2=literal)
-
-        task1 >> mapped
-
-    assert mapped.partial_kwargs['owner'] == 'test'
-    assert mapped.start_date == pendulum.instance(default_args['start_date'])
-
-
-def test_map_unknown_arg_raises():
-    with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator(task_id='a').map(file=[1, 2, {'a': 'b'}])
-
-
-def test_partial_on_instance() -> None:
-    """`.partial` on an instance should fail -- it's only designed to be called on classes"""
-    with pytest.raises(TypeError):
-        MockOperator(
-            task_id='a',
-        ).partial()
-
-
-def test_partial_on_class() -> None:
-    # Test that we accept args for superclasses too
-    op = MockOperator.partial(task_id='a', arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
-    assert op.partial_kwargs == {'arg1': 'a', 'trigger_rule': TriggerRule.ONE_FAILED}
-
-
-def test_partial_on_class_invalid_ctor_args() -> None:
-    """Test that when we pass invalid args to partial().
-
-    I.e. if an arg is not known on the class or any of its parent classes we error at parse time
-    """
-    with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
-        MockOperator.partial(task_id='a', foo='bar', bar=2)
