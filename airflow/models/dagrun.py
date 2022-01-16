@@ -933,34 +933,37 @@ class DagRun(Base, LoggingMixin):
         count = 0
 
         if schedulable_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
+
+            count += with_row_locks(
+                session.query(TI).filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(schedulable_ti_ids),
-                )
-                .update({TI.state: State.SCHEDULED}, synchronize_session=False)
-            )
+                ),
+                of=TI,
+                session=session,
+                **skip_locked(session=session),
+            ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
 
         # Tasks using DummyOperator should not be executed, mark them as success
         if dummy_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
+            count += with_row_locks(
+                session.query(TI).filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(dummy_ti_ids),
-                )
-                .update(
-                    {
-                        TI.state: State.SUCCESS,
-                        TI.start_date: timezone.utcnow(),
-                        TI.end_date: timezone.utcnow(),
-                        TI.duration: 0,
-                    },
-                    synchronize_session=False,
-                )
+                ),
+                of=TI,
+                session=session,
+                **skip_locked(session=session),
+            ).update(
+                {
+                    TI.state: State.SUCCESS,
+                    TI.start_date: timezone.utcnow(),
+                    TI.end_date: timezone.utcnow(),
+                    TI.duration: 0,
+                },
+                synchronize_session=False,
             )
 
         return count
