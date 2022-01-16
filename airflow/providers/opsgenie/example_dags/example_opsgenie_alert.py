@@ -17,7 +17,10 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.opsgenie.operators.opsgenie import OpsgenieAlertOperator, OpsgenieCloseAlertOperator
+from airflow.providers.opsgenie.operators.opsgenie import (
+    OpsgenieCloseAlertOperator,
+    OpsgenieCreateAlertOperator,
+)
 
 with DAG(
     dag_id="opsgenie_alert_operator_dag",
@@ -26,9 +29,9 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # [START howto_opsgenie_alert_operator]
-    opsgenie_alert_operator = OpsgenieAlertOperator(task_id="opsgenie_task", message="Hello World!")
-    # [END howto_opsgenie_alert_operator]
+    # [START howto_opsgenie_create_alert_operator]
+    opsgenie_alert_operator = OpsgenieCreateAlertOperator(task_id="opsgenie_task", message="Hello World!")
+    # [END howto_opsgenie_create_alert_operator]
 
     # [START howto_opsgenie_close_alert_operator]
     opsgenie_close_alert_operator = OpsgenieCloseAlertOperator(

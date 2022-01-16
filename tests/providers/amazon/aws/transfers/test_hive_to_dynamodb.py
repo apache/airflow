@@ -26,7 +26,7 @@ import pandas as pd
 
 import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -44,7 +44,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         self.sql = 'SELECT 1'
-        self.hook = AwsDynamoDBHook(aws_conn_id='aws_default', region_name='us-east-1')
+        self.hook = DynamoDBHook(aws_conn_id='aws_default', region_name='us-east-1')
 
     @staticmethod
     def process_data(data, *args, **kwargs):
@@ -53,7 +53,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AwsDynamoDBHook(aws_conn_id='aws_default')
+        hook = DynamoDBHook(aws_conn_id='aws_default')
         assert hook.get_conn() is not None
 
     @mock.patch(

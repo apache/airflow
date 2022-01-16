@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Language operators."""
-from typing import Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.language_v1 import enums
@@ -25,6 +25,10 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -64,7 +68,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     """
 
     # [START natural_language_analyze_entities_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -92,7 +96,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -144,7 +148,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     """
 
     # [START natural_language_analyze_entity_sentiment_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -172,7 +176,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -227,7 +231,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
     """
 
     # [START natural_language_analyze_sentiment_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -255,7 +259,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -302,7 +306,7 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
     """
 
     # [START natural_language_classify_text_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         "document",
         "gcp_conn_id",
         "impersonation_chain",
@@ -328,7 +332,7 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

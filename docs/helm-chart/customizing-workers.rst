@@ -32,6 +32,9 @@ For example, to set resources on workers:
 
 See :ref:`workers parameters <parameters:workers>` for a complete list.
 
+One notable exception for ``KuberntesExecutor`` is the default anti-affinity applied to ``CeleryExecutor`` workers to spread them across nodes
+is not applied to ``KubernetesExecutor`` workers, as there is no reason to spread out per-task workers.
+
 Custom ``pod_template_file``
 ----------------------------
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 from airflow.sensors.base import BaseSensorOperator
@@ -49,7 +49,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
     :type azure_cosmos_conn_id: str
     """
 
-    template_fields = ('database_name', 'collection_name', 'document_id')
+    template_fields: Sequence[str] = ('database_name', 'collection_name', 'document_id')
 
     def __init__(
         self,

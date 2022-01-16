@@ -17,11 +17,14 @@
 
 
 import json
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class StepFunctionStartExecutionOperator(BaseOperator):
@@ -45,8 +48,8 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['state_machine_arn', 'name', 'input']
-    template_ext = ()
+    template_fields: Sequence[str] = ('state_machine_arn', 'name', 'input')
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(
@@ -66,7 +69,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         execution_arn = hook.start_execution(self.state_machine_arn, self.name, self.input)
@@ -94,8 +97,8 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['execution_arn']
-    template_ext = ()
+    template_fields: Sequence[str] = ('execution_arn',)
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(
@@ -111,7 +114,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         execution_status = hook.describe_execution(self.execution_arn)

@@ -18,7 +18,7 @@
 """This module contains SFTP operator."""
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -78,7 +78,7 @@ class SFTPOperator(BaseOperator):
     :type create_intermediate_dirs: bool
     """
 
-    template_fields = ('local_filepath', 'remote_filepath', 'remote_host')
+    template_fields: Sequence[str] = ('local_filepath', 'remote_filepath', 'remote_host')
 
     def __init__(
         self,

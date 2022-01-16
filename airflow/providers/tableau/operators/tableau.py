@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -23,6 +23,10 @@ from airflow.providers.tableau.hooks.tableau import (
     TableauJobFailedException,
     TableauJobFinishCode,
 )
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 RESOURCES_METHODS = {
     'datasources': ['delete', 'refresh'],
@@ -89,7 +93,7 @@ class TableauOperator(BaseOperator):
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
 
-    def execute(self, context: dict) -> str:
+    def execute(self, context: 'Context') -> str:
         """
         Executes the Tableau API resource and pushes the job id or downloaded file URI to xcom.
         :param context: The task context during execution.

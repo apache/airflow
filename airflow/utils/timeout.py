@@ -19,7 +19,7 @@
 import os
 import signal
 from threading import Timer
-from typing import ContextManager, Optional, Type
+from typing import ContextManager, Optional, Type, Union
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -28,7 +28,9 @@ from airflow.utils.platform import IS_WINDOWS
 _timeout = ContextManager[None]
 
 
-class _timeout_windows(_timeout, LoggingMixin):
+class TimeoutWindows(_timeout, LoggingMixin):
+    """Windows timeout version: To be used in a ``with`` block and timeout its content."""
+
     def __init__(self, seconds=1, error_message='Timeout'):
         super().__init__()
         self._timer: Optional[Timer] = None
@@ -52,8 +54,8 @@ class _timeout_windows(_timeout, LoggingMixin):
             self._timer = None
 
 
-class _timeout_posix(_timeout, LoggingMixin):
-    """To be used in a ``with`` block and timeout its content."""
+class TimeoutPosix(_timeout, LoggingMixin):
+    """POSIX Timeout version: To be used in a ``with`` block and timeout its content."""
 
     def __init__(self, seconds=1, error_message='Timeout'):
         super().__init__()
@@ -80,6 +82,6 @@ class _timeout_posix(_timeout, LoggingMixin):
 
 
 if IS_WINDOWS:
-    timeout: Type[_timeout] = _timeout_windows
+    timeout: Type[Union[TimeoutWindows, TimeoutPosix]] = TimeoutWindows
 else:
-    timeout = _timeout_posix
+    timeout = TimeoutPosix

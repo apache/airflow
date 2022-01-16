@@ -17,12 +17,16 @@
 # under the License.
 """This module contains a Google Cloud Storage to Google Drive transfer operator."""
 import tempfile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 WILDCARD = "*"
 
@@ -80,7 +84,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "source_bucket",
         "source_object",
         "destination_object",
@@ -112,7 +116,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gcs_hook = None  # type: Optional[GCSHook]
         self.gdrive_hook = None  # type: Optional[GoogleDriveHook]
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
 
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

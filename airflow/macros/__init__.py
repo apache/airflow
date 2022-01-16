@@ -22,6 +22,7 @@ from random import random  # noqa
 from typing import Any, Optional
 
 import dateutil  # noqa
+from pendulum import DateTime
 
 from airflow.macros import hive  # noqa
 
@@ -66,7 +67,7 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
     return datetime.strptime(str(ds), input_format).strftime(output_format)
 
 
-def datetime_diff_for_humans(dt: Any, since: Optional[datetime] = None) -> str:
+def datetime_diff_for_humans(dt: Any, since: Optional[DateTime] = None) -> str:
     """
     Return a human-readable/approximate difference between two datetimes, or
     one and now.
@@ -75,7 +76,7 @@ def datetime_diff_for_humans(dt: Any, since: Optional[datetime] = None) -> str:
     :type dt: datetime.datetime
     :param since: When to display the date from. If ``None`` then the diff is
         between ``dt`` and now.
-    :type since: None or datetime.datetime
+    :type since: None or DateTime
     :rtype: str
     """
     import pendulum

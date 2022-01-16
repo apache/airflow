@@ -20,7 +20,7 @@ import ast
 import json
 import socket
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -95,8 +95,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :type allowed_jenkins_states: Optional[Iterable[str]]
     """
 
-    template_fields = ('parameters',)
-    template_ext = ('.json',)
+    template_fields: Sequence[str] = ('parameters',)
+    template_ext: Sequence[str] = ('.json',)
     ui_color = '#f9ec86'
 
     def __init__(

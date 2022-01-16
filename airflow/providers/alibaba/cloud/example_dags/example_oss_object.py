@@ -28,7 +28,7 @@ from airflow.providers.alibaba.cloud.operators.oss import (
 with DAG(
     dag_id='oss_object_dag',
     start_date=datetime(2021, 1, 1),
-    default_args={'bucket_name': 'your bucket'},
+    default_args={'bucket_name': 'your bucket', 'region': 'your region'},
     max_active_runs=1,
     tags=['example'],
     catchup=False,
@@ -38,26 +38,22 @@ with DAG(
         file='your local file',
         key='your oss key',
         task_id='task1',
-        region='your region',
     )
 
     download_object = OSSDownloadObjectOperator(
         file='your local file',
         key='your oss key',
         task_id='task2',
-        region='your region',
     )
 
     delete_object = OSSDeleteObjectOperator(
         key='your oss key',
         task_id='task3',
-        region='your region',
     )
 
     delete_batch_object = OSSDeleteBatchObjectOperator(
         keys=['obj1', 'obj2', 'obj3'],
         task_id='task4',
-        region='your region',
     )
 
     create_object >> download_object >> delete_object >> delete_batch_object

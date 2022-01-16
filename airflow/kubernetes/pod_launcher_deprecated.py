@@ -39,7 +39,7 @@ from airflow.utils.state import State
 
 warnings.warn(
     """
-    Please use :mod: Please use `airflow.providers.cncf.kubernetes.utils.pod_launcher`
+    Please use :mod: Please use `airflow.providers.cncf.kubernetes.utils.pod_manager`
 
     To use this module install the provider package by installing this pip package:
 
@@ -62,7 +62,7 @@ class PodStatus:
 
 class PodLauncher(LoggingMixin):
     """Deprecated class for launching pods. please use
-    airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher instead
+    airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead
     """
 
     def __init__(
@@ -74,7 +74,7 @@ class PodLauncher(LoggingMixin):
     ):
         """
         Deprecated class for launching pods. please use
-        airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher instead
+        airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead
         Creates the launcher.
 
         :param kube_client: kubernetes client

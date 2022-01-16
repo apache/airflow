@@ -22,7 +22,7 @@ This file should only contain constants used for the EKS tests.
 """
 import re
 from enum import Enum
-from typing import Dict, List, Pattern, Tuple
+from typing import Any, Dict, List, Pattern, Tuple
 
 DEFAULT_CONN_ID: str = "aws_default"
 DEFAULT_NAMESPACE: str = "default_namespace"
@@ -31,6 +31,8 @@ FROZEN_TIME: str = "2013-11-27T01:42:00Z"
 MAX_FARGATE_LABELS: int = 5
 PACKAGE_NOT_PRESENT_MSG: str = "mock_eks package not present"
 PARTITION: str = "aws"
+NODEGROUP_OWNERSHIP_TAG_KEY = "kubernetes.io/cluster/{cluster_name}"
+NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE = "owned"
 NON_EXISTING_CLUSTER_NAME: str = "non_existing_cluster"
 NON_EXISTING_FARGATE_PROFILE_NAME: str = "non_existing_fargate_profile"
 NON_EXISTING_NODEGROUP_NAME: str = "non_existing_nodegroup"
@@ -96,8 +98,8 @@ class ErrorAttributes:
 class ClusterInputs:
     """All possible inputs for creating an EKS Cluster."""
 
-    REQUIRED: List[Tuple] = [ROLE_ARN, RESOURCES_VPC_CONFIG]
-    OPTIONAL: List[Tuple] = [
+    REQUIRED: List[Tuple[str, Any]] = [ROLE_ARN, RESOURCES_VPC_CONFIG]
+    OPTIONAL: List[Tuple[str, Any]] = [
         CLIENT_REQUEST_TOKEN,
         ENCRYPTION_CONFIG,
         LOGGING,
@@ -108,15 +110,17 @@ class ClusterInputs:
 
 
 class FargateProfileInputs:
-    REQUIRED: List[Tuple] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
-    OPTIONAL: List[Tuple] = [SUBNETS, TAGS]
+    """All possible inputs for creating an AWS Fargate profile."""
+
+    REQUIRED: List[Tuple[str, Any]] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
+    OPTIONAL: List[Tuple[str, Any]] = [SUBNETS, TAGS]
 
 
 class NodegroupInputs:
     """All possible inputs for creating an EKS Managed Nodegroup."""
 
-    REQUIRED: List[Tuple] = [NODEROLE_ARN, SUBNETS]
-    OPTIONAL: List[Tuple] = [
+    REQUIRED: List[Tuple[str, Any]] = [NODEROLE_ARN, SUBNETS]
+    OPTIONAL: List[Tuple[str, Any]] = [
         AMI_TYPE,
         DISK_SIZE,
         INSTANCE_TYPES,

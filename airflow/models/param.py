@@ -17,17 +17,15 @@
 import copy
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
+from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
 from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 
 from airflow.exceptions import AirflowException
+from airflow.utils.context import Context
 from airflow.utils.types import NOTSET, ArgNotSet
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class Param:
@@ -257,7 +255,7 @@ class DagParam:
         self._name = name
         self._default = default
 
-    def resolve(self, context: "Context") -> Any:
+    def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:

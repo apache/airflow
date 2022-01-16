@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import re
 from copy import deepcopy
 from typing import Dict, List, Optional, Pattern, Tuple, Type, Union
@@ -58,7 +59,7 @@ def attributes_to_test(
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
     :rtype: List[Tuple]
     """
-    result: List[Tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])
+    result: List[Tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
     if inputs == ClusterInputs:
         result += [(ClusterAttributes.NAME, cluster_name)]
     elif inputs == FargateProfileInputs:
@@ -195,13 +196,13 @@ def _input_builder(options: InputTypes, minimal: bool) -> Dict:
     :type options: InputTypes
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :type minimal: bool
-    :return: Returns a list of tuples containing the keys and values to be validated in testing.
-    :rtype: List[Tuple]
+    :return: Returns a dict containing the keys and values to be validated in testing.
+    :rtype: Dict
     """
-    values: List[Tuple] = deepcopy(options.REQUIRED)
+    values: List[Tuple] = deepcopy(options.REQUIRED)  # type: ignore
     if not minimal:
         values.extend(deepcopy(options.OPTIONAL))
-    return dict(values)
+    return dict(values)  # type: ignore
 
 
 def string_to_regex(value: str) -> Pattern[str]:
@@ -227,40 +228,40 @@ def convert_keys(original: Dict) -> Dict:
     :param original: Dict which needs the keys converted.
     :value original: Dict
     """
-    if "nodegroup_name" in original.keys():
-        conversion_map = dict(
-            cluster_name="clusterName",
-            cluster_role_arn="roleArn",
-            nodegroup_subnets="subnets",
-            subnets="subnets",
-            nodegroup_name="nodegroupName",
-            nodegroup_role_arn="nodeRole",
-        )
-    elif "fargate_profile_name" in original.keys():
-        conversion_map = dict(
-            cluster_name="clusterName",
-            fargate_profile_name="fargateProfileName",
-            subnets="subnets",
+    if 'nodegroup_name' in original.keys():
+        conversion_map = {
+            'cluster_name': 'clusterName',
+            'cluster_role_arn': 'roleArn',
+            'nodegroup_subnets': 'subnets',
+            'subnets': 'subnets',
+            'nodegroup_name': 'nodegroupName',
+            'nodegroup_role_arn': 'nodeRole',
+        }
+    elif 'fargate_profile_name' in original.keys():
+        conversion_map = {
+            'cluster_name': 'clusterName',
+            'fargate_profile_name': 'fargateProfileName',
+            'subnets': 'subnets',
             # The following are "duplicated" because we used the more verbose/descriptive version
             # in the CreateCluster Operator when creating a cluster alongside a Fargate profile, but
             # the more terse version in the CreateFargateProfile Operator for the sake of convenience.
-            pod_execution_role_arn="podExecutionRoleArn",
-            fargate_pod_execution_role_arn="podExecutionRoleArn",
-            selectors="selectors",
-            fargate_selectors="selectors",
-        )
+            'pod_execution_role_arn': 'podExecutionRoleArn',
+            'fargate_pod_execution_role_arn': 'podExecutionRoleArn',
+            'selectors': 'selectors',
+            'fargate_selectors': 'selectors',
+        }
     else:
-        conversion_map = dict(
-            cluster_name="name",
-            cluster_role_arn="roleArn",
-            resources_vpc_config="resourcesVpcConfig",
-        )
+        conversion_map = {
+            'cluster_name': 'name',
+            'cluster_role_arn': 'roleArn',
+            'resources_vpc_config': 'resourcesVpcConfig',
+        }
 
-    return {conversion_map[k]: v for (k, v) in deepcopy(original).items()}
+    return {conversion_map[k] if k in conversion_map else k: v for (k, v) in deepcopy(original).items()}
 
 
-def iso_date(datetime: str) -> str:
-    return datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+def iso_date(input_datetime: datetime.datetime) -> str:
+    return input_datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
 
 def generate_dict(prefix, count) -> Dict:

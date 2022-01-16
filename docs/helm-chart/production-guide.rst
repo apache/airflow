@@ -415,18 +415,17 @@ Built-in secrets and environment variables
 ------------------------------------------
 
 The Helm Chart by default uses Kubernetes Secrets to store secrets that are needed by Airflow.
-Content of those secrets is by default turned into environment variables that are read by
+The contents of those secrets are by default turned into environment variables that are read by
 Airflow (some of the environment variables have several variants to support older versions of Airflow).
 
-By default, names of the secret used is determined from the Release Name used when Helm Chart is deployed,
-but you can also set your own names for the secrets to override the variables or disable using the secrets
+By default, the secret names are determined from the Release Name used when the Helm Chart is deployed,
+but you can also use a different secret to set the variables or disable using secrets
 entirely and rely on environment variables (specifically if you want to use ``_CMD`` or ``__SECRET`` variant
 of the environment variable.
 
 However, Airflow supports other variants of setting secret configuration - you can specify a system
 command to retrieve and automatically rotate the secret (by defining variable with ``_CMD`` suffix) or
-to retrieve a variable from secret backed (by defining the variable with ``_SECRET`` suffix). All
-``AIRFLOW__*`` variables implement those patterns.
+to retrieve a variable from secret backed (by defining the variable with ``_SECRET`` suffix).
 
 If the ``<VARIABLE_NAME>>`` is set, it takes precedence over the ``_CMD`` and ``_SECRET`` variant, so
 if you want to set one of the ``_CMD`` or ``_SECRET`` variants, you MUST disable the built in
@@ -445,40 +444,38 @@ file) specify:
 
 Here is the full list of secrets that can be disabled and replaced by ``_CMD`` and ``_SECRET`` variants:
 
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| Default secret name if secret name not specified      | Override secret name in configuration    | Airflow Environment Variable                   |
-+=======================================================+==========================================+================================================+
-| ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                  |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | ``AIRFLOW__CORE__SQL_ALCHEMY_CONN,``           |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``             |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | ``AIRFLOW__CELERY__RESULT_BACKEND``            |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-airflow-brokerUrl``                  | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | ``AIRFLOW__ELASTICSEARCH__HOST``               |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| Default secret name if secret name not specified      | Use a different Kubernetes Secret        | Airflow Environment Variable                     |
++=======================================================+==========================================+==================================================+
+| ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
+|                                                       |                                          | | ``AIRFLOW__CORE__SQL_ALCHEMY_CONN``            |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
+|                                                       |                                          | | ``AIRFLOW__CELERY__RESULT_BACKEND``            |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-airflow-brokerUrl``                  | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | | ``AIRFLOW__ELASTICSEARCH__HOST``               |
+|                                                       |                                          | | ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 
-There are also a number of secrets, which names are also determined from the release name that do not need to
-be disabled. This is because either they do not follow the ``_CMD`` or ``_SECRET`` pattern (all variables
-which do not start with ``AIRFLOW__`` or because they do not have corresponding variable. There is also one
-``_AIRFLOW__*`` variable that does not need to be disabled: ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``
-even if you want set ``_CMD`` and ``_SECRET``. This variable is not set by default. It is only set
+There are also a number of secrets, which names are also determined from the release name, that do not need to
+be disabled. This is because either they do not follow the ``_CMD`` or ``_SECRET`` pattern, are variables
+which do not start with ``AIRFLOW__``, or they do not have a corresponding variable.
+
+There is also one ``_AIRFLOW__*`` variable, ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``, that does not need to be disabled,
+even if you want set the ``_CMD`` and ``_SECRET`` variant. This variable is not set by default. It is only set
 when ``.Values.flower.secretName`` is set or when ``.Values.flower.user`` and ``.Values.flower.password``
 are set. So if you do not set any of the ``.Values.flower.*`` variables, you can freely configure
-flower Basic Auth using ``_CMD`` or ``_SECRET`` variant without disabling the basic variant.
+flower Basic Auth using the ``_CMD`` or ``_SECRET`` variant without disabling the basic variant.
 
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| Default secret name if secret name not specified      | Override secret name in configuration    | Airflow Environment Variable                   |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| Default secret name if secret name not specified      | Use a different Kubernetes Secret        | Airflow Environment Variable                   |
++=======================================================+==========================================+================================================+
 | ``<RELEASE_NAME>-redis-password``                     | ``.Values.redis.passwordSecretName``     | ``REDIS_PASSWORD``                             |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-pgbouncer-config``                   | ``.Values.pgbouncer.configSecretName``   |                                                |

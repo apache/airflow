@@ -309,6 +309,9 @@ class OracleHook(DbApiHook):
         sql = f"BEGIN {identifier}({args}); END;"
 
         def handler(cursor):
+            if cursor.bindvars is None:
+                return
+
             if isinstance(cursor.bindvars, list):
                 return [v.getvalue() for v in cursor.bindvars]
 

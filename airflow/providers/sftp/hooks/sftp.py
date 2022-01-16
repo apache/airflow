@@ -74,19 +74,18 @@ class SFTPHook(SSHHook):
     def __init__(
         self,
         ssh_conn_id: Optional[str] = 'sftp_default',
-        ftp_conn_id: Optional[str] = 'sftp_default',
         *args,
         **kwargs,
     ) -> None:
-
+        ftp_conn_id = kwargs.pop('ftp_conn_id', None)
         if ftp_conn_id:
             warnings.warn(
-                'Parameter `ftp_conn_id` is deprecated.' 'Please use `ssh_conn_id` instead.',
+                'Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.',
                 DeprecationWarning,
                 stacklevel=2,
             )
-            kwargs['ssh_conn_id'] = ftp_conn_id
-        self.ssh_conn_id = ssh_conn_id
+            ssh_conn_id = ftp_conn_id
+        kwargs['ssh_conn_id'] = ssh_conn_id
         super().__init__(*args, **kwargs)
 
         self.conn = None
@@ -102,14 +101,14 @@ class SFTPHook(SSHHook):
                 extra_options = conn.extra_dejson
 
                 # For backward compatibility
-                # TODO: remove in Airflow 2.1
+                # TODO: remove in the next major provider release.
 
                 if 'private_key_pass' in extra_options:
                     warnings.warn(
                         'Extra option `private_key_pass` is deprecated.'
                         'Please use `private_key_passphrase` instead.'
                         '`private_key_passphrase` will precede if both options are specified.'
-                        'The old option `private_key_pass` will be removed in Airflow 2.1',
+                        'The old option `private_key_pass` will be removed in a future release.',
                         DeprecationWarning,
                         stacklevel=2,
                     )
@@ -121,7 +120,7 @@ class SFTPHook(SSHHook):
                     warnings.warn(
                         'Extra option `ignore_hostkey_verification` is deprecated.'
                         'Please use `no_host_key_check` instead.'
-                        'This option will be removed in Airflow 2.1',
+                        'This option will be removed in a future release.',
                         DeprecationWarning,
                         stacklevel=2,
                     )

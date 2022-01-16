@@ -23,6 +23,7 @@ import os
 from datetime import datetime
 
 from google.cloud.datacatalog_v1beta1 import FieldType, TagField, TagTemplateField
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -242,7 +243,7 @@ with models.DAG(
         task_id="get_entry_group",
         location=LOCATION,
         entry_group=ENTRY_GROUP_ID,
-        read_mask={"paths": ["name", "display_name"]},
+        read_mask=FieldMask(paths=["name", "display_name"]),
     )
     # [END howto_operator_gcp_datacatalog_get_entry_group]
 

@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
-class AwsRedshiftClusterSensor(BaseSensorOperator):
+
+class RedshiftClusterSensor(BaseSensorOperator):
     """
     Waits for a Redshift cluster to reach a specific status.
 
@@ -31,7 +33,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     :type target_status: str
     """
 
-    template_fields = ('cluster_identifier', 'target_status')
+    template_fields: Sequence[str] = ('cluster_identifier', 'target_status')
 
     def __init__(
         self,
@@ -47,7 +49,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.hook: Optional[RedshiftHook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
@@ -40,7 +40,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
     :type azure_cosmos_conn_id: str
     """
 
-    template_fields = ('database_name', 'collection_name')
+    template_fields: Sequence[str] = ('database_name', 'collection_name')
     ui_color = '#e4f0e8'
 
     def __init__(

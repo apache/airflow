@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.models import BaseOperator
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -127,9 +128,9 @@ class BashOperator(BaseOperator):
 
     """
 
-    template_fields = ('bash_command', 'env')
+    template_fields: Sequence[str] = ('bash_command', 'env')
     template_fields_renderers = {'bash_command': 'bash', 'env': 'json'}
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.sh',
         '.bash',
     )
@@ -180,7 +181,7 @@ class BashOperator(BaseOperator):
         env.update(airflow_context_vars)
         return env
 
-    def execute(self, context):
+    def execute(self, context: Context):
         if self.cwd is not None:
             if not os.path.exists(self.cwd):
                 raise AirflowException(f"Can not find the cwd: {self.cwd}")
