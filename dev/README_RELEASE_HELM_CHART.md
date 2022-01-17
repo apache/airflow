@@ -656,6 +656,8 @@ Create a new release on GitHub with the changelog and assets from the release sv
 ## Close the milestone
 
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
+make sure to update the last updated timestamp as well.
 
 ## Announce the release on the community slack
 
