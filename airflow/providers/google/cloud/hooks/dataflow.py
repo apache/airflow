@@ -503,7 +503,8 @@ class _DataflowJobsController(LoggingMixin):
                 timeout_error_message = (
                     f"Canceling jobs failed due to timeout ({self._cancel_timeout}s): {', '.join(job_ids)}"
                 )
-                with timeout(seconds=self._cancel_timeout, error_message=timeout_error_message):
+                tm = timeout(seconds=self._cancel_timeout, error_message=timeout_error_message)
+                with tm:
                     self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
         else:
             self.log.info("No jobs to cancel")
@@ -1035,7 +1036,7 @@ class DataflowHook(GoogleBaseHook):
         ]
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.run(cmd, capture_output=True)
         self.log.info("Output: %s", proc.stdout.decode())
         self.log.warning("Stderr: %s", proc.stderr.decode())
         self.log.info("Exit code %d", proc.returncode)

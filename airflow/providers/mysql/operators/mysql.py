@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import Dict, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MySqlOperator(BaseOperator):
@@ -48,9 +51,9 @@ class MySqlOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields = ('sql', 'parameters')
+    template_fields: Sequence[str] = ('sql', 'parameters')
     template_fields_renderers = {'sql': 'sql', 'parameters': 'json'}
-    template_ext = ('.sql', '.json')
+    template_ext: Sequence[str] = ('.sql', '.json')
     ui_color = '#ededed'
 
     def __init__(
@@ -75,7 +78,7 @@ class MySqlOperator(BaseOperator):
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

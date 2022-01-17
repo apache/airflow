@@ -22,7 +22,19 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    MutableMapping,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 from urllib import parse
 
 import flask
@@ -31,7 +43,6 @@ import jinja2.nativetypes
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -160,7 +171,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string):
+def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional[jinja2.Template]]:
     """Parses Jinja template string."""
     if "{{" in template_string:  # jinja mode
         return None, jinja2.Template(template_string)
@@ -182,7 +193,7 @@ def render_log_filename(ti: "TaskInstance", try_number, filename_template) -> st
     if filename_jinja_template:
         jinja_context = ti.get_template_context()
         jinja_context['try_number'] = try_number
-        return filename_jinja_template.render(**jinja_context)
+        return render_template_to_string(filename_jinja_template, jinja_context)
 
     return filename_template.format(
         dag_id=ti.dag_id,
@@ -251,7 +262,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
-def render_template(template: Any, context: Context, *, native: bool) -> Any:
+def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
     """Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
@@ -278,12 +289,12 @@ def render_template(template: Any, context: Context, *, native: bool) -> Any:
     return "".join(nodes)
 
 
-def render_template_to_string(template: jinja2.Template, context: Context) -> str:
+def render_template_to_string(template: jinja2.Template, context: MutableMapping[str, Any]) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
     return render_template(template, context, native=False)
 
 
-def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
+def render_template_as_native(template: jinja2.Template, context: MutableMapping[str, Any]) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
     return render_template(template, context, native=True)
 
@@ -299,3 +310,48 @@ def exactly_one(*args) -> bool:
             "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
         )
     return sum(map(bool, args)) == 1
+
+
+def prune_dict(val: Any, mode='strict'):
+    """
+    Given dict ``val``, returns new dict based on ``val`` with all
+    empty elements removed.
+
+    What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
+    then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
+    will be removed if ``bool(x) is False``.
+    """
+
+    def is_empty(x):
+        if mode == 'strict':
+            return x is None
+        elif mode == 'truthy':
+            return bool(x) is False
+        raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
+
+    if isinstance(val, dict):
+        new_dict = {}
+        for k, v in val.items():
+            if is_empty(v):
+                continue
+            elif isinstance(v, (list, dict)):
+                new_val = prune_dict(v, mode=mode)
+                if new_val:
+                    new_dict[k] = new_val
+            else:
+                new_dict[k] = v
+        return new_dict
+    elif isinstance(val, list):
+        new_list = []
+        for v in val:
+            if is_empty(v):
+                continue
+            elif isinstance(v, (list, dict)):
+                new_val = prune_dict(v, mode=mode)
+                if new_val:
+                    new_list.append(new_val)
+            else:
+                new_list.append(v)
+        return new_list
+    else:
+        return val

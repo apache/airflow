@@ -19,7 +19,7 @@
 import copy
 from abc import ABCMeta
 from contextlib import ExitStack
-from typing import Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -31,6 +31,9 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BeamDataflowMixin(metaclass=ABCMeta):
@@ -166,7 +169,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
     :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
-    template_fields = ["py_file", "runner", "pipeline_options", "default_pipeline_options", "dataflow_config"]
+    template_fields: Sequence[str] = (
+        "py_file",
+        "runner",
+        "pipeline_options",
+        "default_pipeline_options",
+        "dataflow_config",
+    )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
 
     def __init__(
@@ -216,7 +225,7 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                 "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
@@ -242,7 +251,7 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
-            if is_dataflow:
+            if is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
                     self.beam_hook.start_python_pipeline(
                         variables=formatted_pipeline_options,
@@ -254,12 +263,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                         process_line_callback=process_line_callback,
                     )
 
-                self.dataflow_hook.wait_for_done(
-                    job_name=dataflow_job_name,
-                    location=self.dataflow_config.location,
-                    job_id=self.dataflow_job_id,
-                    multiple_jobs=False,
-                )
+                if dataflow_job_name and self.dataflow_config.location:
+                    self.dataflow_hook.wait_for_done(
+                        job_name=dataflow_job_name,
+                        location=self.dataflow_config.location,
+                        job_id=self.dataflow_job_id,
+                        multiple_jobs=False,
+                    )
 
             else:
                 self.beam_hook.start_python_pipeline(
@@ -340,14 +350,14 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
     :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "jar",
         "runner",
         "job_class",
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
-    ]
+    )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
     ui_color = "#0273d4"
 
@@ -390,7 +400,7 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                 "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
@@ -411,7 +421,7 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-            if is_dataflow:
+            if is_dataflow and self.dataflow_hook:
                 is_running = False
                 if self.dataflow_config.check_if_running != CheckJobRunning.IgnoreJob:
                     is_running = (
@@ -445,14 +455,19 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                             job_class=self.job_class,
                             process_line_callback=process_line_callback,
                         )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=dataflow_job_name,
-                        location=self.dataflow_config.location,
-                        job_id=self.dataflow_job_id,
-                        multiple_jobs=self.dataflow_config.multiple_jobs,
-                        project_id=self.dataflow_config.project_id,
-                    )
-
+                    if dataflow_job_name and self.dataflow_config.location:
+                        multiple_jobs = (
+                            self.dataflow_config.multiple_jobs
+                            if self.dataflow_config.multiple_jobs
+                            else False
+                        )
+                        self.dataflow_hook.wait_for_done(
+                            job_name=dataflow_job_name,
+                            location=self.dataflow_config.location,
+                            job_id=self.dataflow_job_id,
+                            multiple_jobs=multiple_jobs,
+                            project_id=self.dataflow_config.project_id,
+                        )
             else:
                 self.beam_hook.start_java_pipeline(
                     variables=pipeline_options,

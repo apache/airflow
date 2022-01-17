@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow.hooks.base import BaseHook
+from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
@@ -58,6 +59,12 @@ class AirflowTestOnLoadExceptionPlugin(AirflowPlugin):
     def on_load(self, *args, **kwargs):
         raise Exception("oops")
 """
+
+
+@pytest.fixture(autouse=True, scope='module')
+def clean_plugins():
+    yield
+    get_listener_manager().clear()
 
 
 class TestPluginsRBAC:
@@ -349,6 +356,16 @@ class TestPluginsManager:
             # this plugin, this is necessary in order to allow the plugin's macros to be used when
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)
+
+    def test_registering_plugin_listeners(self):
+        from airflow import plugins_manager
+
+        with mock.patch('airflow.plugins_manager.plugins', []):
+            plugins_manager.load_plugins_from_plugin_directory()
+            plugins_manager.integrate_listener_plugins(get_listener_manager())
+
+            assert get_listener_manager().has_listeners
+            assert get_listener_manager().pm.get_plugins().pop().__name__ == "tests.listeners.empty_listener"
 
 
 class TestPluginsDirectorySource:

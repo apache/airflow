@@ -15,17 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
-from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
+import json
+import warnings
+from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
 from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.utils.context import Context
 from airflow.utils.types import NOTSET, ArgNotSet
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class Param:
@@ -49,13 +49,6 @@ class Param:
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
-        # If we have a value, validate it once. May raise ValueError.
-        if not isinstance(default, ArgNotSet):
-            try:
-                jsonschema.validate(self.value, self.schema, format_checker=FormatChecker())
-            except ValidationError as err:
-                raise ValueError(err)
-
     def __copy__(self) -> "Param":
         return Param(self.value, self.description, schema=self.schema)
 
@@ -64,6 +57,8 @@ class Param:
         Runs the validations and returns the Param's final value.
         May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
+        We first check that value is json-serializable; if not, warn.
+        In future release we will require the value to be json-serializable.
 
         :param value: The value to be updated for the Param
         :type value: Any
@@ -71,17 +66,25 @@ class Param:
             If true and validations fails, the return value would be None.
         :type suppress_exception: bool
         """
+        try:
+            json.dumps(value)
+        except Exception:
+            warnings.warn(
+                "The use of non-json-serializable params is deprecated and will be removed in "
+                "a future release",
+                DeprecationWarning,
+            )
         final_val = value if value is not NOTSET else self.value
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:
                 return None
-            raise TypeError("No value passed and Param has no default value")
+            raise ParamValidationError("No value passed and Param has no default value")
         try:
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
         except ValidationError as err:
             if suppress_exception:
                 return None
-            raise ValueError(err) from None
+            raise ParamValidationError(err) from None
         self.value = final_val
         return final_val
 
@@ -157,8 +160,8 @@ class ParamsDict(MutableMapping[str, Any]):
             param = self.__dict[key]
             try:
                 param.resolve(value=value, suppress_exception=self.suppress_exception)
-            except ValueError as ve:
-                raise ValueError(f'Invalid input for param {key}: {ve}') from None
+            except ParamValidationError as ve:
+                raise ParamValidationError(f'Invalid input for param {key}: {ve}') from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
@@ -201,8 +204,8 @@ class ParamsDict(MutableMapping[str, Any]):
         try:
             for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
-        except ValueError as ve:
-            raise ValueError(f'Invalid input for param {k}: {ve}') from None
+        except ParamValidationError as ve:
+            raise ParamValidationError(f'Invalid input for param {k}: {ve}') from None
 
         return resolved_dict
 
@@ -237,7 +240,7 @@ class DagParam:
         self._name = name
         self._default = default
 
-    def resolve(self, context: "Context") -> Any:
+    def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:

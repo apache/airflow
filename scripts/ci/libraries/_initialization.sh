@@ -107,11 +107,11 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.6")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
@@ -416,9 +416,12 @@ function initialization::initialize_image_build_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
+    SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
+    export SKIP_TWINE_CHECK
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.4"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.3.1"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -435,6 +438,13 @@ function initialization::initialize_image_build_variables() {
 
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
     export AIRFLOW_SOURCES_TO
+
+    # By default no sources are copied to image
+    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="empty"}
+    export AIRFLOW_SOURCES_WWW_FROM
+
+    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/empty"}
+    export AIRFLOW_SOURCES_WWW_TO
 
     # By default in scripts production docker image is installed from PyPI package
     export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
@@ -708,6 +718,8 @@ Production image build variables:
     AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
+    AIRFLOW_SOURCES_WWW_FROM: '${AIRFLOW_SOURCES_WWW_FROM}'
+    AIRFLOW_SOURCES_WWW_TO: '${AIRFLOW_SOURCES_WWW_TO}'
 
 Detected GitHub environment:
 
@@ -915,6 +927,16 @@ function initialization::ver() {
 }
 
 function initialization::check_docker_version() {
+    local permission_denied
+    permission_denied=$(docker info 2>/dev/null | grep "ERROR: Got permission denied while trying " || true)
+    if [[ ${permission_denied} != "" ]]; then
+        echo
+        echo "${COLOR_RED}ERROR: You have 'permission denied' error when trying to communicate with docker.${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}Most likely you need to add your user to 'docker' group: https://docs.docker.com/engine/install/linux-postinstall/ .${COLOR_RESET}"
+        echo
+        exit 1
+    fi
     local docker_version
     # In GitHub Code QL, the version of docker has +azure suffix which we should remove
     docker_version=$(docker version --format '{{.Client.Version}}' | sed 's/\+.*$//' || true)

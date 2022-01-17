@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class WasbDeleteBlobOperator(BaseOperator):
@@ -41,7 +44,7 @@ class WasbDeleteBlobOperator(BaseOperator):
     :type ignore_if_missing: bool
     """
 
-    template_fields = ('container_name', 'blob_name')
+    template_fields: Sequence[str] = ('container_name', 'blob_name')
 
     def __init__(
         self,
@@ -64,7 +67,7 @@ class WasbDeleteBlobOperator(BaseOperator):
         self.is_prefix = is_prefix
         self.ignore_if_missing = ignore_if_missing
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> None:
         self.log.info('Deleting blob: %s\n in wasb://%s', self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
 

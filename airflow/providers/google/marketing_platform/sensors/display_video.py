@@ -16,11 +16,14 @@
 # under the License.
 
 """Sensor for detecting the completion of DV360 reports."""
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow import AirflowException
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
@@ -52,7 +55,7 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_id",
         "impersonation_chain",
     )
@@ -75,7 +78,7 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -119,7 +122,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
 
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "operation_name",
         "impersonation_chain",
     )
@@ -145,7 +148,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

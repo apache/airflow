@@ -23,6 +23,7 @@
 {{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.flower.affinity .Values.affinity }}
 {{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.flower) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -67,8 +68,7 @@ spec:
 {{ toYaml $tolerations | indent 8 }}
       serviceAccountName: {{ include "flower.serviceAccountName" . }}
       restartPolicy: Always
-      securityContext:
-        runAsUser: {{ .Values.uid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}

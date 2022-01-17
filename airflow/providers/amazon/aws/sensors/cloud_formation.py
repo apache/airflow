@@ -17,14 +17,17 @@
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
 import sys
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
 
-from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -41,7 +44,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields = ['stack_name']
+    template_fields: Sequence[str] = ('stack_name',)
     ui_color = '#C5CAE9'
 
     def __init__(self, *, stack_name, aws_conn_id='aws_default', region_name=None, **kwargs):
@@ -50,7 +53,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status == 'CREATE_COMPLETE':
             return True
@@ -59,9 +62,9 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
     @cached_property
-    def hook(self) -> AWSCloudFormationHook:
-        """Create and return an AWSCloudFormationHook"""
-        return AWSCloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+    def hook(self) -> CloudFormationHook:
+        """Create and return an CloudFormationHook"""
+        return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class CloudFormationDeleteStackSensor(BaseSensorOperator):
@@ -77,7 +80,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields = ['stack_name']
+    template_fields: Sequence[str] = ('stack_name',)
     ui_color = '#C5CAE9'
 
     def __init__(
@@ -93,7 +96,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         self.region_name = region_name
         self.stack_name = stack_name
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status in ('DELETE_COMPLETE', None):
             return True
@@ -102,6 +105,6 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
     @cached_property
-    def hook(self) -> AWSCloudFormationHook:
-        """Create and return an AWSCloudFormationHook"""
-        return AWSCloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+    def hook(self) -> CloudFormationHook:
+        """Create and return an CloudFormationHook"""
+        return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

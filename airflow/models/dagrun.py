@@ -17,12 +17,14 @@
 # under the License.
 import os
 import warnings
+from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import (
     Boolean,
     Column,
+    ForeignKey,
     Index,
     Integer,
     PickleType,
@@ -37,17 +39,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql import expression
+from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import callback_requests, timezone
+from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
@@ -55,6 +59,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
 
 
@@ -94,6 +99,14 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
+    # Foreign key to LogTemplate. DagRun rows created prior to this column's
+    # existence have this set to NULL. Later rows automatically populate this on
+    # insert to point to the latest LogTemplate entry.
+    log_template_id = Column(
+        Integer,
+        ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
+        default=select([func.max(LogTemplate.__table__.c.id)]),
+    )
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -258,14 +271,8 @@ class DagRun(Base, LoggingMixin):
         query = (
             session.query(cls)
             .filter(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
-            .join(
-                DagModel,
-                DagModel.dag_id == cls.dag_id,
-            )
-            .filter(
-                DagModel.is_paused == expression.false(),
-                DagModel.is_active == expression.true(),
-            )
+            .join(DagModel, DagModel.dag_id == cls.dag_id)
+            .filter(DagModel.is_paused == false(), DagModel.is_active == true())
         )
         if state == State.QUEUED:
             # For dag runs in the queued state, we check if they have reached the max_active_runs limit
@@ -296,8 +303,8 @@ class DagRun(Base, LoggingMixin):
     def find(
         cls,
         dag_id: Optional[Union[str, List[str]]] = None,
-        run_id: Optional[str] = None,
-        execution_date: Optional[Union[datetime, List[datetime]]] = None,
+        run_id: Optional[Iterable[str]] = None,
+        execution_date: Optional[Union[datetime, Iterable[datetime]]] = None,
         state: Optional[DagRunState] = None,
         external_trigger: Optional[bool] = None,
         no_backfills: bool = False,
@@ -335,13 +342,15 @@ class DagRun(Base, LoggingMixin):
         dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
         if dag_ids:
             qry = qry.filter(cls.dag_id.in_(dag_ids))
-        if run_id:
+
+        if is_container(run_id):
+            qry = qry.filter(cls.run_id.in_(run_id))
+        elif run_id is not None:
             qry = qry.filter(cls.run_id == run_id)
-        if execution_date:
-            if isinstance(execution_date, list):
-                qry = qry.filter(cls.execution_date.in_(execution_date))
-            else:
-                qry = qry.filter(cls.execution_date == execution_date)
+        if is_container(execution_date):
+            qry = qry.filter(cls.execution_date.in_(execution_date))
+        elif execution_date is not None:
+            qry = qry.filter(cls.execution_date == execution_date)
         if execution_start_date and execution_end_date:
             qry = qry.filter(cls.execution_date.between(execution_start_date, execution_end_date))
         elif execution_start_date:
@@ -800,18 +809,40 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
             session.merge(ti)
 
-        # check for missing tasks
-        for task in dag.task_dict.values():
-            if task.start_date > self.execution_date and not self.is_backfill:
-                continue
+        def task_filter(task: "BaseOperator"):
+            return task.task_id not in task_ids and (
+                self.is_backfill or task.start_date <= self.execution_date
+            )
 
-            if task.task_id not in task_ids:
-                Stats.incr(f"task_instance_created-{task.task_type}", 1, 1)
+        created_counts: Dict[str, int] = defaultdict(int)
+
+        # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
+        hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
+
+        if hook_is_noop:
+
+            def create_ti_mapping(task: "BaseOperator"):
+                created_counts[task.task_type] += 1
+                return TI.insert_mapping(self.run_id, task)
+
+        else:
+
+            def create_ti(task: "BaseOperator") -> TI:
                 ti = TI(task, run_id=self.run_id)
                 task_instance_mutation_hook(ti)
-                session.add(ti)
+                created_counts[ti.operator] += 1
+                return ti
 
+        # Create missing tasks
+        tasks = list(filter(task_filter, dag.task_dict.values()))
         try:
+            if hook_is_noop:
+                session.bulk_insert_mappings(TI, map(create_ti_mapping, tasks))
+            else:
+                session.bulk_save_objects(map(create_ti, tasks))
+
+            for task_type, count in created_counts.items():
+                Stats.incr(f"task_instance_created-{task_type}", count)
             session.flush()
         except IntegrityError as err:
             self.log.info(str(err))
@@ -933,3 +964,29 @@ class DagRun(Base, LoggingMixin):
             )
 
         return count
+
+    @provide_session
+    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
+        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
+            template = session.query(LogTemplate.filename).order_by(LogTemplate.id).limit(1).scalar()
+        else:
+            template = session.query(LogTemplate.filename).filter_by(id=self.log_template_id).scalar()
+        if template is None:
+            raise AirflowException(
+                f"No log_template entry found for ID {self.log_template_id!r}. "
+                f"Please make sure you set up the metadatabase correctly."
+            )
+        return template
+
+    @provide_session
+    def get_task_prefix_template(self, *, session: Session = NEW_SESSION) -> str:
+        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
+            template = session.query(LogTemplate.task_prefix).order_by(LogTemplate.id).limit(1).scalar()
+        else:
+            template = session.query(LogTemplate.task_prefix).filter_by(id=self.log_template_id).scalar()
+        if template is None:
+            raise AirflowException(
+                f"No log_template entry found for ID {self.log_template_id!r}. "
+                f"Please make sure you set up the metadatabase correctly."
+            )
+        return template

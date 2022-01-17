@@ -19,6 +19,7 @@
 
 import functools
 import time
+from typing import List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -69,7 +70,7 @@ class EC2Hook(AwsBaseHook):
 
         super().__init__(*args, **kwargs)
 
-    def get_instance(self, instance_id: str, filters: list = None):
+    def get_instance(self, instance_id: str, filters: Optional[List] = None):
         """
         Get EC2 instance by id and return it.
 
@@ -122,7 +123,7 @@ class EC2Hook(AwsBaseHook):
         return self.conn.terminate_instances(InstanceIds=instance_ids)
 
     @only_client_type
-    def describe_instances(self, filters: list = None, instance_ids: list = None):
+    def describe_instances(self, filters: Optional[List] = None, instance_ids: Optional[List] = None):
         """
         Describe EC2 instances, optionally applying filters and selective instance ids
 
@@ -139,7 +140,7 @@ class EC2Hook(AwsBaseHook):
         return self.conn.describe_instances(Filters=filters, InstanceIds=instance_ids)
 
     @only_client_type
-    def get_instances(self, filters: list = None, instance_ids: list = None) -> list:
+    def get_instances(self, filters: Optional[List] = None, instance_ids: Optional[List] = None) -> list:
         """
         Get list of instance details, optionally applying filters and selective instance ids
 
@@ -154,7 +155,7 @@ class EC2Hook(AwsBaseHook):
         ]
 
     @only_client_type
-    def get_instance_ids(self, filters: list = None) -> list:
+    def get_instance_ids(self, filters: Optional[List] = None) -> list:
         """
         Get list of instance ids, optionally applying filters to fetch selective instances
 

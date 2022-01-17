@@ -23,7 +23,7 @@ import requests
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -199,7 +199,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         function_id: str,
         input_data: Dict,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing

@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import dill
 
@@ -32,8 +32,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context
-from airflow.utils.operator_helpers import determine_kwargs
+from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
@@ -131,14 +131,14 @@ class PythonOperator(BaseOperator):
     :type show_return_value_in_logs: bool
     """
 
-    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     BLUE = '#ffefeb'
     ui_color = BLUE
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs = (
+    shallow_copy_attrs: Sequence[str] = (
         'python_callable',
         'op_kwargs',
     )
@@ -147,10 +147,10 @@ class PythonOperator(BaseOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
-        templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
+        templates_dict: Optional[Dict[str, Any]] = None,
+        templates_exts: Optional[Sequence[str]] = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
@@ -165,18 +165,16 @@ class PythonOperator(BaseOperator):
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
-        self.op_args = op_args or []
+        self.op_args = op_args or ()
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def execute(self, context: Dict):
-        context.update(self.op_kwargs)
-        context['templates_dict'] = self.templates_dict
-
-        self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
+    def execute(self, context: Context) -> Any:
+        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
+        self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -185,6 +183,9 @@ class PythonOperator(BaseOperator):
             self.log.info("Done. Returned value not shown")
 
         return return_value
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
     def execute_callable(self):
         """
@@ -210,7 +211,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         branch = super().execute(context)
         # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
         if isinstance(branch, str):
@@ -242,7 +243,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     The condition is determined by the result of `python_callable`.
     """
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context) -> Any:
         condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
@@ -252,11 +253,11 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.log.info('Skipping downstream tasks...')
 
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
+            self.skip(context["dag_run"], context["logical_date"], downstream_tasks)
 
         self.log.info("Done.")
 
@@ -283,8 +284,9 @@ class PythonVirtualenvOperator(PythonOperator):
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
     :type python_callable: function
-    :param requirements: A list of requirements as specified in a pip install command
-    :type requirements: list[str]
+    :param requirements: Either a list of requirement strings, or a (templated)
+        "requirements file" as specified by pip.
+    :type requirements: list[str] | str
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
     :type python_version: Optional[Union[str, int, float]]
@@ -314,6 +316,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_exts: list[str]
     """
 
+    template_fields: Sequence[str] = ('requirements',)
+    template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',
         'ds_nodash',
@@ -352,12 +356,12 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Optional[Iterable[str]] = None,
+        requirements: Union[None, Iterable[str], str] = None,
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
@@ -388,23 +392,41 @@ class PythonVirtualenvOperator(PythonOperator):
             templates_exts=templates_exts,
             **kwargs,
         )
-        self.requirements = list(requirements or [])
+        if not requirements:
+            self.requirements: Union[List[str], str] = []
+        elif isinstance(requirements, str):
+            self.requirements = requirements
+        else:
+            self.requirements = list(requirements)
         self.string_args = string_args or []
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
-        if not self.system_site_packages:
-            if self.use_dill and 'dill' not in self.requirements:
-                self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = context.copy_only(serializable_keys)
+        serializable_context = context_copy_partial(context, serializable_keys)
         return super().execute(context=serializable_context)
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
+            requirements_file_name = f'{tmp_dir}/requirements.txt'
+
+            if not isinstance(self.requirements, str):
+                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
+            else:
+                requirements_file_contents = self.requirements
+
+            if not self.system_site_packages and self.use_dill:
+                requirements_file_contents += '\ndill'
+
+            with open(requirements_file_name, 'w') as file:
+                file.write(requirements_file_contents)
+
             if self.templates_dict:
                 self.op_kwargs['templates_dict'] = self.templates_dict
 
@@ -417,7 +439,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements=self.requirements,
+                requirements_file_path=requirements_file_name,
             )
 
             self._write_args(input_filename)

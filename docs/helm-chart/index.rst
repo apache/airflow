@@ -33,6 +33,7 @@ Helm Chart for Apache Airflow
     setting-resources-for-containers
     keda
     using-additional-containers
+    customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
 
 .. toctree::

@@ -23,7 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.operators.sagemaker_endpoint_config import SageMakerEndpointConfigOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
 
 model_name = 'test-model-name'
 config_name = 'test-config-name'

@@ -21,13 +21,16 @@ import os
 import pickle
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, TypeVar, Union
 
 import dill
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 def _generate_decode_command(env_var, file):
@@ -62,11 +65,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     :type multiple_outputs: bool
     """
 
-    template_fields: Iterable[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
     def __init__(
         self,
@@ -79,7 +82,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
         )
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             input_filename = os.path.join(tmp_dir, 'script.in')
             script_filename = os.path.join(tmp_dir, 'script.py')

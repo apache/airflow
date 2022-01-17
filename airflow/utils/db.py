@@ -55,6 +55,7 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
@@ -704,8 +705,8 @@ def check_and_run_migrations():
                     print(error)
                     print(
                         "You still have unapplied migrations. "
-                        "You may need to {verb} the database by running `airflow db {command_name}`",
-                        f"Make sure the command is run using airflow version {version}.",
+                        f"You may need to {verb} the database by running `airflow db {command_name}`. ",
+                        f"Make sure the command is run using Airflow version {version}.",
                         file=sys.stderr,
                     )
                     sys.exit(1)
@@ -713,11 +714,32 @@ def check_and_run_migrations():
             pass
     elif source_heads != db_heads:
         print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}` ."
-            f"Make sure the command is run using airflow version {version}.",
+            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
+            f"Make sure the command is run using Airflow version {version}.",
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+@provide_session
+def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
+    """Synchronize log template configs with table.
+
+    This checks if the last row fully matches the current config values, and
+    insert a new row if not.
+    """
+    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+    filename = conf.get("logging", "log_filename_template")
+    task_prefix = conf.get("logging", "task_log_prefix_template")
+    elasticsearch_id = conf.get("elasticsearch", "log_id_template")
+    if (
+        stored
+        and stored.filename == filename
+        and stored.task_prefix == task_prefix
+        and stored.elasticsearch_id == elasticsearch_id
+    ):
+        return
+    session.merge(LogTemplate(filename=filename, task_prefix=task_prefix, elasticsearch_id=elasticsearch_id))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -733,7 +755,6 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
     if dups:
         yield (
             'Seems you have non unique conn_id in connection table.\n'
@@ -756,7 +777,6 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
         session.rollback()
-        pass
 
     if n_nulls:
         yield (
@@ -996,6 +1016,7 @@ def upgradedb(session: Session = NEW_SESSION):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
+    synchronize_log_template()
 
 
 @provide_session
@@ -1115,3 +1136,18 @@ def create_global_lock(session: Session, lock: DBLocks, lock_timeout=1800):
         elif dialect.name == 'mssql':
             # TODO: make locking work for MSSQL
             pass
+
+
+def get_sqla_model_classes():
+    """
+    Get all SQLAlchemy class mappers.
+
+    SQLAlchemy < 1.4 does not support registry.mappers so we use
+    try/except to handle it.
+    """
+    from airflow.models.base import Base
+
+    try:
+        return [mapper.class_ for mapper in Base.registry.mappers]
+    except AttributeError:
+        return Base._decl_class_registry.values()

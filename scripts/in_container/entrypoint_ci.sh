@@ -207,8 +207,6 @@ EXTRA_PYTEST_ARGS=(
     "--durations=100"
     "--maxfail=50"
     "--color=yes"
-    "--pythonwarnings=ignore::DeprecationWarning"
-    "--pythonwarnings=ignore::PendingDeprecationWarning"
     "--junitxml=${RESULT_LOG_FILE}"
     # timeouts in seconds for individual tests
     "--timeouts-order"

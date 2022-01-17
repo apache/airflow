@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains AWS CloudFormation Hook"""
+import warnings
 from typing import Optional, Union
 
 from boto3 import client, resource
@@ -25,7 +26,7 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSCloudFormationHook(AwsBaseHook):
+class CloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
 
@@ -78,3 +79,19 @@ class AWSCloudFormationHook(AwsBaseHook):
         if 'StackName' not in params:
             params['StackName'] = stack_name
         self.get_conn().delete_stack(**params)
+
+
+class AWSCloudFormationHook(CloudFormationHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

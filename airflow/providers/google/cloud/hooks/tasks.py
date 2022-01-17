@@ -30,7 +30,7 @@ from google.cloud.tasks_v2.types import Queue, Task
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class CloudTasksHook(GoogleBaseHook):
@@ -87,11 +87,11 @@ class CloudTasksHook(GoogleBaseHook):
         self,
         location: str,
         task_queue: Union[dict, Queue],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         queue_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Queue:
         """
         Creates a queue in Cloud Tasks.
@@ -134,20 +134,20 @@ class CloudTasksHook(GoogleBaseHook):
             request={'parent': full_location_path, 'queue': task_queue},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_queue(
         self,
         task_queue: Queue,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: Optional[str] = None,
         queue_name: Optional[str] = None,
         update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Queue:
         """
         Updates a queue in Cloud Tasks.
@@ -194,7 +194,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'queue': task_queue, 'update_mask': update_mask},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -202,10 +202,10 @@ class CloudTasksHook(GoogleBaseHook):
         self,
         location: str,
         queue_name: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Queue:
         """
         Gets a queue from Cloud Tasks.
@@ -235,19 +235,19 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_queue_name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_queues(
         self,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         results_filter: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
         """
         Lists queues from Cloud Tasks.
@@ -280,7 +280,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'parent': full_location_path, 'filter': results_filter, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return list(queues)
 
@@ -289,10 +289,10 @@ class CloudTasksHook(GoogleBaseHook):
         self,
         location: str,
         queue_name: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a queue from Cloud Tasks, even if it has tasks in it.
@@ -321,7 +321,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_queue_name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -329,10 +329,10 @@ class CloudTasksHook(GoogleBaseHook):
         self,
         location: str,
         queue_name: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
         """
         Purges a queue by deleting all of its tasks from Cloud Tasks.
@@ -362,7 +362,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_queue_name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -370,10 +370,10 @@ class CloudTasksHook(GoogleBaseHook):
         self,
         location: str,
         queue_name: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
         """
         Pauses a queue in Cloud Tasks.
@@ -403,7 +403,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_queue_name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -411,10 +411,10 @@ class CloudTasksHook(GoogleBaseHook):
         self,
         location: str,
         queue_name: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
         """
         Resumes a queue in Cloud Tasks.
@@ -444,7 +444,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_queue_name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -453,12 +453,12 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         task: Union[Dict, Task],
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         task_name: Optional[str] = None,
         response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Task:
         """
         Creates a task in Cloud Tasks.
@@ -507,7 +507,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'parent': full_queue_name, 'task': task, 'response_view': response_view},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -516,11 +516,11 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         task_name: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Task:
         """
         Gets a task from Cloud Tasks.
@@ -555,7 +555,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_task_name, 'response_view': response_view},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -568,7 +568,7 @@ class CloudTasksHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Task]:
         """
         Lists the tasks in Cloud Tasks.
@@ -603,7 +603,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'parent': full_queue_name, 'response_view': response_view, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
         return list(tasks)
 
@@ -616,7 +616,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a task from Cloud Tasks.
@@ -647,7 +647,7 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_task_name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -660,7 +660,7 @@ class CloudTasksHook(GoogleBaseHook):
         response_view: Optional[Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Task:
         """
         Forces to run a task in Cloud Tasks.
@@ -695,5 +695,5 @@ class CloudTasksHook(GoogleBaseHook):
             request={'name': full_task_name, 'response_view': response_view},
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )

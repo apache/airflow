@@ -27,7 +27,7 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 Operation = Dict[str, Any]
 
@@ -214,7 +214,7 @@ class DataFusionHook(GoogleBaseHook):
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
         """
         Creates a new Data Fusion instance in the specified project and location.
@@ -272,7 +272,7 @@ class DataFusionHook(GoogleBaseHook):
         instance: Dict[str, Any],
         update_mask: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
         """
         Updates a single Data Fusion instance.

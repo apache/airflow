@@ -15,12 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 import sqlparse
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.drill.hooks.drill import DrillHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DrillOperator(BaseOperator):
@@ -42,9 +45,9 @@ class DrillOperator(BaseOperator):
     :type parameters: dict or iterable
     """
 
-    template_fields = ('sql',)
+    template_fields: Sequence[str] = ('sql',)
     template_fields_renderers = {'sql': 'sql'}
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -59,9 +62,9 @@ class DrillOperator(BaseOperator):
         self.sql = sql
         self.drill_conn_id = drill_conn_id
         self.parameters = parameters
-        self.hook = None
+        self.hook: Optional[DrillHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)
         self.hook = DrillHook(drill_conn_id=self.drill_conn_id)
         sql = sqlparse.split(sqlparse.format(self.sql, strip_comments=True))

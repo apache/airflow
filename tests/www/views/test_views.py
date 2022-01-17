@@ -216,7 +216,9 @@ def test_mark_task_instance_state(test_app):
     from airflow.utils.timezone import datetime
     from airflow.utils.types import DagRunType
     from airflow.www.views import Airflow
+    from tests.test_utils.db import clear_db_runs
 
+    clear_db_runs()
     start_date = datetime(2020, 1, 1)
     with DAG("test_mark_task_instance_state", start_date=start_date) as dag:
         task_1 = DummyOperator(task_id="task_1")
@@ -228,7 +230,11 @@ def test_mark_task_instance_state(test_app):
         task_1 >> [task_2, task_3, task_4, task_5]
 
     dagrun = dag.create_dagrun(
-        start_date=start_date, execution_date=start_date, state=State.FAILED, run_type=DagRunType.SCHEDULED
+        start_date=start_date,
+        execution_date=start_date,
+        data_interval=(start_date, start_date),
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
     )
 
     def get_task_instance(session, task):
@@ -261,7 +267,7 @@ def test_mark_task_instance_state(test_app):
             dag_id=dag.dag_id,
             task_id=task_1.task_id,
             origin="",
-            execution_date=start_date.isoformat(),
+            dag_run_id=dagrun.run_id,
             upstream=False,
             downstream=False,
             future=False,

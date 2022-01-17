@@ -21,6 +21,7 @@
 {{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.migrateDatabaseJob) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -64,8 +65,7 @@ spec:
         {{- end }}
       {{- end }}
     spec:
-      securityContext:
-          runAsUser: {{ .Values.uid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}

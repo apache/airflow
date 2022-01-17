@@ -107,7 +107,7 @@ This is an example structure that you might have in your ``dags`` folder:
                                  | my_dag2.py
                                  | base_dag.py
 
-In the case above, there are the ways you could import the python files:
+In the case above, these are the ways you could import the python files:
 
 .. code-block:: python
 

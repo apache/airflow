@@ -205,3 +205,12 @@ Then you can use above secret for ``sql_alchemy_conn_secret`` in your configurat
 
 Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``postgres://user:pass@host:5432/db?ssl_mode=disable`` and
 ``mount_point`` is ``airflow``.
+
+## For Vault running with self signed certificates
+Add "verify": "absolute path to ca-certificate file"
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "verify": "/etc/ssl/certs/ca-certificates"}

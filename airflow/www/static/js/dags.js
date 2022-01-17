@@ -21,7 +21,7 @@
 
 import getMetaValue from './meta_value';
 import tiTooltip from './task_instances';
-import { formatDateTime } from './datetime_utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -371,7 +371,8 @@ $('.js-next-run-tooltip').each((i, run) => {
       const nextRunData = $(run).attr('data-nextrun');
       const [createAfter, intervalStart, intervalEnd] = nextRunData.split(',');
       let newTitle = '';
-      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br><br>`;
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(createAfter)}<br><br>`;
       newTitle += '<strong>Data Interval</strong><br>';
       newTitle += `Start: ${formatDateTime(intervalStart)}<br>`;
       newTitle += `End: ${formatDateTime(intervalEnd)}`;

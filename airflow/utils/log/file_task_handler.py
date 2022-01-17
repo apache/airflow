@@ -46,7 +46,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str):
         super().__init__()
-        self.handler = None  # type: Optional[logging.FileHandler]
+        self.handler: Optional[logging.FileHandler] = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
@@ -82,13 +82,15 @@ class FileTaskHandler(logging.Handler):
                 context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
             context["try_number"] = try_number
             return render_template_to_string(self.filename_jinja_template, context)
-
-        return self.filename_template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            execution_date=ti.get_dagrun().logical_date.isoformat(),
-            try_number=try_number,
-        )
+        elif self.filename_template:
+            return self.filename_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                execution_date=ti.get_dagrun().logical_date.isoformat(),
+                try_number=try_number,
+            )
+        else:
+            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _read_grouped_logs(self):
         return False

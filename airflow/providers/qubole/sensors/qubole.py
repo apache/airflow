@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING, Sequence
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
@@ -23,13 +24,16 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class QuboleSensor(BaseSensorOperator):
     """Base class for all Qubole Sensors"""
 
-    template_fields = ('data', 'qubole_conn_id')
+    template_fields: Sequence[str] = ('data', 'qubole_conn_id')
 
-    template_ext = ('.txt',)
+    template_ext: Sequence[str] = ('.txt',)
 
     def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
@@ -43,7 +47,7 @@ class QuboleSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
 
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)

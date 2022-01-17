@@ -474,7 +474,7 @@ Scheduled runs
 Those runs are results of (nightly) triggered job - only for ``main`` branch. The
 main purpose of the job is to check if there was no impact of external dependency changes on the Apache
 Airflow code (for example transitive dependencies released that fail the build). It also checks if the
-Docker images can be build from the scratch (again - to see if some dependencies have not changed - for
+Docker images can be built from the scratch (again - to see if some dependencies have not changed - for
 example downloaded package releases etc.
 
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
@@ -662,7 +662,7 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.6", "3.7", "3.8", "3.9"].
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
 * <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
   commit from the tip of the branch used for the PR.
 

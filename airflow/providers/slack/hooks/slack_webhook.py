@@ -34,7 +34,7 @@ class SlackWebhookHook(HttpHook):
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
 
-    :param http_conn_id: connection that has Slack webhook token in the extra field
+    :param http_conn_id: connection that has Slack webhook token in the password field
     :type http_conn_id: str
     :param webhook_token: Slack webhook token
     :type webhook_token: str
