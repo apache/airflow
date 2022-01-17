@@ -67,7 +67,7 @@ TEMP_DAG_FILENAME = "temp_dag.py"
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({('core', 'load_examples'): 'false'}):
-        with env_vars({('core', 'load_examples'): 'false'}):
+        with env_vars({'AIRFLOW__CORE__LOAD_EXAMPLES': 'false'}):
             yield
 
 

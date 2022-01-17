@@ -86,7 +86,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Performs video annotation.

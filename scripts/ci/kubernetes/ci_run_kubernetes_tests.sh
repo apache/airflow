@@ -52,10 +52,7 @@ function parse_tests_to_run() {
         else
             tests_to_run=("${@}")
         fi
-        pytest_args=(
-            "--pythonwarnings=ignore::DeprecationWarning"
-            "--pythonwarnings=ignore::PendingDeprecationWarning"
-        )
+        pytest_args=()
     else
         tests_to_run=("kubernetes_tests")
         pytest_args=(
@@ -64,8 +61,6 @@ function parse_tests_to_run() {
             "--durations=100"
             "--color=yes"
             "--maxfail=50"
-            "--pythonwarnings=ignore::DeprecationWarning"
-            "--pythonwarnings=ignore::PendingDeprecationWarning"
             )
 
     fi
@@ -87,7 +82,7 @@ function create_virtualenv() {
 
     . "${virtualenv_path}/bin/activate"
 
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
     local constraints=(
         --constraint

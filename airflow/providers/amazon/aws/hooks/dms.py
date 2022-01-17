@@ -153,7 +153,7 @@ class DmsHook(AwsBaseHook):
 
         :param replication_task_arn: Replication task ARN
         :type replication_task_arn: str
-        :param start_replication_task_type: Replication task start type
+        :param start_replication_task_type: Replication task start type (default='start-replication')
             ('start-replication'|'resume-processing'|'reload-target')
         :type start_replication_task_type: str
         """

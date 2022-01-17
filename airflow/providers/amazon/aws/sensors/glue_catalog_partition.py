@@ -15,13 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+import warnings
+from typing import TYPE_CHECKING, Optional, Sequence
 
-from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
+from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
-class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
+
+class GlueCatalogPartitionSensor(BaseSensorOperator):
     """
     Waits for a partition to show up in AWS Glue Catalog.
 
@@ -48,7 +52,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
     :type poke_interval: int
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'database_name',
         'table_name',
         'expression',
@@ -72,9 +76,9 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook: Optional[AwsGlueCatalogHook] = None
+        self.hook: Optional[GlueCatalogHook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')
@@ -84,10 +88,26 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
 
         return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
 
-    def get_hook(self) -> AwsGlueCatalogHook:
-        """Gets the AwsGlueCatalogHook"""
+    def get_hook(self) -> GlueCatalogHook:
+        """Gets the GlueCatalogHook"""
         if self.hook:
             return self.hook
 
-        self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        self.hook = GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook
+
+
+class AwsGlueCatalogPartitionSensor(GlueCatalogPartitionSensor):
+    """
+    This sensor is deprecated. Please use
+    :class:`airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor`.",  # noqa: 501
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

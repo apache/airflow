@@ -30,7 +30,7 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_index(admin_client):
-    with assert_queries_count(49):
+    with assert_queries_count(50):
         resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response('DAGs', resp)
 
@@ -326,6 +326,7 @@ def test_create_user(app, admin_client, non_exist_username):
             'last_name': 'fake_last_name',
             'username': non_exist_username,
             'email': 'fake_email@email.com',
+            'roles': [1],
             'password': 'test',
             'conf_password': 'test',
         },

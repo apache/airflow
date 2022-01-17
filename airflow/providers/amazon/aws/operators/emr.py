@@ -16,20 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
-try:
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
-from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 
 
 class EmrAddStepsOperator(BaseOperator):
@@ -54,8 +59,8 @@ class EmrAddStepsOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
-    template_ext = ('.json',)
+    template_fields: Sequence[str] = ('job_flow_id', 'job_flow_name', 'cluster_states', 'steps')
+    template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {"steps": "json"}
     ui_color = '#f9c915'
 
@@ -82,7 +87,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context: Dict[str, Any]) -> List[str]:
+    def execute(self, context: 'Context') -> List[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -144,7 +149,13 @@ class EmrContainerOperator(BaseOperator):
     :type max_tries: int
     """
 
-    template_fields = ["name", "virtual_cluster_id", "execution_role_arn", "release_label", "job_driver"]
+    template_fields: Sequence[str] = (
+        "name",
+        "virtual_cluster_id",
+        "execution_role_arn",
+        "release_label",
+        "job_driver",
+    )
     ui_color = "#f9c915"
 
     def __init__(
@@ -176,14 +187,14 @@ class EmrContainerOperator(BaseOperator):
         self.job_id = None
 
     @cached_property
-    def hook(self) -> EMRContainerHook:
-        """Create and return an EMRContainerHook."""
-        return EMRContainerHook(
+    def hook(self) -> EmrContainerHook:
+        """Create and return an EmrContainerHook."""
+        return EmrContainerHook(
             self.aws_conn_id,
             virtual_cluster_id=self.virtual_cluster_id,
         )
 
-    def execute(self, context: dict) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         """Run job on EMR Containers"""
         self.job_id = self.hook.submit_job(
             self.name,
@@ -195,13 +206,13 @@ class EmrContainerOperator(BaseOperator):
         )
         query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
 
-        if query_status in EMRContainerHook.FAILURE_STATES:
+        if query_status in EmrContainerHook.FAILURE_STATES:
             error_message = self.hook.get_job_failure_reason(self.job_id)
             raise AirflowException(
                 f"EMR Containers job failed. Final state is {query_status}. "
                 f"query_execution_id is {self.job_id}. Error: {error_message}"
             )
-        elif not query_status or query_status in EMRContainerHook.INTERMEDIATE_STATES:
+        elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
             raise AirflowException(
                 f"Final state of EMR Containers job is {query_status}. "
                 f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
@@ -269,8 +280,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields = ['job_flow_overrides']
-    template_ext = ('.json',)
+    template_fields: Sequence[str] = ('job_flow_overrides',)
+    template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
     operator_extra_links = (EmrClusterLink(),)
@@ -292,7 +303,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides
         self.region_name = region_name
 
-    def execute(self, context: Dict[str, Any]) -> str:
+    def execute(self, context: 'Context') -> str:
         emr = EmrHook(
             aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
         )
@@ -328,8 +339,8 @@ class EmrModifyClusterOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['cluster_id', 'step_concurrency_level']
-    template_ext = ()
+    template_fields: Sequence[str] = ('cluster_id', 'step_concurrency_level')
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(
@@ -342,7 +353,7 @@ class EmrModifyClusterOperator(BaseOperator):
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
-    def execute(self, context: Dict[str, Any]) -> int:
+    def execute(self, context: 'Context') -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -372,8 +383,8 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ['job_flow_id']
-    template_ext = ()
+    template_fields: Sequence[str] = ('job_flow_id',)
+    template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
 
     def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):
@@ -381,7 +392,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context: 'Context') -> None:
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
         self.log.info('Terminating JobFlow %s', self.job_flow_id)

@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Data Fusion sensors."""
-from typing import Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
@@ -63,7 +66,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
 
     """
 
-    template_fields = ['pipeline_id']
+    template_fields: Sequence[str] = ('pipeline_id',)
 
     def __init__(
         self,
@@ -93,7 +96,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info(
             "Waiting for pipeline %s to be in one of the states: %s.",
             self.pipeline_id,
@@ -122,12 +125,12 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
             pipeline_status = pipeline_workflow["status"]
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
-
-        if self.failure_statuses and pipeline_status in self.failure_statuses:
-            raise AirflowException(
-                f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
-                f"Terminating sensor..."
-            )
+        if pipeline_status is not None:
+            if self.failure_statuses and pipeline_status in self.failure_statuses:
+                raise AirflowException(
+                    f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
+                    f"Terminating sensor..."
+                )
 
         self.log.debug(
             "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status

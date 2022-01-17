@@ -90,6 +90,7 @@ class TestCliTasks(unittest.TestCase):
         args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
         task_command.task_list(args)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
@@ -102,17 +103,21 @@ class TestCliTasks(unittest.TestCase):
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self):
         """Test the `airflow test` command"""
         task_id = 'print_the_context'
 
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with self.assertLogs('airflow.models', level='INFO') as cm:
             task_command.task_test(args)
-
-        # Check that prints, and log messages, are shown
-        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in stdout.getvalue()
+            assert any(
+                [
+                    f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in log
+                    for log in cm.output
+                ]
+            )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):

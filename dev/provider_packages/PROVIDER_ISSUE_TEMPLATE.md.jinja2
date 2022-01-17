@@ -1,24 +1,15 @@
 I have a kind request for all the contributors to the latest provider packages release.
-Could you help us to test the RC versions of the providers and let us know in the comment,
-if the issue is addressed there.
+Could you please help us to test the RC versions of the providers?
 
-## Providers that need testing
+Let us know in the comment, whether the issue is addressed.
 
 Those are providers that require testing as there were some substantial changes introduced:
 
 {% for provider_id, provider_pr_info in interesting_providers.items()  %}
-### Provider [{{ provider_id }}: {{ provider_pr_info.provider_details.versions[0] }}{{ suffix }}](https://pypi.org/project/{{ provider_pr_info.provider_details.pypi_package_name }}/{{ provider_pr_info.provider_details.versions[0] }}{{ suffix }})
+## Provider [{{ provider_id }}: {{ provider_pr_info.provider_details.versions[0] }}{{ suffix }}](https://pypi.org/project/{{ provider_pr_info.provider_details.pypi_package_name }}/{{ provider_pr_info.provider_details.versions[0] }}{{ suffix }})
 {%- for pr in provider_pr_info.pr_list %}
    - [ ] [{{ pr.title }} (#{{ pr.number }})]({{ pr.html_url }}): @{{ pr.user.login }}
 {%- endfor %}
-{%- endfor %}
-
-## Providers that do not need testing
-
-Those are providers that were either doc-only or had changes that do not require testing.
-
-{% for provider_id, provider_pr_info in non_interesting_providers.items()  %}
-* Provider [{{ provider_id }}: {{ provider_pr_info.provider_details.versions[0] }}{{ suffix }}](https://pypi.org/project/{{ provider_pr_info.provider_details.pypi_package_name }}/{{ provider_pr_info.provider_details.versions[0] }}{{ suffix }})
 {%- endfor %}
 
 <!--

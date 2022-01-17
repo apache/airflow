@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.settings import AIRFLOW_HOME
 
 
@@ -73,19 +73,24 @@ class KubeConfig:
             self.kubernetes_section, 'worker_pods_queued_check_interval'
         )
 
-        kube_client_request_args = conf.get(self.kubernetes_section, 'kube_client_request_args')
-        if kube_client_request_args:
-            self.kube_client_request_args = json.loads(kube_client_request_args)
+        self.kube_client_request_args = conf.getjson(
+            self.kubernetes_section, 'kube_client_request_args', fallback={}
+        )
+        if not isinstance(self.kube_client_request_args, dict):
+            raise AirflowConfigException(
+                f"[{self.kubernetes_section}] 'kube_client_request_args' expected a JSON dict, got "
+                + type(self.kube_client_request_args).__name__
+            )
+        if self.kube_client_request_args:
             if '_request_timeout' in self.kube_client_request_args and isinstance(
                 self.kube_client_request_args['_request_timeout'], list
             ):
                 self.kube_client_request_args['_request_timeout'] = tuple(
                     self.kube_client_request_args['_request_timeout']
                 )
-        else:
-            self.kube_client_request_args = {}
-        delete_option_kwargs = conf.get(self.kubernetes_section, 'delete_option_kwargs')
-        if delete_option_kwargs:
-            self.delete_option_kwargs = json.loads(delete_option_kwargs)
-        else:
-            self.delete_option_kwargs = {}
+        self.delete_option_kwargs = conf.getjson(self.kubernetes_section, 'delete_option_kwargs', fallback={})
+        if not isinstance(self.delete_option_kwargs, dict):
+            raise AirflowConfigException(
+                f"[{self.kubernetes_section}] 'delete_option_kwargs' expected a JSON dict, got "
+                + type(self.delete_option_kwargs).__name__
+            )

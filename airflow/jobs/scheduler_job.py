@@ -441,6 +441,26 @@ class SchedulerJob(BaseJob):
                         # Many dags don't have a task_concurrency, so where we can avoid loading the full
                         # serialized DAG the better.
                         serialized_dag = self.dagbag.get_dag(dag_id, session=session)
+                        # If the dag is missing, fail the task and continue to the next task.
+                        if not serialized_dag:
+                            self.log.error(
+                                "DAG '%s' for task instance %s not found in serialized_dag table",
+                                dag_id,
+                                task_instance,
+                            )
+                            session.query(TI).filter(TI.dag_id == dag_id, TI.state == State.SCHEDULED).update(
+                                {TI.state: State.FAILED}, synchronize_session='fetch'
+                            )
+                            continue
+                        if serialized_dag.has_task(task_instance.task_id):
+                            task_concurrency_limit = serialized_dag.get_task(
+                                task_instance.task_id
+                            ).max_active_tis_per_dag
+                    task_concurrency_limit: Optional[int] = None
+                    if task_instance.dag_model.has_task_concurrency_limits:
+                        # Many dags don't have a task_concurrency, so where we can avoid loading the full
+                        # serialized DAG the better.
+                        serialized_dag = self.dagbag.get_dag(dag_id, session=session)
                         if serialized_dag.has_task(task_instance.task_id):
                             task_concurrency_limit = serialized_dag.get_task(
                                 task_instance.task_id
@@ -1132,6 +1152,7 @@ class SchedulerJob(BaseJob):
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
             self._send_dag_callbacks_to_processor(dag, callback_to_execute)
+            self._send_sla_callbacks_to_processor(dag)
             # Because we send the callback here, we need to return None
             return callback
 
@@ -1147,7 +1168,8 @@ class SchedulerJob(BaseJob):
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-
+            # Send SLA Callbacks to be executed
+            self._send_sla_callbacks_to_processor(dag)
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
@@ -1176,7 +1198,6 @@ class SchedulerJob(BaseJob):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
 
-        self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.processor_agent.send_callback_to_execute(callback)
 
@@ -1201,8 +1222,8 @@ class SchedulerJob(BaseJob):
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[TaskInstanceState.QUEUED])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[TaskInstanceState.RUNNING])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats["running"])
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:

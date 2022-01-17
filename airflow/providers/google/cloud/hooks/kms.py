@@ -92,7 +92,7 @@ class CloudKMSHook(GoogleBaseHook):
         authenticated_data: Optional[bytes] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
         """
         Encrypts a plaintext message using Google Cloud KMS.
@@ -125,7 +125,7 @@ class CloudKMSHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
         ciphertext = _b64encode(response.ciphertext)
@@ -138,7 +138,7 @@ class CloudKMSHook(GoogleBaseHook):
         authenticated_data: Optional[bytes] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> bytes:
         """
         Decrypts a ciphertext message using Google Cloud KMS.
@@ -170,7 +170,7 @@ class CloudKMSHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata or (),
+            metadata=metadata,
         )
 
         return response.plaintext

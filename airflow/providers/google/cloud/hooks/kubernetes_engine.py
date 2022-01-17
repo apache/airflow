@@ -25,14 +25,16 @@ from typing import Dict, Optional, Sequence, Union
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
-from google.cloud import container_v1, exceptions
+
+# not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
+from google.cloud import container_v1, exceptions  # type: ignore[attr-defined]
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
@@ -115,7 +117,8 @@ class GKEHook(GoogleBaseHook):
         :return: The new, updated operation from Google Cloud
         """
         return self.get_conn().get_operation(
-            project_id=project_id or self.project_id, zone=self.location, operation_id=operation_name
+            name=f'projects/{project_id or self.project_id}'
+            + f'/locations/{self.location}/operations/{operation_name}'
         )
 
     @staticmethod
@@ -141,7 +144,11 @@ class GKEHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_cluster(
-        self, name: str, project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
+        self,
+        name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT,
     ) -> Optional[str]:
         """
         Deletes the cluster, including the Kubernetes endpoint and all
@@ -164,11 +171,13 @@ class GKEHook(GoogleBaseHook):
         :type timeout: float
         :return: The full url to the delete operation if successful, else None
         """
-        self.log.info("Deleting (project_id=%s, zone=%s, cluster_id=%s)", project_id, self.location, name)
+        self.log.info("Deleting (project_id=%s, location=%s, cluster_id=%s)", project_id, self.location, name)
 
         try:
             resource = self.get_conn().delete_cluster(
-                project_id=project_id, zone=self.location, cluster_id=name, retry=retry, timeout=timeout
+                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                retry=retry,
+                timeout=timeout,
             )
             resource = self.wait_for_operation(resource)
             # Returns server-defined url for the resource
@@ -179,7 +188,11 @@ class GKEHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
-        self, cluster: Union[Dict, Cluster], project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
+        self,
+        cluster: Union[Dict, Cluster],
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT,
     ) -> str:
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
@@ -213,11 +226,14 @@ class GKEHook(GoogleBaseHook):
         self._append_label(cluster, 'airflow-version', 'v' + version.version)
 
         self.log.info(
-            "Creating (project_id=%s, zone=%s, cluster_name=%s)", project_id, self.location, cluster.name
+            "Creating (project_id=%s, location=%s, cluster_name=%s)", project_id, self.location, cluster.name
         )
         try:
             resource = self.get_conn().create_cluster(
-                project_id=project_id, zone=self.location, cluster=cluster, retry=retry, timeout=timeout
+                parent=f'projects/{project_id}/locations/{self.location}',
+                cluster=cluster,
+                retry=retry,
+                timeout=timeout,
             )
             resource = self.wait_for_operation(resource)
 
@@ -228,7 +244,11 @@ class GKEHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_cluster(
-        self, name: str, project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
+        self,
+        name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT,
+        timeout: float = DEFAULT,
     ) -> Cluster:
         """
         Gets details of specified cluster
@@ -247,7 +267,7 @@ class GKEHook(GoogleBaseHook):
         :return: google.cloud.container_v1.types.Cluster
         """
         self.log.info(
-            "Fetching cluster (project_id=%s, zone=%s, cluster_name=%s)",
+            "Fetching cluster (project_id=%s, location=%s, cluster_name=%s)",
             project_id or self.project_id,
             self.location,
             name,
@@ -256,7 +276,9 @@ class GKEHook(GoogleBaseHook):
         return (
             self.get_conn()
             .get_cluster(
-                project_id=project_id, zone=self.location, cluster_id=name, retry=retry, timeout=timeout
+                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                retry=retry,
+                timeout=timeout,
             )
             .self_link
         )

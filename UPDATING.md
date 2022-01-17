@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.3](#airflow-223)
 - [Airflow 2.2.2](#airflow-222)
 - [Airflow 2.2.1](#airflow-221)
 - [Airflow 2.2.0](#airflow-220)
@@ -88,6 +89,16 @@ Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now als
 Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
 
 See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.3.0/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
+
+### Task log templates are now read from the metadatabase instead of `airflow.cfg`
+
+Previously, a task’s log is dynamically rendered from the `[core] log_filename_template`, `[core] task_log_prefix_template`, and `[elasticsearch] log_id_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
+
+A new `log_template` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field `log_template_id` is added to every DAG run to point to the format used by tasks (`NULL` indicates the first ever entry for compatibility).
+
+## Airflow 2.2.3
+
+No breaking changes.
 
 ## Airflow 2.2.2
 

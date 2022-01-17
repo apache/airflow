@@ -62,7 +62,7 @@ class TestFileTaskLogHandler:
         assert handler.name == FILE_TASK_HANDLER
 
     def test_file_task_handler_when_ti_value_is_invalid(self):
-        def task_callable(ti, **kwargs):
+        def task_callable(ti):
             ti.log.info("test")
 
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
@@ -114,7 +114,7 @@ class TestFileTaskLogHandler:
         os.remove(log_filename)
 
     def test_file_task_handler(self):
-        def task_callable(ti, **kwargs):
+        def task_callable(ti):
             ti.log.info("test")
 
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
@@ -168,7 +168,7 @@ class TestFileTaskLogHandler:
         os.remove(log_filename)
 
     def test_file_task_handler_running(self):
-        def task_callable(ti, **kwargs):
+        def task_callable(ti):
             ti.log.info("test")
 
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)

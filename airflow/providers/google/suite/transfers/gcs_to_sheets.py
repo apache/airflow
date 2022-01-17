@@ -57,13 +57,13 @@ class GCSToGoogleSheetsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "spreadsheet_id",
         "bucket_name",
         "object_name",
         "spreadsheet_range",
         "impersonation_chain",
-    ]
+    )
 
     def __init__(
         self,

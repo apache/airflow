@@ -132,6 +132,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``airflow-provider-yaml-files-ok``     Checks that providers YAML files are valid
 ------------------------------------ ---------------------------------------------------------------- ------------
+``autoflake``                          Remove unused imports and unnecessary code
+------------------------------------ ---------------------------------------------------------------- ------------
 ``base-operator``                      Checks that BaseOperator is imported properly
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``bats-tests``                         Runs BATS bash unit tests
@@ -224,6 +226,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``mypy``                               Runs mypy                                                            *
 ------------------------------------ ---------------------------------------------------------------- ------------
+``persist-credentials-disabled``       Check that workflow files have persist-credentials disabled
+------------------------------------ ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``            Check if all pre-commits are described in docs
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``pre-commit-hook-names``              Check that hook names are not overly long
@@ -274,7 +278,11 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-setup-cfg-file``              Update setup.cfg file with all licenses
 ------------------------------------ ---------------------------------------------------------------- ------------
+``update-supported-versions``          Updates supported versions in documentation
+------------------------------------ ---------------------------------------------------------------- ------------
 ``update-versions``                    Updates latest versions in the documentation
+------------------------------------ ---------------------------------------------------------------- ------------
+``vendor-k8s-json-schema``             Vendor k8s schema definitions in the helm chart schema file
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``verify-db-migrations-documented``    Verify DB Migrations have been documented
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -375,7 +383,7 @@ Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
+     ./breeze static-check flake8 -- --files tests/core/* --verbose
 
 Run all tests for the currently staged files:
 

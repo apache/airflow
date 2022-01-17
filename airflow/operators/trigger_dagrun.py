@@ -19,13 +19,14 @@
 import datetime
 import json
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.models.xcom import XCom
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -82,7 +83,7 @@ class TriggerDagRunOperator(BaseOperator):
     :type failed_states: list
     """
 
-    template_fields = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
+    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
 
@@ -127,7 +128,7 @@ class TriggerDagRunOperator(BaseOperator):
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         if isinstance(self.execution_date, datetime.datetime):
             execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
@@ -166,7 +167,8 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e
-
+        if dag_run is None:
+            raise RuntimeError("The dag_run should be set here!")
         # Store the execution date from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context['task_instance']

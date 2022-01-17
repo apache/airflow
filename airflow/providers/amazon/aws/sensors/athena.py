@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -24,7 +27,7 @@ else:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -55,8 +58,8 @@ class AthenaSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ('SUCCEEDED',)
 
-    template_fields = ['query_execution_id']
-    template_ext = ()
+    template_fields: Sequence[str] = ('query_execution_id',)
+    template_ext: Sequence[str] = ()
     ui_color = '#66c3ff'
 
     def __init__(
@@ -74,7 +77,7 @@ class AthenaSensor(BaseSensorOperator):
         self.sleep_time = sleep_time
         self.max_retries = max_retries
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retries)
 
         if state in self.FAILURE_STATES:
@@ -85,6 +88,6 @@ class AthenaSensor(BaseSensorOperator):
         return True
 
     @cached_property
-    def hook(self) -> AWSAthenaHook:
-        """Create and return an AWSAthenaHook"""
-        return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
+    def hook(self) -> AthenaHook:
+        """Create and return an AthenaHook"""
+        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)

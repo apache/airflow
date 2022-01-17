@@ -24,6 +24,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
+   Successful installation requires a Python 3 environment.
+
    Only ``pip`` installation is currently officially supported.
 
    While there have been successes with using other tools like `poetry <https://python-poetry.org/>`_ or
@@ -62,6 +64,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
+You can override defaults using environment variables, see :doc:`/configurations-ref`.
 You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``

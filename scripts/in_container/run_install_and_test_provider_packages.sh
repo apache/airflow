@@ -90,6 +90,22 @@ function install_provider_packages() {
     group_end
 }
 
+function twine_check_provider_packages() {
+    group_start "Twine check provider packages"
+    if [[ ${PACKAGE_FORMAT} == "wheel" ]]; then
+       twine_check_provider_packages_from_wheels
+    elif [[ ${PACKAGE_FORMAT} == "sdist" ]]; then
+       twine_check_provider_packages_from_sdist
+    else
+        echo
+        echo "${COLOR_RED}ERROR: Wrong package format ${PACKAGE_FORMAT}. Should be wheel or sdist${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+
 function discover_all_provider_packages() {
     group_start "Listing available providers via 'airflow providers list'"
     # Columns is to force it wider, so it doesn't wrap at 80 characters
@@ -225,6 +241,12 @@ function ver() {
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
+
+if [[ ${SKIP_TWINE_CHECK=""} != "true" ]]; then
+    # Airflow 2.1.0 installs importlib_metadata version that does not work well with twine
+    # So we should skip twine check in this case
+    twine_check_provider_packages
+fi
 install_provider_packages
 import_all_provider_classes
 

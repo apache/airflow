@@ -59,6 +59,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -66,6 +67,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     sub_dagrun = sub_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -73,6 +75,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     xcom_dagrun = xcom_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )

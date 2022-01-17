@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery Data Transfer Service operators."""
-from typing import Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryCreateDataTransferOperator(BaseOperator):
@@ -66,7 +69,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config",
         "project_id",
         "authorization_code",
@@ -83,7 +86,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         authorization_code: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -99,7 +102,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
@@ -155,7 +158,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config_id",
         "project_id",
         "gcp_conn_id",
@@ -170,7 +173,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         location: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -185,7 +188,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
@@ -247,7 +250,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "transfer_config_id",
         "project_id",
         "requested_time_range",
@@ -266,7 +269,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         requested_run_time: Optional[dict] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -283,7 +286,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )

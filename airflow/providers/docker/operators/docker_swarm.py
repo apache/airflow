@@ -15,13 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from docker import types
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DockerSwarmOperator(DockerOperator):
@@ -132,7 +135,7 @@ class DockerSwarmOperator(DockerOperator):
         self.networks = networks
         self.placement = placement
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.cli = self._get_cli()
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir

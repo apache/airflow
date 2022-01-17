@@ -18,11 +18,14 @@
 import logging
 from typing import Dict, Iterator, List, Optional, Tuple
 
+from sqlalchemy.orm.session import Session
+
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 class TaskLogReader:
@@ -82,7 +85,7 @@ class TaskLogReader:
             while 'end_of_log' not in metadata or not metadata['end_of_log']:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
-                    yield "\n".join([host, log]) + "\n"
+                    yield "\n".join([host or '', log]) + "\n"
 
     @cached_property
     def log_handler(self):
@@ -105,7 +108,14 @@ class TaskLogReader:
 
         return self.log_handler.supports_external_link
 
-    def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):
+    @provide_session
+    def render_log_filename(
+        self,
+        ti: TaskInstance,
+        try_number: Optional[int] = None,
+        *,
+        session: Session = NEW_SESSION,
+    ):
         """
         Renders the log attachment filename
 
@@ -115,8 +125,10 @@ class TaskLogReader:
         :type try_number: Optional[int]
         :rtype: str
         """
-        filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
+        dagrun = ti.get_dagrun(session=session)
         attachment_filename = render_log_filename(
-            ti=ti, try_number="all" if try_number is None else try_number, filename_template=filename_template
+            ti=ti,
+            try_number="all" if try_number is None else try_number,
+            filename_template=dagrun.get_log_filename_template(session=session),
         )
         return attachment_filename
