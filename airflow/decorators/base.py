@@ -17,14 +17,32 @@
 
 import functools
 import inspect
+import itertools
 import re
-from inspect import signature
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, cast
+import sys
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Type,
+    TypeVar,
+    cast,
+)
 
+import attr
+
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
+from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
@@ -38,7 +56,7 @@ def validate_python_callable(python_callable):
     """
     if not callable(python_callable):
         raise TypeError('`python_callable` param must be callable')
-    if 'self' in signature(python_callable).parameters.keys():
+    if 'self' in inspect.signature(python_callable).parameters.keys():
         raise AirflowException('@task does not support methods')
 
 
@@ -91,9 +109,8 @@ class DecoratedOperator(BaseOperator):
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
     :type op_args: list
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     :type multiple_outputs: bool
     :param kwargs_to_upstream: For certain operators, we might need to upstream certain arguments
         that would otherwise be absorbed by the DecoratedOperator (for example python_callable for the
@@ -101,40 +118,42 @@ class DecoratedOperator(BaseOperator):
     :type kwargs_to_upstream: dict
     """
 
-    template_fields = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
     def __init__(
         self,
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Tuple[Any],
-        op_kwargs: Dict[str, Any],
+        op_args: Optional[Collection[Any]] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         multiple_outputs: bool = False,
-        kwargs_to_upstream: dict = None,
+        kwargs_to_upstream: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
+        op_args = op_args or []
+        op_kwargs = op_kwargs or {}
 
         # Check that arguments can be binded
-        signature(python_callable).bind(*op_args, **op_kwargs)
+        inspect.signature(python_callable).bind(*op_args, **op_kwargs)
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
         super().__init__(**kwargs_to_upstream, **kwargs)
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
-    def _handle_output(self, return_value: Any, context: Dict, xcom_push: Callable):
+    def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
         Handles logic for whether a decorator needs to push a single return value or multiple return values.
 
@@ -166,7 +185,7 @@ class DecoratedOperator(BaseOperator):
         python_callable = kwargs['python_callable']
         default_args = kwargs.get('default_args') or {}
         op_kwargs = kwargs.get('op_kwargs') or {}
-        f_sig = signature(python_callable)
+        f_sig = inspect.signature(python_callable)
         for arg in f_sig.parameters:
             if arg not in op_kwargs and arg in default_args:
                 op_kwargs[arg] = default_args[arg]
@@ -176,11 +195,116 @@ class DecoratedOperator(BaseOperator):
 
 T = TypeVar("T", bound=Callable)
 
+OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
+
+
+@attr.define(slots=False)
+class _TaskDecorator(Generic[T, OperatorSubclass]):
+    """
+    Helper class for providing dynamic task mapping to decorated functions.
+
+    ``task_decorator_factory`` returns an instance of this, instead of just a plain wrapped function.
+
+    :meta private:
+    """
+
+    function: T = attr.ib(validator=attr.validators.is_callable())
+    operator_class: Type[OperatorSubclass]
+    multiple_outputs: bool = attr.ib()
+    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+
+    decorator_name: str = attr.ib(repr=False, default="task")
+
+    @cached_property
+    def function_signature(self):
+        return inspect.signature(self.function)
+
+    @cached_property
+    def function_arg_names(self) -> Set[str]:
+        return set(self.function_signature.parameters)
+
+    @function.validator
+    def _validate_function(self, _, f):
+        if 'self' in self.function_arg_names:
+            raise TypeError(f'@{self.decorator_name} does not support methods')
+
+    @multiple_outputs.default
+    def _infer_multiple_outputs(self):
+        return_type = self.function_signature.return_annotation
+
+        # If the return type annotation is already the builtins ``dict`` type, use it for the inference.
+        if return_type == dict:
+            ttype = return_type
+        # Checking if Python 3.6, ``__origin__`` attribute does not exist until 3.7; need to use ``__extra__``
+        # TODO: Remove check when support for Python 3.6 is dropped in Airflow 2.3.
+        elif sys.version_info < (3, 7):
+            ttype = getattr(return_type, "__extra__", None)
+        else:
+            ttype = getattr(return_type, "__origin__", None)
+
+        return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
+
+    def __attrs_post_init__(self):
+        self.kwargs.setdefault('task_id', self.function.__name__)
+
+    def __call__(self, *args, **kwargs) -> XComArg:
+        op = self.operator_class(
+            python_callable=self.function,
+            op_args=args,
+            op_kwargs=kwargs,
+            multiple_outputs=self.multiple_outputs,
+            **self.kwargs,
+        )
+        if self.function.__doc__:
+            op.doc_md = self.function.__doc__
+        return XComArg(op)
+
+    def _validate_arg_names(self, funcname: str, kwargs: Dict[str, Any], valid_names: Set[str] = set()):
+        unknown_args = kwargs.copy()
+        for name in itertools.chain(self.function_arg_names, valid_names):
+            unknown_args.pop(name, None)
+
+            if not unknown_args:
+                # If we have no args left ot check, we are valid
+                return
+
+        if len(unknown_args) == 1:
+            raise TypeError(f'{funcname} got unexpected keyword argument {next(iter(unknown_args))!r}')
+        else:
+            names = ", ".join(repr(n) for n in unknown_args)
+            raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
+
+    def map(
+        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+    ) -> XComArg:
+        self._validate_arg_names("map", kwargs)
+        dag = dag or DagContext.get_current_dag()
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
+
+        operator = MappedOperator.from_decorator(
+            decorator=self,
+            dag=dag,
+            task_group=task_group,
+            task_id=task_id,
+            mapped_kwargs=kwargs,
+        )
+        return XComArg(operator=operator)
+
+    def partial(
+        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+    ) -> "_TaskDecorator[T, OperatorSubclass]":
+        self._validate_arg_names("partial", kwargs, {'task_id'})
+        partial_kwargs = self.kwargs.copy()
+        partial_kwargs.update(kwargs)
+        return attr.evolve(self, kwargs=partial_kwargs)
+
 
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
+    *,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: BaseOperator = None,
+    decorated_operator_class: Type[BaseOperator],
     **kwargs,
 ) -> Callable[[T], T]:
     """
@@ -189,48 +313,31 @@ def task_decorator_factory(
 
     :param python_callable: Function to decorate
     :type python_callable: Optional[Callable]
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-        with index as key. Dict will unroll to xcom values with keys as XCom keys.
-        Defaults to False.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     :type multiple_outputs: bool
     :param decorated_operator_class: The operator that executes the logic needed to run the python function in
         the correct environment
-    :type decorated_operator_class: BaseDecoratedOperator
+    :type decorated_operator_class: BaseOperator
 
     """
-    # try to infer from  type annotation
-    if python_callable and multiple_outputs is None:
-        sig = signature(python_callable).return_annotation
-        ttype = getattr(sig, "__origin__", None)
-
-        multiple_outputs = sig != inspect.Signature.empty and ttype in (dict, Dict)
-
-    def wrapper(f: T):
-        """
-        Python wrapper to generate PythonDecoratedOperator out of simple python functions.
-        Used for Airflow Decorated interface
-        """
-        validate_python_callable(f)
-        kwargs.setdefault('task_id', f.__name__)
-
-        @functools.wraps(f)
-        def factory(*args, **f_kwargs):
-            op = decorated_operator_class(
-                python_callable=f,
-                op_args=args,
-                op_kwargs=f_kwargs,
-                multiple_outputs=multiple_outputs,
-                **kwargs,
-            )
-            if f.__doc__:
-                op.doc_md = f.__doc__
-            return XComArg(op)
-
-        return cast(T, factory)
-
-    if callable(python_callable):
-        return wrapper(python_callable)
+    if multiple_outputs is None:
+        multiple_outputs = cast(bool, attr.NOTHING)
+    if python_callable:
+        return _TaskDecorator(  # type: ignore
+            function=python_callable,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        )
     elif python_callable is not None:
-        raise AirflowException('No args allowed while using @task, use kwargs instead')
-    return wrapper
+        raise TypeError('No args allowed while using @task, use kwargs instead')
+    return cast(
+        "Callable[[T], T]",
+        functools.partial(
+            _TaskDecorator,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        ),
+    )

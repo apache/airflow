@@ -44,9 +44,11 @@ If you want to run this example, you must do the following:
 """
 
 import os
+from datetime import datetime
 from urllib.parse import urlparse
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateExternalTableOperator,
@@ -54,7 +56,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
-from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-gcp-project")
 FIRESTORE_PROJECT_ID = os.environ.get("G_FIRESTORE_PROJECT_ID", "example-firebase-project")
@@ -72,8 +73,9 @@ if BUCKET_NAME is None:
 
 with models.DAG(
     "example_google_firestore",
-    default_args=dict(start_date=dates.days_ago(1)),
+    start_date=datetime(2021, 1, 1),
     schedule_interval='@once',
+    catchup=False,
     tags=["example"],
 ) as dag:
     # [START howto_operator_export_database_to_gcs]
@@ -117,10 +119,6 @@ with models.DAG(
                 "csvOptions": {"skipLeadingRows": 1},
             },
         },
-        source_objects=[
-            f"{EXPORT_PREFIX}/all_namespaces/kind_{EXPORT_COLLECTION_ID}"
-            f"/all_namespaces_kind_{EXPORT_COLLECTION_ID}.export_metadata"
-        ],
     )
     # [END howto_operator_create_external_table_multiple_types]
 
@@ -134,10 +132,12 @@ with models.DAG(
         },
     )
 
-    # Firestore
-    export_database_to_gcs >> create_dataset
-
-    # BigQuery
-    create_dataset >> create_external_table_multiple_types
-    create_external_table_multiple_types >> read_data_from_gcs_multiple_types
-    read_data_from_gcs_multiple_types >> delete_dataset
+    chain(
+        # Firestore
+        export_database_to_gcs,
+        # BigQuery
+        create_dataset,
+        create_external_table_multiple_types,
+        read_data_from_gcs_multiple_types,
+        delete_dataset,
+    )

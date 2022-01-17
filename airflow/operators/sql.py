@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
+from airflow.utils.context import Context
 
 
 def parse_boolean(val: str) -> Union[str, bool]:
@@ -65,7 +66,7 @@ class BaseSQLOperator(BaseOperator):
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
 
-        hook = conn.get_hook(hook_kwargs=self.hook_params)
+        hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
                 f'The connection type is not supported by {self.__class__.__name__}. '
@@ -123,8 +124,8 @@ class SQLCheckOperator(BaseSQLOperator):
     :type database: str
     """
 
-    template_fields: Iterable[str] = ("sql",)
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
     )
@@ -136,7 +137,7 @@ class SQLCheckOperator(BaseSQLOperator):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
 
-    def execute(self, context=None):
+    def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
         records = self.get_db_hook().get_first(self.sql)
 
@@ -177,14 +178,14 @@ class SQLValueCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
-    template_fields = (
+    template_fields: Sequence[str] = (
         "sql",
         "pass_value",
-    )  # type: Iterable[str]
-    template_ext = (
+    )
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
-    )  # type: Iterable[str]
+    )
     ui_color = "#fff7e6"
 
     def __init__(
@@ -288,8 +289,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields: Iterable[str] = ("sql1", "sql2")
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ("sql1", "sql2")
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
     )
@@ -417,11 +418,11 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     :type max_threshold: numeric or str
     """
 
-    template_fields = ("sql", "min_threshold", "max_threshold")
-    template_ext = (
+    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold")
+    template_ext: Sequence[str] = (
         ".hql",
         ".sql",
-    )  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -485,16 +486,16 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
 class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     """
-    Executes sql code in a specific database
+    Allows a DAG to "branch" or follow a specified path based on the results of a SQL query.
 
-    :param sql: the sql code to be executed. (templated)
+    :param sql: The SQL code to be executed, should return true or false (templated)
     :type sql: Can receive a str representing a sql statement or reference to a template file.
                Template reference are recognized by str ending in '.sql'.
                Expected SQL query to return Boolean (True/False), integer (0 = False, Otherwise = 1)
                or string (true/y/yes/1/on/false/n/no/0/off).
-    :param follow_task_ids_if_true: task id or task ids to follow if query return true
+    :param follow_task_ids_if_true: task id or task ids to follow if query returns true
     :type follow_task_ids_if_true: str or list
-    :param follow_task_ids_if_false: task id or task ids to follow if query return true
+    :param follow_task_ids_if_false: task id or task ids to follow if query returns false
     :type follow_task_ids_if_false: str or list
     :param conn_id: the connection ID used to connect to the database.
     :type conn_id: str
@@ -504,8 +505,8 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     :type parameters: mapping or iterable
     """
 
-    template_fields = ("sql",)
-    template_ext = (".sql",)
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 
@@ -526,7 +527,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         self.log.info(
             "Executing: %s (with parameters %s) with connection: %s",
             self.sql,

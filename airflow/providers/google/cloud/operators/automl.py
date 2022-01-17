@@ -19,7 +19,7 @@
 
 """This module contains Google AutoML operators."""
 import ast
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.automl_v1beta1 import (
@@ -33,6 +33,9 @@ from google.cloud.automl_v1beta1 import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -73,7 +76,7 @@ class AutoMLTrainModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model",
         "location",
         "project_id",
@@ -86,7 +89,7 @@ class AutoMLTrainModelOperator(BaseOperator):
         model: dict,
         location: str,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -104,7 +107,7 @@ class AutoMLTrainModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -166,7 +169,7 @@ class AutoMLPredictOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -181,7 +184,7 @@ class AutoMLPredictOperator(BaseOperator):
         payload: dict,
         operation_params: Optional[Dict[str, str]] = None,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -201,7 +204,7 @@ class AutoMLPredictOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -271,7 +274,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "input_config",
         "output_config",
@@ -289,7 +292,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         location: str,
         project_id: Optional[str] = None,
         prediction_params: Optional[Dict[str, str]] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -310,7 +313,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         self.input_config = input_config
         self.output_config = output_config
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -371,7 +374,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset",
         "location",
         "project_id",
@@ -384,7 +387,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         dataset: dict,
         location: str,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -402,7 +405,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -465,7 +468,7 @@ class AutoMLImportDataOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "input_config",
         "location",
@@ -480,7 +483,7 @@ class AutoMLImportDataOperator(BaseOperator):
         location: str,
         input_config: dict,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -499,7 +502,7 @@ class AutoMLImportDataOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -567,7 +570,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "table_spec_id",
         "field_mask",
@@ -587,7 +590,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         filter_: Optional[str] = None,
         page_size: Optional[int] = None,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -608,7 +611,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -671,7 +674,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset",
         "update_mask",
         "location",
@@ -684,7 +687,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         dataset: dict,
         location: str,
         update_mask: Optional[dict] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -702,7 +705,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -757,7 +760,7 @@ class AutoMLGetModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -770,7 +773,7 @@ class AutoMLGetModelOperator(BaseOperator):
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -788,7 +791,7 @@ class AutoMLGetModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -842,7 +845,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -855,7 +858,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -873,7 +876,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -936,7 +939,7 @@ class AutoMLDeployModelOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "model_id",
         "location",
         "project_id",
@@ -950,7 +953,7 @@ class AutoMLDeployModelOperator(BaseOperator):
         location: str,
         project_id: Optional[str] = None,
         image_detection_metadata: Optional[dict] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -969,7 +972,7 @@ class AutoMLDeployModelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1033,7 +1036,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "filter_",
         "location",
@@ -1049,7 +1052,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         page_size: Optional[int] = None,
         filter_: Optional[str] = None,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1068,7 +1071,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1124,7 +1127,7 @@ class AutoMLListDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "impersonation_chain",
@@ -1135,7 +1138,7 @@ class AutoMLListDatasetOperator(BaseOperator):
         *,
         location: str,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1151,7 +1154,7 @@ class AutoMLListDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1212,7 +1215,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dataset_id",
         "location",
         "project_id",
@@ -1225,7 +1228,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         dataset_id: Union[str, List[str]],
         location: str,
         project_id: Optional[str] = None,
-        metadata: Optional[MetaData] = None,
+        metadata: MetaData = (),
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1252,7 +1255,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         except (SyntaxError, ValueError):
             return dataset_id.split(",")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

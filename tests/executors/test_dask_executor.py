@@ -46,7 +46,7 @@ FAIL_COMMAND = ['airflow', 'tasks', 'run', 'false']
 
 
 class TestBaseDask(unittest.TestCase):
-    def assert_tasks_on_executor(self, executor):
+    def assert_tasks_on_executor(self, executor, timeout_executor=120):
 
         # start the executor
         executor.start()
@@ -58,7 +58,7 @@ class TestBaseDask(unittest.TestCase):
         fail_future = next(k for k, v in executor.futures.items() if v == 'fail')
 
         # wait for the futures to execute, with a timeout
-        timeout = timezone.utcnow() + timedelta(seconds=30)
+        timeout = timezone.utcnow() + timedelta(seconds=timeout_executor)
         while not (success_future.done() and fail_future.done()):
             if timezone.utcnow() > timeout:
                 raise ValueError(
@@ -82,7 +82,7 @@ class TestDaskExecutor(TestBaseDask):
 
     def test_dask_executor_functions(self):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
-        self.assert_tasks_on_executor(executor)
+        self.assert_tasks_on_executor(executor, timeout_executor=120)
 
     def test_backfill_integration(self):
         """
@@ -127,7 +127,7 @@ class TestDaskExecutorTLS(TestBaseDask):
 
             executor = DaskExecutor(cluster_address=cluster['address'])
 
-            self.assert_tasks_on_executor(executor)
+            self.assert_tasks_on_executor(executor, timeout_executor=120)
 
             executor.end()
             # close the executor, the cluster context manager expects all listeners

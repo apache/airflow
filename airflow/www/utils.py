@@ -22,12 +22,16 @@ from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
 import sqlalchemy as sqla
-from flask import Markup, Response, request, url_for
+from flask import Response, request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
+from flask_appbuilder.models.filters import BaseFilter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from markdown_it import MarkdownIt
+from flask_babel import lazy_gettext
+from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -321,16 +325,20 @@ def datetime_f(attr_name):
 
     def dt(attr):
         f = attr.get(attr_name)
-        as_iso = f.isoformat() if f else ''
-        if not as_iso:
-            return Markup('')
-        f = as_iso
-        if timezone.utcnow().isoformat()[:4] == f[:4]:
-            f = f[5:]
-        # The empty title will be replaced in JS code when non-UTC dates are displayed
-        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
+        return datetime_html(f)
 
     return dt
+
+
+def datetime_html(dttm: Optional[DateTime]) -> str:
+    """Return an HTML formatted string with time element to support timezone changes in UI"""
+    as_iso = dttm.isoformat() if dttm else ''
+    if not as_iso:
+        return Markup('')
+    if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
+        as_iso = as_iso[5:]
+    # The empty title will be replaced in JS code when non-UTC dates are displayed
+    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso)
 
 
 def json_f(attr_name):
@@ -447,6 +455,46 @@ class UtcAwareFilterMixin:
         return super().apply(query, value)
 
 
+class FilterGreaterOrEqual(BaseFilter):
+    """Greater than or Equal filter."""
+
+    name = lazy_gettext("Greater than or Equal")
+    arg_name = "gte"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+
+        if value is None:
+            return query
+
+        return query.filter(field >= value)
+
+
+class FilterSmallerOrEqual(BaseFilter):
+    """Smaller than or Equal filter."""
+
+    name = lazy_gettext("Smaller than or Equal")
+    arg_name = "lte"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+
+        if value is None:
+            return query
+
+        return query.filter(field <= value)
+
+
+class UtcAwareFilterSmallerOrEqual(UtcAwareFilterMixin, FilterSmallerOrEqual):
+    """Smaller than or Equal filter for UTC time."""
+
+
+class UtcAwareFilterGreaterOrEqual(UtcAwareFilterMixin, FilterGreaterOrEqual):
+    """Greater than or Equal filter for UTC time."""
+
+
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
     """Equality filter for UTC time."""
 
@@ -473,7 +521,14 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
         (
             'is_utcdatetime',
-            [UtcAwareFilterEqual, UtcAwareFilterGreater, UtcAwareFilterSmaller, UtcAwareFilterNotEqual],
+            [
+                UtcAwareFilterEqual,
+                UtcAwareFilterGreater,
+                UtcAwareFilterSmaller,
+                UtcAwareFilterNotEqual,
+                UtcAwareFilterSmallerOrEqual,
+                UtcAwareFilterGreaterOrEqual,
+            ],
         ),
         # FAB will try to create filters for extendedjson fields even though we
         # exclude them from all UI, so we add this here to make it ignore them.

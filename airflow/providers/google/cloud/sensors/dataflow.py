@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataflow sensor."""
-from typing import Callable, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -25,6 +25,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowJobStatus,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):
@@ -65,7 +68,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -91,7 +94,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info(
             "Waiting for job %s to be in one of the states: %s.",
             self.job_id,
@@ -159,7 +162,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -185,7 +188,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -252,7 +255,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -278,7 +281,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -345,7 +348,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -371,7 +374,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

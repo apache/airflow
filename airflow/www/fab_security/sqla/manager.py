@@ -252,7 +252,7 @@ class SecurityManager(BaseSecurityManager):
     def update_role(self, role_id, name: str) -> Optional[Role]:
         role = self.get_session.query(self.role_model).get(role_id)
         if not role:
-            return
+            return None
         try:
             role.name = name
             self.get_session.merge(role)
@@ -261,7 +261,8 @@ class SecurityManager(BaseSecurityManager):
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_UPD_ROLE.format(str(e)))
             self.get_session.rollback()
-            return
+            return None
+        return role
 
     def find_role(self, name):
         return self.get_session.query(self.role_model).filter_by(name=name).one_or_none()
@@ -478,7 +479,7 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> Permission:
+    def get_permission(self, action_name: str, resource_name: str) -> Optional[Permission]:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
@@ -497,6 +498,7 @@ class SecurityManager(BaseSecurityManager):
                 .filter_by(action=action, resource=resource)
                 .one_or_none()
             )
+        return None
 
     def get_resource_permissions(self, resource: Resource) -> Permission:
         """
@@ -509,7 +511,7 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
-    def create_permission(self, action_name, resource_name):
+    def create_permission(self, action_name, resource_name) -> Optional[Permission]:
         """
         Adds a permission on a resource to the backend
 
@@ -535,6 +537,7 @@ class SecurityManager(BaseSecurityManager):
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
             self.get_session.rollback()
+            return None
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """

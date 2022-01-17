@@ -16,14 +16,16 @@
 # under the License.
 
 import re
+import sys
 from typing import Optional
 
 import google
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient

@@ -21,68 +21,86 @@
 
 
 import logging
-from typing import Dict
+from functools import reduce
+from typing import Dict, List, Union
 
 from flask import Blueprint, current_app, url_for
-from flask_appbuilder import __version__
-from flask_appbuilder.api.manager import OpenApiManager
+from flask_appbuilder import BaseView, __version__
 from flask_appbuilder.babel.manager import BabelManager
-from flask_appbuilder.base import dynamic_class_import
 from flask_appbuilder.const import (
     LOGMSG_ERR_FAB_ADD_PERMISSION_MENU,
     LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW,
+    LOGMSG_ERR_FAB_ADDON_IMPORT,
     LOGMSG_ERR_FAB_ADDON_PROCESS,
     LOGMSG_INF_FAB_ADD_VIEW,
     LOGMSG_INF_FAB_ADDON_ADDED,
     LOGMSG_WAR_FAB_VIEW_EXISTS,
 )
 from flask_appbuilder.filters import TemplateFilters
-from flask_appbuilder.menu import Menu, MenuApiManager
+from flask_appbuilder.menu import Menu
+from flask_appbuilder.security.manager import BaseSecurityManager
 from flask_appbuilder.views import IndexView, UtilView
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
 
-log = logging.getLogger(__name__)
+# This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
+log = logging.getLogger("flask_appbuilder.base")
+
+
+def dynamic_class_import(class_path):
+    """
+    Will dynamically import a class from a string path
+    :param class_path: string with class path
+    :return: class
+    """
+    # Split first occurrence of path
+    try:
+        tmp = class_path.split(".")
+        module_path = ".".join(tmp[0:-1])
+        package = __import__(module_path)
+        return reduce(getattr, tmp[1:], package)
+    except Exception as e:
+        log.exception(e)
+        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT.format(class_path, e))
 
 
 class AirflowAppBuilder:
     """
     This is the base class for all the framework.
-    This is were you will register all your views
+    This is where you will register all your views
     and create the menu structure.
     Will hold your flask app object, all your views, and security classes.
-    initialize your application like this for SQLAlchemy::
+    Initialize your application like this for SQLAlchemy::
         from flask import Flask
-        from flask_appbuilder import SQLA, AirflowAppBuilder
+        from flask_appbuilder import SQLA, AppBuilder
         app = Flask(__name__)
         app.config.from_object('config')
         db = SQLA(app)
-        appbuilder = AirflowAppBuilder(app, db.session)
+        appbuilder = AppBuilder(app, db.session)
     When using MongoEngine::
         from flask import Flask
-        from flask_appbuilder import AirflowAppBuilder
+        from flask_appbuilder import AppBuilder
         from flask_appbuilder.security.mongoengine.manager import SecurityManager
         from flask_mongoengine import MongoEngine
         app = Flask(__name__)
         app.config.from_object('config')
         dbmongo = MongoEngine(app)
-        appbuilder = AirflowAppBuilder(app, security_manager_class=SecurityManager)
+        appbuilder = AppBuilder(app, security_manager_class=SecurityManager)
     You can also create everything as an application factory.
     """
 
-    baseviews = []
+    baseviews: List[Union[BaseView, Session]] = []
     security_manager_class = None
     # Flask app
     app = None
     # Database Session
     session = None
     # Security Manager Class
-    sm = None
+    sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
-    # OpenAPI Manager Class
-    openapi_manager = None
     # dict with addon name has key and intantiated class has value
     addon_managers = None
     # temporary list that hold addon_managers config key
@@ -102,14 +120,15 @@ class AirflowAppBuilder:
         session=None,
         menu=None,
         indexview=None,
-        base_template="appbuilder/baselayout.html",
+        base_template='airflow/main.html',
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
         security_manager_class=None,
-        update_perms=True,
+        update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
     ):
         """
-        Class constructor
+        App-builder constructor.
+
         :param app:
             The flask app object
         :param session:
@@ -139,7 +158,6 @@ class AirflowAppBuilder:
         self.static_url_path = static_url_path
         self.app = app
         self.update_perms = update_perms
-
         if app is not None:
             self.init_app(app, session)
 
@@ -189,8 +207,6 @@ class AirflowAppBuilder:
         self.session = session
         self.sm = self.security_manager_class(self)
         self.bm = BabelManager(self)
-        self.openapi_manager = OpenApiManager(self)
-        self.menuapi_manager = MenuApiManager(self)
         self._add_global_static()
         self._add_global_filters()
         app.before_request(self.sm.before_request)
@@ -279,7 +295,7 @@ class AirflowAppBuilder:
     def _add_global_static(self):
         bp = Blueprint(
             "appbuilder",
-            __name__,
+            'flask_appbuilder.base',
             url_prefix="/static",
             template_folder="templates",
             static_folder=self.static_folder,
@@ -288,17 +304,15 @@ class AirflowAppBuilder:
         self.get_app.register_blueprint(bp)
 
     def _add_admin_views(self):
-        """Registers indexview, utilview (back function), babel views and Security views."""
+        """Register indexview, utilview (back function), babel views and Security views."""
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
         self.sm.register_views()
-        self.openapi_manager.register_views()
-        self.menuapi_manager.register_views()
 
     def _add_addon_views(self):
-        """Registers declared addon's"""
+        """Register declared addons."""
         for addon in self._addon_managers:
             addon_class = dynamic_class_import(addon)
             if addon_class:
@@ -316,8 +330,6 @@ class AirflowAppBuilder:
 
     def _check_and_init(self, baseview):
         if hasattr(baseview, 'datamodel'):
-            # Delete sessions if initiated previously to limit side effects. We want to use
-            # the current session in the current application.
             baseview.datamodel.session = self.session
         if hasattr(baseview, "__call__"):
             baseview = baseview()
@@ -335,8 +347,8 @@ class AirflowAppBuilder:
         category_label="",
         menu_cond=None,
     ):
-        """
-        Add your views associated with menus using this method.
+        """Add your views associated with menus using this method.
+
         :param baseview:
             A BaseView type class instantiated or not.
             This method will instantiate the class for you if needed.
@@ -366,7 +378,7 @@ class AirflowAppBuilder:
             will not be included in the menu items. Defaults to
             :code:`None`, meaning the item will always be present.
         Examples::
-            appbuilder = AirflowAppBuilder(app, db)
+            appbuilder = AppBuilder(app, db)
             # Register a view, rendering a top menu without icon.
             appbuilder.add_view(MyModelView(), "My View")
             # or not instantiated
@@ -510,14 +522,6 @@ class AirflowAppBuilder:
         else:
             log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))
         return baseview
-
-    def add_api(self, baseview):
-        """
-            Add a BaseApi class or child to AirflowAppBuilder
-        :param baseview: A BaseApi type class
-        :return: The instantiated base view
-        """
-        return self.add_view_no_menu(baseview)
 
     def security_cleanup(self):
         """

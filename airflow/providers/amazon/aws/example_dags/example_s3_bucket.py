@@ -20,7 +20,7 @@ from datetime import datetime
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
 

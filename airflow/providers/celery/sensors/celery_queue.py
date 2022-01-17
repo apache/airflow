@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from celery.app import control
 
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CeleryQueueSensor(BaseSensorOperator):
@@ -41,7 +44,7 @@ class CeleryQueueSensor(BaseSensorOperator):
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 
-    def _check_task_id(self, context: Dict[str, Any]) -> bool:
+    def _check_task_id(self, context: 'Context') -> bool:
         """
         Gets the returned Celery result from the Airflow task
         ID provided to the sensor, and returns True if the
@@ -56,7 +59,7 @@ class CeleryQueueSensor(BaseSensorOperator):
         celery_result = ti.xcom_pull(task_ids=self.target_task_id)
         return celery_result.ready()
 
-    def poke(self, context: Dict[str, Any]) -> bool:
+    def poke(self, context: 'Context') -> bool:
 
         if self.target_task_id:
             return self._check_task_id(context)

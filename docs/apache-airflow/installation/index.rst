@@ -155,14 +155,14 @@ This installation method is useful when you are familiar with Container/Docker s
 running Airflow components in isolation from other software running on the same physical or virtual machines with easy
 maintenance of dependencies.
 
-The images are build by Apache Airflow release managers and they use officially released packages from PyPI
+The images are built by Apache Airflow release managers and they use officially released packages from PyPI
 and official constraint files- same that are used for installing Airflow from PyPI.
 
 **Intended users**
 
 * Users who are familiar with Containers and Docker stack and understand how to build their own container images.
 * Users who understand how to install providers and dependencies from PyPI with constraints if they want to extend or customize the image.
-* Users who know how to create deployments using Docker by linking together multiple docker containers and maintaining such deployments.
+* Users who know how to create deployments using Docker by linking together multiple Docker containers and maintaining such deployments.
 
 **What are you expected to handle**
 

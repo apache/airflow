@@ -239,7 +239,12 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
 
     from my_company_utils.common import ALL_TASKS
 
-    with DAG(dag_id="my_dag", schedule_interval=None, start_date=days_ago(2)) as dag:
+    with DAG(
+        dag_id="my_dag",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    ) as dag:
         for task in ALL_TASKS:
             # create your operators and relations here
             pass
@@ -255,7 +260,7 @@ Dynamic DAGs with external configuration from a structured data file
 If you need to use a more complex meta-data to prepare your DAG structure and you would prefer to keep the
 data in a structured non-python format, you should export the data to the DAG folder in a file and push
 it to the DAG folder, rather than try to pull the data by the DAG's top-level code - for the reasons
-explained in the parent `Top level Python code <_top-level-python-code>`_.
+explained in the parent :ref:`best_practices/top_level_code`.
 
 The meta-data should be exported and stored together with the DAGs in a convenient file format (JSON, YAML
 formats are good candidates) in DAG folder. Ideally, the meta-data should be published in the same
@@ -277,7 +282,7 @@ the meta-data file in your DAG easily. The location of the file to read can be f
 Airflow Variables
 -----------------
 
-As mentioned in the previous chapter, `Top level Python code <_top-level-python-code>`_. you should avoid
+As mentioned in the previous chapter, :ref:`best_practices/top_level_code`. you should avoid
 using Airflow Variables at top level Python code of DAGs. You can use the Airflow Variables freely inside the
 ``execute()`` methods of the operators, but you can also pass the Airflow Variables to the existing operators
 via Jinja template, which will delay reading the value until the task execution.
@@ -440,11 +445,11 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 
     @pytest.fixture()
-    def dagbag(self):
+    def dagbag():
         return DagBag()
 
 
-    def test_dag_loaded(self, dagbag):
+    def test_dag_loaded(dagbag):
         dag = dagbag.get_dag(dag_id="hello_world")
         assert dagbag.import_errors == {}
         assert dag is not None
@@ -499,7 +504,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
         with DAG(
             dag_id=TEST_DAG_ID,
             schedule_interval="@daily",
-            default_args={"start_date": DATA_INTERVAL_START},
+            start_date=DATA_INTERVAL_START,
         ) as dag:
             MyCustomOperator(
                 task_id=TEST_TASK_ID,

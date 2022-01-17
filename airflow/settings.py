@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import pendulum
 import sqlalchemy
@@ -36,6 +36,9 @@ from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+
+if TYPE_CHECKING:
+    from airflow.www.utils import UIAlert
 
 log = logging.getLogger(__name__)
 
@@ -73,10 +76,11 @@ SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
+DONOT_MODIFY_HANDLERS: Optional[bool] = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-engine: Optional[Engine] = None
-Session: Optional[SASession] = None
+engine: Engine
+Session: Callable[..., SASession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -177,11 +181,13 @@ def task_instance_mutation_hook(task_instance):
     """
 
 
+task_instance_mutation_hook.is_noop = True  # type: ignore
+
+
 def pod_mutation_hook(pod):
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
-    before they are passed to the Kubernetes client by the ``PodLauncher``
-    for scheduling.
+    before they are passed to the Kubernetes client for scheduling.
 
     To define a pod mutation hook, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``pod_mutation_hook`` function.
@@ -192,15 +198,38 @@ def pod_mutation_hook(pod):
     """
 
 
+def get_airflow_context_vars(context):
+    """
+    This setting allows getting the airflow context vars, which are key value pairs.
+    They are then injected to default airflow context vars, which in the end are
+    available as environment variables when running tasks
+    dag_id, task_id, execution_date, dag_run_id, try_number are reserved keys.
+    To define it, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``get_airflow_context_vars`` function.
+
+    :param context: The context for the task_instance of interest.
+    :type context: dict
+    """
+    return {}
+
+
 def configure_vars():
     """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
+    global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
+
+    # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+    # If the flag is set to False, we remove all handlers from the root logger
+    # and add all handlers from 'airflow.task' logger to the root Logger. This is done
+    # to get all the logs from the print & log statements in the DAG files before a task is run
+    # The handlers are restored after the task completes execution.
+    DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 
 def configure_orm(disable_connection_pool=False):
@@ -211,10 +240,6 @@ def configure_orm(disable_connection_pool=False):
     global engine
     global Session
     engine_args = prepare_engine_args(disable_connection_pool)
-
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
 
     if conf.has_option('core', 'sql_alchemy_connect_args'):
         connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
@@ -258,11 +283,26 @@ def configure_orm(disable_connection_pool=False):
             session.close()
 
 
+DEFAULT_ENGINE_ARGS = {
+    'postgresql': {
+        'executemany_mode': 'values',
+        'executemany_values_page_size': 10000,
+        'executemany_batch_page_size': 2000,
+    },
+}
+
+
 def prepare_engine_args(disable_connection_pool=False):
     """Prepare SQLAlchemy engine args"""
-    engine_args = {}
-    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
-    if disable_connection_pool or not pool_connections:
+    default_args = {}
+    for dialect, default in DEFAULT_ENGINE_ARGS.items():
+        if SQL_ALCHEMY_CONN.startswith(dialect):
+            default_args = default.copy()
+            break
+
+    engine_args: dict = conf.getjson('core', 'sql_alchemy_engine_args', fallback=default_args)  # type: ignore
+
+    if disable_connection_pool or not conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
@@ -323,6 +363,10 @@ def prepare_engine_args(disable_connection_pool=False):
     if SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
         engine_args['isolation_level'] = 'READ COMMITTED'
 
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
+    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+
     return engine_args
 
 
@@ -366,6 +410,8 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
+    global engine
+
     worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -459,6 +505,9 @@ def import_local_settings():
             globals()["task_policy"] = globals()["policy"]
             del globals()["policy"]
 
+        if not hasattr(task_instance_mutation_hook, 'is_noop'):
+            task_instance_mutation_hook.is_noop = False
+
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ModuleNotFoundError as e:
         if e.name == "airflow_local_settings":
@@ -504,13 +553,6 @@ MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_upd
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
-
-# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
-# If the flag is set to False, we remove all handlers from the root logger
-# and add all handlers from 'airflow.task' logger to the root Logger. This is done
-# to get all the logs from the print & log statements in the DAG files before a task is run
-# The handlers are restored after the task completes execution.
-DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 CAN_FORK = hasattr(os, "fork")
 
@@ -561,8 +603,7 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-# DASHBOARD_UIALERTS: List["UIAlert"]
-DASHBOARD_UIALERTS = []
+DASHBOARD_UIALERTS: List["UIAlert"] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

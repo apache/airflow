@@ -124,7 +124,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
         return response.get('queries', [])
 
-    def run_query(self, query_id: str, params: Dict[str, Any]) -> None:
+    def run_query(self, query_id: str, params: Optional[Dict[str, Any]]) -> None:
         """
         Runs a stored query to generate a report.
 
@@ -221,5 +221,5 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param resource_name: of the media that is being downloaded.
         :type resource_name: str
         """
-        request = self.get_conn_to_display_video().media().download_media(resource_name=resource_name)
+        request = self.get_conn_to_display_video().media().download_media(resourceName=resource_name)
         return request

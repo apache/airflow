@@ -39,7 +39,7 @@ from datetime import datetime
 from os import getenv
 
 from airflow import models
-from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
+from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 
 # [START howto_operator_datasync_2_args]
 SOURCE_LOCATION_URI = getenv("SOURCE_LOCATION_URI", "smb://hostname/directory/")
@@ -78,7 +78,7 @@ with models.DAG(
 ) as dag:
 
     # [START howto_operator_datasync_2]
-    datasync_task = AWSDataSyncOperator(
+    datasync_task = DataSyncOperator(
         task_id="datasync_task",
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,

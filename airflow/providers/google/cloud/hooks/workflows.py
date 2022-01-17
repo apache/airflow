@@ -25,7 +25,7 @@ from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
 from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class WorkflowsHook(GoogleBaseHook):
@@ -50,10 +50,10 @@ class WorkflowsHook(GoogleBaseHook):
         workflow: Dict,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Creates a new workflow. If a workflow with the specified name
@@ -93,10 +93,10 @@ class WorkflowsHook(GoogleBaseHook):
         self,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Workflow:
         """
         Gets details of a single Workflow.
@@ -127,7 +127,7 @@ class WorkflowsHook(GoogleBaseHook):
         update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Updates an existing workflow.
@@ -165,10 +165,10 @@ class WorkflowsHook(GoogleBaseHook):
         self,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a workflow with the specified name.
@@ -199,12 +199,12 @@ class WorkflowsHook(GoogleBaseHook):
     def list_workflows(
         self,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListWorkflowsPager:
         """
         Lists Workflows in a given project and location.
@@ -212,8 +212,8 @@ class WorkflowsHook(GoogleBaseHook):
 
         :param filter_: Filter to restrict results to specific workflows.
         :type filter_: str
-        :param order_by: Comma-separated list of fields that that
-            specify the order of the results. Default sorting order for a field is ascending.
+        :param order_by: Comma-separated list of fields that
+            specifies the order of the results. Default sorting order for a field is ascending.
             To specify descending order for a field, append a "desc" suffix.
             If not specified, the results will be returned in an unspecified order.
         :type order_by: str
@@ -246,11 +246,11 @@ class WorkflowsHook(GoogleBaseHook):
         self,
         workflow_id: str,
         location: str,
-        project_id: str,
         execution: Dict,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Execution:
         """
         Creates a new execution using the latest revision of
@@ -289,10 +289,10 @@ class WorkflowsHook(GoogleBaseHook):
         workflow_id: str,
         execution_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Execution:
         """
         Returns an execution for the given ``workflow_id`` and ``execution_id``.
@@ -325,10 +325,10 @@ class WorkflowsHook(GoogleBaseHook):
         workflow_id: str,
         execution_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Execution:
         """
         Cancels an execution using the given ``workflow_id`` and ``execution_id``.
@@ -362,10 +362,10 @@ class WorkflowsHook(GoogleBaseHook):
         self,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListExecutionsPager:
         """
         Returns a list of executions which belong to the

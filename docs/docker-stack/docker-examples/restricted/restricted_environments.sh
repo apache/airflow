@@ -22,28 +22,26 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 
 # [START download]
+export AIRFLOW_VERSION="2.2.2"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
 curl -Lo "docker-context-files/constraints-3.7.txt" \
-    https://raw.githubusercontent.com/apache/airflow/constraints-2.3.0.dev0/constraints-3.7.txt
-
-# For Airflow pre 2.1 you need to use PIP 20.2.4 to install/download Airflow packages.
-pip install pip==20.2.4
+    "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.7.txt"
 
 pip download --dest docker-context-files \
     --constraint docker-context-files/constraints-3.7.txt  \
-    "apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,postgres,redis,slack,ssh,statsd,virtualenv]==2.0.2"
+    "apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,postgres,redis,slack,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
 # [END download]
 
 # [START build]
 docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.3.0.dev0" \
+    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg INSTALL_MSSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
     --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.7.txt" \
-    --tag my-restricted-environment:0.0.1
+    --tag airflow-my-restricted-environment:0.0.1
 # [END build]

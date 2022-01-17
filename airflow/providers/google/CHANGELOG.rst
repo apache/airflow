@@ -18,6 +18,108 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add optional location to bigquery data transfer service (#15088) (#20221)``
+* ``Add Google Cloud Tasks how-to documentation (#20145)``
+* ``Added example DAG for MSSQL to Google Cloud Storage (GCS) (#19873)``
+* ``Support regional GKE cluster (#18966)``
+* ``Delete pods by default in KubernetesPodOperator (#20575)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes docstring for PubSubCreateSubscriptionOperator (#20237)``
+* ``Fix missing get_backup method for Dataproc Metastore (#20326)``
+* ``BigQueryHook fix typo in run_load doc string (#19924)``
+* ``Fix passing the gzip compression parameter on sftp_to_gcs. (#20553)``
+* ``switch to follow_redirects on httpx.get call in CloudSQL provider (#20239)``
+* ``avoid deprecation warnings in BigQuery transfer operators (#20502)``
+* ``Change download_video parameter to resourceName (#20528)``
+* ``Fix big query to mssql/mysql transfer issues (#20001)``
+* ``Fix setting of project ID in ''provide_authorized_gcloud'' (#20428)``
+
+Misc
+~~~~
+
+* ``Move source_objects datatype check out of GCSToBigQueryOperator.__init__ (#20347)``
+* ``Organize S3 Classes in Amazon Provider (#20167)``
+* ``Providers facebook hook multiple account (#19377)``
+* ``Remove deprecated method call (blob.download_as_string) (#20091)``
+* ``Remove deprecated template_fields from GoogleDriveToGCSOperator (#19991)``
+
+Note! optional features of the ``apache-airflow-providers-facebook`` and ``apache-airflow-providers-amazon``
+require newer versions of the providers (as specified in the dependencies)
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy errors for google.cloud_build (#20234)``
+   * ``Fix MyPy for Google Bigquery (#20329)``
+   * ``Fix remaining MyPy errors in Google Provider (#20358)``
+   * ``Fix MyPy Errors for dataproc package (#20327)``
+   * ``Fix MyPy errors for google.cloud.tasks (#20233)``
+   * ``Fix MyPy Errors for Apache Beam (and Dataflow) provider. (#20301)``
+   * ``Fix MyPy errors in leveldb (#20222)``
+   * ``Fix MyPy errors for google.cloud.transfers (#20229)``
+   * ``Fix MyPY errors for google.cloud.example_dags (#20232)``
+   * ``Fix MyPy errors for google/marketing_platform and suite (#20227)``
+   * ``Fix MyPy errors in google.cloud.sensors (#20228)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Finalised Datastore documentation (#20138)``
+   * ``Update Sphinx and Sphinx-AutoAPI (#20079)``
+   * ``Update doc reference links (#19909)``
+   * ``Use Python3.7+ syntax in pyupgrade (#20501)``
+   * ``Fix MyPy errors in Google Cloud (again) (#20469)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix Google mlengine MyPy errors (#20569)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix Google Mypy Dataproc errors (#20570)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Fix mypy errors in google/cloud/operators/stackdriver (#20601)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added wait mechanizm to the DataprocJobSensor to avoid 509 errors when Job is not available (#19740)``
+* ``Add support in GCP connection for reading key from Secret Manager (#19164)``
+* ``Add dataproc metastore operators (#18945)``
+* ``Add support of 'path' parameter for GCloud Storage Transfer Service operators (#17446)``
+* ``Move 'bucket_name' validation out of '__init__' in Google Marketing Platform operators (#19383)``
+* ``Create dataproc serverless spark batches operator (#19248)``
+* ``updates pipeline_timeout CloudDataFusionStartPipelineOperator (#18773)``
+* ``Support impersonation_chain parameter in the GKEStartPodOperator (#19518)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix badly merged impersonation in GKEPodOperator (#19696)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos in warnings, docstrings, exceptions (#19424)``
+   * ``Fix Cloud SQL system tests (#19014)``
+   * ``Fix GCS system tests (#19227)``
+   * ``Update 'default_args' value in example_functions DAG from str to int (#19865)``
+   * ``Clean up ''default_args'' usage in docs (#19803)``
+   * ``Clean-up of google cloud example dags - batch 3 (#19664)``
+   * ``Misc. documentation typos and language improvements (#19599)``
+   * ``Cleanup dynamic 'start_date' use for miscellaneous Google example DAGs (#19400)``
+   * ``Remove reference to deprecated operator in example_dataproc (#19619)``
+   * ``#16691 Providing more information in docs for DataprocCreateCluster operator migration (#19446)``
+   * ``Clean-up of google cloud example dags - batch 2 (#19527)``
+   * ``Update Azure modules to comply with AIP-21 (#19431)``
+   * ``Remove remaining 'pylint: disable' comments (#19541)``
+   * ``Clean-up of google cloud example dags (#19436)``
+
 6.1.0
 .....
 

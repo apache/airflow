@@ -86,7 +86,7 @@ class DAGDetailSchema(DAGSchema):
     doc_md = fields.String()
     default_view = fields.String()
     params = fields.Method('get_params', dump_only=True)
-    tags = fields.Method("get_tags", dump_only=True)
+    tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
 

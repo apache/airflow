@@ -15,16 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import Dict, Tuple
+from typing import Tuple
 
 import pytest
+from parameterized import parameterized
 
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.baseoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -109,16 +112,27 @@ class TestAirflowTaskDecorator(TestPythonBase):
         """Tests that @task will only instantiate if
         the python_callable argument is callable."""
         not_callable = {}
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
             task_decorator(not_callable, dag=self.dag)
 
-    def test_infer_multiple_outputs_using_typing(self):
-        @task_decorator
-        def identity_dict(x: int, y: int) -> Dict[str, int]:
-            return {"x": x, "y": y}
+    @parameterized.expand([["dict"], ["dict[str, int]"], ["Dict"], ["Dict[str, int]"]])
+    def test_infer_multiple_outputs_using_dict_typing(self, test_return_annotation):
+        if sys.version_info < (3, 9) and test_return_annotation == "dict[str, int]":
+            self.skipTest("dict[...] not a supported typing prior to Python 3.9")
 
-        assert identity_dict(5, 5).operator.multiple_outputs is True
+            @task_decorator
+            def identity_dict(x: int, y: int) -> eval(test_return_annotation):
+                return {"x": x, "y": y}
 
+            assert identity_dict(5, 5).operator.multiple_outputs is True
+
+            @task_decorator
+            def identity_dict_stringified(x: int, y: int) -> test_return_annotation:
+                return {"x": x, "y": y}
+
+            assert identity_dict_stringified(5, 5).operator.multiple_outputs is True
+
+    def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
             return x, y
@@ -139,8 +153,8 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
-        def identity2(x: int, y: int) -> Dict[int, int]:
-            return (x, y)
+        def identity2(x: int, y: int) -> Tuple[int, int]:
+            return x, y
 
         with self.dag:
             res = identity2(8, 4)
@@ -201,7 +215,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
 
             class Test:
                 num = 2
@@ -209,8 +223,6 @@ class TestAirflowTaskDecorator(TestPythonBase):
                 @task_decorator
                 def add_number(self, num: int) -> int:
                     return self.num + num
-
-            Test().add_number(2)
 
     def test_fail_multiple_outputs_key_type(self):
         @task_decorator(multiple_outputs=True)
@@ -498,3 +510,64 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = add_2(test_number)
 
         assert ret.operator.doc_md.strip(), "Adds 2 to number."
+
+
+def test_mapped_decorator() -> None:
+    @task_decorator
+    def double(number: int):
+        return number * 2
+
+    with DAG('test_dag', start_date=DEFAULT_DATE):
+        literal = [1, 2, 3]
+        doubled_0 = double.map(number=literal)
+        doubled_1 = double.map(number=literal)
+
+    assert isinstance(doubled_0, XComArg)
+    assert isinstance(doubled_0.operator, MappedOperator)
+    assert doubled_0.operator.task_id == "double"
+    assert doubled_0.operator.mapped_kwargs == {"number": literal}
+
+    assert doubled_1.operator.task_id == "double__1"
+
+
+def test_mapped_decorator_invalid_args() -> None:
+    @task_decorator
+    def double(number: int):
+        return number * 2
+
+    with DAG('test_dag', start_date=DEFAULT_DATE):
+        literal = [1, 2, 3]
+
+        with pytest.raises(TypeError, match="arguments 'other', 'b'"):
+            double.partial(other=1, b='a')
+        with pytest.raises(TypeError, match="argument 'other'"):
+            double.map(number=literal, other=1)
+
+
+def test_partial_mapped_decorator() -> None:
+    @task_decorator
+    def product(number: int, multiple: int):
+        return number * multiple
+
+    with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
+        literal = [1, 2, 3]
+        quadrupled = product.partial(task_id='times_4', multiple=3).map(number=literal)
+        doubled = product.partial(multiple=2).map(number=literal)
+        trippled = product.partial(multiple=3).map(number=literal)
+
+        product.partial(multiple=2)
+
+    assert isinstance(doubled, XComArg)
+    assert isinstance(doubled.operator, MappedOperator)
+    assert doubled.operator.task_id == "product"
+    assert doubled.operator.mapped_kwargs == {"number": literal}
+    assert doubled.operator.partial_kwargs == {"task_id": "product", "multiple": 2}
+
+    assert trippled.operator.task_id == "product__1"
+    assert trippled.operator.partial_kwargs == {"task_id": "product", "multiple": 3}
+
+    assert quadrupled.operator.task_id == "times_4"
+
+    assert doubled.operator is not trippled.operator
+
+    assert [quadrupled.operator, doubled.operator, trippled.operator] == dag.tasks

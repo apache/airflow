@@ -39,7 +39,7 @@ class SqliteHook(DbApiHook):
     @staticmethod
     def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
         """
-        Static helper method that generate the INSERT SQL statement.
+        Static helper method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table

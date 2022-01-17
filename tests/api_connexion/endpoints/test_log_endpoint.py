@@ -81,8 +81,22 @@ class TestGetLog:
 
         configured_app.dag_bag.bag_dag(dag, root_dag=dag)
 
+        # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
+        with dag_maker(
+            f'{self.DAG_ID}_copy', start_date=timezone.parse(self.default_time), session=session
+        ) as dummy_dag:
+            DummyOperator(task_id=self.TASK_ID)
+        dag_maker.create_dagrun(
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+
         self.ti = dr.task_instances[0]
         self.ti.try_number = 1
+        self.ti.hostname = 'localhost'
 
     @pytest.fixture
     def configure_loggers(self, tmp_path):
@@ -126,7 +140,7 @@ class TestGetLog:
         )
         assert (
             response.json['content']
-            == f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
+            == f"[('localhost', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json['continuation_token'])
         assert info == {'end_of_log': True}
@@ -149,7 +163,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_of_removed_task(self):
@@ -175,7 +189,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_response_with_ti_equal_to_none(self):

@@ -93,6 +93,66 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
+    def test_global_affinity_tolerations_and_node_selector(self):
+        """
+        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        """
+        k8s_objects = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "tolerations": [
+                    {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "user-node"},
+            },
+            show_only=[
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/flower/flower-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert 11 == len(k8s_objects)
+
+        for k8s_object in k8s_objects:
+            if k8s_object["kind"] == "CronJob":
+                podSpec = jmespath.search("spec.jobTemplate.spec.template.spec", k8s_object)
+            else:
+                podSpec = jmespath.search("spec.template.spec", k8s_object)
+
+            assert "foo" == jmespath.search(
+                "affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                podSpec,
+            )
+            assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
+            assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
+
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
         [
@@ -123,3 +183,68 @@ class TestAirflowCommon:
 
         for doc in docs:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=["templates/secrets/fernetkey-secret.yaml"],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "0"
+
+    def test_should_disable_some_variables(self):
+        docs = render_chart(
+            values={
+                "enableBuiltInSecretEnvVars": {
+                    "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
+                    "AIRFLOW__WEBSERVER__SECRET_KEY": False,
+                    "AIRFLOW__CELERY__RESULT_BACKEND": False,
+                    "AIRFLOW__ELASTICSEARCH__HOST": False,
+                },
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        expected_vars = [
+            'AIRFLOW__CORE__FERNET_KEY',
+            'AIRFLOW_CONN_AIRFLOW_DB',
+            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
+            'AIRFLOW__CELERY__BROKER_URL',
+        ]
+        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        for doc in docs:
+            component = doc['metadata']['labels']['component']
+            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            assert variables == jmespath.search(
+                "spec.template.spec.containers[0].env[*].name", doc
+            ), f"Wrong vars in {component}"
+
+    def test_have_all_variables(self):
+        docs = render_chart(
+            values={},
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        expected_vars = [
+            'AIRFLOW__CORE__FERNET_KEY',
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
+            'AIRFLOW_CONN_AIRFLOW_DB',
+            'AIRFLOW__WEBSERVER__SECRET_KEY',
+            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
+            'AIRFLOW__CELERY__RESULT_BACKEND',
+            'AIRFLOW__CELERY__BROKER_URL',
+        ]
+        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        for doc in docs:
+            component = doc['metadata']['labels']['component']
+            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            assert variables == jmespath.search(
+                "spec.template.spec.containers[0].env[*].name", doc
+            ), f"Wrong vars in {component}"

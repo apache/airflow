@@ -352,15 +352,11 @@ class TestFlowerNetworkPolicy:
         assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
             "spec.ingress[0].from", docs[0]
         )
-        assert [{"port": "flower-ui"}] == jmespath.search("spec.ingress[0].ports", docs[0])
+        assert [{"port": 5555}] == jmespath.search("spec.ingress[0].ports", docs[0])
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
         [
-            (
-                [{"protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
-                [{"protocol": "UDP", "port": 5555}],
-            ),
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [

@@ -79,7 +79,7 @@ class TelegramHook(BaseHook):
         """
         return telegram.bot.Bot(token=self.token)
 
-    def __get_token(self, token: Optional[str], telegram_conn_id: str) -> str:
+    def __get_token(self, token: Optional[str], telegram_conn_id: Optional[str]) -> str:
         """
         Returns the telegram API token
 
@@ -103,7 +103,7 @@ class TelegramHook(BaseHook):
 
         raise AirflowException("Cannot get token: No valid Telegram connection supplied.")
 
-    def __get_chat_id(self, chat_id: Optional[str], telegram_conn_id: str) -> Optional[str]:
+    def __get_chat_id(self, chat_id: Optional[str], telegram_conn_id: Optional[str]) -> Optional[str]:
         """
         Returns the telegram chat ID for a chat/channel/group
 

@@ -14,10 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class LevelDBOperator(BaseOperator):
@@ -34,11 +37,11 @@ class LevelDBOperator(BaseOperator):
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
         :type key: bytes
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :type value: bytes
+        :type value: Optional[bytes]
         :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
-        :type keys: List[bytes]
+        :type keys: Optional[List[bytes]]
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
-        :type values: List[bytes]
+        :type values: Optional[List[bytes]]
         :param leveldb_conn_id:
         :type leveldb_conn_id: str
         :param create_if_missing: whether a new database should be created if needed
@@ -53,9 +56,9 @@ class LevelDBOperator(BaseOperator):
         *,
         command: str,
         key: bytes,
-        value: bytes = None,
-        keys: List[bytes] = None,
-        values: List[bytes] = None,
+        value: Optional[bytes] = None,
+        keys: Optional[List[bytes]] = None,
+        values: Optional[List[bytes]] = None,
         leveldb_conn_id: str = 'leveldb_default',
         name: str = '/tmp/testdb/',
         create_if_missing: bool = True,
@@ -73,7 +76,7 @@ class LevelDBOperator(BaseOperator):
         self.create_if_missing = create_if_missing
         self.create_db_extra_options = create_db_extra_options or {}
 
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         """
         Execute command in LevelDB
 
@@ -94,5 +97,5 @@ class LevelDBOperator(BaseOperator):
         )
         self.log.info("Done. Returned value was: %s", str(value))
         leveldb_hook.close_conn()
-        value = value if value is None else value.decode()
-        return value
+        str_value = value if value is None else value.decode()
+        return str_value

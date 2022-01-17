@@ -15,8 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING, Sequence
+
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MongoSensor(BaseSensorOperator):
@@ -41,7 +46,7 @@ class MongoSensor(BaseSensorOperator):
     :type mongo_db: str
     """
 
-    template_fields = ('collection', 'query')
+    template_fields: Sequence[str] = ('collection', 'query')
 
     def __init__(
         self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", mongo_db=None, **kwargs
@@ -52,7 +57,7 @@ class MongoSensor(BaseSensorOperator):
         self.query = query
         self.mongo_db = mongo_db
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info(
             "Sensor check existence of the document that matches the following query: %s", self.query
         )

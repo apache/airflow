@@ -24,7 +24,7 @@ import pytest
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.emr_step import EmrStepSensor
+from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {
     'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': '8dee8db2-3719-11e6-9e20-35b2f861a2a6'},

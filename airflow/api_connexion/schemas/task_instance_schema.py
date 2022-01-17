@@ -25,6 +25,7 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import SlaMiss, TaskInstance
+from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
 
 
@@ -43,7 +44,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     start_date = auto_field()
     end_date = auto_field()
     duration = auto_field()
-    state = auto_field()
+    state = TaskInstanceStateField()
     _try_number = auto_field(data_key="try_number")
     max_tries = auto_field()
     hostname = auto_field()
@@ -129,12 +130,19 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(required=True, validate=validate_istimezone)
+    execution_date = fields.DateTime(validate=validate_istimezone)
+    dag_run_id = fields.Str()
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
     new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+
+    @validates_schema
+    def validate_form(self, data, **kwargs):
+        """Validates set task instance state form"""
+        if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
+            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
 class TaskInstanceReferenceSchema(Schema):

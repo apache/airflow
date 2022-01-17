@@ -152,7 +152,7 @@ If you use bash, run this command and re-login:
 
 .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
+    echo 'export PATH="$(brew --prefix)/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
     . ~/.bash_profile
 
 
@@ -160,7 +160,7 @@ If you use zsh, run this command and re-login:
 
 .. code-block:: bash
 
-    echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
+    echo 'export PATH="$(brew --prefix)/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
 
@@ -393,11 +393,10 @@ you can also start integrations (separate Docker images) if specified as extra `
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with four panes:
+tmux session with three panes:
 
    - one to monitor the scheduler,
    - one for the webserver,
-   - one monitors and compiles JavaScript files,
    - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
@@ -646,7 +645,7 @@ python dependencies, additional Airflow extras. Breeze's ``build-image`` command
 customized variant of the image that contains everything you need.
 
 You can switch to building the production image by adding ``--production-image`` flag to the ``build_image``
-command. Note, that the images can also be build using ``docker build`` command by passing appropriate
+command. Note, that the images can also be built using ``docker build`` command by passing appropriate
 build-args as described in `IMAGES.rst <IMAGES.rst>`_ , but Breeze provides several flags that
 makes it easier to do it. You can see all the flags by running ``./breeze build-image --help``,
 but here typical examples are presented:
@@ -1272,7 +1271,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1475,7 +1474,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1542,7 +1541,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1633,7 +1632,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
 
   ####################################################################################################
@@ -1828,7 +1827,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1841,7 +1840,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10 11 12 13
+                 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           MySql version used. One of:
@@ -1897,7 +1896,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2194,21 +2193,23 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
-                 base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
-                 build build-providers-dependencies check-apache-license check-builtin-literals
+                 autoflake base-operator bats-tests bats-in-container-tests black blacken-docs
+                 boring-cyborg build build-providers-dependencies chart-schema-lint
+                 capitalized-breeze changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
                  fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 pre-commit-hook-names pretty-format-json provide-create-sessions
-                 providers-changelogs providers-init-file providers-subpackages-init-file
-                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
-                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
-                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file update-versions
+                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
+                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
+                 provide-create-sessions providers-changelogs providers-init-file
+                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
+                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
+                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 update-supported-versions update-versions vendor-k8s-json-schema
                  verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
@@ -2305,7 +2306,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9 3.6
+                 3.7 3.8 3.9
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2321,7 +2322,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10 11 12 13
+                 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           MySql version used. One of:
@@ -2397,9 +2398,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.20.2 v1.19.7 v1.18.15
+                 v1.21.1 v1.20.2
 
-          Default: v1.20.2
+          Default: v1.21.1
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.

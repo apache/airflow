@@ -23,7 +23,7 @@ from datetime import datetime
 
 # [START redshift_operator_howto_guide]
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
+from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 
 with DAG(
     dag_id="redshift",

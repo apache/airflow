@@ -137,6 +137,24 @@ class WebserverDeploymentTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    @parameterized.expand(
+        [
+            ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
+            ("2.1.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
+            ("1.10.2", ["python", "-c"]),
+        ],
+    )
+    def test_wait_for_migration_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        # Don't test the full string, just the length of the expect matches
+        actual = jmespath.search("spec.template.spec.initContainers[0].args", docs[0])
+        assert expected_arg == actual[: len(expected_arg)]
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
@@ -207,6 +225,62 @@ class WebserverDeploymentTest(unittest.TestCase):
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
         )
+
+    def test_affinity_tolerations_and_node_selector_precedence(self):
+        """When given both global and webserver affinity etc, webserver affinity etc is used"""
+        expected_affinity = {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchExpressions": [
+                                {"key": "foo", "operator": "In", "values": ["true"]},
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "affinity": expected_affinity,
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"type": "ssd"},
+                },
+                "affinity": {
+                    "nodeAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "weight": 1,
+                                "preference": {
+                                    "matchExpressions": [
+                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                },
+                "tolerations": [
+                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "not-me"},
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.type",
+            docs[0],
+        )
+        tolerations = jmespath.search("spec.template.spec.tolerations", docs[0])
+        assert 1 == len(tolerations)
+        assert "dynamic-pods" == tolerations[0]["key"]
 
     @parameterized.expand(
         [
@@ -577,14 +651,10 @@ class WebserverNetworkPolicyTest(unittest.TestCase):
         assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
             "spec.ingress[0].from", docs[0]
         )
-        assert [{"port": "airflow-ui"}] == jmespath.search("spec.ingress[0].ports", docs[0])
+        assert [{"port": 8080}] == jmespath.search("spec.ingress[0].ports", docs[0])
 
     @parameterized.expand(
         [
-            (
-                [{"protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
-                [{"protocol": "UDP", "port": 8080}],
-            ),
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [

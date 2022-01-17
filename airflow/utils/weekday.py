@@ -16,7 +16,7 @@
 # under the License.
 """Get the ISO standard day number of the week from a given day string"""
 import enum
-from typing import Iterable, List, Set, Union
+from typing import Iterable, Set, Union
 
 
 @enum.unique
@@ -32,7 +32,7 @@ class WeekDay(enum.IntEnum):
     SUNDAY = 7
 
     @classmethod
-    def get_weekday_number(cls, week_day_str):
+    def get_weekday_number(cls, week_day_str: str):
         """
         Return the ISO Week Day Number for a Week Day
 
@@ -55,7 +55,10 @@ class WeekDay(enum.IntEnum):
         return cls.get_weekday_number(week_day_str=day)
 
     @classmethod
-    def validate_week_day(cls, week_day: Union[str, 'WeekDay', Set[str], List[str]]):
+    def validate_week_day(
+        cls,
+        week_day: Union[str, "WeekDay", Iterable[str], Iterable["WeekDay"]],
+    ) -> Set[int]:
         """Validate each item of iterable and create a set to ease compare of values"""
         if not isinstance(week_day, Iterable):
             if isinstance(week_day, WeekDay):

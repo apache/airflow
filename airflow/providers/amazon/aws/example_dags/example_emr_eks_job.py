@@ -21,7 +21,7 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.emr_containers import EMRContainerOperator
+from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
 
 # [START howto_operator_emr_eks_env_variables]
 VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
@@ -69,7 +69,7 @@ with DAG(
     # JOB_ROLE_ARN = '{{ conn.emr_eks.extra_dejson["job_role_arn"] }}'
 
     # [START howto_operator_emr_eks_jobrun]
-    job_starter = EMRContainerOperator(
+    job_starter = EmrContainerOperator(
         task_id="start_job",
         virtual_cluster_id=VIRTUAL_CLUSTER_ID,
         execution_role_arn=JOB_ROLE_ARN,

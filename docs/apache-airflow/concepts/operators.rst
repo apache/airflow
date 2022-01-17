@@ -88,7 +88,7 @@ You can also use Jinja templating with nested fields, as long as these nested fi
 .. code-block:: python
 
     class MyDataReader:
-        template_fields = ["path"]
+        template_fields: Sequence[str] = ("path",)
 
         def __init__(self, my_path):
             self.path = my_path
@@ -110,7 +110,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
 .. code-block:: python
 
     class MyDataTransformer:
-        template_fields = ["reader"]
+        template_fields: Sequence[str] = ("reader",)
 
         def __init__(self, my_reader):
             self.reader = my_reader
@@ -119,7 +119,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
 
 
     class MyDataReader:
-        template_fields = ["path"]
+        template_fields: Sequence[str] = ("path",)
 
         def __init__(self, my_path):
             self.path = my_path
@@ -175,7 +175,8 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
     dag = DAG(
         dag_id="example_template_as_python_object",
         schedule_interval=None,
-        start_date=days_ago(2),
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
         render_template_as_native_obj=True,
     )
 
@@ -207,3 +208,17 @@ In this case, ``order_data`` argument is passed: ``{"1001": 301.27, "1002": 433.
 Airflow uses Jinja's `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_
 when ``render_template_as_native_obj`` is set to ``True``.
 With ``NativeEnvironment``, rendering a template produces a native Python type.
+
+.. _concepts:reserved-keywords:
+
+Reserved params keyword
+-----------------------
+
+In Apache Airflow 2.2.0 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
+If you upgrade your environment and get the following error:
+
+.. code-block::
+
+    AttributeError: 'str' object has no attribute '__module__'
+
+change name from ``params`` in your operators.

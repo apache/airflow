@@ -22,13 +22,13 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.providers.amazon.aws.sensors.emr_containers import EMRContainerSensor
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
+from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 
-class TestEMRContainerSensor(unittest.TestCase):
+class TestEmrContainerSensor(unittest.TestCase):
     def setUp(self):
-        self.sensor = EMRContainerSensor(
+        self.sensor = EmrContainerSensor(
             task_id='test_emrcontainer_sensor',
             virtual_cluster_id='vzwemreks',
             job_id='job1234',
@@ -37,35 +37,35 @@ class TestEMRContainerSensor(unittest.TestCase):
             aws_conn_id='aws_default',
         )
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("PENDING",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("PENDING",))
     def test_poke_pending(self, mock_check_query_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("SUBMITTED",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("SUBMITTED",))
     def test_poke_submitted(self, mock_check_query_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("RUNNING",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("RUNNING",))
     def test_poke_running(self, mock_check_query_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("COMPLETED",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("COMPLETED",))
     def test_poke_completed(self, mock_check_query_status):
         assert self.sensor.poke(None)
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("FAILED",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("FAILED",))
     def test_poke_failed(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
         assert 'EMR Containers sensor failed' in str(ctx.value)
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("CANCELLED",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("CANCELLED",))
     def test_poke_cancelled(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
         assert 'EMR Containers sensor failed' in str(ctx.value)
 
-    @mock.patch.object(EMRContainerHook, 'check_query_status', side_effect=("CANCEL_PENDING",))
+    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("CANCEL_PENDING",))
     def test_poke_cancel_pending(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)

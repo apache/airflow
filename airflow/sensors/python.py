@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 
@@ -45,14 +46,14 @@ class PythonSensor(BaseSensorOperator):
     :type templates_dict: dict of str
     """
 
-    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
 
     def __init__(
         self,
         *,
         python_callable: Callable,
         op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
+        op_kwargs: Optional[Mapping[str, Any]] = None,
         templates_dict: Optional[Dict] = None,
         **kwargs,
     ):
@@ -62,9 +63,8 @@ class PythonSensor(BaseSensorOperator):
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
 
-    def poke(self, context: Dict):
-        context.update(self.op_kwargs)
-        context['templates_dict'] = self.templates_dict
+    def poke(self, context: Context) -> bool:
+        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.log.info("Poking callable: %s", str(self.python_callable))

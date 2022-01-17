@@ -14,17 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.baseoperator import BaseOperator, MappedOperator
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 
 
-class XComArg(TaskMixin):
+class XComArg(DependencyMixin):
     """
     Class that represents a XCom push from a previous operator.
     Defaults to "return_value" as only key.
@@ -59,7 +59,7 @@ class XComArg(TaskMixin):
     :type key: str
     """
 
-    def __init__(self, operator: BaseOperator, key: str = XCOM_RETURN_KEY):
+    def __init__(self, operator: Union[BaseOperator, MappedOperator], key: str = XCOM_RETURN_KEY):
         self._operator = operator
         self._key = key
 
@@ -93,17 +93,17 @@ class XComArg(TaskMixin):
         return xcom_pull
 
     @property
-    def operator(self) -> BaseOperator:
+    def operator(self) -> Union[BaseOperator, MappedOperator]:
         """Returns operator of this XComArg."""
         return self._operator
 
     @property
-    def roots(self) -> List[BaseOperator]:
+    def roots(self) -> List[DAGNode]:
         """Required by TaskMixin"""
         return [self._operator]
 
     @property
-    def leaves(self) -> List[BaseOperator]:
+    def leaves(self) -> List[DAGNode]:
         """Required by TaskMixin"""
         return [self._operator]
 
@@ -114,7 +114,7 @@ class XComArg(TaskMixin):
 
     def set_upstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
@@ -122,24 +122,21 @@ class XComArg(TaskMixin):
 
     def set_downstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Dict) -> Any:
+    def resolve(self, context: Context) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = self.operator.xcom_pull(
-            context=context,
-            task_ids=[self.operator.task_id],
-            key=str(self.key),  # xcom_pull supports only key as str
-            dag_id=self.operator.dag.dag_id,
-        )
+        resolved_value = context['ti'].xcom_pull(task_ids=[self.operator.task_id], key=str(self.key))
         if not resolved_value:
+            if TYPE_CHECKING:
+                assert self.operator.dag
             raise AirflowException(
                 f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
                 f'with key="{self.key}"" is not found!'

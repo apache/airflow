@@ -32,6 +32,7 @@ import { callModal } from './dag';
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const executionDate = getMetaValue('execution_date');
+const dagRunId = getMetaValue('dag_run_id');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
 
@@ -146,8 +147,8 @@ function draw() {
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
 
-      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
-      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
+      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId);
+      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId);
     }
   });
 
@@ -633,7 +634,7 @@ function expandGroup(nodeId, node) {
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
     const targetId = mapTaskToNode.get(edge.target_id);
-    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId)) {
+    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId) && sourceId && targetId) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
         arrowheadClass: 'arrowhead',

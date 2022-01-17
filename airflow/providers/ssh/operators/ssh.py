@@ -19,7 +19,7 @@
 import warnings
 from base64 import b64encode
 from select import select
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from paramiko.client import SSHClient
 
@@ -67,8 +67,8 @@ class SSHOperator(BaseOperator):
     :type get_pty: bool
     """
 
-    template_fields = ('command', 'remote_host')
-    template_ext = ('.sh',)
+    template_fields: Sequence[str] = ('command', 'remote_host')
+    template_ext: Sequence[str] = ('.sh',)
     template_fields_renderers = {"command": "bash"}
 
     def __init__(
@@ -206,7 +206,7 @@ class SSHOperator(BaseOperator):
         return agg_stdout
 
     def execute(self, context=None) -> Union[bytes, str]:
-        result = None
+        result: Union[bytes, str]
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 

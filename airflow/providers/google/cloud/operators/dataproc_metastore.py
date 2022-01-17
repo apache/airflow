@@ -19,7 +19,7 @@
 """This module contains Google Dataproc Metastore operators."""
 
 from time import sleep
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.metastore_v1 import MetadataExport, MetadataManagementActivity
@@ -31,6 +31,9 @@ from googleapiclient.errors import HttpError
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataprocMetastoreCreateBackupOperator(BaseOperator):
@@ -83,7 +86,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'backup',
         'impersonation_chain',
@@ -101,7 +104,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -119,7 +122,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -205,7 +208,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'metadata_import',
         'impersonation_chain',
@@ -223,7 +226,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -241,7 +244,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -305,7 +308,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'service',
         'impersonation_chain',
@@ -317,12 +320,12 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         *,
         region: str,
         project_id: str,
-        service: Optional[Union[Dict, Service]] = None,
+        service: Union[Dict, Service],
         service_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -339,7 +342,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -416,7 +419,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -431,7 +434,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -448,7 +451,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -486,7 +489,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -499,7 +502,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
         service_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -514,7 +517,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context'):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -572,7 +575,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -588,7 +591,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         database_dump_type: Optional[DatabaseDumpSpec] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -606,7 +609,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -686,7 +689,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -699,7 +702,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         service_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -714,7 +717,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -765,7 +768,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -782,7 +785,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -801,7 +804,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: 'Context') -> List[dict]:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -874,7 +877,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -893,7 +896,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -914,7 +917,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context'):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1013,7 +1016,7 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'impersonation_chain',
     )
@@ -1025,11 +1028,11 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
         region: str,
         service_id: str,
         service: Union[Dict, Service],
-        update_mask: Union[Dict, FieldMask],
+        update_mask: FieldMask,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1047,7 +1050,7 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )

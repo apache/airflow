@@ -59,7 +59,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------
@@ -70,7 +70,7 @@ are in ``airflow.providers.http`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-http``
 
 PIP requirements

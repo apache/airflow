@@ -76,8 +76,26 @@ class TestTableauOperator(unittest.TestCase):
         """
         Test execute workbooks blocking
         """
+        mock_signed_in = [False]
+
+        def mock_hook_enter():
+            mock_signed_in[0] = True
+            return mock_tableau_hook
+
+        def mock_hook_exit(exc_type, exc_val, exc_tb):
+            mock_signed_in[0] = False
+
+        def mock_wait_for_state(job_id, target_state, check_interval):
+            if not mock_signed_in[0]:
+                raise Exception('Not signed in')
+
+            return True
+
+        mock_tableau_hook.return_value.__enter__ = Mock(side_effect=mock_hook_enter)
+        mock_tableau_hook.return_value.__exit__ = Mock(side_effect=mock_hook_exit)
+        mock_tableau_hook.wait_for_state = Mock(side_effect=mock_wait_for_state)
+
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
-        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         mock_tableau_hook.server.jobs.get_by_id = Mock(
             return_value=Mock(finish_code=TableauJobFinishCode.SUCCESS.value)
         )
@@ -123,8 +141,26 @@ class TestTableauOperator(unittest.TestCase):
         """
         Test execute datasources blocking
         """
+        mock_signed_in = [False]
+
+        def mock_hook_enter():
+            mock_signed_in[0] = True
+            return mock_tableau_hook
+
+        def mock_hook_exit(exc_type, exc_val, exc_tb):
+            mock_signed_in[0] = False
+
+        def mock_wait_for_state(job_id, target_state, check_interval):
+            if not mock_signed_in[0]:
+                raise Exception('Not signed in')
+
+            return True
+
+        mock_tableau_hook.return_value.__enter__ = Mock(side_effect=mock_hook_enter)
+        mock_tableau_hook.return_value.__exit__ = Mock(side_effect=mock_hook_exit)
+        mock_tableau_hook.wait_for_state = Mock(side_effect=mock_wait_for_state)
+
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
-        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauOperator(find='ds_2', resource='datasources', **self.kwargs)
 
         job_id = operator.execute(context={})

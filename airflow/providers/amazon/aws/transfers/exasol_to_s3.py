@@ -18,11 +18,14 @@
 """Transfers data from Exasol database into a S3 Bucket."""
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.exasol.hooks.exasol import ExasolHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ExasolToS3Operator(BaseOperator):
@@ -55,9 +58,9 @@ class ExasolToS3Operator(BaseOperator):
     :type export_params: dict
     """
 
-    template_fields = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
+    template_fields: Sequence[str] = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
     template_fields_renderers = {"query_or_table": "sql", "query_params": "json", "export_params": "json"}
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -89,7 +92,7 @@ class ExasolToS3Operator(BaseOperator):
         self.exasol_conn_id = exasol_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         exasol_hook = ExasolHook(exasol_conn_id=self.exasol_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 

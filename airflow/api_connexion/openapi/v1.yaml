@@ -607,6 +607,7 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterState'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -2357,6 +2358,13 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        description:
+          type: string
+          description: |
+            The description of the pool.
+
+            *New in version 2.3.0*
+          nullable: true
 
     PoolCollection:
       type: object
@@ -3065,9 +3073,16 @@ components:
           type: string
 
         execution_date:
-          description: The execution date.
+          description: The execution date. Either set this or dag_run_id but not both.
           type: string
           format: datetime
+
+        dag_run_id:
+          description: |
+            The task instance's DAG run ID. Either set this or execution_date but not both.
+
+            *New in version 2.3.0*
+          type: string
 
         include_upstream:
           description: If set to true, upstream tasks are also affected.
@@ -3119,6 +3134,15 @@ components:
             type: string
           description:
             Return objects with specific DAG IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+        states:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific states.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
@@ -3237,7 +3261,7 @@ components:
         state:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/TaskState'
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
         pool:
