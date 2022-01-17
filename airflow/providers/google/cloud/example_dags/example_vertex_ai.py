@@ -33,6 +33,8 @@ import os
 from datetime import datetime
 from uuid import uuid4
 
+from google.cloud import aiplatform
+from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
@@ -44,6 +46,11 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLVideoTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
     ListAutoMLTrainingJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import (
+    CreateBatchPredictionJobOperator,
+    DeleteBatchPredictionJobOperator,
+    ListBatchPredictionJobsOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
@@ -156,6 +163,31 @@ COLUMN_TRANSFORMATIONS = [
     {"numeric": {"column_name": "Fee"}},
     {"numeric": {"column_name": "PhotoAmt"}},
 ]
+
+MODEL_ID = "726702419169247232"
+BATCH_PREDICTION_JOB = {
+    "display_name": f"temp_create_batch_prediction_job_test_{uuid4()}",
+    # Format: 'projects/{project}/locations/{location}/models/{model_id}'
+    "model": f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}",
+    "model_parameters": json_format.ParseDict({}, Value()),
+    "input_config": {
+        "instances_format": "jsonl",
+        "gcs_source": {"uris": ["gs://vertex-ai-system-tests/batch_prediction_input.jsonl"]},
+    },
+    "output_config": {
+        "predictions_format": "jsonl",
+        "gcs_destination": {"output_uri_prefix": "gs://vertex-ai-system-tests/output"},
+    },
+    "dedicated_resources": {
+        "machine_spec": {
+            "machine_type": "n1-standard-2",
+            "accelerator_type": aiplatform.gapic.AcceleratorType.NVIDIA_TESLA_K80,
+            "accelerator_count": 1,
+        },
+        "starting_replica_count": 1,
+        "max_replica_count": 1,
+    },
+}
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
@@ -466,3 +498,38 @@ with models.DAG(
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]
+
+with models.DAG(
+    "example_gcp_vertex_ai_batch_prediction_job",
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as batch_prediction_job_dag:
+    # [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
+    create_batch_prediction_job = CreateBatchPredictionJobOperator(
+        task_id="create_batch_prediction_job",
+        batch_prediction_job=BATCH_PREDICTION_JOB,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
+
+    # [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
+    list_batch_prediction_job = ListBatchPredictionJobsOperator(
+        task_id="list_batch_prediction_jobs",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
+    delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
+        task_id="delete_batch_prediction_job",
+        batch_prediction_job=create_batch_prediction_job.output['batch_prediction_job_id'],
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
+
+    create_batch_prediction_job >> delete_batch_prediction_job
+    list_batch_prediction_job
