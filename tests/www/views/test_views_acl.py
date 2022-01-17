@@ -34,6 +34,7 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 NEXT_YEAR = datetime.datetime.now().year + 1
 DEFAULT_DATE = timezone.datetime(NEXT_YEAR, 6, 1)
+DEFAULT_RUN_ID = "TEST_RUN_ID"
 USER_DATA = {
     "dag_tester": (
         "dag_acl_tester",
@@ -86,52 +87,35 @@ def acl_app(app):
                 **kwargs,
             )
 
-    # FIXME: Clean up this block of code.....
+    role_permissions = {
+        'dag_acl_tester': [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'),
+            (permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'),
+        ],
+        'all_dag_role': [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+        'User': [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+        'dag_acl_read_only': [
+            (permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+        'dag_acl_faker': [(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)],
+    }
 
-    website_permission = security_manager.get_permission(
-        permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE
-    )
-
-    dag_tester_role = security_manager.find_role('dag_acl_tester')
-    edit_perm_on_dag = security_manager.get_permission(
-        permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'
-    )
-    security_manager.add_permission_to_role(dag_tester_role, edit_perm_on_dag)
-    read_perm_on_dag = security_manager.get_permission(
-        permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
-    )
-    security_manager.add_permission_to_role(dag_tester_role, read_perm_on_dag)
-    security_manager.add_permission_to_role(dag_tester_role, website_permission)
-
-    all_dag_role = security_manager.find_role('all_dag_role')
-    edit_perm_on_all_dag = security_manager.get_permission(
-        permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
-    )
-    security_manager.add_permission_to_role(all_dag_role, edit_perm_on_all_dag)
-    read_perm_on_all_dag = security_manager.get_permission(
-        permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
-    )
-    security_manager.add_permission_to_role(all_dag_role, read_perm_on_all_dag)
-    read_perm_on_task_instance = security_manager.get_permission(
-        permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
-    )
-    security_manager.add_permission_to_role(all_dag_role, read_perm_on_task_instance)
-    security_manager.add_permission_to_role(all_dag_role, website_permission)
-
-    role_user = security_manager.find_role('User')
-    security_manager.add_permission_to_role(role_user, read_perm_on_all_dag)
-    security_manager.add_permission_to_role(role_user, edit_perm_on_all_dag)
-    security_manager.add_permission_to_role(role_user, website_permission)
-
-    read_only_perm_on_dag = security_manager.get_permission(
-        permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
-    )
-    dag_read_only_role = security_manager.find_role('dag_acl_read_only')
-    security_manager.add_permission_to_role(dag_read_only_role, read_only_perm_on_dag)
-    security_manager.add_permission_to_role(dag_read_only_role, website_permission)
-
-    dag_acl_faker_role = security_manager.find_role('dag_acl_faker')
-    security_manager.add_permission_to_role(dag_acl_faker_role, website_permission)
+    for _role, _permissions in role_permissions.items():
+        role = security_manager.find_role(_role)
+        for _action, _perm in _permissions:
+            perm = security_manager.get_permission(_action, _perm)
+            security_manager.add_permission_to_role(role, perm)
 
     yield app
 
@@ -150,6 +134,7 @@ def reset_dagruns():
 @pytest.fixture(autouse=True)
 def init_dagruns(acl_app, reset_dagruns):
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -728,7 +713,7 @@ def test_failed_success(client_all_dags_edit_tis):
     form = dict(
         task_id="run_this_last",
         dag_id="example_bash_operator",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_RUN_ID,
         upstream="false",
         downstream="false",
         future="false",

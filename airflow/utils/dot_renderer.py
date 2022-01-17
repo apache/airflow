@@ -106,7 +106,7 @@ def _draw_task_group(
         )
 
     # Draw children
-    for child in sorted(task_group.children.values(), key=lambda t: t.label if t.label else ""):
+    for child in sorted(task_group.children.values(), key=lambda t: t.node_id if t.node_id else ""):
         _draw_nodes(child, parent_graph, states_by_task_id)
 
 

@@ -173,8 +173,7 @@ class PythonOperator(BaseOperator):
         self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Context) -> Any:
-        context_merge(context, self.op_kwargs)
-        context_merge(context, {'templates_dict': self.templates_dict})
+        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
@@ -317,8 +316,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_exts: list[str]
     """
 
-    template_fields = ('requirements',)
-    template_ext = ('.txt',)
+    template_fields: Sequence[str] = ('requirements',)
+    template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',
         'ds_nodash',

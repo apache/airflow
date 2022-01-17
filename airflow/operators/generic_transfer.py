@@ -75,16 +75,35 @@ class GenericTransfer(BaseOperator):
 
     def execute(self, context: Context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
+        destination_hook = BaseHook.get_hook(self.destination_conn_id)
 
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Executing: \n %s", self.sql)
-        results = source_hook.get_records(self.sql)
+        get_records = getattr(source_hook, 'get_records', None)
+        if not callable(get_records):
+            raise RuntimeError(
+                f"Hook for connection {self.source_conn_id!r} "
+                f"({type(source_hook).__name__}) has no `get_records` method"
+            )
+        else:
+            results = get_records(self.sql)
 
-        destination_hook = BaseHook.get_hook(self.destination_conn_id)
         if self.preoperator:
+            run = getattr(destination_hook, 'run', None)
+            if not callable(run):
+                raise RuntimeError(
+                    f"Hook for connection {self.destination_conn_id!r} "
+                    f"({type(destination_hook).__name__}) has no `run` method"
+                )
             self.log.info("Running preoperator")
             self.log.info(self.preoperator)
-            destination_hook.run(self.preoperator)
+            run(self.preoperator)
 
+        insert_rows = getattr(destination_hook, 'insert_rows', None)
+        if not callable(insert_rows):
+            raise RuntimeError(
+                f"Hook for connection {self.destination_conn_id!r} "
+                f"({type(destination_hook).__name__}) has no `insert_rows` method"
+            )
         self.log.info("Inserting rows into %s", self.destination_conn_id)
-        destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+        insert_rows(table=self.destination_table, rows=results, **self.insert_args)

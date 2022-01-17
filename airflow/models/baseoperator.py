@@ -63,6 +63,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
@@ -78,6 +79,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    from airflow.decorators.base import _TaskDecorator
     from airflow.models.dag import DAG
     from airflow.utils.task_group import TaskGroup
 
@@ -621,7 +623,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             )
         validate_key(task_id)
         self.task_id = task_id
-        self.label = task_id
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
@@ -1580,6 +1581,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                     'default_args',
                     'dag',
                     '_dag',
+                    'label',
                     '_BaseOperator__instantiated',
                     '_BaseOperator__init_kwargs',
                 }
@@ -1599,6 +1601,10 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             DagContext.pop_context_managed_dag()
 
         return cls.__serialized_fields
+
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """Required by DAGNode."""
+        return DagAttributeTypes.OP, self.task_id
 
     def is_smart_sensor_compatible(self):
         """Return if this operator can use smart service. Default False."""
@@ -1631,6 +1637,39 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
     def map(self, **kwargs) -> "MappedOperator":
         return MappedOperator.from_operator(self, kwargs)
+
+    def has_mapped_dependants(self) -> bool:
+        """Whether any downstream dependencies depend on this task for mapping.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+
+        if not self.has_dag():
+            return False
+
+        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
+            """Recursively walk children in a task group.
+
+            This yields all direct children (including both tasks and task
+            groups), and all children of any task groups.
+            """
+            for key, child in group.children.items():
+                yield key, child
+                if isinstance(child, TaskGroup):
+                    yield from _walk_group(child)
+
+        for key, child in _walk_group(self.dag.task_group):
+            if key == self.task_id:
+                continue
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+                continue
+            if self.task_id in child.upstream_task_ids:
+                return True
+        return False
 
 
 def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
@@ -1668,6 +1707,7 @@ class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
 
     operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
+    task_type: str = attr.ib()
     task_id: str
     partial_kwargs: Dict[str, Any]
     mapped_kwargs: Dict[str, Any] = attr.ib(
@@ -1678,9 +1718,12 @@ class MappedOperator(DAGNode):
     downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
 
     task_group: Optional["TaskGroup"] = attr.ib(repr=False)
+
     # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
     start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
     end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
+    owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
+    max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
 
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
@@ -1699,7 +1742,35 @@ class MappedOperator(DAGNode):
             end_date=operator.end_date,
             partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
             mapped_kwargs=mapped_kwargs,
+            owner=operator.owner,
+            max_active_tis_per_dag=operator.max_active_tis_per_dag,
         )
+
+    @classmethod
+    def from_decorator(
+        cls,
+        *,
+        decorator: "_TaskDecorator",
+        dag: Optional["DAG"],
+        task_group: Optional["TaskGroup"],
+        task_id: str,
+        mapped_kwargs: Dict[str, Any],
+    ) -> "MappedOperator":
+        """Create a mapped operator from a task decorator.
+
+        Different from ``from_operator``, this DOES NOT validate ``mapped_kwargs``.
+        The task decorator calling this should be responsible for validation.
+        """
+        operator = MappedOperator(
+            operator_class=decorator.operator_class,
+            partial_kwargs=decorator.kwargs,
+            mapped_kwargs={},
+            task_id=task_id,
+            dag=dag,
+            task_group=task_group,
+        )
+        operator.mapped_kwargs.update(mapped_kwargs)
+        return operator
 
     def __attrs_post_init__(self):
         if self.task_group:
@@ -1707,6 +1778,10 @@ class MappedOperator(DAGNode):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
+
+    @task_type.default
+    def _default_task_type(self):
+        return self.operator_class.__name__
 
     @task_group.default
     def _default_task_group(self):
@@ -1740,6 +1815,10 @@ class MappedOperator(DAGNode):
 
     def has_dag(self):
         return self.dag is not None
+
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """Required by DAGNode."""
+        return DagAttributeTypes.OP, self.task_id
 
 
 # TODO: Deprecate for Airflow 3.0
