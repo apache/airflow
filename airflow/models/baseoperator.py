@@ -1706,8 +1706,8 @@ class MappedOperator(DAGNode):
     def __repr__(self) -> str:
         return (
             f'MappedOperator(task_type={self.task_type}, '
-            + f'task_id={self.task_id!r}, partial_kwargs={self.partial_kwargs!r}, '
-            + f'mapped_kwargs={self.mapped_kwargs!r}, dag={self.dag})'
+            f'task_id={self.task_id!r}, partial_kwargs={self.partial_kwargs!r}, '
+            f'mapped_kwargs={self.mapped_kwargs!r}, dag={self.dag})'
         )
 
     operator_class: Union[Type[BaseOperator], str]
