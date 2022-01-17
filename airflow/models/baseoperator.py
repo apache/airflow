@@ -134,9 +134,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             if param.name != 'self' and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
         non_optional_args = {
-            name for (name, param) in non_variadic_params.items() if param.default == param.empty
+            name
+            for name, param in non_variadic_params.items()
+            if param.default == param.empty
+            and name != "task_id"
         }
-        non_optional_args -= {'task_id'}
 
         class autostacklevel_warn:
             def __init__(self):
