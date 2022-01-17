@@ -29,6 +29,7 @@ from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
+from airflow.utils.context import Context
 
 VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
 VERTEX_AI_MODEL_LINK = (
@@ -185,7 +186,7 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[CustomJobHook] = None
 
-    def execute(self, context):
+    def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -202,7 +203,316 @@ class CustomTrainingJobBaseOperator(BaseOperator):
 
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Container Training job"""
+    """Create Custom Container Training job
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :type project_id: str
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :type region: str
+    :param display_name: Required. The user-defined name of this TrainingPipeline.
+    :type display_name: str
+    :param command: The command to be invoked when the container is started.
+        It overrides the entrypoint instruction in Dockerfile when provided
+    :type command: Sequence[str]
+    :param container_uri: Required: Uri of the training container image in the GCR.
+    :type container_uri: str
+    :param model_serving_container_image_uri: If the training produces a managed Vertex AI Model, the URI
+        of the Model serving container suitable for serving the model produced by the
+        training script.
+    :type model_serving_container_image_uri: str
+    :param model_serving_container_predict_route: If the training produces a managed Vertex AI Model, An
+        HTTP path to send prediction requests to the container, and which must be supported
+        by it. If not specified a default HTTP path will be used by Vertex AI.
+    :type model_serving_container_predict_route: str
+    :param model_serving_container_health_route: If the training produces a managed Vertex AI Model, an
+        HTTP path to send health check requests to the container, and which must be supported
+        by it. If not specified a standard HTTP path will be used by AI Platform.
+    :type model_serving_container_health_route: str
+    :param model_serving_container_command: The command with which the container is run. Not executed
+        within a shell. The Docker image's ENTRYPOINT is used if this is not provided.
+        Variable references $(VAR_NAME) are expanded using the container's
+        environment. If a variable cannot be resolved, the reference in the
+        input string will be unchanged. The $(VAR_NAME) syntax can be escaped
+        with a double $$, ie: $$(VAR_NAME). Escaped references will never be
+        expanded, regardless of whether the variable exists or not.
+    :type model_serving_container_command: Sequence[str]
+    :param model_serving_container_args: The arguments to the command. The Docker image's CMD is used if
+        this is not provided. Variable references $(VAR_NAME) are expanded using the
+        container's environment. If a variable cannot be resolved, the reference
+        in the input string will be unchanged. The $(VAR_NAME) syntax can be
+        escaped with a double $$, ie: $$(VAR_NAME). Escaped references will
+        never be expanded, regardless of whether the variable exists or not.
+    :type model_serving_container_args: Sequence[str]
+    :param model_serving_container_environment_variables: The environment variables that are to be
+        present in the container. Should be a dictionary where keys are environment variable names
+        and values are environment variable values for those names.
+    :type model_serving_container_environment_variables: Dict[str, str]
+    :param model_serving_container_ports: Declaration of ports that are exposed by the container. This
+        field is primarily informational, it gives Vertex AI information about the
+        network connections the container uses. Listing or not a port here has
+        no impact on whether the port is actually exposed, any port listening on
+        the default "0.0.0.0" address inside a container will be accessible from
+        the network.
+    :type model_serving_container_ports: Sequence[int]
+    :param model_description: The description of the Model.
+    :type model_description: str
+    :param model_instance_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the format of a single instance, which
+            are used in
+            ``PredictRequest.instances``,
+            ``ExplainRequest.instances``
+            and
+            ``BatchPredictionJob.input_config``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform. Note: The URI given on output will be immutable
+            and probably different, including the URI scheme, than the
+            one given on input. The output URI will point to a location
+            where the user only has a read access.
+    :type model_instance_schema_uri: str
+    :param model_parameters_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the parameters of prediction and
+            explanation via
+            ``PredictRequest.parameters``,
+            ``ExplainRequest.parameters``
+            and
+            ``BatchPredictionJob.model_parameters``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform, if no parameters are supported it is set to an
+            empty string. Note: The URI given on output will be
+            immutable and probably different, including the URI scheme,
+            than the one given on input. The output URI will point to a
+            location where the user only has a read access.
+    :type model_parameters_schema_uri: str
+    :param model_prediction_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the format of a single prediction
+            produced by this Model, which are returned via
+            ``PredictResponse.predictions``,
+            ``ExplainResponse.explanations``,
+            and
+            ``BatchPredictionJob.output_config``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform. Note: The URI given on output will be immutable
+            and probably different, including the URI scheme, than the
+            one given on input. The output URI will point to a location
+            where the user only has a read access.
+    :type model_prediction_schema_uri: str
+    :param project_id: Project to run training in.
+    :type project_id: str
+    :param region: Location to run training in.
+    :type region: str
+    :param labels: Optional. The labels with user-defined metadata to
+            organize TrainingPipelines.
+            Label keys and values can be no longer than 64
+            characters, can only
+            contain lowercase letters, numeric characters,
+            underscores and dashes. International characters
+            are allowed.
+            See https://goo.gl/xmQnxf for more information
+            and examples of labels.
+    :type labels: Dict[str, str]
+    :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
+            managed encryption key used to protect the training pipeline. Has the
+            form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute
+            resource is created.
+
+            If set, this TrainingPipeline will be secured by this key.
+
+            Note: Model trained by this TrainingPipeline is also secured
+            by this key if ``model_to_upload`` is not set separately.
+    :type training_encryption_spec_key_name: Optional[str]
+    :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
+            managed encryption key used to protect the model. Has the
+            form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute
+            resource is created.
+
+            If set, the trained Model will be secured by this key.
+    :type model_encryption_spec_key_name: Optional[str]
+    :param staging_bucket: Bucket used to stage source and training artifacts.
+    :type staging_bucket: str
+    :param dataset: Vertex AI to fit this training against.
+    :type dataset: Union[datasets.ImageDataset, datasets.TabularDataset, datasets.TextDataset,
+        datasets.VideoDataset,]
+    :param annotation_schema_uri: Google Cloud Storage URI points to a YAML file describing
+        annotation schema. The schema is defined as an OpenAPI 3.0.2
+        [Schema Object]
+        (https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.2.md#schema-object)
+
+        Only Annotations that both match this schema and belong to
+        DataItems not ignored by the split method are used in
+        respectively training, validation or test role, depending on
+        the role of the DataItem they are on.
+
+        When used in conjunction with
+        ``annotations_filter``,
+        the Annotations used for training are filtered by both
+        ``annotations_filter``
+        and
+        ``annotation_schema_uri``.
+    :type annotation_schema_uri: str
+    :param model_display_name: If the script produces a managed Vertex AI Model. The display name of
+            the Model. The name can be up to 128 characters long and can be consist
+            of any UTF-8 characters.
+
+            If not provided upon creation, the job's display_name is used.
+    :type model_display_name: str
+    :param model_labels: Optional. The labels with user-defined metadata to
+            organize your Models.
+            Label keys and values can be no longer than 64
+            characters, can only
+            contain lowercase letters, numeric characters,
+            underscores and dashes. International characters
+            are allowed.
+            See https://goo.gl/xmQnxf for more information
+            and examples of labels.
+    :type model_labels: Dict[str, str]
+    :param base_output_dir: GCS output directory of job. If not provided a timestamped directory in the
+        staging directory will be used.
+
+        Vertex AI sets the following environment variables when it runs your training code:
+
+        -  AIP_MODEL_DIR: a Cloud Storage URI of a directory intended for saving model artifacts,
+            i.e. <base_output_dir>/model/
+        -  AIP_CHECKPOINT_DIR: a Cloud Storage URI of a directory intended for saving checkpoints,
+            i.e. <base_output_dir>/checkpoints/
+        -  AIP_TENSORBOARD_LOG_DIR: a Cloud Storage URI of a directory intended for saving TensorBoard
+            logs, i.e. <base_output_dir>/logs/
+
+    :type base_output_dir: str
+    :param service_account: Specifies the service account for workload run-as account.
+            Users submitting jobs must have act-as permission on this run-as account.
+    :type service_account: str
+    :param network: The full name of the Compute Engine network to which the job
+            should be peered.
+            Private services access must already be configured for the network.
+            If left unspecified, the job is not peered with any network.
+    :type network: str
+    :param bigquery_destination: Provide this field if `dataset` is a BiqQuery dataset.
+            The BigQuery project location where the training data is to
+            be written to. In the given project a new dataset is created
+            with name
+            ``dataset_<dataset-id>_<annotation-type>_<timestamp-of-training-call>``
+            where timestamp is in YYYY_MM_DDThh_mm_ss_sssZ format. All
+            training input data will be written into that dataset. In
+            the dataset three tables will be created, ``training``,
+            ``validation`` and ``test``.
+
+            -  AIP_DATA_FORMAT = "bigquery".
+            -  AIP_TRAINING_DATA_URI ="bigquery_destination.dataset_*.training"
+            -  AIP_VALIDATION_DATA_URI = "bigquery_destination.dataset_*.validation"
+            -  AIP_TEST_DATA_URI = "bigquery_destination.dataset_*.test"
+    :type bigquery_destination: str
+    :param args: Command line arguments to be passed to the Python script.
+    :type args: List[Unions[str, int, float]]
+    :param environment_variables: Environment variables to be passed to the container.
+            Should be a dictionary where keys are environment variable names
+            and values are environment variable values for those names.
+            At most 10 environment variables can be specified.
+            The Name of the environment variable must be unique.
+    :type environment_variables: Dict[str, str]
+    :param replica_count: The number of worker replicas. If replica count = 1 then one chief
+            replica will be provisioned. If replica_count > 1 the remainder will be
+            provisioned as a worker replica pool.
+    :type replica_count: int
+    :param machine_type: The type of machine to use for training.
+    :type machine_type: str
+    :param accelerator_type: Hardware accelerator type. One of ACCELERATOR_TYPE_UNSPECIFIED,
+            NVIDIA_TESLA_K80, NVIDIA_TESLA_P100, NVIDIA_TESLA_V100, NVIDIA_TESLA_P4,
+            NVIDIA_TESLA_T4
+    :type accelerator_type: str
+    :param accelerator_count: The number of accelerators to attach to a worker replica.
+    :type accelerator_count: int
+    :param boot_disk_type: Type of the boot disk, default is `pd-ssd`.
+            Valid values: `pd-ssd` (Persistent Disk Solid State Drive) or
+            `pd-standard` (Persistent Disk Hard Disk Drive).
+    :type boot_disk_type: str
+    :param boot_disk_size_gb: Size in GB of the boot disk, default is 100GB.
+            boot disk size must be within the range of [100, 64000].
+    :type boot_disk_size_gb: int
+    :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
+            the Model. This is ignored if Dataset is not provided.
+    :type training_fraction_split: float
+    :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
+        validate the Model. This is ignored if Dataset is not provided.
+    :type validation_fraction_split: float
+    :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
+            the Model. This is ignored if Dataset is not provided.
+    :type test_fraction_split: float
+    :param training_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to train the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type training_filter_split: str
+    :param validation_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to validate the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type validation_filter_split: str
+    :param test_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to test the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type test_filter_split: str
+    :param predefined_split_column_name: Optional. The key is a name of one of the Dataset's data
+            columns. The value of the key (either the label's value or
+            value in the column) must be one of {``training``,
+            ``validation``, ``test``}, and it defines to which set the
+            given piece of data is assigned. If for a piece of data the
+            key is not present or has an invalid value, that piece is
+            ignored by the pipeline.
+
+            Supported only for tabular and time series Datasets.
+    :type predefined_split_column_name: str
+    :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data
+            columns. The value of the key values of the key (the values in
+            the column) must be in RFC 3339 `date-time` format, where
+            `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a
+            piece of data the key is not present or has an invalid value,
+            that piece is ignored by the pipeline.
+
+            Supported only for tabular and time series Datasets.
+    :type timestamp_split_column_name: str
+    :param tensorboard: Optional. The name of a Vertex AI resource to which this CustomJob will upload
+            logs. Format:
+            ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
+            For more information on configuring your service account please visit:
+            https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :type tensorboard: str
+    :param sync: Whether to execute this method synchronously. If False, this method
+            will be executed in concurrent Future and any downstream object will
+            be immediately returned and synced when the Future has completed.
+    :type sync: bool
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
     template_fields = [
         'region',
@@ -220,7 +530,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         super().__init__(**kwargs)
         self.command = command
 
-    def execute(self, context):
+    def execute(self, context: Context):
         super().execute(context)
         model = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
@@ -287,7 +597,317 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
 
 
 class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Python Package Training job"""
+    """Create Custom Python Package Training job
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :type project_id: str
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :type region: str
+    :param display_name: Required. The user-defined name of this TrainingPipeline.
+    :type display_name: str
+    :param python_package_gcs_uri: Required: GCS location of the training python package.
+    :type python_package_gcs_uri: str
+    :param python_module_name: Required: The module name of the training python package.
+    :type python_module_name: str
+    :param container_uri: Required: Uri of the training container image in the GCR.
+    :type container_uri: str
+    :param model_serving_container_image_uri: If the training produces a managed Vertex AI Model, the URI
+        of the Model serving container suitable for serving the model produced by the
+        training script.
+    :type model_serving_container_image_uri: str
+    :param model_serving_container_predict_route: If the training produces a managed Vertex AI Model, An
+        HTTP path to send prediction requests to the container, and which must be supported
+        by it. If not specified a default HTTP path will be used by Vertex AI.
+    :type model_serving_container_predict_route: str
+    :param model_serving_container_health_route: If the training produces a managed Vertex AI Model, an
+        HTTP path to send health check requests to the container, and which must be supported
+        by it. If not specified a standard HTTP path will be used by AI Platform.
+    :type model_serving_container_health_route: str
+    :param model_serving_container_command: The command with which the container is run. Not executed
+        within a shell. The Docker image's ENTRYPOINT is used if this is not provided.
+        Variable references $(VAR_NAME) are expanded using the container's
+        environment. If a variable cannot be resolved, the reference in the
+        input string will be unchanged. The $(VAR_NAME) syntax can be escaped
+        with a double $$, ie: $$(VAR_NAME). Escaped references will never be
+        expanded, regardless of whether the variable exists or not.
+    :type model_serving_container_command: Sequence[str]
+    :param model_serving_container_args: The arguments to the command. The Docker image's CMD is used if
+        this is not provided. Variable references $(VAR_NAME) are expanded using the
+        container's environment. If a variable cannot be resolved, the reference
+        in the input string will be unchanged. The $(VAR_NAME) syntax can be
+        escaped with a double $$, ie: $$(VAR_NAME). Escaped references will
+        never be expanded, regardless of whether the variable exists or not.
+    :type model_serving_container_args: Sequence[str]
+    :param model_serving_container_environment_variables: The environment variables that are to be
+        present in the container. Should be a dictionary where keys are environment variable names
+        and values are environment variable values for those names.
+    :type model_serving_container_environment_variables: Dict[str, str]
+    :param model_serving_container_ports: Declaration of ports that are exposed by the container. This
+        field is primarily informational, it gives Vertex AI information about the
+        network connections the container uses. Listing or not a port here has
+        no impact on whether the port is actually exposed, any port listening on
+        the default "0.0.0.0" address inside a container will be accessible from
+        the network.
+    :type model_serving_container_ports: Sequence[int]
+    :param model_description: The description of the Model.
+    :type model_description: str
+    :param model_instance_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the format of a single instance, which
+            are used in
+            ``PredictRequest.instances``,
+            ``ExplainRequest.instances``
+            and
+            ``BatchPredictionJob.input_config``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform. Note: The URI given on output will be immutable
+            and probably different, including the URI scheme, than the
+            one given on input. The output URI will point to a location
+            where the user only has a read access.
+    :type model_instance_schema_uri: str
+    :param model_parameters_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the parameters of prediction and
+            explanation via
+            ``PredictRequest.parameters``,
+            ``ExplainRequest.parameters``
+            and
+            ``BatchPredictionJob.model_parameters``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform, if no parameters are supported it is set to an
+            empty string. Note: The URI given on output will be
+            immutable and probably different, including the URI scheme,
+            than the one given on input. The output URI will point to a
+            location where the user only has a read access.
+    :type model_parameters_schema_uri: str
+    :param model_prediction_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the format of a single prediction
+            produced by this Model, which are returned via
+            ``PredictResponse.predictions``,
+            ``ExplainResponse.explanations``,
+            and
+            ``BatchPredictionJob.output_config``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform. Note: The URI given on output will be immutable
+            and probably different, including the URI scheme, than the
+            one given on input. The output URI will point to a location
+            where the user only has a read access.
+    :type model_prediction_schema_uri: str
+    :param project_id: Project to run training in.
+    :type project_id: str
+    :param region: Location to run training in.
+    :type region: str
+    :param labels: Optional. The labels with user-defined metadata to
+            organize TrainingPipelines.
+            Label keys and values can be no longer than 64
+            characters, can only
+            contain lowercase letters, numeric characters,
+            underscores and dashes. International characters
+            are allowed.
+            See https://goo.gl/xmQnxf for more information
+            and examples of labels.
+    :type labels: Dict[str, str]
+    :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
+            managed encryption key used to protect the training pipeline. Has the
+            form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute
+            resource is created.
+
+            If set, this TrainingPipeline will be secured by this key.
+
+            Note: Model trained by this TrainingPipeline is also secured
+            by this key if ``model_to_upload`` is not set separately.
+    :type training_encryption_spec_key_name: Optional[str]
+    :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
+            managed encryption key used to protect the model. Has the
+            form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute
+            resource is created.
+
+            If set, the trained Model will be secured by this key.
+    :type model_encryption_spec_key_name: Optional[str]
+    :param staging_bucket: Bucket used to stage source and training artifacts.
+    :type staging_bucket: str
+    :param dataset: Vertex AI to fit this training against.
+    :type dataset: Union[datasets.ImageDataset, datasets.TabularDataset, datasets.TextDataset,
+        datasets.VideoDataset,]
+    :param annotation_schema_uri: Google Cloud Storage URI points to a YAML file describing
+        annotation schema. The schema is defined as an OpenAPI 3.0.2
+        [Schema Object]
+        (https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.2.md#schema-object)
+
+        Only Annotations that both match this schema and belong to
+        DataItems not ignored by the split method are used in
+        respectively training, validation or test role, depending on
+        the role of the DataItem they are on.
+
+        When used in conjunction with
+        ``annotations_filter``,
+        the Annotations used for training are filtered by both
+        ``annotations_filter``
+        and
+        ``annotation_schema_uri``.
+    :type annotation_schema_uri: str
+    :param model_display_name: If the script produces a managed Vertex AI Model. The display name of
+            the Model. The name can be up to 128 characters long and can be consist
+            of any UTF-8 characters.
+
+            If not provided upon creation, the job's display_name is used.
+    :type model_display_name: str
+    :param model_labels: Optional. The labels with user-defined metadata to
+            organize your Models.
+            Label keys and values can be no longer than 64
+            characters, can only
+            contain lowercase letters, numeric characters,
+            underscores and dashes. International characters
+            are allowed.
+            See https://goo.gl/xmQnxf for more information
+            and examples of labels.
+    :type model_labels: Dict[str, str]
+    :param base_output_dir: GCS output directory of job. If not provided a timestamped directory in the
+        staging directory will be used.
+
+        Vertex AI sets the following environment variables when it runs your training code:
+
+        -  AIP_MODEL_DIR: a Cloud Storage URI of a directory intended for saving model artifacts,
+            i.e. <base_output_dir>/model/
+        -  AIP_CHECKPOINT_DIR: a Cloud Storage URI of a directory intended for saving checkpoints,
+            i.e. <base_output_dir>/checkpoints/
+        -  AIP_TENSORBOARD_LOG_DIR: a Cloud Storage URI of a directory intended for saving TensorBoard
+            logs, i.e. <base_output_dir>/logs/
+
+    :type base_output_dir: str
+    :param service_account: Specifies the service account for workload run-as account.
+            Users submitting jobs must have act-as permission on this run-as account.
+    :type service_account: str
+    :param network: The full name of the Compute Engine network to which the job
+            should be peered.
+            Private services access must already be configured for the network.
+            If left unspecified, the job is not peered with any network.
+    :type network: str
+    :param bigquery_destination: Provide this field if `dataset` is a BiqQuery dataset.
+            The BigQuery project location where the training data is to
+            be written to. In the given project a new dataset is created
+            with name
+            ``dataset_<dataset-id>_<annotation-type>_<timestamp-of-training-call>``
+            where timestamp is in YYYY_MM_DDThh_mm_ss_sssZ format. All
+            training input data will be written into that dataset. In
+            the dataset three tables will be created, ``training``,
+            ``validation`` and ``test``.
+
+            -  AIP_DATA_FORMAT = "bigquery".
+            -  AIP_TRAINING_DATA_URI ="bigquery_destination.dataset_*.training"
+            -  AIP_VALIDATION_DATA_URI = "bigquery_destination.dataset_*.validation"
+            -  AIP_TEST_DATA_URI = "bigquery_destination.dataset_*.test"
+    :type bigquery_destination: str
+    :param args: Command line arguments to be passed to the Python script.
+    :type args: List[Unions[str, int, float]]
+    :param environment_variables: Environment variables to be passed to the container.
+            Should be a dictionary where keys are environment variable names
+            and values are environment variable values for those names.
+            At most 10 environment variables can be specified.
+            The Name of the environment variable must be unique.
+    :type environment_variables: Dict[str, str]
+    :param replica_count: The number of worker replicas. If replica count = 1 then one chief
+            replica will be provisioned. If replica_count > 1 the remainder will be
+            provisioned as a worker replica pool.
+    :type replica_count: int
+    :param machine_type: The type of machine to use for training.
+    :type machine_type: str
+    :param accelerator_type: Hardware accelerator type. One of ACCELERATOR_TYPE_UNSPECIFIED,
+            NVIDIA_TESLA_K80, NVIDIA_TESLA_P100, NVIDIA_TESLA_V100, NVIDIA_TESLA_P4,
+            NVIDIA_TESLA_T4
+    :type accelerator_type: str
+    :param accelerator_count: The number of accelerators to attach to a worker replica.
+    :type accelerator_count: int
+    :param boot_disk_type: Type of the boot disk, default is `pd-ssd`.
+            Valid values: `pd-ssd` (Persistent Disk Solid State Drive) or
+            `pd-standard` (Persistent Disk Hard Disk Drive).
+    :type boot_disk_type: str
+    :param boot_disk_size_gb: Size in GB of the boot disk, default is 100GB.
+            boot disk size must be within the range of [100, 64000].
+    :type boot_disk_size_gb: int
+    :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
+            the Model. This is ignored if Dataset is not provided.
+    :type training_fraction_split: float
+    :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
+        validate the Model. This is ignored if Dataset is not provided.
+    :type validation_fraction_split: float
+    :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
+            the Model. This is ignored if Dataset is not provided.
+    :type test_fraction_split: float
+    :param training_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to train the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type training_filter_split: str
+    :param validation_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to validate the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type validation_filter_split: str
+    :param test_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to test the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type test_filter_split: str
+    :param predefined_split_column_name: Optional. The key is a name of one of the Dataset's data
+            columns. The value of the key (either the label's value or
+            value in the column) must be one of {``training``,
+            ``validation``, ``test``}, and it defines to which set the
+            given piece of data is assigned. If for a piece of data the
+            key is not present or has an invalid value, that piece is
+            ignored by the pipeline.
+
+            Supported only for tabular and time series Datasets.
+    :type predefined_split_column_name: str
+    :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data
+            columns. The value of the key values of the key (the values in
+            the column) must be in RFC 3339 `date-time` format, where
+            `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a
+            piece of data the key is not present or has an invalid value,
+            that piece is ignored by the pipeline.
+
+            Supported only for tabular and time series Datasets.
+    :type timestamp_split_column_name: str
+    :param tensorboard: Optional. The name of a Vertex AI resource to which this CustomJob will upload
+            logs. Format:
+            ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
+            For more information on configuring your service account please visit:
+            https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :type tensorboard: str
+    :param sync: Whether to execute this method synchronously. If False, this method
+            will be executed in concurrent Future and any downstream object will
+            be immediately returned and synced when the Future has completed.
+    :type sync: bool
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
     template_fields = [
         'region',
@@ -306,7 +926,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
 
-    def execute(self, context):
+    def execute(self, context: Context):
         super().execute(context)
         model = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
@@ -374,7 +994,317 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
 
 
 class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Training job"""
+    """Create Custom Training job
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :type project_id: str
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :type region: str
+    :param display_name: Required. The user-defined name of this TrainingPipeline.
+    :type display_name: str
+    :param script_path: Required. Local path to training script.
+    :type script_path: str
+    :param container_uri: Required: Uri of the training container image in the GCR.
+    :type container_uri: str
+    :param requirements: List of python packages dependencies of script.
+    :type requirements: Sequence[str]
+    :param model_serving_container_image_uri: If the training produces a managed Vertex AI Model, the URI
+        of the Model serving container suitable for serving the model produced by the
+        training script.
+    :type model_serving_container_image_uri: str
+    :param model_serving_container_predict_route: If the training produces a managed Vertex AI Model, An
+        HTTP path to send prediction requests to the container, and which must be supported
+        by it. If not specified a default HTTP path will be used by Vertex AI.
+    :type model_serving_container_predict_route: str
+    :param model_serving_container_health_route: If the training produces a managed Vertex AI Model, an
+        HTTP path to send health check requests to the container, and which must be supported
+        by it. If not specified a standard HTTP path will be used by AI Platform.
+    :type model_serving_container_health_route: str
+    :param model_serving_container_command: The command with which the container is run. Not executed
+        within a shell. The Docker image's ENTRYPOINT is used if this is not provided.
+        Variable references $(VAR_NAME) are expanded using the container's
+        environment. If a variable cannot be resolved, the reference in the
+        input string will be unchanged. The $(VAR_NAME) syntax can be escaped
+        with a double $$, ie: $$(VAR_NAME). Escaped references will never be
+        expanded, regardless of whether the variable exists or not.
+    :type model_serving_container_command: Sequence[str]
+    :param model_serving_container_args: The arguments to the command. The Docker image's CMD is used if
+        this is not provided. Variable references $(VAR_NAME) are expanded using the
+        container's environment. If a variable cannot be resolved, the reference
+        in the input string will be unchanged. The $(VAR_NAME) syntax can be
+        escaped with a double $$, ie: $$(VAR_NAME). Escaped references will
+        never be expanded, regardless of whether the variable exists or not.
+    :type model_serving_container_args: Sequence[str]
+    :param model_serving_container_environment_variables: The environment variables that are to be
+        present in the container. Should be a dictionary where keys are environment variable names
+        and values are environment variable values for those names.
+    :type model_serving_container_environment_variables: Dict[str, str]
+    :param model_serving_container_ports: Declaration of ports that are exposed by the container. This
+        field is primarily informational, it gives Vertex AI information about the
+        network connections the container uses. Listing or not a port here has
+        no impact on whether the port is actually exposed, any port listening on
+        the default "0.0.0.0" address inside a container will be accessible from
+        the network.
+    :type model_serving_container_ports: Sequence[int]
+    :param model_description: The description of the Model.
+    :type model_description: str
+    :param model_instance_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the format of a single instance, which
+            are used in
+            ``PredictRequest.instances``,
+            ``ExplainRequest.instances``
+            and
+            ``BatchPredictionJob.input_config``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform. Note: The URI given on output will be immutable
+            and probably different, including the URI scheme, than the
+            one given on input. The output URI will point to a location
+            where the user only has a read access.
+    :type model_instance_schema_uri: str
+    :param model_parameters_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the parameters of prediction and
+            explanation via
+            ``PredictRequest.parameters``,
+            ``ExplainRequest.parameters``
+            and
+            ``BatchPredictionJob.model_parameters``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform, if no parameters are supported it is set to an
+            empty string. Note: The URI given on output will be
+            immutable and probably different, including the URI scheme,
+            than the one given on input. The output URI will point to a
+            location where the user only has a read access.
+    :type model_parameters_schema_uri: str
+    :param model_prediction_schema_uri: Optional. Points to a YAML file stored on Google Cloud
+            Storage describing the format of a single prediction
+            produced by this Model, which are returned via
+            ``PredictResponse.predictions``,
+            ``ExplainResponse.explanations``,
+            and
+            ``BatchPredictionJob.output_config``.
+            The schema is defined as an OpenAPI 3.0.2 `Schema
+            Object <https://tinyurl.com/y538mdwt#schema-object>`__.
+            AutoML Models always have this field populated by AI
+            Platform. Note: The URI given on output will be immutable
+            and probably different, including the URI scheme, than the
+            one given on input. The output URI will point to a location
+            where the user only has a read access.
+    :type model_prediction_schema_uri: str
+    :param project_id: Project to run training in.
+    :type project_id: str
+    :param region: Location to run training in.
+    :type region: str
+    :param labels: Optional. The labels with user-defined metadata to
+            organize TrainingPipelines.
+            Label keys and values can be no longer than 64
+            characters, can only
+            contain lowercase letters, numeric characters,
+            underscores and dashes. International characters
+            are allowed.
+            See https://goo.gl/xmQnxf for more information
+            and examples of labels.
+    :type labels: Dict[str, str]
+    :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
+            managed encryption key used to protect the training pipeline. Has the
+            form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute
+            resource is created.
+
+            If set, this TrainingPipeline will be secured by this key.
+
+            Note: Model trained by this TrainingPipeline is also secured
+            by this key if ``model_to_upload`` is not set separately.
+    :type training_encryption_spec_key_name: Optional[str]
+    :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
+            managed encryption key used to protect the model. Has the
+            form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute
+            resource is created.
+
+            If set, the trained Model will be secured by this key.
+    :type model_encryption_spec_key_name: Optional[str]
+    :param staging_bucket: Bucket used to stage source and training artifacts.
+    :type staging_bucket: str
+    :param dataset: Vertex AI to fit this training against.
+    :type dataset: Union[datasets.ImageDataset, datasets.TabularDataset, datasets.TextDataset,
+        datasets.VideoDataset,]
+    :param annotation_schema_uri: Google Cloud Storage URI points to a YAML file describing
+        annotation schema. The schema is defined as an OpenAPI 3.0.2
+        [Schema Object]
+        (https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.2.md#schema-object)
+
+        Only Annotations that both match this schema and belong to
+        DataItems not ignored by the split method are used in
+        respectively training, validation or test role, depending on
+        the role of the DataItem they are on.
+
+        When used in conjunction with
+        ``annotations_filter``,
+        the Annotations used for training are filtered by both
+        ``annotations_filter``
+        and
+        ``annotation_schema_uri``.
+    :type annotation_schema_uri: str
+    :param model_display_name: If the script produces a managed Vertex AI Model. The display name of
+            the Model. The name can be up to 128 characters long and can be consist
+            of any UTF-8 characters.
+
+            If not provided upon creation, the job's display_name is used.
+    :type model_display_name: str
+    :param model_labels: Optional. The labels with user-defined metadata to
+            organize your Models.
+            Label keys and values can be no longer than 64
+            characters, can only
+            contain lowercase letters, numeric characters,
+            underscores and dashes. International characters
+            are allowed.
+            See https://goo.gl/xmQnxf for more information
+            and examples of labels.
+    :type model_labels: Dict[str, str]
+    :param base_output_dir: GCS output directory of job. If not provided a timestamped directory in the
+        staging directory will be used.
+
+        Vertex AI sets the following environment variables when it runs your training code:
+
+        -  AIP_MODEL_DIR: a Cloud Storage URI of a directory intended for saving model artifacts,
+            i.e. <base_output_dir>/model/
+        -  AIP_CHECKPOINT_DIR: a Cloud Storage URI of a directory intended for saving checkpoints,
+            i.e. <base_output_dir>/checkpoints/
+        -  AIP_TENSORBOARD_LOG_DIR: a Cloud Storage URI of a directory intended for saving TensorBoard
+            logs, i.e. <base_output_dir>/logs/
+
+    :type base_output_dir: str
+    :param service_account: Specifies the service account for workload run-as account.
+            Users submitting jobs must have act-as permission on this run-as account.
+    :type service_account: str
+    :param network: The full name of the Compute Engine network to which the job
+            should be peered.
+            Private services access must already be configured for the network.
+            If left unspecified, the job is not peered with any network.
+    :type network: str
+    :param bigquery_destination: Provide this field if `dataset` is a BiqQuery dataset.
+            The BigQuery project location where the training data is to
+            be written to. In the given project a new dataset is created
+            with name
+            ``dataset_<dataset-id>_<annotation-type>_<timestamp-of-training-call>``
+            where timestamp is in YYYY_MM_DDThh_mm_ss_sssZ format. All
+            training input data will be written into that dataset. In
+            the dataset three tables will be created, ``training``,
+            ``validation`` and ``test``.
+
+            -  AIP_DATA_FORMAT = "bigquery".
+            -  AIP_TRAINING_DATA_URI ="bigquery_destination.dataset_*.training"
+            -  AIP_VALIDATION_DATA_URI = "bigquery_destination.dataset_*.validation"
+            -  AIP_TEST_DATA_URI = "bigquery_destination.dataset_*.test"
+    :type bigquery_destination: str
+    :param args: Command line arguments to be passed to the Python script.
+    :type args: List[Unions[str, int, float]]
+    :param environment_variables: Environment variables to be passed to the container.
+            Should be a dictionary where keys are environment variable names
+            and values are environment variable values for those names.
+            At most 10 environment variables can be specified.
+            The Name of the environment variable must be unique.
+    :type environment_variables: Dict[str, str]
+    :param replica_count: The number of worker replicas. If replica count = 1 then one chief
+            replica will be provisioned. If replica_count > 1 the remainder will be
+            provisioned as a worker replica pool.
+    :type replica_count: int
+    :param machine_type: The type of machine to use for training.
+    :type machine_type: str
+    :param accelerator_type: Hardware accelerator type. One of ACCELERATOR_TYPE_UNSPECIFIED,
+            NVIDIA_TESLA_K80, NVIDIA_TESLA_P100, NVIDIA_TESLA_V100, NVIDIA_TESLA_P4,
+            NVIDIA_TESLA_T4
+    :type accelerator_type: str
+    :param accelerator_count: The number of accelerators to attach to a worker replica.
+    :type accelerator_count: int
+    :param boot_disk_type: Type of the boot disk, default is `pd-ssd`.
+            Valid values: `pd-ssd` (Persistent Disk Solid State Drive) or
+            `pd-standard` (Persistent Disk Hard Disk Drive).
+    :type boot_disk_type: str
+    :param boot_disk_size_gb: Size in GB of the boot disk, default is 100GB.
+            boot disk size must be within the range of [100, 64000].
+    :type boot_disk_size_gb: int
+    :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
+            the Model. This is ignored if Dataset is not provided.
+    :type training_fraction_split: float
+    :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
+        validate the Model. This is ignored if Dataset is not provided.
+    :type validation_fraction_split: float
+    :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
+            the Model. This is ignored if Dataset is not provided.
+    :type test_fraction_split: float
+    :param training_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to train the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type training_filter_split: str
+    :param validation_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to validate the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type validation_filter_split: str
+    :param test_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
+            this filter are used to test the Model. A filter with same syntax
+            as the one used in DatasetService.ListDataItems may be used. If a
+            single DataItem is matched by more than one of the FilterSplit filters,
+            then it is assigned to the first set that applies to it in the training,
+            validation, test order. This is ignored if Dataset is not provided.
+    :type test_filter_split: str
+    :param predefined_split_column_name: Optional. The key is a name of one of the Dataset's data
+            columns. The value of the key (either the label's value or
+            value in the column) must be one of {``training``,
+            ``validation``, ``test``}, and it defines to which set the
+            given piece of data is assigned. If for a piece of data the
+            key is not present or has an invalid value, that piece is
+            ignored by the pipeline.
+
+            Supported only for tabular and time series Datasets.
+    :type predefined_split_column_name: str
+    :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data
+            columns. The value of the key values of the key (the values in
+            the column) must be in RFC 3339 `date-time` format, where
+            `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a
+            piece of data the key is not present or has an invalid value,
+            that piece is ignored by the pipeline.
+
+            Supported only for tabular and time series Datasets.
+    :type timestamp_split_column_name: str
+    :param tensorboard: Optional. The name of a Vertex AI resource to which this CustomJob will upload
+            logs. Format:
+            ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
+            For more information on configuring your service account please visit:
+            https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :type tensorboard: str
+    :param sync: Whether to execute this method synchronously. If False, this method
+            will be executed in concurrent Future and any downstream object will
+            be immediately returned and synced when the Future has completed.
+    :type sync: bool
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
     template_fields = [
         'region',
@@ -395,7 +1325,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.requirements = requirements
         self.script_path = script_path
 
-    def execute(self, context):
+    def execute(self, context: Context):
         super().execute(context)
         model = self.hook.create_custom_training_job(
             project_id=self.project_id,
@@ -463,7 +1393,38 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
 
 
 class DeleteCustomTrainingJobOperator(BaseOperator):
-    """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob."""
+    """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
+
+    :param training_pipeline_id: Required. The name of the TrainingPipeline resource to be deleted.
+    :type training_pipeline_id: str
+    :param custom_job_id: Required. The name of the CustomJob to delete.
+    :type custom_job_id: str
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :type project_id: str
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :type region: str
+    :param retry: Designation of what errors, if any, should be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The timeout for this request.
+    :type timeout: float
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
     template_fields = ("region", "project_id", "impersonation_chain")
 
@@ -494,7 +1455,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -531,7 +1492,60 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
 
 
 class ListCustomTrainingJobOperator(BaseOperator):
-    """Lists CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob in a Location."""
+    """Lists CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob in a Location.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :type project_id: str
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :type region: str
+    :param filter: Optional. The standard list filter. Supported fields:
+
+        -  ``display_name`` supports = and !=.
+
+        -  ``state`` supports = and !=.
+
+        Some examples of using the filter are:
+
+        -  ``state="PIPELINE_STATE_SUCCEEDED" AND display_name="my_pipeline"``
+
+        -  ``state="PIPELINE_STATE_RUNNING" OR display_name="my_pipeline"``
+
+        -  ``NOT display_name="my_pipeline"``
+
+        -  ``state="PIPELINE_STATE_FAILED"``
+    :type filter: str
+    :param page_size: Optional. The standard list page size.
+    :type page_size: int
+    :param page_token: Optional. The standard list page token. Typically obtained via
+        [ListTrainingPipelinesResponse.next_page_token][google.cloud.aiplatform.v1.ListTrainingPipelinesResponse.next_page_token]
+        of the previous
+        [PipelineService.ListTrainingPipelines][google.cloud.aiplatform.v1.PipelineService.ListTrainingPipelines]
+        call.
+    :type page_token: str
+    :param read_mask: Optional. Mask specifying which fields to read.
+    :type read_mask: google.protobuf.field_mask_pb2.FieldMask
+    :param retry: Designation of what errors, if any, should be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The timeout for this request.
+    :type timeout: float
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
     template_fields = [
         "region",
@@ -573,7 +1587,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

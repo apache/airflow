@@ -18,7 +18,7 @@
 #
 """This module contains Google Vertex AI operators."""
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
@@ -28,6 +28,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
+from airflow.utils.context import Context
 
 VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
 VERTEX_AI_DATASET_LINK = (
@@ -134,7 +135,7 @@ class CreateDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -232,7 +233,7 @@ class GetDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -325,7 +326,7 @@ class DeleteDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -412,7 +413,7 @@ class ExportDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -498,7 +499,7 @@ class ImportDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -597,7 +598,7 @@ class ListDatasetsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -691,7 +692,7 @@ class UpdateDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
