@@ -84,24 +84,19 @@ class StandardTaskRunner(BaseTaskRunner):
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
 
-            pid = os.getpid()
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
             except Exception as exc:
                 return_code = 1
 
-                # In some cases, the DAG function might spawn a new process which
-                # means we'll return here multiple times. Make sure we're only logging
-                # an error once.
-                if os.getpid() == pid:
-                    self.log.error(
-                        "Failed to execute job %s for task %s (%s; %r)",
-                        job_id,
-                        self._task_instance.task_id,
-                        exc,
-                        os.getpid(),
-                    )
+                self.log.error(
+                    "Failed to execute job %s for task %s (%s; %r)",
+                    job_id,
+                    self._task_instance.task_id,
+                    exc,
+                    os.getpid(),
+                )
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()

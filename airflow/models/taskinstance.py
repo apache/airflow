@@ -1415,7 +1415,13 @@ class TaskInstance(Base, LoggingMixin):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
+        parent_pid = os.getpid()
+
         def signal_handler(signum, frame):
+            pid = os.getpid()
+            if pid != parent_pid:
+                os._exit(1)
+                return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.task.on_kill()
             raise AirflowException("Task received SIGTERM signal")
