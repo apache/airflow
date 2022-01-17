@@ -130,7 +130,6 @@ class PsrpOperator(BaseOperator):
         ) as hook, hook.invoke() as ps:
             if self.psrp_session_init is not None:
                 ps.add_command(self.psrp_session_init)
-                ps.add_statement()
             if self.command:
                 ps.add_script(f"cmd.exe /c @'\n{self.command}\n'@")
             else:

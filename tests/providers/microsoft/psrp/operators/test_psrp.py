@@ -91,7 +91,6 @@ class TestPsrpOperator(TestCase):
             assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
         expected_ps_calls = [
             call.add_command(psrp_session_init),
-            call.add_statement(),
             parameter.expected_method,
         ]
         if parameter.expected_parameters:
