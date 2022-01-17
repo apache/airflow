@@ -655,10 +655,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+            if k == "_downstream_task_ids":
+                # Upgrade from old format/name
+                k = "downstream_task_ids"
             if k == "label":
                 # Label shouldn't be set anymore --  it's computed from task_id now
                 continue
-            if k in {"_downstream_task_ids", "downstream_task_ids"}:
+            elif k == "downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
@@ -688,11 +691,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize(v)
             # else use v as it is
 
-            try:
-                setattr(op, k, v)
-            except AttributeError:
-                # Likely read-only attribute, try updating it in place
-                getattr(op, k).update(v)
+            setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
             if not hasattr(op, k):
@@ -971,8 +970,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
-
-                dag.task_dict[task_id]._upstream_task_ids.add(serializable_task.task_id)
+                dag.task_dict[task_id].upstream_task_ids.add(serializable_task.task_id)
 
         return dag
 

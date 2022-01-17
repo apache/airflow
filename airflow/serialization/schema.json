@@ -196,7 +196,7 @@
           "items": { "type": "string" }
         },
         "subdag": { "$ref": "#/definitions/dag" },
-        "_downstream_task_ids": {
+        "downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }
         },

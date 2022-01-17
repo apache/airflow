@@ -747,9 +747,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         self.doc_rst = doc_rst
         self.doc = doc
 
-        # Private attributes
-        self._upstream_task_ids: Set[str] = set()
-        self._downstream_task_ids: Set[str] = set()
+        self.upstream_task_ids: Set[str] = set()
+        self.downstream_task_ids: Set[str] = set()
 
         if dag:
             self.dag = dag
@@ -1261,16 +1260,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                                 self.log.exception(e)
         self.prepare_template()
 
-    @property
-    def upstream_task_ids(self) -> Set[str]:
-        """@property: set of ids of tasks directly upstream"""
-        return self._upstream_task_ids
-
-    @property
-    def downstream_task_ids(self) -> Set[str]:
-        """@property: set of ids of tasks directly downstream"""
-        return self._downstream_task_ids
-
     @provide_session
     def clear(
         self,
@@ -1430,9 +1419,9 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         downstream.
         """
         if upstream:
-            return self._upstream_task_ids
+            return self.upstream_task_ids
         else:
-            return self._downstream_task_ids
+            return self.downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable["DAGNode"]:
         """
@@ -1578,7 +1567,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 - {
                     'inlets',
                     'outlets',
-                    '_upstream_task_ids',
+                    'upstream_task_ids',
                     'default_args',
                     'dag',
                     '_dag',

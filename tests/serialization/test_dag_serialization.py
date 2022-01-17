@@ -102,7 +102,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
-                "_downstream_task_ids": [],
+                "downstream_task_ids": [],
                 "_inlets": [],
                 "_is_dummy": False,
                 "_outlets": [],
@@ -132,7 +132,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
-                "_downstream_task_ids": [],
+                "downstream_task_ids": [],
                 "_inlets": [],
                 "_is_dummy": False,
                 "_outlets": [],
@@ -1099,13 +1099,13 @@ class TestStringifiedDAGs:
         base_operator = BaseOperator(task_id="10")
         fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
         assert fields == {
-            '_downstream_task_ids': set(),
             '_inlets': [],
             '_log': base_operator.log,
             '_outlets': [],
             '_pre_execute_hook': None,
             '_post_execute_hook': None,
             'depends_on_past': False,
+            'downstream_task_ids': set(),
             'do_xcom_push': True,
             'doc': None,
             'doc_json': None,
@@ -1152,6 +1152,24 @@ class TestStringifiedDAGs:
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                          """
+
+    def test_operator_deserialize_old_names(self):
+        blob = {
+            "task_id": "custom_task",
+            "_downstream_task_ids": ['foo'],
+            "template_ext": [],
+            "template_fields": ['bash_command'],
+            "template_fields_renderers": {},
+            "_task_type": "CustomOperator",
+            "_task_module": "tests.test_utils.mock_operators",
+            "pool": "default_pool",
+            "ui_color": "#fff",
+            "ui_fgcolor": "#000",
+        }
+
+        SerializedDAG._json_schema.validate(blob, _schema=load_dag_schema_dict()['definitions']['operator'])
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        assert serialized_op.downstream_task_ids == {'foo'}
 
     def test_task_group_serialization(self):
         """
