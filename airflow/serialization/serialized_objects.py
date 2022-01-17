@@ -694,6 +694,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
+            # TODO: refactor deserialization of BaseOperator and MappedOperaotr (split it out), then check could go away.
             if not hasattr(op, k):
                 setattr(op, k, None)
 
