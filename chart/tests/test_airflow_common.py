@@ -249,7 +249,7 @@ class TestAirflowCommon:
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
 
-    def test_have_all_config_mounts_on_init_containers(self, expected_read_only):
+    def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
             values={},
             show_only=[
@@ -264,6 +264,7 @@ class TestAirflowCommon:
             expected_mount = {
                 "subPath": "airflow.cfg",
                 "name": "config",
-                "readOnly": expected_read_only,
+                "readOnly": True,
+                "mountPath": "/opt/airflow"
             }
-            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
+            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", dqoc)
