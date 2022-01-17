@@ -50,22 +50,22 @@ class TestDagBag:
     @classmethod
     def setup_class(cls):
         cls.empty_dir = mkdtemp()
+        db.clear_dag_specific_permissions()
 
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls.empty_dir)
+        db.clear_dag_specific_permissions()
 
     def setup_method(self) -> None:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
-        db.clear_dag_specific_permissions()
 
     def teardown_method(self) -> None:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
-        db.clear_dag_specific_permissions()
 
     def test_get_existing_dag(self):
         """
