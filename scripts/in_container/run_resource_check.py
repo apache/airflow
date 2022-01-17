@@ -57,7 +57,6 @@ def resoure_check():
     # Memory current available
     svmem = psutil.virtual_memory()
     mem_available = get_size(svmem.total)
-    print(svmem)
 
     # Cpus current available
     cpus_available = psutil.cpu_count(logical=True)
