@@ -136,8 +136,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         non_optional_args = {
             name
             for name, param in non_variadic_params.items()
-            if param.default == param.empty
-            and name != "task_id"
+            if param.default == param.empty and name != "task_id"
         }
 
         class autostacklevel_warn:
