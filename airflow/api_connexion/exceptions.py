@@ -18,8 +18,8 @@ from typing import Any, Dict, Optional
 
 import flask
 import werkzeug
+from connexion import FlaskApi, ProblemException, problem
 
-from airflow._vendor.connexion import FlaskApi, ProblemException, problem
 from airflow.utils.docs import get_docs_url
 
 doc_link = get_docs_url("stable-rest-api-ref.html")
