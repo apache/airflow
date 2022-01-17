@@ -85,7 +85,10 @@ def correct_maybe_zipped(fileloc: Union[None, str, Path]) -> Union[None, str, Pa
     """
     if not fileloc:
         return fileloc
-    _, archive, _ = ZIP_REGEX.search(fileloc).groups()
+    search_ = ZIP_REGEX.search(str(fileloc))
+    if not search_:
+        return fileloc
+    _, archive, _ = search_.groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
     else:

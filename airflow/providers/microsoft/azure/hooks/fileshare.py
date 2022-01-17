@@ -17,7 +17,7 @@
 # under the License.
 #
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
 from azure.storage.file import File, FileService
 
@@ -250,7 +250,7 @@ class AzureFileShareHook(BaseHook):
         self.get_conn().get_file_to_path(share_name, directory_name, file_name, file_path, **kwargs)
 
     def get_file_to_stream(
-        self, stream: str, share_name: str, directory_name: str, file_name: str, **kwargs
+        self, stream: IO, share_name: str, directory_name: str, file_name: str, **kwargs
     ) -> None:
         """
         Download a file from Azure File Share.

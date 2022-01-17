@@ -144,6 +144,7 @@ def tis(dags, session):
     )
     (ti,) = dagrun.task_instances
     ti.try_number = 1
+    ti.hostname = 'localhost'
     dagrun_removed = dag_removed.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -229,6 +230,7 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
     assert f'{DAG_ID}/{TASK_ID}/{DEFAULT_DATE.isoformat()}/{try_number}.log' in content_disposition
     assert 200 == response.status_code
     assert 'Log for testing.' in response.data.decode('utf-8')
+    assert 'localhost\n' in response.data.decode('utf-8')
 
 
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
@@ -263,7 +265,13 @@ def test_get_logs_for_changed_filename_format_config(log_admin_client):
 def dag_run_with_log_filename():
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
-        log_template = session.merge(LogTemplate(filename=DIFFERENT_LOG_FILENAME, task_prefix="irrelevant"))
+        log_template = session.merge(
+            LogTemplate(
+                filename=DIFFERENT_LOG_FILENAME,
+                task_prefix="irrelevant",
+                elasticsearch_id="irrelevant",
+            ),
+        )
         session.flush()  # To populate 'log_template.id'.
         run_query = session.query(DagRun).filter(*run_filters)
         run_query.update({"log_template_id": log_template.id})

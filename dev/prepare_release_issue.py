@@ -141,7 +141,7 @@ def get_change_from_line(line: str):
         short_hash=split_line[1],
         date=split_line[2],
         message=message,
-        message_without_backticks=message.replace("`", "'").replace("&39;", "'"),
+        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace('&amp;', "&"),
         pr=int(pr) if pr else None,
     )
 

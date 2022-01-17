@@ -103,7 +103,7 @@ class CassandraToGCSOperator(BaseOperator):
         'schema_filename',
         'impersonation_chain',
     )
-    template_ext = ('.cql',)
+    template_ext: Sequence[str] = ('.cql',)
     ui_color = '#a0e08c'
 
     def __init__(

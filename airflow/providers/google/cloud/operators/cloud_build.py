@@ -159,7 +159,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     def __init__(
         self,
         *,
-        build: Optional[Union[Dict, Build, str]] = None,
+        build: Optional[Union[Dict, Build]] = None,
         body: Optional[Dict] = None,
         project_id: Optional[str] = None,
         wait: bool = True,
@@ -171,10 +171,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.build = build
-        # Not template fields to keep original value
-        self.build_raw = build
-        self.body = body
         self.project_id = project_id
         self.wait = wait
         self.retry = retry
@@ -182,17 +178,25 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.body = body
 
-        if self.body and self.build:
-            raise AirflowException("Either build or body should be passed.")
-
-        if self.body:
+        if body and build:
+            raise AirflowException("You should not pass both build or body parameters. Both are set.")
+        if body is not None:
             warnings.warn(
                 "The body parameter has been deprecated. You should pass body using the build parameter.",
                 DeprecationWarning,
                 stacklevel=4,
             )
-            self.build = self.build_raw = self.body
+            actual_build = body
+        else:
+            if build is None:
+                raise AirflowException("You should pass one of the build or body parameters. Both are None")
+            actual_build = build
+
+        self.build = actual_build
+        # Not template fields to keep original value
+        self.build_raw = actual_build
 
     def prepare_template(self) -> None:
         # if no file is specified, skip

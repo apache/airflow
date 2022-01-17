@@ -19,9 +19,9 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook
-from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator
-from airflow.providers.amazon.aws.sensors.sqs import SQSSensor
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
+from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
+from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
 
 QUEUE_NAME = 'Airflow-Example-Queue'
 AWS_CONN_ID = 'aws_default'
@@ -30,7 +30,7 @@ AWS_CONN_ID = 'aws_default'
 @task(task_id="create_queue")
 def create_queue_fn():
     """This is a Python function that creates an SQS queue"""
-    hook = SQSHook()
+    hook = SqsHook()
     result = hook.create_queue(queue_name=QUEUE_NAME)
     return result['QueueUrl']
 
@@ -38,7 +38,7 @@ def create_queue_fn():
 @task(task_id="delete_queue")
 def delete_queue_fn(queue_url):
     """This is a Python function that deletes an SQS queue"""
-    hook = SQSHook()
+    hook = SqsHook()
     hook.get_conn().delete_queue(QueueUrl=queue_url)
 
 
@@ -55,7 +55,7 @@ with DAG(
     # Using a task-decorated function to create an SQS queue
     create_queue = create_queue_fn()
 
-    publish_to_queue = SQSPublishOperator(
+    publish_to_queue = SqsPublishOperator(
         task_id='publish_to_queue',
         sqs_queue=create_queue,
         message_content="{{ task_instance }}-{{ execution_date }}",
@@ -63,7 +63,7 @@ with DAG(
         delay_seconds=0,
     )
 
-    read_from_queue = SQSSensor(
+    read_from_queue = SqsSensor(
         task_id='read_from_queue',
         sqs_queue=create_queue,
         max_messages=5,

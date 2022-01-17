@@ -367,6 +367,55 @@ key2 = 1.23
         assert isinstance(test_conf.getfloat('valid', 'key2'), float)
         assert 1.23 == test_conf.getfloat('valid', 'key2')
 
+    @pytest.mark.parametrize(
+        ("config_str", "expected"),
+        [
+            pytest.param('{"a": 123}', {'a': 123}, id='dict'),
+            pytest.param('[1,2,3]', [1, 2, 3], id='list'),
+            pytest.param('"abc"', 'abc', id='str'),
+            pytest.param('2.1', 2.1, id='num'),
+            pytest.param('', None, id='empty'),
+        ],
+    )
+    def test_getjson(self, config_str, expected):
+        config = textwrap.dedent(
+            f"""
+            [test]
+            json = {config_str}
+        """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json') == expected
+
+    def test_getjson_empty_with_fallback(self):
+        config = textwrap.dedent(
+            """
+            [test]
+            json =
+            """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json', fallback={}) == {}
+        assert test_conf.getjson('test', 'json') is None
+
+    @pytest.mark.parametrize(
+        ("fallback"),
+        [
+            pytest.param({"a": "b"}, id='dict'),
+            # fallback is _NOT_ json parsed, but used verbatim
+            pytest.param('{"a": "b"}', id='str'),
+            pytest.param(None, id='None'),
+        ],
+    )
+    def test_getjson_fallback(self, fallback):
+        test_conf = AirflowConfigParser()
+
+        assert test_conf.getjson('test', 'json', fallback=fallback) == fallback
+
     def test_has_option(self):
         test_config = '''[test]
 key1 = value1

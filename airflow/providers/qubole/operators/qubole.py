@@ -18,7 +18,7 @@
 """Qubole operator"""
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -217,7 +217,7 @@ class QuboleOperator(BaseOperator):
         'cluster_label',
     )
 
-    template_ext: Iterable[str] = ('.txt',)
+    template_ext: Sequence[str] = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']

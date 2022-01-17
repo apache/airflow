@@ -61,6 +61,7 @@ class _SessionFactory(LoggingMixin):
         self.region_name = region_name
         self.config = config
         self.extra_config = self.conn.extra_dejson
+
         self.basic_session: Optional[boto3.session.Session] = None
         self.role_arn: Optional[str] = None
 
@@ -129,30 +130,30 @@ class _SessionFactory(LoggingMixin):
             )
         session = botocore.session.get_session()
         session._credentials = credentials
+
         if self.basic_session is None:
             raise RuntimeError("The basic session should be created here!")
+
         region_name = self.basic_session.region_name
         session.set_config_variable("region", region_name)
+
         return boto3.session.Session(botocore_session=session, **session_kwargs)
 
     def _refresh_credentials(self) -> Dict[str, Any]:
         self.log.info('Refreshing credentials')
         assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
         sts_session = self.basic_session
+
+        if sts_session is None:
+            raise RuntimeError(
+                "Session should be initialized when refresh credentials with assume_role is used!"
+            )
+
+        sts_client = sts_session.client("sts", config=self.config)
+
         if assume_role_method == 'assume_role':
-            if sts_session is None:
-                raise RuntimeError(
-                    "Session should be initialized when refresh credentials with assume_role is used!"
-                )
-            sts_client = sts_session.client("sts", config=self.config)
             sts_response = self._assume_role(sts_client=sts_client)
         elif assume_role_method == 'assume_role_with_saml':
-            if sts_session is None:
-                raise RuntimeError(
-                    "Session should be initialized when refresh "
-                    "credentials with assume_role_with_saml is used!"
-                )
-            sts_client = sts_session.client("sts", config=self.config)
             sts_response = self._assume_role_with_saml(sts_client=sts_client)
         else:
             raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')

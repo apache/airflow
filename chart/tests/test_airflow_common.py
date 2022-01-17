@@ -93,6 +93,66 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
+    def test_global_affinity_tolerations_and_node_selector(self):
+        """
+        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        """
+        k8s_objects = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "tolerations": [
+                    {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "user-node"},
+            },
+            show_only=[
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/flower/flower-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert 11 == len(k8s_objects)
+
+        for k8s_object in k8s_objects:
+            if k8s_object["kind"] == "CronJob":
+                podSpec = jmespath.search("spec.jobTemplate.spec.template.spec", k8s_object)
+            else:
+                podSpec = jmespath.search("spec.template.spec", k8s_object)
+
+            assert "foo" == jmespath.search(
+                "affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                podSpec,
+            )
+            assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
+            assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
+
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
         [

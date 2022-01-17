@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 from unittest import mock
 
-from airflow_breeze.breeze import find_airflow_sources_root, get_airflow_sources_root
+from airflow_breeze.utils.path_utils import find_airflow_sources_root, get_airflow_sources_root
 
 ACTUAL_AIRFLOW_SOURCES = Path(__file__).parent.parent.parent.parent
 ROOT_PATH = Path(Path(__file__).root)
@@ -41,8 +41,8 @@ def test_find_airflow_root_upwards_from_file(capsys):
     assert output == ''
 
 
-@mock.patch('airflow_breeze.breeze.__AIRFLOW_SOURCES_ROOT', ROOT_PATH)
-@mock.patch('airflow_breeze.breeze.__AIRFLOW_CFG_FILE', "bad_name.cfg")
+@mock.patch('airflow_breeze.utils.path_utils.__AIRFLOW_SOURCES_ROOT', ROOT_PATH)
+@mock.patch('airflow_breeze.utils.path_utils.__AIRFLOW_CFG_FILE', "bad_name.cfg")
 def test_fallback_find_airflow_root(capsys):
     os.chdir(ROOT_PATH)
     find_airflow_sources_root()

@@ -44,7 +44,7 @@ class SnsPublishOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('message', 'subject', 'message_attributes')
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     template_fields_renderers = {"message_attributes": "json"}
 
     def __init__(

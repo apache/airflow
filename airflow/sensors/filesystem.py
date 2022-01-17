@@ -20,6 +20,7 @@
 import datetime
 import os
 from glob import glob
+from typing import Sequence
 
 from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
@@ -44,7 +45,7 @@ class FileSensor(BaseSensorOperator):
     :type recursive: bool
     """
 
-    template_fields = ('filepath',)
+    template_fields: Sequence[str] = ('filepath',)
     ui_color = '#91818a'
 
     def __init__(self, *, filepath, fs_conn_id='fs_default', recursive=False, **kwargs):
@@ -61,9 +62,8 @@ class FileSensor(BaseSensorOperator):
 
         for path in glob(full_path, recursive=self.recursive):
             if os.path.isfile(path):
-                mod_time = os.path.getmtime(path)
-                mod_time = datetime.datetime.fromtimestamp(mod_time).strftime('%Y%m%d%H%M%S')
-                self.log.info('Found File %s last modified: %s', str(path), str(mod_time))
+                mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime('%Y%m%d%H%M%S')
+                self.log.info('Found File %s last modified: %s', str(path), mod_time)
                 return True
 
             for _, _, files in os.walk(full_path):

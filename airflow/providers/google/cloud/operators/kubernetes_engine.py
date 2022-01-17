@@ -308,7 +308,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :type is_delete_operator_pod: bool
     """
 
-    template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
+    template_fields: Sequence[str] = tuple(
+        {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
+    )
 
     def __init__(
         self,

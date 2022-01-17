@@ -35,8 +35,8 @@ assists users migrating to a new version.
 
 Run ``helm repo update`` before upgrading the chart to the latest version.
 
-Airflow Helm Chart 1.4.0 (dev)
-------------------------------
+Airflow Helm Chart 1.4.0
+------------------------
 
 Default Airflow image is updated to ``2.2.3``
 """""""""""""""""""""""""""""""""""""""""""""
@@ -50,10 +50,27 @@ The default Airflow image that is used with the Chart is now ``2.2.3``, previous
 
 The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
 
+Fixed precedence of ``nodeSelector``, ``affinity`` and ``tolerations`` params
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``nodeSelector``, ``affinity`` and ``tolerations`` params precedence has been fixed on all components. Now component-specific params
+(e.g. ``webserver.affinity``) takes precedence over the global param (e.g. ``affinity``).
+
+Default ``KubernetesExecutor`` worker affinity removed
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Previously a default affinity was added to ``KubernetesExecutor`` workers to spread the workers out across nodes. This default affinity is no
+longer set because, in general, there is no reason to spread task-specific workers across nodes.
+
 Changes in webserver and flower ``NetworkPolicy`` default ports
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 The defaults for ``webserver.networkPolicy.ingress.ports`` and ``flower.networkPolicy.ingress.ports`` moved away from using named ports to numerical ports to avoid issues with OpenShift.
+
+Increase default ``livenessProbe`` ``timeoutSeconds`` for scheduler and triggerer
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default timeout for the scheduler and triggerer ``livenessProbe`` has been increased from 10 seconds to 20 seconds.
 
 Airflow Helm Chart 1.3.0
 ------------------------

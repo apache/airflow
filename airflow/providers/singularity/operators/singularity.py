@@ -68,7 +68,7 @@ class SingularityOperator(BaseOperator):
         'command',
         'environment',
     )
-    template_ext = (
+    template_ext: Sequence[str] = (
         '.sh',
         '.bash',
     )

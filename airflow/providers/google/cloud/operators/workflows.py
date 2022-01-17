@@ -19,7 +19,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 import pytz
 from google.api_core.exceptions import AlreadyExists
@@ -182,7 +182,7 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        update_mask: Optional[Union[FieldMask, Dict[str, List[str]]]] = None,
+        update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),

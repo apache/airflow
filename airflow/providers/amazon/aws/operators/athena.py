@@ -19,7 +19,6 @@
 import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
-from uuid import uuid4
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -65,7 +64,7 @@ class AthenaOperator(BaseOperator):
 
     ui_color = '#44b5e2'
     template_fields: Sequence[str] = ('query', 'database', 'output_location')
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {"query": "sql"}
 
     def __init__(
@@ -88,7 +87,7 @@ class AthenaOperator(BaseOperator):
         self.database = database
         self.output_location = output_location
         self.aws_conn_id = aws_conn_id
-        self.client_request_token = client_request_token or str(uuid4())
+        self.client_request_token = client_request_token
         self.workgroup = workgroup
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}

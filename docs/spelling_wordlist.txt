@@ -1408,6 +1408,8 @@ unicode
 unittest
 unittests
 unix
+unmappable
+unmapped
 unpause
 unpausing
 unpredicted

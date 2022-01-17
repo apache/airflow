@@ -155,27 +155,25 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         if files:
             self.log.info('%s files are going to be synced.', len(files))
-        else:
-            self.log.info('There are no new files to sync. Have a nice day!')
+            if self.directory_name is None:
+                raise RuntimeError("The directory_name must be set!.")
+            for file in files:
+                with NamedTemporaryFile() as temp_file:
+                    azure_fileshare_hook.get_file_to_stream(
+                        stream=temp_file,
+                        share_name=self.share_name,
+                        directory_name=self.directory_name,
+                        file_name=file,
+                    )
+                    temp_file.flush()
 
-        for file in files:
-            with NamedTemporaryFile() as temp_file:
-                azure_fileshare_hook.get_file_to_stream(
-                    stream=temp_file,
-                    share_name=self.share_name,
-                    directory_name=self.directory_name,
-                    file_name=file,
-                )
-                temp_file.flush()
-
-                # There will always be a '/' before file because it is
-                # enforced at instantiation time
-                dest_gcs_object = dest_gcs_object_prefix + file
-                gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
-
-        if files:
+                    # There will always be a '/' before file because it is
+                    # enforced at instantiation time
+                    dest_gcs_object = dest_gcs_object_prefix + file
+                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
             self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
+            self.log.info('There are no new files to sync. Have a nice day!')
             self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
 
         return files

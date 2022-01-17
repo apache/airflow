@@ -237,7 +237,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     # [END gcp_spanner_query_template_fields]
 
     def __init__(
@@ -275,10 +275,11 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        queries = self.query
         if isinstance(self.query, str):
             queries = [x.strip() for x in self.query.split(';')]
             self.sanitize_queries(queries)
+        else:
+            queries = self.query
         self.log.info(
             "Executing DML query(-ies) on projects/%s/instances/%s/databases/%s",
             self.project_id,
@@ -346,7 +347,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     # [END gcp_spanner_database_deploy_template_fields]
 
     def __init__(
@@ -450,7 +451,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     # [END gcp_spanner_database_update_template_fields]
 
     def __init__(

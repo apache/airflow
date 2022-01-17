@@ -162,3 +162,17 @@ class TestDeleteDAGSuccessfulDelete:
         self.check_dag_models_exists()
         delete_dag(dag_id=self.key, keep_records_in_log=False)
         self.check_dag_models_removed(expect_logs=0)
+
+    def test_delete_dag_preserves_other_dags(self):
+
+        self.setup_dag_models()
+
+        with create_session() as session:
+            session.add(DM(dag_id=self.key + ".other_dag", fileloc=self.dag_file_path))
+            session.add(DM(dag_id=self.key + ".subdag", fileloc=self.dag_file_path, is_subdag=True))
+
+        delete_dag(self.key)
+
+        with create_session() as session:
+            assert session.query(DM).filter(DM.dag_id == self.key + ".other_dag").count() == 1
+            assert session.query(DM).filter(DM.dag_id.like(self.key + "%")).count() == 1

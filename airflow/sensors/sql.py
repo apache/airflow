@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -55,8 +55,8 @@ class SqlSensor(BaseSensorOperator):
     :type hook_params: dict
     """
 
-    template_fields: Iterable[str] = ('sql',)
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = (
         '.hql',
         '.sql',
     )

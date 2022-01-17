@@ -493,6 +493,32 @@ class AirflowConfigParser(ConfigParser):
                 f'Current value: "{full_qualified_path}".'
             )
 
+    def getjson(self, section, key, fallback=_UNSET, **kwargs) -> Union[dict, list, str, int, float, None]:
+        """
+        Return a config value parsed from a JSON string.
+
+        ``fallback`` is *not* JSON parsed but used verbatim when no config value is given.
+        """
+        # get always returns the fallback value as a string, so for this if
+        # someone gives us an object we want to keep that
+        default = _UNSET
+        if fallback is not _UNSET:
+            default = fallback
+            fallback = _UNSET
+
+        try:
+            data = self.get(section=section, key=key, fallback=fallback, **kwargs)
+        except (NoSectionError, NoOptionError):
+            return default
+
+        if len(data) == 0:
+            return default if default is not _UNSET else None
+
+        try:
+            return json.loads(data)
+        except JSONDecodeError as e:
+            raise AirflowConfigException(f'Unable to parse [{section}] {key!r} as valid json') from e
+
     def read(self, filenames, encoding=None):
         super().read(filenames=filenames, encoding=encoding)
 

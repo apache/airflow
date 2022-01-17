@@ -228,36 +228,36 @@ def convert_keys(original: Dict) -> Dict:
     :param original: Dict which needs the keys converted.
     :value original: Dict
     """
-    if "nodegroup_name" in original.keys():
-        conversion_map = dict(
-            cluster_name="clusterName",
-            cluster_role_arn="roleArn",
-            nodegroup_subnets="subnets",
-            subnets="subnets",
-            nodegroup_name="nodegroupName",
-            nodegroup_role_arn="nodeRole",
-        )
-    elif "fargate_profile_name" in original.keys():
-        conversion_map = dict(
-            cluster_name="clusterName",
-            fargate_profile_name="fargateProfileName",
-            subnets="subnets",
+    if 'nodegroup_name' in original.keys():
+        conversion_map = {
+            'cluster_name': 'clusterName',
+            'cluster_role_arn': 'roleArn',
+            'nodegroup_subnets': 'subnets',
+            'subnets': 'subnets',
+            'nodegroup_name': 'nodegroupName',
+            'nodegroup_role_arn': 'nodeRole',
+        }
+    elif 'fargate_profile_name' in original.keys():
+        conversion_map = {
+            'cluster_name': 'clusterName',
+            'fargate_profile_name': 'fargateProfileName',
+            'subnets': 'subnets',
             # The following are "duplicated" because we used the more verbose/descriptive version
             # in the CreateCluster Operator when creating a cluster alongside a Fargate profile, but
             # the more terse version in the CreateFargateProfile Operator for the sake of convenience.
-            pod_execution_role_arn="podExecutionRoleArn",
-            fargate_pod_execution_role_arn="podExecutionRoleArn",
-            selectors="selectors",
-            fargate_selectors="selectors",
-        )
+            'pod_execution_role_arn': 'podExecutionRoleArn',
+            'fargate_pod_execution_role_arn': 'podExecutionRoleArn',
+            'selectors': 'selectors',
+            'fargate_selectors': 'selectors',
+        }
     else:
-        conversion_map = dict(
-            cluster_name="name",
-            cluster_role_arn="roleArn",
-            resources_vpc_config="resourcesVpcConfig",
-        )
+        conversion_map = {
+            'cluster_name': 'name',
+            'cluster_role_arn': 'roleArn',
+            'resources_vpc_config': 'resourcesVpcConfig',
+        }
 
-    return {conversion_map[k]: v for (k, v) in deepcopy(original).items()}
+    return {conversion_map[k] if k in conversion_map else k: v for (k, v) in deepcopy(original).items()}
 
 
 def iso_date(input_datetime: datetime.datetime) -> str:
