@@ -188,3 +188,22 @@ class TestAirflowCommon:
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
+
+    def test_have_all_config_mounts_on_init_containers(self, expected_read_only):
+        docs = render_chart(
+            values={},
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        assert 4 == len(docs)
+        for doc in docs:
+            expected_mount = {
+                "subPath": "airflow.cfg",
+                "name": "config",
+                "readOnly": expected_read_only,
+            }
+            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
