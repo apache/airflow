@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-16T17:08:43Z
+# This constraints file was automatically generated on 2022-01-17T15:00:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -293,7 +293,7 @@ numpy==1.20.3
 oauth2client==4.1.3
 oauthlib==3.1.1
 openapi-schema-validator==0.1.6
-openapi-spec-validator==0.3.1
+openapi-spec-validator==0.3.2
 opsgenie-sdk==2.1.5
 orjson==3.6.5
 oscrypto==1.2.1
@@ -354,14 +354,14 @@ pymssql==2.2.3
 pyodbc==4.0.32
 pyparsing==2.4.7
 pypsrp==0.7.0
-pyrsistent==0.18.1
+pyrsistent==0.16.1
 pysftp==0.2.9
 pyspark==3.2.0
 pyspnego==0.3.1
 pytest-asyncio==0.17.0
 pytest-cov==3.0.0
 pytest-forked==1.4.0
-pytest-httpx==0.17.3
+pytest-httpx==0.18.0
 pytest-instafail==0.4.2
 pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
@@ -464,15 +464,15 @@ types-PyYAML==6.0.3
 types-boto==2.49.6
 types-certifi==2021.10.8.1
 types-croniter==1.0.7
-types-cryptography==3.3.12
+types-cryptography==3.3.14
 types-docutils==0.17.4
-types-enum34==1.1.2
+types-enum34==1.1.3
 types-freezegun==1.1.6
-types-futures==3.3.2
-types-ipaddress==1.0.2
-types-paramiko==2.8.9
+types-futures==3.3.3
+types-ipaddress==1.0.3
+types-paramiko==2.8.10
 types-protobuf==3.19.0
-types-python-dateutil==2.8.6
+types-python-dateutil==2.8.7
 types-python-slugify==5.0.3
 types-pytz==2021.3.4
 types-redis==4.1.8
