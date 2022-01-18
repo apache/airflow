@@ -110,14 +110,19 @@ function run_all_test_types_in_parallel() {
     # Run all tests that should run in parallel (from test_types_to_run variable)
     run_test_types_in_parallel "${@}"
 
-    # if needed run remaining tests sequentially
-    for sequential_test in "${sequential_tests[@]}"; do
-        parallel::cleanup_runner
-        test_types_to_run="${sequential_test}"
-        run_test_types_in_parallel "${@}"
-    done
+    # Check if sequential_tests contains any values since accessing an empty (and only initted) array throws an
+    # error in some versions of Bash 4
+    if [[ ${sequential_tests[0]+"${sequential_tests[@]}"} ]]
+    then
+        # If needed run remaining tests sequentially
+        for sequential_test in "${sequential_tests[@]}"; do
+            parallel::cleanup_runner
+            test_types_to_run="${sequential_test}"
+            run_test_types_in_parallel "${@}"
+        done
+    fi
     set -e
-    # this will exit with error code in case some of the non-Quarantined tests failed
+    # This will exit with error code in case some of the non-Quarantined tests failed
     parallel::print_job_summary_and_return_status_code
 }
 
