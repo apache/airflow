@@ -637,7 +637,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         entry_group: str,
         project_id: str,
-        read_mask: Optional[Union[FieldMask, Dict]] = None,
+        read_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
