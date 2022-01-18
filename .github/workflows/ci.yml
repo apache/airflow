@@ -248,7 +248,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -331,7 +331,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -362,7 +362,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -398,7 +398,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -446,7 +446,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -513,7 +513,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: >
           Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v2
@@ -617,7 +617,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -669,7 +669,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -721,7 +721,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -784,7 +784,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -846,7 +846,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -907,7 +907,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -966,7 +966,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -1022,7 +1022,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Set issue id for main"
@@ -1130,7 +1130,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -1325,7 +1325,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -1423,7 +1423,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
