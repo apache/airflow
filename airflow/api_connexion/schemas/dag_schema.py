@@ -92,7 +92,7 @@ class DAGDetailSchema(DAGSchema):
 
     @staticmethod
     def get_concurrency(obj: DAG):
-        return obj.max_active_runs
+        return obj.max_active_tasks
 
     @staticmethod
     def get_tags(obj: DAG):
