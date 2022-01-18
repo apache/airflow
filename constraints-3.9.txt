@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-17T15:00:36Z
+# This constraints file was automatically generated on 2022-01-18T09:00:04Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -426,7 +426,7 @@ pyrsistent==0.16.1
 pysftp==0.2.9
 pyspark==3.2.0
 pyspnego==0.3.1
-pytest-asyncio==0.17.0
+pytest-asyncio==0.17.2
 pytest-cov==3.0.0
 pytest-forked==1.4.0
 pytest-httpx==0.18.0
@@ -558,7 +558,7 @@ tzlocal==4.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.26.8
-vertica-python==1.0.2
+vertica-python==1.0.3
 vine==5.0.0
 virtualenv==20.13.0
 volatile==2.1.0
@@ -569,7 +569,7 @@ websocket-client==1.2.3
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.125.0
+yandexcloud==0.126.0
 yarl==1.7.2
 zdesk==2.7.1
 zict==2.0.0
