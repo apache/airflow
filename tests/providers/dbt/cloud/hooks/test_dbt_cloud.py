@@ -48,62 +48,58 @@ BASE_URL = "https://cloud.getdbt.com/api/v2/accounts/"
 
 
 class TestDbtCloudJobRunStatus:
-    def test_valid_job_run_status(self):
-        # Test with valid statuses
-        DbtCloudJobRunStatus.check_is_valid(1)  # QUEUED
-        DbtCloudJobRunStatus.check_is_valid(2)  # STARTING
-        DbtCloudJobRunStatus.check_is_valid(3)  # RUNNING
-        DbtCloudJobRunStatus.check_is_valid(10)  # SUCCESS
-        DbtCloudJobRunStatus.check_is_valid(20)  # ERROR
-        DbtCloudJobRunStatus.check_is_valid(30)  # CANCELLED
-        DbtCloudJobRunStatus.check_is_valid([1, 2, 3])  # QUEUED, STARTING, and RUNNING
-        DbtCloudJobRunStatus.check_is_valid({10, 20, 30})  # SUCCESS, ERROR, and CANCELLED
+    valid_job_run_statuses = [
+        1,  # QUEUED
+        2,  # STARTING
+        3,  # RUNNING
+        10,  # SUCCESS
+        20,  # ERROR
+        30,  # CANCELLED
+        [1, 2, 3],  # QUEUED, STARTING, and RUNNING
+        {10, 20, 30},  # SUCCESS, ERROR, and CANCELLED
+    ]
+    invalid_job_run_statuses = [
+        123,  # Single invalid status
+        [123, 23, 65],  # Multiple invalid statuses
+        [1, 2, 65],  # Not all statuses are valid
+        "1",  # String types are not valid
+        "12",
+        ["1", "2", "65"],
+    ]
 
-        # Test with invalid statuses values either by value or type
+    @pytest.mark.parametrize(
+        argnames="statuses",
+        argvalues=valid_job_run_statuses,
+        ids=[f"checking_status_{argval}" for argval in valid_job_run_statuses],
+    )
+    def test_valid_job_run_status(self, statuses):
+        DbtCloudJobRunStatus.check_is_valid(statuses)
+
+    @pytest.mark.parametrize(
+        argnames="statuses",
+        argvalues=invalid_job_run_statuses,
+        ids=[f"checking_status_{argval}" for argval in invalid_job_run_statuses],
+    )
+    def test_invalid_job_run_status(self, statuses):
         with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.check_is_valid(123)
+            DbtCloudJobRunStatus.check_is_valid(statuses)
 
+    @pytest.mark.parametrize(
+        argnames="statuses",
+        argvalues=valid_job_run_statuses,
+        ids=[f"checking_status_{argval}" for argval in valid_job_run_statuses],
+    )
+    def test_valid_terminal_job_run_status(self, statuses):
+        DbtCloudJobRunStatus.check_is_valid(statuses)
+
+    @pytest.mark.parametrize(
+        argnames="statuses",
+        argvalues=invalid_job_run_statuses,
+        ids=[f"checking_status_{argval}" for argval in invalid_job_run_statuses],
+    )
+    def test_invalid_terminal_job_run_status(self, statuses):
         with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.check_is_valid([123, 23, 65])
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.check_is_valid([1, 2, 65])
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.check_is_valid("1")
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.check_is_valid("12")
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.check_is_valid(["1", "2", "65"])
-
-    def test_terminal_job_run_status(self):
-        # Test with valid statuses
-        assert DbtCloudJobRunStatus.is_terminal(10)  # SUCCESS
-        assert DbtCloudJobRunStatus.is_terminal(20)  # ERROR
-        assert DbtCloudJobRunStatus.is_terminal(30)  # CANCELLED
-        assert not DbtCloudJobRunStatus.is_terminal(1)  # QUEUED
-        assert not DbtCloudJobRunStatus.is_terminal(2)  # STARTING
-        assert not DbtCloudJobRunStatus.is_terminal(3)  # RUNNING
-        assert not DbtCloudJobRunStatus.is_terminal([1, 2, 3])  # QUEUED, STARTING, and RUNNING
-        assert not DbtCloudJobRunStatus.is_terminal({10, 20, 30})  # SUCCESS, ERROR, and CANCELLED
-
-        # Test with invalid statuses by both value and type
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.is_terminal(123)
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.is_terminal([123, 23, 65])
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.is_terminal([1, 2, 65])
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.is_terminal("1")
-
-        with pytest.raises(ValueError):
-            DbtCloudJobRunStatus.is_terminal(["1", "2", "65"])
+            DbtCloudJobRunStatus.check_is_valid(statuses)
 
 
 class TestDbtCloudHook:
@@ -134,8 +130,8 @@ class TestDbtCloudHook:
         assert hook.method == "POST"
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     def test_fallback_to_default_account(self, conn_id, account_id):
@@ -157,8 +153,8 @@ class TestDbtCloudHook:
                 fallback_to_default_account(dbt_cloud_func)(hook)
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -172,8 +168,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -189,8 +185,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -206,8 +202,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_called_once_with(endpoint=f"{_account_id}/projects/", payload=None)
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -223,8 +219,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -242,8 +238,8 @@ class TestDbtCloudHook:
         hook.run.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -261,8 +257,8 @@ class TestDbtCloudHook:
         hook.run.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -278,8 +274,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -299,8 +295,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -330,8 +326,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -364,8 +360,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -388,8 +384,8 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -414,8 +410,8 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -433,8 +429,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -451,7 +447,7 @@ class TestDbtCloudHook:
         )
         hook._paginate.assert_not_called()
 
-    _wait_for_job_run_status_test_args = [
+    wait_for_job_run_status_test_args = [
         (DbtCloudJobRunStatus.SUCCESS.value, DbtCloudJobRunStatus.SUCCESS.value, True),
         (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.SUCCESS.value, False),
         (DbtCloudJobRunStatus.CANCELLED.value, DbtCloudJobRunStatus.SUCCESS.value, False),
@@ -465,12 +461,12 @@ class TestDbtCloudHook:
 
     @pytest.mark.parametrize(
         argnames=("job_run_status", "expected_status", "expected_output"),
-        argvalues=_wait_for_job_run_status_test_args,
+        argvalues=wait_for_job_run_status_test_args,
         ids=[
             f"run_status_{argval[0]}_expected_{argval[1]}"
             if isinstance(argval[1], int)
             else f"run_status_{argval[0]}_expected_AnyTerminalStatus"
-            for argval in _wait_for_job_run_status_test_args
+            for argval in wait_for_job_run_status_test_args
         ],
     )
     def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected_output):
@@ -487,8 +483,8 @@ class TestDbtCloudHook:
                     hook.wait_for_job_run_status(**config)
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -504,8 +500,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -523,8 +519,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -540,8 +536,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -560,8 +556,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
@@ -580,8 +576,8 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        "conn_id",
-        [ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
+        argnames="conn_id",
+        argvalues=[ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
         ids=["default_account", "explicit_account"],
     )
     def test_connection_success(self, requests_mock, conn_id):
@@ -592,8 +588,8 @@ class TestDbtCloudHook:
         assert msg == "Successfully connected to dbt Cloud."
 
     @pytest.mark.parametrize(
-        "conn_id",
-        [ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
+        argnames="conn_id",
+        argvalues=[ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
         ids=["default_account", "explicit_account"],
     )
     def test_connection_failure(self, requests_mock, conn_id):
