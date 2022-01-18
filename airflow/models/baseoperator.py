@@ -1611,8 +1611,8 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         return MappedOperator(
             operator_class=type(operator),
             task_id=operator.task_id,
-            task_group=getattr(operator, 'task_group', None),
-            dag=getattr(operator, '_dag', None),
+            task_group=operator.task_group,
+            dag=dag,
             start_date=operator.start_date,
             end_date=operator.end_date,
             partial_kwargs={k: v for k, v in operator_init_kwargs.items() if k != "task_id"},
@@ -1673,10 +1673,6 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         from airflow.utils.task_group import TaskGroupContext
 
         return TaskGroupContext.get_current_task_group(self.dag)
-
-    @template_fields.default
-    def _template_fields_default(self):
-        return self.operator_class.template_fields
 
     def get_dag(self) -> "Optional[DAG]":
         return self.dag
