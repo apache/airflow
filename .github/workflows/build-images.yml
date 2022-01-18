@@ -337,7 +337,7 @@ jobs:
           fi
 
           for cancel_url in $(
-              gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" \
+              gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" | \
                   jq -r '
                     .workflow_runs[] |
                     select(.head_sha == $ENV.GITHUB_REGISTRY_PUSH_IMAGE_TAG and .status != "completed") |
