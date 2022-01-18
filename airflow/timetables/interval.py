@@ -21,7 +21,7 @@ from typing import Any, Dict, Optional, Union
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from dateutil.relativedelta import relativedelta
-from pendulum import DateTime
+from pendulum import DateTime, instance as pendulum_datetime
 from pendulum.tz.timezone import Timezone
 
 from airflow.compat.functools import cached_property
@@ -195,6 +195,9 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
+        # cron.get_prev return a python datetime and therefore `scheduled`
+        # need to be converted to a pendulum datetime when returned
+        scheduled = pendulum_datetime(scheduled)
         if not self._should_fix_dst:
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = naive - scheduled
