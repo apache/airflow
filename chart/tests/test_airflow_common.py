@@ -260,11 +260,11 @@ class TestAirflowCommon:
             ],
         )
         assert 4 == len(docs)
+        expected_mount = {
+            "subPath": "airflow.cfg",
+            "name": "config",
+            "readOnly": True,
+            "mountPath": "/opt/airflow"
+        }
         for doc in docs:
-            expected_mount = {
-                "subPath": "airflow.cfg",
-                "name": "config",
-                "readOnly": True,
-                "mountPath": "/opt/airflow"
-            }
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", dqoc)
