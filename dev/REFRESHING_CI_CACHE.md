@@ -77,6 +77,11 @@ git push
 
 # Manually refreshing the images
 
+Note that in order to refresh images you have to not only have `buildx` command installed for docker,
+but you should also make sure that you have the buildkit builder configured and set.
+
+More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
+
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for particular
 python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with python version
 as parameter:

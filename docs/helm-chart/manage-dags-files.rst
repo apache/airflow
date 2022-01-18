@@ -28,7 +28,7 @@ The recommended way to update your DAGs with this chart is to build a new docker
 
 .. code-block:: bash
 
-    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
     FROM apache/airflow
 
     COPY ./dags/ \${AIRFLOW_HOME}/dags/
@@ -43,7 +43,7 @@ The recommended way to update your DAGs with this chart is to build a new docker
 
 .. code-block:: bash
 
-    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
     FROM apache/airflow:2.0.2
 
     USER root

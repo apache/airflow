@@ -257,7 +257,7 @@ Build your image and then you can run this script by running the command:
 
 .. code-block:: bash
 
-  docker build . --tag my-image:0.0.1
+  docker build . --pull --tag my-image:0.0.1
   docker run -it my-image:0.0.1 bash -c "/my_after_entrypoint_script.sh"
 
 

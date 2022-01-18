@@ -111,7 +111,7 @@ Adding DAGs to your image
 
     .. code-block:: bash
 
-        docker build --tag my-dags:0.0.1 .
+        docker build --pull --tag my-dags:0.0.1 .
 
 
 3. Load the image into kind:
@@ -155,7 +155,7 @@ Example below adds ``vim`` apt package.
 
     .. code-block:: bash
 
-        docker build --tag my-image:0.0.1 .
+        docker build --pull --tag my-image:0.0.1 .
 
 
 3. Load the image into kind:
@@ -192,7 +192,7 @@ Example below adds ``lxml`` PyPI package.
 
     .. code-block:: bash
 
-        docker build --tag my-image:0.0.1 .
+        docker build --pull --tag my-image:0.0.1 .
 
 
 3. Load the image into kind:

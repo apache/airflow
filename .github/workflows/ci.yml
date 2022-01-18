@@ -30,7 +30,6 @@ permissions:
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
-  FORCE_PULL_IMAGES: "false"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
@@ -1287,12 +1286,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           branch: ${{ steps.constraints-branch.outputs.branch }}
           directory: "repo"
 
-  # Push images to GitHub Registry in Apache repository, if all tests are successful and build
-  # is executed as result of direct push to "main" or one of the "test" branches
-  # It actually rebuilds all images using just-pushed constraints if they changed
-  # It will also check if a new python image was released and will pull the latest one if needed
-  # Same as build-images.yaml
-  push-images-to-github-registry:
+  # Push BuildX cache to GitHub Registry in Apache repository, if all tests are successful and build
+  # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
+  # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
+  # It will automatically check if a new python image was released and will pull the latest one if needed
+  push-buildx-cache-to-github-registry:
     permissions:
       packages: write
     timeout-minutes: 10
@@ -1303,7 +1301,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - constraints
       - docs
     # Only run it for direct pushes and scheduled builds
-    if: github.event_name == 'push' || github.event_name == 'schedule'
+    if: >
+      (github.event_name == 'push' || github.event_name == 'schedule')
+      && github.repository == 'apache/airflow'
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -1317,11 +1317,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       # a new python image, we will rebuild it from scratch (same as during the "build-images.ci")
       GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-      PUSH_PYTHON_BASE_IMAGE: "true"
-      FORCE_PULL_IMAGES: "true"
-      CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: "true"
       GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
+      PREPARE_BUILDX_CACHE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1339,7 +1337,3 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
         env:
           VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      - name: "Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
-      - name: "Push PROD images ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest"
-        run: ./scripts/ci/images/ci_push_production_images.sh

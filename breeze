@@ -72,7 +72,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    MAX_SCREEN_WIDTH
 #    SCREEN_WIDTH
 #    MOUNT_SELECTED_LOCAL_SOURCES
-#    FORCE_PULL_IMAGES
 #    FORWARD_CREDENTIALS
 #    DB_RESET
 #    START_AIRFLOW
@@ -113,14 +112,6 @@ function breeze::setup_default_breeze_constants() {
 
     # By default we do not mount all local Airflow sources
     export MOUNT_ALL_LOCAL_SOURCES="false"
-
-    # By default we only pull images if we do not have them locally.
-    # This can be overridden by '--force-pull-images' flag
-    export FORCE_PULL_IMAGES="false"
-
-    # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI main and when we manually refresh the images to latest versions
-    export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -171,9 +162,6 @@ function breeze::setup_default_breeze_constants() {
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES="false"
-
-    # When we push from breeze we always want to push base python images
-    export PUSH_PYTHON_BASE_IMAGE="true"
 
     # Determines whether to reinstall airflow at entering the image.
     export USE_AIRFLOW_VERSION=""
@@ -1013,24 +1001,6 @@ function breeze::parse_arguments() {
             # if not set here, docker cached is determined later, depending on type of image to be built
             shift
             ;;
-        -P | --force-pull-images)
-            echo "Force pulling images before build. Uses pulled images as cache."
-            echo
-            export FORCE_PULL_IMAGES="true"
-            export FORCE_BUILD_IMAGES="true"
-            # if you want to force  build an image - assume you want to build it :)
-            export FORCE_ANSWER_TO_QUESTIONS="yes"
-            shift
-            ;;
-        --check-if-base-python-image-updated)
-            echo "Checks if base python image has been."
-            echo
-            export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="true"
-            export FORCE_BUILD_IMAGES="true"
-            # if you want to force  build an image - assume you want to build it :)
-            export FORCE_ANSWER_TO_QUESTIONS="yes"
-            shift
-            ;;
         -I | --production-image)
             export PRODUCTION_IMAGE="true"
             export SQLITE_URL=
@@ -1169,7 +1139,6 @@ function breeze::parse_arguments() {
             echo "You can specify --skip-mounting-local-sources to not mount local sources to get exact. "
             echo "behaviour as in the CI environment."
             echo
-            export FORCE_PULL_IMAGES="true"
             export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
             export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
             export CHECK_IMAGE_FOR_REBUILD="false"
@@ -1310,6 +1279,19 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        prepare-build-cache)
+            last_subcommand="${1}"
+            command_to_run="prepare_build_cache"
+            export FORCE_ANSWER_TO_QUESTIONS="yes"
+            # and assume you want to build it no matter if it is needed
+            export FORCE_BUILD_IMAGES="true"
+            export PREPARE_BUILDX_CACHE="true"
+            export DOCKER_CACHE="pulled"
+            export CLEANUP_DOCKER_CONTEXT_FILES="true"
+            echo "Prepare buildx cache"
+            echo
+            shift
+            ;;
         cleanup-image)
             last_subcommand="${1}"
             echo "Cleanup the image"
@@ -1352,12 +1334,6 @@ function breeze::parse_arguments() {
         prepare-provider-documentation)
             last_subcommand="${1}"
             command_to_run="perform_prepare_provider_documentation"
-            shift
-            ;;
-        push-image)
-            last_subcommand="${1}"
-            command_to_run="perform_push_image"
-            export SKIP_CHECK_REMOTE_IMAGE="true"
             shift
             ;;
         initialize-local-virtualenv)
@@ -1664,6 +1640,8 @@ function breeze::prepare_usage() {
     readonly USAGE_BUILD_DOCS
     export USAGE_BUILD_IMAGE="Builds CI or Production docker image"
     readonly USAGE_BUILD_DOCS
+    export USAGE_PREPARE_BUILD_CACHE="Prepares CI or Production build cache"
+    readonly USAGE_PREPARE_BUILD_CACHE
     export USAGE_CLEANUP_IMAGE="Cleans up the container image created"
     readonly USAGE_BUILD_DOCS
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
@@ -1774,10 +1752,7 @@ ${CMDNAME} build-image [FLAGS]
          '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
 
       Choosing whether to force pull images or force build the image:
-          '--force-build-image', '--force-pull-image'
-
-      Checking if the base python image has been updated:
-          '--check-if-base-python-image-updated'
+          '--force-build-image'
 
       You can also pass '--production-image' flag to build production image rather than CI image.
 
@@ -1793,6 +1768,29 @@ $(breeze::flag_pull_push_docker_images "no_show_sha")
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_BUILD_IMAGE
+    export DETAILED_USAGE_PREPARE_BUILD_CACHE="
+${CMDNAME} prepare-build-cache [FLAGS]
+
+      Prepares build cache (CI or production) without entering the container. You can pass
+      additional options to this command, such as:
+
+      Choosing python version:
+        '--python'
+
+      You can also pass '--production-image' flag to build production image rather than CI image.
+
+      For GitHub repository, the '--github-repository' can be used to choose repository
+      to pull/push images. Cleanup docker context files and pull cache are forced. This command
+      requires buildx to be installed.
+
+Flags:
+$(breeze::flag_airflow_variants)
+$(breeze::flag_build_different_airflow_version)
+$(breeze::flag_production_image)
+$(breeze::flag_pull_push_docker_images "no_show_sha")
+$(breeze::flag_verbosity)
+"
+    readonly DETAILED_USAGE_PREPARE_BUILD_CACHE
     export DETAILED_USAGE_CLEANUP_IMAGE="
 ${CMDNAME} cleanup-image [FLAGS]
 
@@ -1947,30 +1945,6 @@ $(breeze::flag_version_suffix)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_PROVIDER_PACKAGES
-    export DETAILED_USAGE_PUSH_IMAGE="
-${CMDNAME} push_image [FLAGS]
-
-      Pushes images to GitHub registry.
-
-      You can add --github-repository to push to a different repository/organisation.
-      You can add --github-image-id <COMMIT_SHA> in case you want to push image with specific
-      SHA tag.
-      You can also add --production-image flag to switch to production image (default is CI one)
-
-      Examples:
-
-      '${CMDNAME} push-image' or
-      '${CMDNAME} push-image --production-image' - to push production image or
-      '${CMDNAME} push-image \\
-            --github-repository user/airflow' - to push to your user's fork
-      '${CMDNAME} push-image \\
-            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - to push with COMMIT_SHA
-
-Flags:
-$(breeze::flag_pull_push_docker_images)
-$(breeze::flag_verbosity)
-"
-    readonly DETAILED_USAGE_PUSH_IMAGE
     export DETAILED_USAGE_KIND_CLUSTER="
 ${CMDNAME} kind-cluster [FLAGS] OPERATION
 
@@ -2651,17 +2625,6 @@ function breeze::flag_build_docker_images() {
         automatically for the first time or when changes are detected in
         package-related files, but you can force it using this flag.
 
--P, --force-pull-images
-        Forces pulling of images from GitHub Container Registry before building to populate cache.
-        The images are pulled by default only for the first time you run the
-        environment, later the locally build images are used as cache.
-
---check-if-base-python-image-updated
-        Checks if Python base image from DockerHub has been updated vs the current python base
-        image we store in GitHub Container Registry. Python images are updated regularly with
-        security fixes, this switch will check if a new one has been released and will pull and
-        prepare a new base python based on the latest one.
-
 --cleanup-docker-context-files
         Removes whl and tar.gz files created in docker-context-files before running the command.
         In case there are some files there it unnecessarily increases the context size and
@@ -2966,7 +2929,7 @@ $(breeze::flag_build_docker_images)
 
 $(breeze::print_star_line)
  Flags for pulling/pushing Docker images (both CI and production)
-$(breeze::flag_pull_push_docker_images)
+$(breeze::flag_pull_push_docker_images "show_sha")
 
 $(breeze::print_star_line)
  Flags for running tests
@@ -3342,15 +3305,21 @@ function breeze::run_build_command() {
         build_images::prepare_ci_build
         build_images::rebuild_ci_image_if_needed
         ;;
-    perform_push_image)
+    build_image)
+        if [[ ${CLEANUP_DOCKER_CONTEXT_FILES} == "true" ]]; then
+            build_images::cleanup_docker_context_files
+        fi
+        build_images::check_for_docker_context_files
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             build_images::prepare_prod_build
+            build_images::build_prod_images
         else
+
             build_images::prepare_ci_build
             build_images::rebuild_ci_image_if_needed
         fi
         ;;
-    build_image)
+    prepare_build_cache)
         if [[ ${CLEANUP_DOCKER_CONTEXT_FILES} == "true" ]]; then
             build_images::cleanup_docker_context_files
         fi
@@ -3510,7 +3479,7 @@ function breeze::run_breeze_command() {
         breeze::run_static_checks "${@}"
         ;;
     build_image) ;;
-
+    prepare_build_cache) ;;
     cleanup_image)
         breeze::remove_images
         ;;
@@ -3529,13 +3498,6 @@ function breeze::run_breeze_command() {
     perform_prepare_provider_documentation)
         docker_engine_resources::check_all_resources
         runs::run_prepare_provider_documentation "${@}"
-        ;;
-    perform_push_image)
-        if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            push_pull_remove_images::push_prod_images_to_github
-        else
-            push_pull_remove_images::push_ci_images_to_github
-        fi
         ;;
     perform_initialize_local_virtualenv)
         breeze::initialize_virtualenv

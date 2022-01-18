@@ -189,7 +189,7 @@ runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-r
 load-default-connections load-example-dags
 use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
 use-airflow-version:
-cleanup-docker-context-files
+cleanup-docker-context-files prepare-buildx-cache
 test-type: preserve-volumes dry-run-docker
 executor:
 "
@@ -198,10 +198,10 @@ _breeze_commands="
 shell
 build-docs
 build-image
+prepare-build-cache
 cleanup-image
 exec
 generate-constraints
-push-image
 initialize-local-virtualenv
 prepare-airflow-packages
 setup-autocomplete

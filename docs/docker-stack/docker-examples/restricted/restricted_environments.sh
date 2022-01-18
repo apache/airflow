@@ -35,6 +35,7 @@ pip download --dest docker-context-files \
 
 # [START build]
 docker build . \
+    --pull \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \

@@ -149,22 +149,6 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``FORCE_PULL_IMAGES``                   |    true     |    true      |    true    | Determines if images are force-pulled,          |
-|                                         |             |              |            | no matter if they are already present           |
-|                                         |             |              |            | locally. This includes not only the             |
-|                                         |             |              |            | CI/PROD images but also the Python base         |
-|                                         |             |              |            | images. Note that if Python base images         |
-|                                         |             |              |            | change, also the CI and PROD images             |
-|                                         |             |              |            | need to be fully rebuild unless they were       |
-|                                         |             |              |            | already built with that base Python             |
-|                                         |             |              |            | image. This is false for local development      |
-|                                         |             |              |            | to avoid often pulling and rebuilding           |
-|                                         |             |              |            | the image. It is true for CI workflow in        |
-|                                         |             |              |            | case waiting from images is enabled             |
-|                                         |             |              |            | as the images needs to be force-pulled from     |
-|                                         |             |              |            | GitHub Registry, but it is set to               |
-|                                         |             |              |            | false when waiting for images is disabled.      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``FORCE_BUILD_IMAGES``                  |    false    |    false     |    false   | Forces building images. This is generally not   |
 |                                         |             |              |            | very useful in CI as in CI environment image    |
 |                                         |             |              |            | is built or pulled only once, so there is no    |

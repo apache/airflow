@@ -33,7 +33,9 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
-ARG AIRFLOW_VERSION="2.2.0.dev0"
+# Use the same builder frontend version for everyone
+# syntax=docker/dockerfile:1.3
+ARG AIRFLOW_VERSION="2.2.4.dev0"
 ARG AIRFLOW_EXTRAS="amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -326,34 +328,6 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
 RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
     fi
-
-ARG BUILD_ID
-ARG COMMIT_SHA
-ARG AIRFLOW_IMAGE_REPOSITORY
-ARG AIRFLOW_IMAGE_DATE_CREATED
-
-ENV BUILD_ID=${BUILD_ID} COMMIT_SHA=${COMMIT_SHA}
-
-LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
-  org.apache.airflow.module="airflow" \
-  org.apache.airflow.component="airflow" \
-  org.apache.airflow.image="airflow-build-image" \
-  org.apache.airflow.version="${AIRFLOW_VERSION}" \
-  org.apache.airflow.build-image.build-id=${BUILD_ID} \
-  org.apache.airflow.build-image.commit-sha=${COMMIT_SHA} \
-  org.opencontainers.image.source=${AIRFLOW_IMAGE_REPOSITORY} \
-  org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
-  org.opencontainers.image.authors="dev@airflow.apache.org" \
-  org.opencontainers.image.url="https://airflow.apache.org" \
-  org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
-  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
-  org.opencontainers.image.revision="${COMMIT_SHA}" \
-  org.opencontainers.image.vendor="Apache Software Foundation" \
-  org.opencontainers.image.licenses="Apache-2.0" \
-  org.opencontainers.image.ref.name="airflow-build-image" \
-  org.opencontainers.image.title="Build Image Segment for Production Airflow Image" \
-  org.opencontainers.image.description="Reference build-time dependencies image for production-ready Apache Airflow image"
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
