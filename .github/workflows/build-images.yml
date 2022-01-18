@@ -225,7 +225,7 @@ jobs:
           mv "main-airflow/scripts/ci" "scripts"
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -304,7 +304,7 @@ jobs:
           mv "main-airflow/scripts/ci" "scripts"
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
