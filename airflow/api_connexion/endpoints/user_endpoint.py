@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from connexion import NoContent
 from flask import current_app, request
 from flask_appbuilder.security.sqla.models import User
 from marshmallow import ValidationError
@@ -191,3 +192,4 @@ def delete_user(username):
     user.roles = []  # Clear foreign keys on this user first.
     security_manager.get_session.delete(user)
     security_manager.get_session.commit()
+    return NoContent, 204

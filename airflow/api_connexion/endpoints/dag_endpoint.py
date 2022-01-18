@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy.sql.expression import or_
 
 from airflow import DAG
-from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters

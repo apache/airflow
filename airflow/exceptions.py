@@ -23,7 +23,7 @@ import datetime
 import warnings
 from typing import Any, Dict, List, NamedTuple, Optional
 
-from airflow.api_connexion.exceptions import NotFound as ApiConnextionNotFound
+from airflow.api_connexion.exceptions import NotFound as ApiConnexionNotFound
 from airflow.utils.code_utils import prepare_code_snippet
 from airflow.utils.platform import is_tty
 
@@ -43,7 +43,7 @@ class AirflowBadRequest(AirflowException):
     status_code = 400
 
 
-class AirflowNotFoundException(AirflowException, ApiConnextionNotFound):
+class AirflowNotFoundException(AirflowException, ApiConnexionNotFound):
     """Raise when the requested object/resource is not available in the system"""
 
     status_code = 404
