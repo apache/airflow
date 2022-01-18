@@ -24,7 +24,7 @@ import warnings
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Generator, List, Optional
 
 import yaml
 from botocore.exceptions import ClientError
@@ -127,7 +127,7 @@ class EksHook(AwsBaseHook):
         clusterName: str,
         nodegroupName: str,
         subnets: List[str],
-        nodeRole: str,
+        nodeRole: Optional[str],
         *,
         tags: Optional[Dict] = None,
         **kwargs,
@@ -178,8 +178,8 @@ class EksHook(AwsBaseHook):
     def create_fargate_profile(
         self,
         clusterName: str,
-        fargateProfileName: str,
-        podExecutionRoleArn: str,
+        fargateProfileName: Optional[str],
+        podExecutionRoleArn: Optional[str],
         selectors: List,
         **kwargs,
     ) -> Dict:
@@ -536,10 +536,10 @@ class EksHook(AwsBaseHook):
     def generate_config_file(
         self,
         eks_cluster_name: str,
-        pod_namespace: str,
+        pod_namespace: Optional[str],
         pod_username: Optional[str] = None,
         pod_context: Optional[str] = None,
-    ) -> str:
+    ) -> Generator[str, None, None]:
         """
         Writes the kubeconfig file given an EKS Cluster.
 

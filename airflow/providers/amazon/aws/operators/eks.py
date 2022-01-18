@@ -17,8 +17,9 @@
 
 """This module contains Amazon EKS operators."""
 import warnings
+from ast import literal_eval
 from time import sleep
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -138,13 +139,13 @@ class EksCreateClusterOperator(BaseOperator):
         self,
         cluster_name: str,
         cluster_role_arn: str,
-        resources_vpc_config: Dict,
+        resources_vpc_config: Dict[str, Any],
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
         create_cluster_kwargs: Optional[Dict] = None,
-        nodegroup_name: Optional[str] = DEFAULT_NODEGROUP_NAME,
+        nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         nodegroup_role_arn: Optional[str] = None,
         create_nodegroup_kwargs: Optional[Dict] = None,
-        fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
+        fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         fargate_pod_execution_role_arn: Optional[str] = None,
         fargate_selectors: Optional[List] = None,
         create_fargate_profile_kwargs: Optional[Dict] = None,
@@ -222,7 +223,7 @@ class EksCreateClusterOperator(BaseOperator):
             eks_hook.create_nodegroup(
                 clusterName=self.cluster_name,
                 nodegroupName=self.nodegroup_name,
-                subnets=self.resources_vpc_config.get('subnetIds'),
+                subnets=cast(List[str], self.resources_vpc_config.get('subnetIds')),
                 nodeRole=self.nodegroup_role_arn,
                 **self.create_nodegroup_kwargs,
             )
@@ -281,21 +282,34 @@ class EksCreateNodegroupOperator(BaseOperator):
     def __init__(
         self,
         cluster_name: str,
-        nodegroup_subnets: List[str],
+        nodegroup_subnets: Union[List[str], str],
         nodegroup_role_arn: str,
-        nodegroup_name: Optional[str] = DEFAULT_NODEGROUP_NAME,
+        nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
-        self.nodegroup_subnets = nodegroup_subnets
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
+        nodegroup_subnets_list: List[str] = []
+        if isinstance(nodegroup_subnets, str):
+            if nodegroup_subnets != "":
+                try:
+                    nodegroup_subnets_list = cast(List, literal_eval(nodegroup_subnets))
+                except ValueError:
+                    self.log.warning(
+                        "The nodegroup_subnets should be List or string representing "
+                        "Python list and is %s. Defaulting to []",
+                        nodegroup_subnets,
+                    )
+        else:
+            nodegroup_subnets_list = nodegroup_subnets
+        self.nodegroup_subnets = nodegroup_subnets_list
         super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
@@ -303,7 +317,6 @@ class EksCreateNodegroupOperator(BaseOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-
         eks_hook.create_nodegroup(
             clusterName=self.cluster_name,
             nodegroupName=self.nodegroup_name,

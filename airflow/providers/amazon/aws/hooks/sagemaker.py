@@ -21,8 +21,9 @@ import tarfile
 import tempfile
 import time
 import warnings
+from datetime import datetime
 from functools import partial
-from typing import Any, Callable, Dict, Generator, List, Optional, Set
+from typing import Any, Callable, Dict, Generator, List, Optional, Set, cast
 
 from botocore.exceptions import ClientError
 
@@ -95,7 +96,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
 
 def secondary_training_status_message(
-    job_description: Dict[str, List[dict]], prev_description: Optional[dict]
+    job_description: Dict[str, List[Any]], prev_description: Optional[dict]
 ) -> str:
     """
     Returns a string contains start time and the secondary training job status message.
@@ -125,7 +126,9 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition['StatusMessage']
-        time_str = timezone.convert_to_utc(job_description['LastModifiedTime']).strftime('%Y-%m-%d %H:%M:%S')
+        time_str = timezone.convert_to_utc(cast(datetime, job_description['LastModifiedTime'])).strftime(
+            '%Y-%m-%d %H:%M:%S'
+        )
         status_strs.append(f"{time_str} {transition['Status']} - {message}")
 
     return '\n'.join(status_strs)

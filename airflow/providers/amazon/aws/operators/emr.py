@@ -184,7 +184,7 @@ class EmrContainerOperator(BaseOperator):
         self.client_request_token = client_request_token or str(uuid4())
         self.poll_interval = poll_interval
         self.max_tries = max_tries
-        self.job_id = None
+        self.job_id: Optional[str] = None
 
     @cached_property
     def hook(self) -> EmrContainerHook:

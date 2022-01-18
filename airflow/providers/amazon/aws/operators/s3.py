@@ -523,8 +523,9 @@ class S3FileTransformOperator(BaseOperator):
                     close_fds=True,
                 ) as process:
                     self.log.info("Output:")
-                    for line in iter(process.stdout.readline, b''):
-                        self.log.info(line.decode(self.output_encoding).rstrip())
+                    if process.stdout is not None:
+                        for line in iter(process.stdout.readline, b''):
+                            self.log.info(line.decode(self.output_encoding).rstrip())
 
                     process.wait()
 
