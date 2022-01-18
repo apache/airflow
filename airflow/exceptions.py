@@ -167,6 +167,10 @@ class SerializationError(AirflowException):
     """A problem occurred when trying to serialize a DAG."""
 
 
+class ParamValidationError(AirflowException):
+    """Raise when DAG params is invalid"""
+
+
 class TaskNotFound(AirflowNotFoundException):
     """Raise when a Task is not available in the system."""
 

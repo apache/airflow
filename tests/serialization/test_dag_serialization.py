@@ -43,10 +43,15 @@ from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
-from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.serialization.serialized_objects import (
+    SerializedBaseOperator,
+    SerializedDAG,
+    SerializedTaskGroup,
+)
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.task_group import TaskGroup
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -97,7 +102,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
-                "_downstream_task_ids": [],
+                "downstream_task_ids": [],
                 "_inlets": [],
                 "_is_dummy": False,
                 "_outlets": [],
@@ -127,7 +132,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
-                "_downstream_task_ids": [],
+                "downstream_task_ids": [],
                 "_inlets": [],
                 "_is_dummy": False,
                 "_outlets": [],
@@ -1094,13 +1099,13 @@ class TestStringifiedDAGs:
         base_operator = BaseOperator(task_id="10")
         fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
         assert fields == {
-            '_downstream_task_ids': set(),
             '_inlets': [],
             '_log': base_operator.log,
             '_outlets': [],
             '_pre_execute_hook': None,
             '_post_execute_hook': None,
             'depends_on_past': False,
+            'downstream_task_ids': set(),
             'do_xcom_push': True,
             'doc': None,
             'doc_json': None,
@@ -1148,12 +1153,29 @@ class TestStringifiedDAGs:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                          """
 
+    def test_operator_deserialize_old_names(self):
+        blob = {
+            "task_id": "custom_task",
+            "_downstream_task_ids": ['foo'],
+            "template_ext": [],
+            "template_fields": ['bash_command'],
+            "template_fields_renderers": {},
+            "_task_type": "CustomOperator",
+            "_task_module": "tests.test_utils.mock_operators",
+            "pool": "default_pool",
+            "ui_color": "#fff",
+            "ui_fgcolor": "#000",
+        }
+
+        SerializedDAG._json_schema.validate(blob, _schema=load_dag_schema_dict()['definitions']['operator'])
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        assert serialized_op.downstream_task_ids == {'foo'}
+
     def test_task_group_serialization(self):
         """
         Test TaskGroup serialization/deserialization.
         """
         from airflow.operators.dummy import DummyOperator
-        from airflow.utils.task_group import TaskGroup
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", start_date=execution_date) as dag:
@@ -1229,7 +1251,6 @@ class TestStringifiedDAGs:
         """
         from airflow.operators.dummy import DummyOperator
         from airflow.serialization.serialized_objects import SerializedTaskGroup
-        from airflow.utils.task_group import TaskGroup
 
         """
                     start
@@ -1549,3 +1570,63 @@ def test_kubernetes_optional():
 
         # basic serialization should succeed
         module.SerializedDAG.to_dict(make_simple_dag()["simple_dag"])
+
+
+def test_mapped_operator_serde():
+    real_op = BashOperator.partial(task_id='a').map(bash_command=[1, 2, {'a': 'b'}])
+
+    serialized = SerializedBaseOperator._serialize(real_op)
+
+    assert serialized == {
+        '_is_dummy': False,
+        '_is_mapped': True,
+        '_task_module': 'airflow.operators.bash',
+        '_task_type': 'BashOperator',
+        'downstream_task_ids': [],
+        'mapped_kwargs': {
+            'bash_command': [
+                1,
+                2,
+                {"__type": "dict", "__var": {'a': 'b'}},
+            ]
+        },
+        'partial_kwargs': {},
+        'task_id': 'a',
+        'template_fields': ['bash_command', 'env'],
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+
+    assert op.operator_class == "airflow.operators.bash.BashOperator"
+
+
+def test_mapped_task_group_serde():
+    execution_date = datetime(2020, 1, 1)
+
+    literal = [1, 2, {'a': 'b'}]
+    with DAG("test", start_date=execution_date) as dag:
+        with TaskGroup("process_one", dag=dag).map(literal) as process_one:
+            BaseOperator(task_id='one')
+
+    serialized = SerializedTaskGroup.serialize_task_group(process_one)
+
+    assert serialized == {
+        '_group_id': 'process_one',
+        'children': {'process_one.one': ('operator', 'process_one.one')},
+        'downstream_group_ids': [],
+        'downstream_task_ids': [],
+        'prefix_group_id': True,
+        'tooltip': '',
+        'ui_color': 'CornflowerBlue',
+        'ui_fgcolor': '#000',
+        'upstream_group_ids': [],
+        'upstream_task_ids': [],
+        'mapped_arg': [
+            1,
+            2,
+            {"__type": "dict", "__var": {'a': 'b'}},
+        ],
+    }
+
+    with DAG("test", start_date=execution_date):
+        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict)

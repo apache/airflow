@@ -364,6 +364,7 @@ TCP
 TLS
 TTY
 TZ
+TaskDecorator
 TaskFlow
 TaskGroup
 TaskGroups

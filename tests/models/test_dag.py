@@ -42,7 +42,7 @@ from sqlalchemy import inspect
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
@@ -1861,7 +1861,7 @@ class TestDag(unittest.TestCase):
 
     def test_validate_params_on_trigger_dag(self):
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-        with pytest.raises(TypeError, match="No value passed and Param has no default value"):
+        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
@@ -1869,7 +1869,9 @@ class TestDag(unittest.TestCase):
             )
 
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-        with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
+        with pytest.raises(
+            ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
+        ):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,

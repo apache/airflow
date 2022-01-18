@@ -148,9 +148,8 @@ class TaskGroup(DAGNode):
         # so that we can optimize the number of edges when entire TaskGroups depend on each other.
         self.upstream_group_ids: Set[Optional[str]] = set()
         self.downstream_group_ids: Set[Optional[str]] = set()
-        # Since the parent class defines these as read-only properties, we can 't just do `self.x = ...`
-        self.__dict__['upstream_task_ids'] = set()
-        self.__dict__['downstream_task_ids'] = set()
+        self.upstream_task_ids = set()
+        self.downstream_task_ids = set()
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
@@ -184,14 +183,6 @@ class TaskGroup(DAGNode):
     def is_root(self) -> bool:
         """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
-
-    @property
-    def upstream_task_ids(self) -> Set[str]:
-        return self.__dict__['upstream_task_ids']
-
-    @property
-    def downstream_task_ids(self) -> Set[str]:
-        return self.__dict__['downstream_task_ids']
 
     def __iter__(self):
         for child in self.children.values():
@@ -400,7 +391,7 @@ class TaskGroup(DAGNode):
             raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
         if self._parent_group:
             self._parent_group._remove(self)
-        return MappedTaskGroup(group_id=self._group_id, mapped_arg=arg)
+        return MappedTaskGroup(group_id=self._group_id, dag=self.dag, mapped_arg=arg)
 
 
 class MappedTaskGroup(TaskGroup):

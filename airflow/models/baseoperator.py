@@ -134,7 +134,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if param.name != 'self' and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
         non_optional_args = {
-            name for (name, param) in non_variadic_params.items() if param.default == param.empty
+            name
+            for name, param in non_variadic_params.items()
+            if param.default == param.empty and name != "task_id"
         }
 
         class autostacklevel_warn:
@@ -746,9 +748,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         self.doc_rst = doc_rst
         self.doc = doc
 
-        # Private attributes
-        self._upstream_task_ids: Set[str] = set()
-        self._downstream_task_ids: Set[str] = set()
+        self.upstream_task_ids: Set[str] = set()
+        self.downstream_task_ids: Set[str] = set()
 
         if dag:
             self.dag = dag
@@ -1260,16 +1261,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                                 self.log.exception(e)
         self.prepare_template()
 
-    @property
-    def upstream_task_ids(self) -> Set[str]:
-        """@property: set of ids of tasks directly upstream"""
-        return self._upstream_task_ids
-
-    @property
-    def downstream_task_ids(self) -> Set[str]:
-        """@property: set of ids of tasks directly downstream"""
-        return self._downstream_task_ids
-
     @provide_session
     def clear(
         self,
@@ -1429,9 +1420,9 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         downstream.
         """
         if upstream:
-            return self._upstream_task_ids
+            return self.upstream_task_ids
         else:
-            return self._downstream_task_ids
+            return self.downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable["DAGNode"]:
         """
@@ -1577,7 +1568,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 - {
                     'inlets',
                     'outlets',
-                    '_upstream_task_ids',
+                    'upstream_task_ids',
                     'default_args',
                     'dag',
                     '_dag',
@@ -1672,8 +1663,12 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         return False
 
 
-def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
-    if isinstance(str, cls):
+def _validate_kwarg_names_for_mapping(
+    cls: Union[str, Type[BaseOperator]],
+    func_name: str,
+    value: Dict[str, Any],
+) -> None:
+    if isinstance(cls, str):
         # Serialized version -- would have been validated at parse time
         return
 
@@ -1706,7 +1701,14 @@ def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, v
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG"""
 
-    operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
+    def __repr__(self) -> str:
+        return (
+            f'MappedOperator(task_type={self.task_type}, '
+            f'task_id={self.task_id!r}, partial_kwargs={self.partial_kwargs!r}, '
+            f'mapped_kwargs={self.mapped_kwargs!r}, dag={self.dag})'
+        )
+
+    operator_class: Union[Type[BaseOperator], str]
     task_type: str = attr.ib()
     task_id: str
     partial_kwargs: Dict[str, Any]
@@ -1714,16 +1716,33 @@ class MappedOperator(DAGNode):
         validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
     )
     dag: Optional["DAG"] = None
-    upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
-    downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
+    upstream_task_ids: Set[str] = attr.ib(factory=set)
+    downstream_task_ids: Set[str] = attr.ib(factory=set)
 
-    task_group: Optional["TaskGroup"] = attr.ib(repr=False)
-
+    task_group: Optional["TaskGroup"] = attr.ib()
     # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
-    start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
-    end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
+    start_date: Optional[pendulum.DateTime] = attr.ib(default=None)
+    end_date: Optional[pendulum.DateTime] = attr.ib(default=None)
     owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
     max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
+
+    # Needed for SerializedBaseOperator
+    _is_dummy: bool = attr.ib()
+
+    deps: Iterable[BaseTIDep] = attr.ib()
+    operator_extra_links: Iterable['BaseOperatorLink'] = ()
+    params: Union[ParamsDict, dict] = attr.ib(factory=ParamsDict)
+    template_fields: Iterable[str] = attr.ib()
+
+    @_is_dummy.default
+    def _is_dummy_default(self):
+        from airflow.operators.dummy import DummyOperator
+
+        return issubclass(self.operator_class, DummyOperator)
+
+    @deps.default
+    def _deps_from_class(self):
+        return self.operator_class.deps
 
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
@@ -1733,6 +1752,7 @@ class MappedOperator(DAGNode):
             # are mapped, we want to _remove_ that task from the dag
             dag._remove_task(operator.task_id)
 
+        operator_init_kwargs: dict = operator._BaseOperator__init_kwargs  # type: ignore
         return MappedOperator(
             operator_class=type(operator),
             task_id=operator.task_id,
@@ -1740,10 +1760,12 @@ class MappedOperator(DAGNode):
             dag=getattr(operator, '_dag', None),
             start_date=operator.start_date,
             end_date=operator.end_date,
-            partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
+            partial_kwargs={k: v for k, v in operator_init_kwargs.items() if k != "task_id"},
             mapped_kwargs=mapped_kwargs,
             owner=operator.owner,
             max_active_tis_per_dag=operator.max_active_tis_per_dag,
+            deps=operator.deps,
+            params=operator.params,
         )
 
     @classmethod
@@ -1781,13 +1803,21 @@ class MappedOperator(DAGNode):
 
     @task_type.default
     def _default_task_type(self):
-        return self.operator_class.__name__
+        # Can be a string if we are de-serialized
+        val = self.operator_class
+        if isinstance(val, str):
+            return val.rsplit('.', 1)[-1]
+        return val.__name__
 
     @task_group.default
     def _default_task_group(self):
         from airflow.utils.task_group import TaskGroupContext
 
         return TaskGroupContext.get_current_task_group(self.dag)
+
+    @template_fields.default
+    def _template_fields_default(self):
+        return self.operator_class.template_fields
 
     @property
     def node_id(self):
@@ -1819,6 +1849,31 @@ class MappedOperator(DAGNode):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
+
+    @property
+    def inherits_from_dummy_operator(self):
+        """Used to determine if an Operator is inherited from DummyOperator"""
+        return self._is_dummy
+
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: ClassVar[Optional[FrozenSet[str]]] = None
+
+    @classmethod
+    def get_serialized_fields(cls):
+        if cls.__serialized_fields is None:
+            fields_dict = attr.fields_dict(cls)
+            cls.__serialized_fields = frozenset(
+                fields_dict.keys()
+                - {
+                    'deps',
+                    'inherits_from_dummy_operator',
+                    'operator_extra_links',
+                    'upstream_task_ids',
+                    'task_type',
+                }
+                | {'template_fields'}
+            )
+        return cls.__serialized_fields
 
 
 # TODO: Deprecate for Airflow 3.0

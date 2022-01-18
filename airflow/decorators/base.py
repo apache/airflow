@@ -26,6 +26,7 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterator,
     Mapping,
     Optional,
     Sequence,
@@ -33,6 +34,7 @@ from typing import (
     Type,
     TypeVar,
     cast,
+    overload,
 )
 
 import attr
@@ -42,11 +44,12 @@ from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
+from airflow.typing_compat import Protocol
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
-def validate_python_callable(python_callable):
+def validate_python_callable(python_callable: Any) -> None:
     """
     Validate that python callable can be wrapped by operator.
     Raises exception if invalid.
@@ -61,7 +64,9 @@ def validate_python_callable(python_callable):
 
 
 def get_unique_task_id(
-    task_id: str, dag: Optional[DAG] = None, task_group: Optional[TaskGroup] = None
+    task_id: str,
+    dag: Optional[DAG] = None,
+    task_group: Optional[TaskGroup] = None,
 ) -> str:
     """
     Generate unique task id given a DAG (or if run in a DAG context)
@@ -86,15 +91,18 @@ def get_unique_task_id(
 
     if tg_task_id not in dag.task_ids:
         return task_id
-    core = re.split(r'__\d+$', task_id)[0]
-    suffixes = sorted(
-        int(re.split(r'^.+__', task_id)[1])
-        for task_id in dag.task_ids
-        if re.match(rf'^{core}__\d+$', task_id)
-    )
-    if not suffixes:
-        return f'{core}__1'
-    return f'{core}__{suffixes[-1] + 1}'
+
+    def _find_id_suffixes(dag: DAG) -> Iterator[int]:
+        prefix = re.split(r"__\d+$", tg_task_id)[0]
+        for task_id in dag.task_ids:
+            match = re.match(rf"^{prefix}__(\d+)$", task_id)
+            if match is None:
+                continue
+            yield int(match.group(1))
+        yield 0  # Default if there's no matching task ID.
+
+    core = re.split(r"__\d+$", task_id)[0]
+    return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
 class DecoratedOperator(BaseOperator):
@@ -136,7 +144,7 @@ class DecoratedOperator(BaseOperator):
         kwargs_to_upstream: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
-        kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
+        task_id = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
         op_args = op_args or []
@@ -147,7 +155,7 @@ class DecoratedOperator(BaseOperator):
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
-        super().__init__(**kwargs_to_upstream, **kwargs)
+        super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
     def execute(self, context: Context):
         return_value = super().execute(context)
@@ -300,13 +308,25 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
         return attr.evolve(self, kwargs=partial_kwargs)
 
 
+class TaskDecorator(Protocol):
+    """Type declaration for ``task_decorator_factory`` return type."""
+
+    @overload
+    def __call__(self, python_callable: T) -> T:
+        """For the "bare decorator" ``@task`` case."""
+
+    @overload
+    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> "TaskDecorator":
+        """For the decorator factory ``@task()`` case."""
+
+
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     *,
     multiple_outputs: Optional[bool] = None,
     decorated_operator_class: Type[BaseOperator],
     **kwargs,
-) -> Callable[[T], T]:
+) -> TaskDecorator:
     """
     A factory that generates a wrapper that raps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
@@ -324,20 +344,19 @@ def task_decorator_factory(
     if multiple_outputs is None:
         multiple_outputs = cast(bool, attr.NOTHING)
     if python_callable:
-        return _TaskDecorator(  # type: ignore
+        decorator = _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
             kwargs=kwargs,
         )
+        return cast(TaskDecorator, decorator)
     elif python_callable is not None:
         raise TypeError('No args allowed while using @task, use kwargs instead')
-    return cast(
-        "Callable[[T], T]",
-        functools.partial(
-            _TaskDecorator,
-            multiple_outputs=multiple_outputs,
-            operator_class=decorated_operator_class,
-            kwargs=kwargs,
-        ),
+    decorator_factory = functools.partial(
+        _TaskDecorator,
+        multiple_outputs=multiple_outputs,
+        operator_class=decorated_operator_class,
+        kwargs=kwargs,
     )
+    return cast(TaskDecorator, decorator_factory)

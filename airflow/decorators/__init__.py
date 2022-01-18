@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+<<<<<<< HEAD
 from typing import TYPE_CHECKING
 
 from airflow.decorators.python import PythonDecoratorMixin, python_task  # noqa
@@ -22,11 +23,33 @@ from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
 from airflow.providers.cncf.kubernetes.decorators.kubernetes import KubernetesDecoratorMixin
+=======
+from airflow.decorators.base import TaskDecorator
+from airflow.decorators.python import python_task
+from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.task_group import task_group
+from airflow.models.dag import dag
+>>>>>>> 41a420c1481b862559c92bc9286d8cdb7d436972
 from airflow.providers_manager import ProvidersManager
 
+__all__ = ["dag", "task", "task_group", "python_task", "virtualenv_task"]
 
+
+class _TaskDecoratorFactory:
+    """Implementation to provide the ``@task`` syntax."""
+
+    python = staticmethod(python_task)
+    virtualenv = staticmethod(virtualenv_task)
+
+<<<<<<< HEAD
 class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin, KubernetesDecoratorMixin):
     def __getattr__(self, name):
+=======
+    __call__ = python  # Alias '@task' to '@task.python'.
+
+    def __getattr__(self, name: str) -> TaskDecorator:
+        """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
+>>>>>>> 41a420c1481b862559c92bc9286d8cdb7d436972
         if name.startswith("__"):
             raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
         decorators = ProvidersManager().taskflow_decorators
@@ -35,17 +58,4 @@ class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin, Kuber
         return decorators[name]
 
 
-# [START mixin_for_autocomplete]
-if TYPE_CHECKING:
-    try:
-        from airflow.providers.docker.decorators.docker import DockerDecoratorMixin
-
-        class _DockerTask(_TaskDecorator, DockerDecoratorMixin):
-            pass
-
-        _TaskDecorator = _DockerTask  # type: ignore[misc]
-    except ImportError:
-        pass
-# [END mixin_for_autocomplete]
-
-task = _TaskDecorator()
+task = _TaskDecoratorFactory()
