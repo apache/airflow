@@ -395,7 +395,7 @@ def test_page_instance_name_xss_prevention(admin_client):
 @conf_vars(
     {
         ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
-        ("webserver", "instance_name_markup"): "True",
+        ("webserver", "instance_name_has_markup"): "True",
     }
 )
 def test_page_instance_name_with_markup(admin_client):

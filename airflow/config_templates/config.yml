@@ -1303,7 +1303,7 @@
       type: string
       example: ~
       default:
-    - name: instance_name_markup
+    - name: instance_name_has_markup
       description: |
         Whether the custom page title for the DAGs overview page contains any Markup language
       version_added: 2.3.0
