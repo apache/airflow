@@ -259,12 +259,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         return user.roles
 
-    def current_user_has_permissions(self) -> bool:
-        for role in self.get_user_roles():
-            if role.permissions:
-                return True
-        return False
-
     def get_readable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs readable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])
@@ -370,23 +364,25 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         return False
 
-    def _has_role(self, role_name_or_list):
+    def _has_role(self, role_name_or_list, user):
         """Whether the user has this role name"""
         if not isinstance(role_name_or_list, list):
             role_name_or_list = [role_name_or_list]
-        return any(r.name in role_name_or_list for r in self.current_user.roles)
+        return any(r.name in role_name_or_list for r in user.roles)
 
-    def has_all_dags_access(self):
+    def has_all_dags_access(self, user):
         """
         Has all the dag access in any of the 3 cases:
         1. Role needs to be in (Admin, Viewer, User, Op).
         2. Has can_read action on dags resource.
         3. Has can_edit action on dags resource.
         """
+        if not user:
+            user = g.user
         return (
-            self._has_role(['Admin', 'Viewer', 'Op', 'User'])
-            or self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)
-            or self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)
+            self._has_role(['Admin', 'Viewer', 'Op', 'User'], user)
+            or self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
+            or self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
         )
 
     def clean_perms(self):
