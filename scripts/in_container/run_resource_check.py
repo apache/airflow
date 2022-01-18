@@ -35,19 +35,19 @@ class Resource:
 console = Console(force_terminal=True, color_system="standard", width=180)
 
 
-def get_size(kilobytes):
+def get_size(bytes):
     """
-    Convert kilobytes into gigabytes
-    1 Gigabytes = 1024*1024*1024 = 1,048,576 Kb
+    Convert Bytes into Gigabytes
+    1 Gigabytes = 1024*1024*1024 = 1073741824 bytes
     """
     factor = 1024 * 1024 * 1024
-    value_gb = kilobytes // factor
+    value_gb = bytes // factor
     return value_gb
 
 
 def resoure_check():
     """
-    Use gsutil to get resources in kylobytes: memory, cpus and disk
+    Use gsutil to get resources in bytes for memory and disk
     """
     MINIMUM_ALLOWED_MEMORY = 4
     MINIMUM_ALLOWED_CPUS = 2
