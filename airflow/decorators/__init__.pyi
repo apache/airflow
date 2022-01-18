@@ -58,6 +58,10 @@ class TaskDecoratorFactory:
             such as transmission a large amount of XCom to TaskAPI.
         :type show_return_value_in_logs: bool
         """
+    # [START mixin_for_typing]
+    @overload
+    def python(self, python_callable: F) -> F: ...
+    # [END mixin_for_typing]
     @overload
     def __call__(
         self,
@@ -86,6 +90,8 @@ class TaskDecoratorFactory:
             such as transmission a large amount of XCom to TaskAPI.
         :type show_return_value_in_logs: bool
         """
+    @overload
+    def __call__(self, python_callable: F) -> F: ...
     @overload
     def virtualenv(
         self,
@@ -133,6 +139,8 @@ class TaskDecoratorFactory:
             such as transmission a large amount of XCom to TaskAPI.
         :type show_return_value_in_logs: bool
         """
+    @overload
+    def virtualenv(self, python_callable: F) -> F: ...
     # [START decorator_signature]
     @overload
     def docker(
@@ -263,15 +271,5 @@ class TaskDecoratorFactory:
         :type cap_add: list[str]
         """
         # [END decorator_signature]
-    # [START mixin_for_typing]
-    @overload
-    def __call__(self, python_callable: F) -> F: ...
-    @overload
-    def python(self, python_callable: F) -> F: ...
-    @overload
-    def virtualenv(self, python_callable: F) -> F: ...
-    @overload
-    def docker(self, python_callable: F) -> F: ...
-    # [END mixin_for_typing]
 
 task = TaskDecoratorFactory()
