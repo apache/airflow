@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-echo "${COLOR_BLUE}Disable swap${COLOR_RESET}"
-sudo swapoff -a
-sudo rm -f /swapfile
-
-echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
-sudo apt clean || true
-
-echo "${COLOR_BLUE}Pruning docker${COLOR_RESET}"
-docker_v system prune --all --force --volumes
-
-echo "${COLOR_BLUE}Free disk space  ${COLOR_RESET}"
-df -h
-
-# always logout from the docker registry - this is necessary as we can have an expired token from
-# previous job!.
-docker_v logout "ghcr.io"

@@ -2362,6 +2362,7 @@ class TestSchedulerJob:
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
+            'test_invalid_param.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:

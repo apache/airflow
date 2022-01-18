@@ -20,7 +20,7 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -41,7 +41,7 @@ class TaskReschedule(Base):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index = Column(Integer, nullable=False, default=-1)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
