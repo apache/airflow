@@ -24,7 +24,6 @@
 
 from typing import Optional
 
-from airflow.providers.sensors.wasb import WasbPrefixSensor
 from airflow.sensors.base import BaseSensorOperator
 
 class WasbBlobSensor(BaseSensorOperator):
@@ -42,7 +41,3 @@ class WasbBlobSensor(BaseSensorOperator):
         check_options: Optional[dict] = None,
         **kwargs,
     ) -> None: ...
-
-# Adding this public module override to suppress Mypy errors stating
-# "airflow.providers.microsoft.azure.sensors.wasb has no attribute 'WasbPrefixSensor'".
-__all__ = ["WasbBlobSensor", "WasbPrefixSensor"]
