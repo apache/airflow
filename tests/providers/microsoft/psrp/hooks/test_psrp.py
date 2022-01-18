@@ -142,8 +142,14 @@ class TestPsrpHook(TestCase):
         if logging_level is not None:
             options["logging_level"] = logging_level
 
+        on_output_callback = Mock()
+
         with PsrpHook(
-            CONNECTION_ID, runspace_options=runspace_options, wsman_options=wsman_options, **options
+            CONNECTION_ID,
+            runspace_options=runspace_options,
+            wsman_options=wsman_options,
+            on_output_callback=on_output_callback,
+            **options,
         ) as hook, patch.object(type(hook), "log") as logger:
             try:
                 with hook.invoke() as ps:
@@ -159,6 +165,7 @@ class TestPsrpHook(TestCase):
                 self.fail("Expected an error")
             assert ps.state == PSInvocationState.COMPLETED
 
+        assert on_output_callback.mock_calls == [call('output')]
         assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
         assert ws_man.call_args_list[0][1]["encryption"] == "auto"

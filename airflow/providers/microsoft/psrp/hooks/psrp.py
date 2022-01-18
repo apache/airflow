@@ -20,7 +20,7 @@ import re
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 from weakref import WeakKeyDictionary
 
 from pypsrp.messages import MessageType
@@ -36,6 +36,8 @@ INFORMATIONAL_RECORD_LEVEL_MAP = {
     MessageType.VERBOSE_RECORD: INFO,
     MessageType.WARNING_RECORD: WARNING,
 }
+
+OutputCallback = Callable[[str], None]
 
 
 class PsrpHook(BaseHook):
@@ -62,6 +64,10 @@ class PsrpHook(BaseHook):
         Optional dictionary which is passed when creating the `WSMan` client. See
         :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
     :type wsman_options: dict
+    :param on_output_callback:
+        Optional callback function to be called whenever an output response item is
+        received during job status polling.
+    :type on_output_callback: OutputCallback
     :param exchange_keys:
         If true (default), automatically initiate a session key exchange when the
         hook is used as a context manager.
@@ -82,6 +88,7 @@ class PsrpHook(BaseHook):
         operation_timeout: Optional[float] = None,
         runspace_options: Optional[Dict[str, Any]] = None,
         wsman_options: Optional[Dict[str, Any]] = None,
+        on_output_callback: Optional[OutputCallback] = None,
         exchange_keys: bool = True,
     ):
         self.conn_id = psrp_conn_id
@@ -89,6 +96,7 @@ class PsrpHook(BaseHook):
         self._operation_timeout = operation_timeout
         self._runspace_options = runspace_options or {}
         self._wsman_options = wsman_options or {}
+        self._on_output_callback = on_output_callback
         self._exchange_keys = exchange_keys
 
     def __enter__(self):
@@ -165,6 +173,7 @@ class PsrpHook(BaseHook):
             ps.begin_invoke()
 
             streams = [
+                ps.output,
                 ps.streams.debug,
                 ps.streams.error,
                 ps.streams.information,
@@ -182,7 +191,16 @@ class PsrpHook(BaseHook):
                 for i, stream in enumerate(streams):
                     offset = offsets[i]
                     while len(stream) > offset:
-                        self._log_record(logger.log, stream[offset])
+                        record = stream[offset]
+
+                        # Records received on the output stream during job
+                        # status polling are handled via an optional callback,
+                        # while the other streams are simply logged.
+                        if stream is ps.output:
+                            if self._on_output_callback is not None:
+                                self._on_output_callback(record)
+                        else:
+                            self._log_record(logger.log, record)
                         offset += 1
                     offsets[i] = offset
 

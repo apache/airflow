@@ -24,7 +24,7 @@ from unittest.mock import Mock, call, patch
 import pytest
 from jinja2.nativetypes import NativeEnvironment
 from parameterized import parameterized
-from pypsrp.powershell import Command
+from pypsrp.powershell import Command, PowerShell
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
@@ -66,7 +66,7 @@ class TestPsrpOperator(TestCase):
         )
     )
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
-    def test_execute(self, parameter, had_errors, do_xcom_push, hook):
+    def test_execute(self, parameter, had_errors, do_xcom_push, hook_impl):
         kwargs = {parameter.name: "foo"}
         if parameter.expected_parameters:
             kwargs["parameters"] = parameter.expected_parameters
@@ -78,10 +78,10 @@ class TestPsrpOperator(TestCase):
             do_xcom_push=do_xcom_push,
             **kwargs,
         )
-        hook = hook.return_value.__enter__.return_value
-        ps = hook.invoke().__enter__.return_value
-        ps.output = [json.dumps("<output>")]
-        ps.had_errors = had_errors
+        ps = Mock(spec=PowerShell, output=[json.dumps("<output>")], had_errors=had_errors)
+        hook_impl.configure_mock(
+            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
+        )
         if had_errors:
             exception_msg = "Process failed"
             with pytest.raises(AirflowException, match=exception_msg):
@@ -89,6 +89,8 @@ class TestPsrpOperator(TestCase):
         else:
             output = op.execute(None)
             assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
+            is_logged = hook_impl.mock_calls[0].kwargs["on_output_callback"] == op.log.info
+            assert do_xcom_push ^ is_logged
         expected_ps_calls = [
             call.add_command(psrp_session_init),
             parameter.expected_method,

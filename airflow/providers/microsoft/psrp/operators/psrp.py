@@ -121,12 +121,13 @@ class PsrpOperator(BaseOperator):
         self.wsman_options = wsman_options
         self.psrp_session_init = psrp_session_init
 
-    def execute(self, context: "Context") -> List[Any]:
+    def execute(self, context: "Context") -> Optional[List[Any]]:
         with PsrpHook(
             self.conn_id,
             logging_level=self.logging_level,
             runspace_options=self.runspace_options,
             wsman_options=self.wsman_options,
+            on_output_callback=self.log.info if not self.do_xcom_push else None,
         ) as hook, hook.invoke() as ps:
             if self.psrp_session_init is not None:
                 ps.add_command(self.psrp_session_init)
@@ -145,7 +146,10 @@ class PsrpOperator(BaseOperator):
         if ps.had_errors:
             raise AirflowException("Process failed")
 
-        return [json.loads(output) for output in ps.output] if self.do_xcom_push else ps.output
+        if not self.do_xcom_push:
+            return None
+
+        return [json.loads(output) for output in ps.output]
 
     def get_template_env(self):
         # Create a template environment overlay in order to leave the underlying
