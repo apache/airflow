@@ -18,7 +18,7 @@
 #
 """This module contains Google Vertex AI operators."""
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
@@ -29,7 +29,9 @@ from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
 VERTEX_AI_MODEL_LINK = (
@@ -186,7 +188,7 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[CustomJobHook] = None
 
-    def execute(self, context: Context):
+    def execute(self, context: 'Context'):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -530,7 +532,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         super().__init__(**kwargs)
         self.command = command
 
-    def execute(self, context: Context):
+    def execute(self, context: 'Context'):
         super().execute(context)
         model = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
@@ -926,7 +928,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
 
-    def execute(self, context: Context):
+    def execute(self, context: 'Context'):
         super().execute(context)
         model = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
@@ -1325,7 +1327,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.requirements = requirements
         self.script_path = script_path
 
-    def execute(self, context: Context):
+    def execute(self, context: 'Context'):
         super().execute(context)
         model = self.hook.create_custom_training_job(
             project_id=self.project_id,
@@ -1455,7 +1457,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context):
+    def execute(self, context: 'Context'):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1587,7 +1589,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context):
+    def execute(self, context: 'Context'):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
