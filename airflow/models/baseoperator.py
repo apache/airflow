@@ -160,7 +160,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             func.__globals__['warnings'] = autostacklevel_warn()
 
         @functools.wraps(func)
-        def apply_defaults(self: "BaseOperator", *args: Any, task_id: str, **kwargs: Any) -> Any:
+        def apply_defaults(self: "BaseOperator", *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
             from airflow.utils.task_group import TaskGroupContext
 
@@ -203,14 +203,13 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             hook = getattr(self, '_hook_apply_defaults', None)
             if hook:
-                args, kwargs = hook(task_id=task_id, **kwargs, default_args=default_args)
-                task_id = kwargs.pop('task_id')
+                args, kwargs = hook(**kwargs, default_args=default_args)
                 default_args = kwargs.pop('default_args', {})
 
             if not hasattr(self, '_BaseOperator__init_kwargs'):
                 self._BaseOperator__init_kwargs = {}
 
-            result = func(self, **kwargs, task_id=task_id, default_args=default_args)
+            result = func(self, **kwargs, default_args=default_args)
             # Store the args passed to init -- we need them to support task.map serialzation!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
@@ -1753,6 +1752,7 @@ class MappedOperator(DAGNode):
             # are mapped, we want to _remove_ that task from the dag
             dag._remove_task(operator.task_id)
 
+        operator_init_kwargs: dict = operator._BaseOperator__init_kwargs  # type: ignore
         return MappedOperator(
             operator_class=type(operator),
             task_id=operator.task_id,
@@ -1760,7 +1760,7 @@ class MappedOperator(DAGNode):
             dag=getattr(operator, '_dag', None),
             start_date=operator.start_date,
             end_date=operator.end_date,
-            partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
+            partial_kwargs={k: v for k, v in operator_init_kwargs.items() if k != "task_id"},
             mapped_kwargs=mapped_kwargs,
             owner=operator.owner,
             max_active_tis_per_dag=operator.max_active_tis_per_dag,
