@@ -23,12 +23,14 @@ from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
 from airflow.providers.cncf.kubernetes.decorators.kubernetes import KubernetesDecoratorMixin
+
 =======
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
+
 >>>>>>> 41a420c1481b862559c92bc9286d8cdb7d436972
 from airflow.providers_manager import ProvidersManager
 
