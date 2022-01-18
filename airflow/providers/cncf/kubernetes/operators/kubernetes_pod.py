@@ -401,6 +401,7 @@ class KubernetesPodOperator(BaseOperator):
         return json.loads(result)
 
     def execute(self, context: 'Context'):
+        print("KUBERNETES POD OPERATOR" + str(context))
         remote_pod = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)

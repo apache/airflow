@@ -21,10 +21,11 @@ from airflow.decorators.python import PythonDecoratorMixin, python_task  # noqa
 from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
+from airflow.providers.cncf.kubernetes.decorators.kubernetes import KubernetesDecoratorMixin
 from airflow.providers_manager import ProvidersManager
 
 
-class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
+class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin, KubernetesDecoratorMixin):
     def __getattr__(self, name):
         if name.startswith("__"):
             raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
