@@ -47,7 +47,7 @@ class TestDbtCloudJobRunSensor:
         argnames=("job_run_status", "expected_poke_result"),
         argvalues=[
             (1, False),  # QUEUED
-            (2, False), # STARTING
+            (2, False),  # STARTING
             (3, False),  # RUNNING
             (10, True),  # SUCCESS
             (20, "exception"),  # ERROR
@@ -61,7 +61,7 @@ class TestDbtCloudJobRunSensor:
         if expected_poke_result != "exception":
             assert self.sensor.poke({}) == expected_poke_result
         else:
-            # The sensor should fail if the pipeline run status is "Failed" or "Cancelled".
+            # The sensor should fail if the job run status is 20 (aka Error) or 30 (aka Cancelled).
             if job_run_status == DbtCloudJobRunStatus.ERROR.value:
                 error_message = f"Job run {RUN_ID} has failed."
             else:
