@@ -973,23 +973,10 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """
         from airflow.models.xcom_arg import XComArg
 
-        def apply_set_upstream(arg: Any):
-            if isinstance(arg, XComArg):
-                self.set_upstream(arg.operator)
-            elif isinstance(arg, (tuple, set, list)):
-                for elem in arg:
-                    apply_set_upstream(elem)
-            elif isinstance(arg, dict):
-                for elem in arg.values():
-                    apply_set_upstream(elem)
-            elif hasattr(arg, "template_fields"):
-                for elem in arg.template_fields:
-                    apply_set_upstream(elem)
-
         for field in self.template_fields:
             if hasattr(self, field):
                 arg = getattr(self, field)
-                apply_set_upstream(arg)
+                XComArg.apply_upstream_relationship(self, arg)
 
     @property
     def priority_weight_total(self) -> int:
@@ -1734,6 +1721,8 @@ class MappedOperator(DAGNode):
     params: Union[ParamsDict, dict] = attr.ib(factory=ParamsDict)
     template_fields: Iterable[str] = attr.ib()
 
+    subdag: None = attr.ib(init=False)
+
     @_is_dummy.default
     def _is_dummy_default(self):
         from airflow.operators.dummy import DummyOperator
@@ -1795,11 +1784,16 @@ class MappedOperator(DAGNode):
         return operator
 
     def __attrs_post_init__(self):
+        from airflow.models.xcom_arg import XComArg
+
         if self.task_group:
             self.task_id = self.task_group.child_id(self.task_id)
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
+
+        for arg in self.mapped_kwargs.values():
+            XComArg.apply_upstream_relationship(self, arg)
 
     @task_type.default
     def _default_task_type(self):
@@ -1829,8 +1823,12 @@ class MappedOperator(DAGNode):
 
         :return: ``self`` for easier method chaining
         """
+        from airflow.models.xcom_arg import XComArg
+
         if self.mapped_kwargs:
             raise RuntimeError("Already a mapped task")
+        for arg in kwargs.values():
+            XComArg.apply_upstream_relationship(self, arg)
         return attr.evolve(self, mapped_kwargs=kwargs)
 
     @property
@@ -1865,6 +1863,7 @@ class MappedOperator(DAGNode):
             cls.__serialized_fields = frozenset(
                 fields_dict.keys()
                 - {
+                    'dag',
                     'deps',
                     'inherits_from_dummy_operator',
                     'operator_extra_links',
