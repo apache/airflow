@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 This is an example dag for using `S3ToRedshiftOperator` to copy a S3 key into a Redshift table.
 """
