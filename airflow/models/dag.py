@@ -88,6 +88,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
+    from airflow.decorators import TaskDecoratorFactory
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -2102,8 +2103,8 @@ class DAG(LoggingMixin):
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # make the cut
-            t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
-            t._downstream_task_ids = t.downstream_task_ids.intersection(dag.task_dict.keys())
+            t.upstream_task_ids.intersection_update(dag.task_dict)
+            t.downstream_task_ids.intersection_update(dag.task_dict)
 
         if len(dag.tasks) < len(self.tasks):
             dag.partial = True
@@ -2164,10 +2165,10 @@ class DAG(LoggingMixin):
             get_downstream(t)
 
     @property
-    def task(self):
+    def task(self) -> "TaskDecoratorFactory":
         from airflow.decorators import task
 
-        return functools.partial(task, dag=self)
+        return cast("TaskDecoratorFactory", functools.partial(task, dag=self))
 
     def add_task(self, task):
         """

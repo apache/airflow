@@ -3308,15 +3308,15 @@ class SlaMissModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
+    list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'notification_sent', 'timestamp']
 
     label_columns = {
         'execution_date': 'Logical Date',
     }
 
-    add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
-    edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
-    search_columns = ['dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date']
+    add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'notification_sent', 'timestamp']
+    edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'notification_sent', 'timestamp']
+    search_columns = ['dag_id', 'task_id', 'email_sent', 'notification_sent', 'timestamp', 'execution_date']
     base_order = ('execution_date', 'desc')
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
