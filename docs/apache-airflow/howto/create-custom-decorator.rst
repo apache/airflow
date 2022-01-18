@@ -38,14 +38,18 @@ tasks. The steps to create and register ``@task.foo`` are:
 
     .. code-block:: python
 
-        from airflow.decorators.base import TaskDecorator, task_decorator_factory
+        from typing import TYPE_CHECKING
+        from airflow.decorators.base import task_decorator_factory
+
+        if TYPE_CHECKING:
+            from airflow.decorators.base import TaskDecorator
 
 
         def foo_task(
             python_callable: Optional[Callable] = None,
             multiple_outputs: Optional[bool] = None,
             **kwargs,
-        ) -> TaskDecorator:
+        ) -> "TaskDecorator":
             return task_decorator_factory(
                 python_callable=python_callable,
                 multiple_outputs=multiple_outputs,

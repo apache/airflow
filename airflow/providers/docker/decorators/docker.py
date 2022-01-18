@@ -25,11 +25,12 @@ from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
 import dill
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
 
 if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
     from airflow.utils.context import Context
 
 
@@ -133,7 +134,7 @@ def docker_task(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
     **kwargs,
-) -> TaskDecorator:
+) -> "TaskDecorator":
     """
     Python operator decorator. Wraps a function into an Airflow operator.
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
