@@ -72,6 +72,9 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param file_encoding: Optional encoding used to decode file_bytes into a serializable
+        string that is suitable for storing to XCom. (templated).
+    :type file_encoding: str
     """
 
     template_fields: Sequence[str] = (
@@ -80,6 +83,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         'filename',
         'store_to_xcom_key',
         'impersonation_chain',
+        'file_encoding',
     )
     ui_color = '#f0eee4'
 
@@ -94,6 +98,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        file_encoding: Optional[str] = 'utf-8',
         **kwargs,
     ) -> None:
         # To preserve backward compatibility
@@ -126,6 +131,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.file_encoding = file_encoding
 
     def execute(self, context: 'Context'):
         self.log.info('Executing download: %s, %s, %s', self.bucket, self.object_name, self.filename)
@@ -139,7 +145,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
             file_size = hook.get_size(bucket_name=self.bucket, object_name=self.object_name)
             if file_size < MAX_XCOM_SIZE:
                 file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object_name)
-                context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes))
+                context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes, self.file_encoding))
             else:
                 raise AirflowException('The size of the downloaded file is too large to push to XCom!')
         else:
