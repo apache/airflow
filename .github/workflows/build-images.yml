@@ -300,20 +300,14 @@ jobs:
         run: ./scripts/ci/tools/free_space.sh
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # Pull images built in the previous step
+        # Pull images built in the previous step (so GITHUB_REGISTRY_PULL_IMAGE_TAG needs to be overridden)
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
-          # Here we are using PULL_IMAGE_TAG set in the environment variables above
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: "Build PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-        env:
-          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
-        env:
-          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
 
   cancel-on-ci-build:
     permissions:
