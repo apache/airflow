@@ -237,7 +237,8 @@ class TestDagFileProcessor:
         # ti is successful thereby trying to insert a duplicate record.
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-    def test_dag_file_processor_sla_miss_callback_exception(self, create_dummy_dag, mock_stats_incr):
+    @mock.patch('airflow.dag_processing.processor.Stats.incr')
+    def test_dag_file_processor_sla_miss_callback_exception(self, mock_stats_incr, create_dummy_dag):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
         calling the sla_miss_callback
@@ -253,6 +254,7 @@ class TestDagFileProcessor:
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
+        mock_stats_incr.reset_mock()
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
