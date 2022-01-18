@@ -1756,8 +1756,8 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         return self.partial_kwargs.get("run_as_user")
 
     @property
-    def pool(self) -> Optional[str]:
-        return self.partial_kwargs.get("pool")
+    def pool(self) -> str:
+        return self.partial_kwargs.get("pool") or Pool.DEFAULT_POOL_NAME
 
     @property
     def pool_slots(self) -> int:
