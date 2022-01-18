@@ -74,11 +74,23 @@ following named arguments:
 Output
 ######
 
-When using one of the PowerShell arguments (i.e., ``cmdlet`` or
-``powershell``), the session output is converted to JSON using the
-``ConvertTo-Json`` cmdlet and then decodes on the client-side such that
-the value is compatible with :doc:`XComs
-<apache-airflow:concepts/xcoms>`.
+PowerShell provides multiple output streams.
+
+In general, the operator logs a record using the built-in logging
+mechanism for records that arrive on these streams using a job status
+polling mechanism. The success stream (i.e., stdout or shell output)
+is handled differently, as explained in the following:
+
+When :doc:`XComs <apache-airflow:concepts/xcoms>` are enabled and when
+the operator is used with a native PowerShell cmdlet or script, the
+shell output is converted to JSON using the ``ConvertTo-Json`` cmdlet
+and then decoded on the client-side by the operator such that the
+operator's return value is compatible with the serialization required
+by XComs.
+
+When XComs are not enabled (that is, ``do_xcom_push`` is set to
+false), the shell output is instead logged like the other output
+streams and will appear in the task instance log.
 
 
 Secure strings
