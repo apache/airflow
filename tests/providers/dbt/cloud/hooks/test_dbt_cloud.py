@@ -67,10 +67,13 @@ class TestDbtCloudJobRunStatus:
         ["1", "2", "65"],
     ]
 
+    def _get_ids(status_set):
+        return [f"checking_status_{argval}" for argval in status_set]
+
     @pytest.mark.parametrize(
         argnames="statuses",
         argvalues=valid_job_run_statuses,
-        ids=[f"checking_status_{argval}" for argval in valid_job_run_statuses],
+        ids=_get_ids(valid_job_run_statuses),
     )
     def test_valid_job_run_status(self, statuses):
         DbtCloudJobRunStatus.check_is_valid(statuses)
@@ -78,7 +81,7 @@ class TestDbtCloudJobRunStatus:
     @pytest.mark.parametrize(
         argnames="statuses",
         argvalues=invalid_job_run_statuses,
-        ids=[f"checking_status_{argval}" for argval in invalid_job_run_statuses],
+        ids=_get_ids(invalid_job_run_statuses),
     )
     def test_invalid_job_run_status(self, statuses):
         with pytest.raises(ValueError):
@@ -87,7 +90,7 @@ class TestDbtCloudJobRunStatus:
     @pytest.mark.parametrize(
         argnames="statuses",
         argvalues=valid_job_run_statuses,
-        ids=[f"checking_status_{argval}" for argval in valid_job_run_statuses],
+        ids=_get_ids(valid_job_run_statuses),
     )
     def test_valid_terminal_job_run_status(self, statuses):
         DbtCloudJobRunStatus.check_is_valid(statuses)
@@ -95,7 +98,7 @@ class TestDbtCloudJobRunStatus:
     @pytest.mark.parametrize(
         argnames="statuses",
         argvalues=invalid_job_run_statuses,
-        ids=[f"checking_status_{argval}" for argval in invalid_job_run_statuses],
+        ids=_get_ids(invalid_job_run_statuses),
     )
     def test_invalid_terminal_job_run_status(self, statuses):
         with pytest.raises(ValueError):
