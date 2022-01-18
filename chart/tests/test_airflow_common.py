@@ -267,4 +267,4 @@ class TestAirflowCommon:
             "mountPath": "/opt/airflow"
         }
         for doc in docs:
-            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", dqoc)
+            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
