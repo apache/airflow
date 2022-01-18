@@ -57,6 +57,7 @@ class TestDbtCloudJobRunStatus:
         DbtCloudJobRunStatus.check_is_valid(20)  # ERROR
         DbtCloudJobRunStatus.check_is_valid(30)  # CANCELLED
         DbtCloudJobRunStatus.check_is_valid([1, 2, 3])  # QUEUED, STARTING, and RUNNING
+        DbtCloudJobRunStatus.check_is_valid({10, 20, 30})  # SUCCESS, ERROR, and CANCELLED
 
         # Test with invalid statuses values either by value or type
         with pytest.raises(ValueError):
@@ -86,7 +87,7 @@ class TestDbtCloudJobRunStatus:
         assert not DbtCloudJobRunStatus.is_terminal(2)  # STARTING
         assert not DbtCloudJobRunStatus.is_terminal(3)  # RUNNING
         assert not DbtCloudJobRunStatus.is_terminal([1, 2, 3])  # QUEUED, STARTING, and RUNNING
-        assert not DbtCloudJobRunStatus.is_terminal([10, 20, 30])  # SUCCESS, ERROR, and CANCELLED
+        assert not DbtCloudJobRunStatus.is_terminal({10, 20, 30})  # SUCCESS, ERROR, and CANCELLED
 
         # Test with invalid statuses by both value and type
         with pytest.raises(ValueError):
@@ -578,16 +579,26 @@ class TestDbtCloudHook:
         )
         hook._paginate.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "conn_id",
+        [ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
+        ids=["default_account", "explicit_account"],
+    )
     def test_connection_success(self, requests_mock, conn_id):
         requests_mock.get(BASE_URL, status_code=200)
-        status, msg = DbtCloudHook(ACCOUNT_ID_CONN).test_connection()
+        status, msg = DbtCloudHook(conn_id).test_connection()
 
         assert status is True
         assert msg == "Successfully connected to dbt Cloud."
 
-    def test_connection_failure(self, requests_mock):
+    @pytest.mark.parametrize(
+        "conn_id",
+        [ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_connection_failure(self, requests_mock, conn_id):
         requests_mock.get(BASE_URL, status_code=403, reason="Authentication credentials were not provided")
-        status, msg = DbtCloudHook(ACCOUNT_ID_CONN).test_connection()
+        status, msg = DbtCloudHook(conn_id).test_connection()
 
         assert status is False
         assert msg == "403:Authentication credentials were not provided"
