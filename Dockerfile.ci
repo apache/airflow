@@ -291,11 +291,6 @@ RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not v
         /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-# Generate random hex dump file so that we can determine whether it's faster to rebuild the image
-# using current cache (when our dump is the same as the remote onb) or better to pull
-# the new image (when it is different)
-RUN head -c 30 /dev/urandom | xxd -ps >/build-cache-hash
-
 # Copy package.json and yarn.lock to install node modules
 # this way even if other static check files change, node modules will not need to be installed
 # we want to keep node_modules so we can do this step separately from compiling assets
