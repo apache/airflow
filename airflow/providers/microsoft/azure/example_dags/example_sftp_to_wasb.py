@@ -34,7 +34,7 @@ FILE_COMPLETE_PATH = os.path.join(LOCAL_FILE_PATH, SAMPLE_FILENAME)
 SFTP_FILE_COMPLETE_PATH = os.path.join(SFTP_SRC_PATH, SAMPLE_FILENAME)
 
 
-@task
+@task()
 def delete_sftp_file():
     """Delete a file at SFTP SERVER"""
     SFTPHook().delete_file(SFTP_FILE_COMPLETE_PATH)

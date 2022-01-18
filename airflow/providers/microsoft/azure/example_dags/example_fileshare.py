@@ -25,7 +25,7 @@ NAME = 'myfileshare'
 DIRECTORY = "mydirectory"
 
 
-@task
+@task()
 def create_fileshare():
     """Create a fileshare with directory"""
     hook = AzureFileShareHook()
@@ -36,7 +36,7 @@ def create_fileshare():
         raise Exception
 
 
-@task
+@task()
 def delete_fileshare():
     """Delete a fileshare"""
     hook = AzureFileShareHook()
