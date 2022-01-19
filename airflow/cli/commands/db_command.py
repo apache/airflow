@@ -45,7 +45,7 @@ def resetdb(args):
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    db.upgradedb()
+    db.upgradedb(version_range=args.range, revision_range=args.revision_range)
     print("Upgrades done")
 
 
