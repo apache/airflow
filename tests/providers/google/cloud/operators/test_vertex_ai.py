@@ -30,7 +30,10 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     ListAutoMLTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import (
+    CancelBatchPredictionJobOperator,
     CreateBatchPredictionJobOperator,
+    DeleteBatchPredictionJobOperator,
+    ListBatchPredictionJobsOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
@@ -120,6 +123,7 @@ TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
 TEST_BATCH_PREDICTION_JOB = {
     "display_name": "test_batch",
 }
+TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -981,7 +985,7 @@ class TestVertexAICreateBatchPredictionJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
@@ -989,6 +993,104 @@ class TestVertexAICreateBatchPredictionJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIDeleteBatchPredictionJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute(self, mock_hook):
+        op = DeleteBatchPredictionJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch_prediction_job=TEST_BATCH_PREDICTION_JOB_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.delete_batch_prediction_job.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch_prediction_job=TEST_BATCH_PREDICTION_JOB_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIListBatchPredictionJobsOperator:
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute(self, mock_hook):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        read_mask = "read_mask"
+
+        op = ListBatchPredictionJobsOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.list_batch_prediction_jobs.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAICancelBatchPredictionJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute(self, mock_hook):
+        op = CancelBatchPredictionJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch_prediction_job=TEST_BATCH_PREDICTION_JOB_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.cancel_batch_prediction_job.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch_prediction_job=TEST_BATCH_PREDICTION_JOB_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
