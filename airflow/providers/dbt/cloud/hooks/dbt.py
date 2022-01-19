@@ -96,7 +96,7 @@ class DbtCloudJobRunStatus(Enum):
     TERMINAL_STATUSES = (SUCCESS, ERROR, CANCELLED)
 
     @classmethod
-    def check_is_valid(cls, statuses: Union[int, Sequence[int], Set[int]]) -> bool:
+    def check_is_valid(cls, statuses: Union[int, Sequence[int], Set[int]]):
         """Validates input statuses are a known value."""
         if isinstance(statuses, (Sequence, Set)):
             for status in statuses:
@@ -121,7 +121,6 @@ class DbtCloudHook(HttpHook):
     Interact with dbt Cloud using the V2 API.
 
     :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
-    :type dbt_cloud_conn_id: str
     """
 
     conn_name_attr = "dbt_cloud_conn_id"
@@ -186,13 +185,19 @@ class DbtCloudHook(HttpHook):
         self,
         method: str = "GET",
         endpoint: Optional[str] = None,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Union[str, Dict[str, Any], None] = None,
         paginate: bool = False,
-    ) -> Union[Response, List[Response]]:
+    ) -> Any:
         self.method = method
 
         if paginate:
-            return self._paginate(endpoint=endpoint, payload=payload)
+            if isinstance(payload, str):
+                raise ValueError("Payload cannot be a string to paginate a response.")
+
+            if endpoint:
+                return self._paginate(endpoint=endpoint, payload=payload)
+            else:
+                raise ValueError("An endpoint is needed to paginate a response.")
 
         return self.run(endpoint=endpoint, data=payload)
 
@@ -210,7 +215,6 @@ class DbtCloudHook(HttpHook):
         Retrieves metadata for a specific dbt Cloud account.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :return: The request response.
         """
         return self._run_and_get_response(endpoint=f"{account_id}/")
@@ -221,7 +225,6 @@ class DbtCloudHook(HttpHook):
         Retrieves metadata for all projects tied to a specified dbt Cloud account.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :return: List of request responses.
         """
         return self._run_and_get_response(endpoint=f"{account_id}/projects/", paginate=True)
@@ -232,9 +235,7 @@ class DbtCloudHook(HttpHook):
         Retrieves metadata for a specific project.
 
         :param project_id: The ID of a dbt Cloud project.
-        :type project_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :return: The request response.
         """
         return self._run_and_get_response(endpoint=f"{account_id}/projects/{project_id}/")
@@ -251,12 +252,9 @@ class DbtCloudHook(HttpHook):
         supplied, only jobs pertaining to this job will be retrieved.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
             For example, to use reverse order by the run ID use ``order_by=-id``.
-        :type order_by: str
         :param project_id: The ID of a dbt Cloud project.
-        :type project_id: int
         :return: List of request responses.
         """
         return self._run_and_get_response(
@@ -271,9 +269,7 @@ class DbtCloudHook(HttpHook):
         Retrieves metadata for a specific job.
 
         :param job_id: The ID of a dbt Cloud job.
-        :type job_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :return: The request response.
         """
         return self._run_and_get_response(endpoint=f"{account_id}/jobs/{job_id}")
@@ -292,20 +288,14 @@ class DbtCloudHook(HttpHook):
         Triggers a run of a dbt Cloud job.
 
         :param job_id: The ID of a dbt Cloud job.
-        :type job_id: int
         :param cause: Description of the reason to trigger the job.
-        :type cause: str
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param steps_override: Optional. List of dbt commands to execute when triggering the job
             instead of those configured in dbt Cloud.
-        :type steps_override: List[str]
         :param schema_override: Optional. Override the destination schema in the configured target for this
             job.
-        :type schema_override: str
         :param additional_run_config: Optional. Any additional parameters that should be included in the API
             request when triggering the job.
-        :type additional_run_config: Dict[str, Any]
         :return: The request response.
         """
         if additional_run_config is None:
@@ -328,7 +318,7 @@ class DbtCloudHook(HttpHook):
     def list_job_runs(
         self,
         account_id: Optional[int] = None,
-        include_related: List[str] = ["trigger", "job", "repository", "environment"],
+        include_related: Optional[List[str]] = None,
         job_definition_id: Optional[int] = None,
         order_by: Optional[str] = None,
     ) -> List[Response]:
@@ -337,12 +327,9 @@ class DbtCloudHook(HttpHook):
         supplied, only metadata for runs of that specific job are pulled.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param include_related: Optional. List of related fields to pull with the run.
             Valid values are "trigger", "job", "repository", and "environment".
-        :type include_related: List[str]
         :param job_definition_id: Optional. The dbt Cloud job ID to retrieve run metadata.
-        :type job_definition_id: int
         :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
             For example, to use reverse order by the run ID use ``order_by=-id``.
         :return: List of request responses.
@@ -365,12 +352,9 @@ class DbtCloudHook(HttpHook):
         Retrieves metadata for a specific run of a dbt Cloud job.
 
         :param run_id: The ID of a dbt Cloud job run.
-        :type run_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param include_related: Optional. List of related fields to pull with the run.
             Valid values are "trigger", "job", "repository", and "environment".
-        :type include_related: List[str]
         :return: The request response.
         """
         return self._run_and_get_response(
@@ -383,17 +367,17 @@ class DbtCloudHook(HttpHook):
         Retrieves the status for a specific run of a dbt Cloud job.
 
         :param run_id: The ID of a dbt Cloud job run.
-        :type run_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :return: The status of a dbt Cloud job run.
         """
-        self.log.info(f"Getting the status of job run {run_id}.")
+        self.log.info("Getting the status of job run %s.", str(run_id))
 
         job_run = self.get_job_run(account_id=account_id, run_id=run_id)
         job_run_status = job_run.json()["data"]["status"]
 
-        self.log.info(f"Current status of job run {run_id}: {DbtCloudJobRunStatus(job_run_status).name}")
+        self.log.info(
+            "Current status of job run %s: %s", str(run_id), DbtCloudJobRunStatus(job_run_status).name
+        )
 
         return job_run_status
 
@@ -409,16 +393,12 @@ class DbtCloudHook(HttpHook):
         Waits for a dbt Cloud job run to match an expected status.
 
         :param run_id: The ID of a dbt Cloud job run.
-        :type run_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param expected_statuses: Optional. The desired status(es) to check against a job run's current
             status. Defaults to the success status value.
         :param check_interval: Time in seconds to check on a pipeline run's status.
-        :type check_interval: int
         :param timeout: Time in seconds to wait for a pipeline to reach a terminal status or the expected
             status.
-        :param timeout: int
         :return: Boolean indicating if the job run has reached the ``expected_status``.
         """
         expected_statuses = (expected_statuses,) if isinstance(expected_statuses, int) else expected_statuses
@@ -452,9 +432,7 @@ class DbtCloudHook(HttpHook):
         Cancel a specific dbt Cloud job run.
 
         :param run_id: The ID of a dbt Cloud job run.
-        :type run_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         """
         self._run_and_get_response(method="POST", endpoint=f"{account_id}/runs/{run_id}/cancel/")
 
@@ -468,13 +446,10 @@ class DbtCloudHook(HttpHook):
         the run, use the ``step`` parameter.
 
         :param run_id: The ID of a dbt Cloud job run.
-        :type run_id: int
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param step: Optional. The index of the Step in the Run to query for artifacts. The first step in the
             run has the index 1. If the step parameter is omitted, artifacts for the last step in the run will
             be returned.
-        :type step: int
         :return: List of request responses.
         """
         return self._run_and_get_response(
@@ -491,17 +466,13 @@ class DbtCloudHook(HttpHook):
         the run, use the ``step`` parameter.
 
         :param run_id: The ID of a dbt Cloud job run.
-        :type run_id: int
         :param path: The file path related to the artifact file. Paths are rooted at the target/ directory.
             Use "manifest.json", "catalog.json", or "run_results.json" to download dbt-generated artifacts
             for the run.
-        :type path: str
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :type account_id: int
         :param step: Optional. The index of the Step in the Run to query for artifacts. The first step in the
             run has the index 1. If the step parameter is omitted, artifacts for the last step in the run will
             be returned.
-        :type step: int
         :return: The request response.
         """
         return self._run_and_get_response(
