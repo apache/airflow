@@ -500,6 +500,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     _lock_for_execution = False
 
     _dag: Optional["DAG"] = None
+    task_group: Optional["TaskGroup"] = None
 
     # subdag parameter is only set for SubDagOperator.
     # Setting it to None by default as other Operators do not have that field
