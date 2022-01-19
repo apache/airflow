@@ -435,7 +435,7 @@ class DbtCloudHook(HttpHook):
         ):
             # Check if the job-run duration has exceeded the ``timeout`` configured.
             if start_time + timeout < time.monotonic():
-                raise AirflowException(
+                raise DbtCloudJobRunException(
                     f"Job run {run_id} has not reached a terminal status after {timeout} seconds."
                 )
 

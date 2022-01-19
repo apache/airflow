@@ -74,6 +74,7 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param additional_run_config: Optional. Any additional parameters that should be included in the API
         request when triggering the job.
     :type additional_run_config: Dict[str, Any]
+    :return: The ID of the triggered dbt Cloud job run.
     """
 
     template_fields = ("dbt_cloud_conn_id", "job_id", "account_id", "trigger_reason")
@@ -89,7 +90,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         trigger_reason: Optional[str] = None,
         steps_override: Optional[List[str]] = None,
         schema_override: Optional[str] = None,
-        wait_for_termination: bool = False,
+        wait_for_termination: bool = True,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         additional_run_config: Optional[Dict[str, Any]] = None,
