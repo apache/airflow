@@ -264,7 +264,7 @@ class TestAirflowCommon:
             "subPath": "airflow.cfg",
             "name": "config",
             "readOnly": True,
-            "mountPath": "/opt/airflow"
+            "mountPath": "/opt/airflow/airflow.cfg",
         }
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
