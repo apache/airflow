@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Needs to be declared outside of function for MacOS
+
+BUILD_COMMAND=()
+
 # For remote installation of airflow (from GitHub or PyPI) when building the image, you need to
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
@@ -319,26 +323,24 @@ function build_images::get_docker_cache_image_names() {
 }
 
 function build_images::check_if_buildx_plugin_available() {
-    export BUILD_COMMAND=("build")
     local buildx_version
     buildx_version=$(docker buildx version 2>/dev/null || true)
     if [[ ${buildx_version} != "" ]]; then
-        BUILDX_PLUGIN_AVAILABLE="true"
-        export BUILD_COMMAND=("buildx" "build" "--builder" "default" "--progress=tty")
-    else
-        BUILDX_PLUGIN_AVAILABLE="false"
-    fi
-    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
-        if [[ ${BUILDX_PLUGIN_AVAILABLE} == "true" ]]; then
-            export BUILD_COMMAND=("buildx" "build" "--builder" "airflow_cache" "--progress=tty")
+        if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+            BUILD_COMMAND+=("buildx" "build" "--builder" "airflow_cache" "--progress=tty")
             docker_v buildx inspect airflow_cache || docker_v buildx create --name airflow_cache
         else
+            BUILD_COMMAND+=("buildx" "build" "--builder" "default" "--progress=tty")
+        fi
+    else
+        if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
             echo
             echo "${COLOR_RED}Buildx cli plugin is not available and you need it to prepare buildx cache.${COLOR_RESET}"
             echo "${COLOR_RED}Please install it following https://docs.docker.com/buildx/working-with-buildx/${COLOR_RESET}"
             echo
             exit 1
         fi
+        BUILD_COMMAND+=("build")
     fi
 }
 
