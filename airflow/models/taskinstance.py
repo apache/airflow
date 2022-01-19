@@ -2107,7 +2107,7 @@ class TaskInstance(Base, LoggingMixin):
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             self.log.info("Failing %s for unmappable XCom push %r", self.key, type(value).__qualname__)
             raise UnmappableXComTypePushed(value)
-        max_map_size = conf.getint("core", "max_map_size", fallback=128)
+        max_map_size = conf.getint("core", "max_map_size", fallback=1024)
         if len(value) > max_map_size:
             self.log.info("Failing %s for oversize XCom push (%d > %d)", self.key, len(value), max_map_size)
             raise UnmappableXComSizePushed(value)

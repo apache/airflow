@@ -461,7 +461,7 @@
       version_added: 2.3.0
       type: integer
       example: ~
-      default: "128"
+      default: "1024"
 
 - name: logging
   description: ~
