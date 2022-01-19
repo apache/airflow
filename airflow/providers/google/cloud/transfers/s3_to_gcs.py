@@ -21,8 +21,12 @@ from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
+
+try:
+    from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
