@@ -37,7 +37,8 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
-    UnmappableXComPushed,
+    UnmappableXComSizePushed,
+    UnmappableXComTypePushed,
 )
 from airflow.models import (
     DAG,
@@ -2284,7 +2285,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             pull_something.map(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
-        with pytest.raises(UnmappableXComPushed) as ctx:
+        with pytest.raises(UnmappableXComTypePushed) as ctx:
             ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
@@ -2307,12 +2308,12 @@ class TestTaskInstanceRecordTaskMapXComPush:
             pull_something.map(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
-        with pytest.raises(UnmappableXComPushed) as ctx:
+        with pytest.raises(UnmappableXComSizePushed) as ctx:
             ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
-        assert str(ctx.value) == "unmappable return value size: 2"
+        assert str(ctx.value) == "unmappable return value size: 2 > 1"
 
     @pytest.mark.parametrize(
         "xcom_value, expected_length, expected_keys",

@@ -2105,12 +2105,10 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            self.log.info("Failing %s for unmappable XCom push %r", self.key, type(value).__qualname__)
             raise UnmappableXComTypePushed(value)
         max_map_size = conf.getint("core", "max_map_size", fallback=1024)
         if len(value) > max_map_size:
-            self.log.info("Failing %s for oversize XCom push (%d > %d)", self.key, len(value), max_map_size)
-            raise UnmappableXComSizePushed(value)
+            raise UnmappableXComSizePushed(value, max_map_size)
         session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session
