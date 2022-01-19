@@ -97,26 +97,16 @@ def set_state(
     on the schedule (but it will as for subdag dag runs if needed).
 
     :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
-    :type tasks: list[airflow.models.baseoperator.BaseOperator]
     :param dag_run_id: the run_id of the dagrun to start looking from
-    :type dag_run_id: str
     :param execution_date: the execution date from which to start looking(deprecated)
-    :type execution_date: datetime.datetime
     :param upstream: Mark all parents (upstream tasks)
-    :type upstream: bool
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
-    :type downstream: bool
     :param future: Mark all future tasks on the interval of the dag up until
         last execution date.
-    :type future: bool
     :param past: Retroactively mark all tasks starting from start_date of the DAG
-    :type past: bool
     :param state: State to which the tasks need to be set
-    :type state: str
     :param commit: Commit tasks to be altered to the database
-    :type commit: bool
     :param session: database session
-    :type session: sqlalchemy.orm.session.Session
     :return: list of tasks that have been created and updated
     """
     if not tasks:

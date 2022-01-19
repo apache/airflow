@@ -37,7 +37,6 @@ class TimeoutTestSensor(BaseSensorOperator):
     Sensor that always returns the return_value provided
 
     :param return_value: Set to true to mark the task as SKIPPED on failure
-    :type return_value: any
     """
 
     def __init__(self, return_value=False, **kwargs):

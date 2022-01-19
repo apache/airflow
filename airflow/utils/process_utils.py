@@ -160,7 +160,6 @@ def execute_in_subprocess(cmd: List[str]):
     Execute a process and stream output to logger
 
     :param cmd: command and arguments to run
-    :type cmd: List[str]
     """
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
@@ -222,9 +221,7 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
     the SIGKILL signal, if the process is still alive.
 
     :param pids_to_kill: List of PID to be killed.
-    :type pids_to_kill: List[int]
     :param timeout: The time to wait before sending the SIGKILL signal.
-    :type timeout: Optional[int]
     """
     this_process = psutil.Process(os.getpid())
     # Only check child processes to ensure that we don't have a case

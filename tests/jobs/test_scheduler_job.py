@@ -169,7 +169,6 @@ class TestSchedulerJob:
         dags_folder.
 
         :param dags_folder: the directory to traverse
-        :type dags_folder: str
         """
         self.scheduler_job = SchedulerJob(
             executor=self.null_exec, num_times_parse_dags=1, subdir=os.path.join(dags_folder)

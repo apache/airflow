@@ -37,7 +37,6 @@ class InfluxDBHook(BaseHook):
     Performs a connection to InfluxDB and retrieves client.
 
     :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
-    :type influxdb_conn_id: str
     """
 
     conn_name_attr = 'influxdb_conn_id'

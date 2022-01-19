@@ -153,10 +153,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: str (path)
         :param return_error: if True, returns a string error message if an
             error occurs. Otherwise returns '' when an error occurs.
-        :type return_error: bool
         """
         try:
             return self.hook.read_file(self.wasb_container, remote_log_location)
@@ -174,12 +172,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         was created.
 
         :param log: the log to write to the remote_log_location
-        :type log: str
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: str (path)
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
-        :type append: bool
         """
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)

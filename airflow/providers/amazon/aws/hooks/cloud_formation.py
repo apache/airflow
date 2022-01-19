@@ -58,9 +58,7 @@ class CloudFormationHook(AwsBaseHook):
         Create stack in CloudFormation.
 
         :param stack_name: stack_name.
-        :type stack_name: str
         :param cloudformation_parameters: parameters to be passed to CloudFormation.
-        :type cloudformation_parameters: dict
         """
         if 'StackName' not in cloudformation_parameters:
             cloudformation_parameters['StackName'] = stack_name
@@ -71,9 +69,7 @@ class CloudFormationHook(AwsBaseHook):
         Delete stack in CloudFormation.
 
         :param stack_name: stack_name.
-        :type stack_name: str
         :param cloudformation_parameters: parameters to be passed to CloudFormation (optional).
-        :type cloudformation_parameters: dict
         """
         cloudformation_parameters = cloudformation_parameters or {}
         if 'StackName' not in cloudformation_parameters:

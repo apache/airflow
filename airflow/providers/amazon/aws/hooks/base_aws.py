@@ -367,19 +367,13 @@ class AwsBaseHook(BaseHook):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :type verify: Union[bool, str, None]
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :type region_name: Optional[str]
     :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
-    :type client_type: Optional[str]
     :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
-    :type resource_type: Optional[str]
     :param config: Configuration for botocore client.
         (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
-    :type config: Optional[botocore.client.Config]
     """
 
     conn_name_attr = 'aws_conn_id'
@@ -599,12 +593,9 @@ def _parse_s3_config(
     parse boto, s3cmd.conf and AWS SDK config formats
 
     :param config_file_name: path to the config file
-    :type config_file_name: str
     :param config_format: config type. One of "boto", "s3cmd" or "aws".
         Defaults to "boto"
-    :type config_format: str
     :param profile: profile name in AWS type config file
-    :type profile: str
     """
     config = configparser.ConfigParser()
     if config.read(config_file_name):  # pragma: no cover

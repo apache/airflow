@@ -110,20 +110,15 @@ class DecoratedOperator(BaseOperator):
     Wraps a Python callable and captures args/kwargs when called for execution.
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
-    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
-    :type op_args: list
     :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    :type multiple_outputs: bool
     :param kwargs_to_upstream: For certain operators, we might need to upstream certain arguments
         that would otherwise be absorbed by the DecoratedOperator (for example python_callable for the
         PythonOperator). This gives a user the option to upstream kwargs as needed.
-    :type kwargs_to_upstream: dict
     """
 
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
@@ -332,13 +327,10 @@ def task_decorator_factory(
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate
-    :type python_callable: Optional[Callable]
     :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    :type multiple_outputs: bool
     :param decorated_operator_class: The operator that executes the logic needed to run the python function in
         the correct environment
-    :type decorated_operator_class: BaseOperator
 
     """
     if multiple_outputs is None:

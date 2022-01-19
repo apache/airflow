@@ -42,20 +42,13 @@ class WinRMOperator(BaseOperator):
     WinRMOperator to execute commands on given remote host using the winrm_hook.
 
     :param winrm_hook: predefined ssh_hook to use for remote execution
-    :type winrm_hook: airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook
     :param ssh_conn_id: connection id from airflow Connections
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect
-    :type remote_host: str
     :param command: command to execute on remote host. (templated)
-    :type command: str
     :param ps_path: path to powershell, `powershell` for v5.1- and `pwsh` for v6+.
         If specified, it will execute the command as powershell script.
-    :type ps_path: str
     :param output_encoding: the encoding used to decode stout and stderr
-    :type output_encoding: str
     :param timeout: timeout for executing the command.
-    :type timeout: int
     """
 
     template_fields: Sequence[str] = ('command',)

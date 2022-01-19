@@ -35,15 +35,11 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
         :ref:`howto/operator:GoogleDisplayVideo360ReportSensor`
 
     :param report_id: Report ID to delete.
-    :type report_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -52,7 +48,6 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -101,15 +96,11 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         :ref:`howto/operator:GoogleDisplayVideo360GetSDFDownloadOperationSensor`
 
     :param operation_name: The name of the operation resource
-    :type operation_name: Dict[str, Any]
     :param api_version: The version of the api that will be requested for example 'v1'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -118,7 +109,6 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     """
 

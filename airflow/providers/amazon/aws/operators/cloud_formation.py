@@ -30,14 +30,11 @@ class CloudFormationCreateStackOperator(BaseOperator):
     An operator that creates a CloudFormation stack.
 
     :param stack_name: stack name (templated)
-    :type stack_name: str
     :param cloudformation_parameters: parameters to be passed to CloudFormation.
 
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
-    :type cloudformation_parameters: dict
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('stack_name',)
@@ -64,14 +61,12 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     An operator that deletes a CloudFormation stack.
 
     :param stack_name: stack name (templated)
-    :type stack_name: str
     :param cloudformation_parameters: parameters to be passed to CloudFormation.
 
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
     :type cloudformation_parameters: dict
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('stack_name',)

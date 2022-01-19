@@ -30,18 +30,13 @@ class WasbDeleteBlobOperator(BaseOperator):
     Deletes blob(s) on Azure Blob Storage.
 
     :param container_name: Name of the container. (templated)
-    :type container_name: str
     :param blob_name: Name of the blob. (templated)
-    :type blob_name: str
     :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
-    :type wasb_conn_id: str
     :param check_options: Optional keyword arguments that
         `WasbHook.check_for_blob()` takes.
     :param is_prefix: If blob_name is a prefix, delete all files matching prefix.
-    :type is_prefix: bool
     :param ignore_if_missing: if True, then return success even if the
         blob does not exist.
-    :type ignore_if_missing: bool
     """
 
     template_fields: Sequence[str] = ('container_name', 'blob_name')

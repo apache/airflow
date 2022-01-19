@@ -224,7 +224,6 @@ class DagRun(Base, LoggingMixin):
         Reloads the current dagrun from the database
 
         :param session: database session
-        :type session: Session
         """
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
         self.id = dr.id
@@ -317,26 +316,16 @@ class DagRun(Base, LoggingMixin):
         Returns a set of dag runs for the given search criteria.
 
         :param dag_id: the dag_id or list of dag_id to find dag runs for
-        :type dag_id: str or list[str]
         :param run_id: defines the run id for this dag run
-        :type run_id: str
         :param run_type: type of DagRun
-        :type run_type: airflow.utils.types.DagRunType
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime or list[datetime.datetime]
         :param state: the state of the dag run
-        :type state: DagRunState
         :param external_trigger: whether this dag run is externally triggered
-        :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
             Defaults to False
-        :type no_backfills: bool
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         :param execution_start_date: dag run that was executed from this date
-        :type execution_start_date: datetime.datetime
         :param execution_end_date: dag run that was executed until this date
-        :type execution_end_date: datetime.datetime
         """
         qry = session.query(cls)
         dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
@@ -383,13 +372,9 @@ class DagRun(Base, LoggingMixin):
         *None* is returned if no such DAG run is found.
 
         :param dag_id: the dag_id to find duplicates for
-        :type dag_id: str
         :param run_id: defines the run id for this dag run
-        :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         """
         return (
             session.query(cls)
@@ -451,9 +436,7 @@ class DagRun(Base, LoggingMixin):
         Returns the task instance specified by task_id for this dag run
 
         :param task_id: the task id
-        :type task_id: str
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         """
         return (
             session.query(TI)
@@ -508,10 +491,8 @@ class DagRun(Base, LoggingMixin):
         of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
             directly (default: true) or recorded as a pending request in the ``callback`` property
-        :type execute_callbacks: bool
         :return: Tuple containing tis that can be scheduled in the current loop & `callback` that
             needs to be executed
         """
@@ -785,7 +766,6 @@ class DagRun(Base, LoggingMixin):
         database yet. It will set state to removed or add the task if required.
 
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         """
         from airflow.settings import task_instance_mutation_hook
 
@@ -864,11 +844,8 @@ class DagRun(Base, LoggingMixin):
 
         :meta private:
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         :param dag_id: DAG ID
-        :type dag_id: unicode
         :param execution_date: execution date
-        :type execution_date: datetime
         :return: DagRun corresponding to the given dag_id and execution date
             if one exists. None otherwise.
         :rtype: airflow.models.DagRun

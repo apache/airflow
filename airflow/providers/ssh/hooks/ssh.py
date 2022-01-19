@@ -53,27 +53,18 @@ class SSHHook(BaseHook):
         Connections from where all the required parameters can be fetched like
         username, password or key_file. Thought the priority is given to the
         param passed during init
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect
-    :type remote_host: str
     :param username: username to connect to the remote_host
-    :type username: str
     :param password: password of the username to connect to the remote_host
-    :type password: str
     :param key_file: path to key file to use to connect to the remote_host
-    :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
-    :type port: int
     :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
         The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :type conn_timeout: int
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
-    :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
-    :type keepalive_interval: int
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -344,11 +335,8 @@ class SSHHook(BaseHook):
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
 
         :param remote_port: The remote port to create a tunnel to
-        :type remote_port: int
         :param remote_host: The remote host to create a tunnel to (default localhost)
-        :type remote_host: str
         :param local_port:  The local port to attach the tunnel to
-        :type local_port: int
 
         :return: sshtunnel.SSHTunnelForwarder object
         """

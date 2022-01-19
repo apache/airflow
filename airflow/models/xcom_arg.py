@@ -56,9 +56,7 @@ class XComArg(DependencyMixin):
         op2 = MyOperator(my_text_message=f"the value is {xcomarg['topic']}")
 
     :param operator: operator to which the XComArg belongs to
-    :type operator: airflow.models.baseoperator.BaseOperator
     :param key: key value which is used for xcom_pull (key in the XCom table)
-    :type key: str
     """
 
     def __init__(self, operator: "Union[BaseOperator, MappedOperator]", key: str = XCOM_RETURN_KEY):

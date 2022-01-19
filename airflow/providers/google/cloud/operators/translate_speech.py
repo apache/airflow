@@ -64,37 +64,29 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     :param audio: audio data to be recognized. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionAudio
-    :type audio: dict or google.cloud.speech_v1.types.RecognitionAudio
 
     :param config: information to the recognizer that specifies how to process the request. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig
-    :type config: dict or google.cloud.speech_v1.types.RecognitionConfig
 
     :param target_language: The language to translate results into. This is required by the API and defaults
         to the target language of the current instance.
         Check the list of available languages here: https://cloud.google.com/translate/docs/languages
-    :type target_language: str
 
     :param format_: (Optional) One of ``text`` or ``html``, to specify
         if the input text is plain text or HTML.
-    :type format_: str or None
 
     :param source_language: (Optional) The language of the text to
         be translated.
-    :type source_language: str or None
 
     :param model: (Optional) The model used to translate the text, such
         as ``'base'`` or ``'nmt'``.
-    :type model: str or None
 
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
 
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
 
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -104,7 +96,6 @@ class CloudTranslateSpeechOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     """
 

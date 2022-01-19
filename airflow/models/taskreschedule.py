@@ -98,14 +98,10 @@ class TaskReschedule(Base):
         Returns query for task reschedules for a given the task instance.
 
         :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: airflow.models.TaskInstance
         :param descending: If True then records are returned in descending order
-        :type descending: bool
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
-        :type try_number: int
         """
         if try_number is None:
             try_number = task_instance.try_number
@@ -130,12 +126,9 @@ class TaskReschedule(Base):
         in ascending order.
 
         :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: airflow.models.TaskInstance
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
-        :type try_number: int
         """
         return TaskReschedule.query_for_task_instance(
             task_instance, session=session, try_number=try_number

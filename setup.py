@@ -252,7 +252,10 @@ deprecated_api = [
 ]
 doc = [
     'click>=7.1,<9',
-    'sphinx>=4.0.0, <5.0.0',
+    'sphinx>=4.4.0, <5.0.0',
+    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
+    # even though Sphinx 4.4.0 has this but with python_version<3.10.
+    'importlib-metadata>=4.4; python_version < "3.8"',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi~=1.8.0',

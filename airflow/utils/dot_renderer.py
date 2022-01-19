@@ -141,7 +141,6 @@ def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.
     Renders the DAG dependency to the DOT object.
 
     :param deps: List of DAG dependencies
-    :type deps: List[DagDependency]
     :return: Graphviz object
     :rtype: graphviz.Digraph
     """
@@ -170,9 +169,7 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     If an task instance list is passed, the nodes will be painted according to task statuses.
 
     :param dag: DAG that will be rendered.
-    :type dag: airflow.models.dag.DAG
     :param tis: List of task instances
-    :type tis: Optional[List[TaskInstance]]
     :return: Graphviz object
     :rtype: graphviz.Digraph
     """

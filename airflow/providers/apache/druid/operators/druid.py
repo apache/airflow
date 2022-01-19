@@ -30,15 +30,11 @@ class DruidOperator(BaseOperator):
     Allows to submit a task directly to druid
 
     :param json_index_file: The filepath to the druid index specification
-    :type json_index_file: str
     :param druid_ingest_conn_id: The connection id of the Druid overlord which
         accepts index jobs
-    :type druid_ingest_conn_id: str
     :param timeout: The interval (in seconds) between polling the Druid job for the status
         of the ingestion job. Must be greater than or equal to 1
-    :type timeout: int
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
-    :type max_ingestion_time: int
     """
 
     template_fields: Sequence[str] = ('json_index_file',)

@@ -30,10 +30,7 @@ class LivySensor(BaseSensorOperator):
     Monitor a Livy sessions for termination.
 
     :param livy_conn_id: reference to a pre-defined Livy connection
-    :type livy_conn_id: str
     :param batch_id: identifier of the monitored batch
-    :type batch_id: Union[int, str]
-    :type extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
     """
 
