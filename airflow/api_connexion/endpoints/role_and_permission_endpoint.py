@@ -17,11 +17,11 @@
 
 from typing import List, Optional, Tuple
 
+from connexion import NoContent
 from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
-from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters

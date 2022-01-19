@@ -152,22 +152,3 @@ function md5sum::check_if_docker_build_is_needed() {
         fi
     fi
 }
-
-
-function md5sum::check_if_pull_is_needed() {
-   if [[ ${SKIP_CHECK_REMOTE_IMAGE:=} != "true" && ${DOCKER_CACHE} == "pulled" ]]; then
-        # Check if remote image is different enough to force pull
-        # This is an optimisation pull vs. build time. When there
-        # are enough changes (specifically after setup.py changes) it is faster to pull
-        # and build the image rather than just build it
-        verbosity::print_info
-        verbosity::print_info "Checking if the remote image needs to be pulled"
-        verbosity::print_info
-        build_images::get_remote_image_build_cache_hash
-        if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
-            build_images::compare_local_and_remote_build_cache_hash
-        else
-            export FORCE_PULL_IMAGES="true"
-        fi
-    fi
-}

@@ -68,7 +68,7 @@ In the simplest case building your image consists of those steps:
 
 .. code-block:: shell
 
-   docker build . -f Dockerfile --tag my-image:0.0.1
+   docker build . -f Dockerfile --pull --tag my-image:0.0.1
 
 3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step however,
    requires locally checked out or extracted Airflow sources. If you happen to have the sources you can
@@ -223,7 +223,7 @@ You should be aware, about a few things:
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
   ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
-  a command ``docker build . --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
+  a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
 * If your way of extending image requires to create writable directories, you MUST remember about adding
