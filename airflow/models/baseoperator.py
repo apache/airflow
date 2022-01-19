@@ -1577,22 +1577,36 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     subdag: None = attr.ib(init=False)
 
     @_is_dummy.default
-    def _is_dummy_default(self):
+    def _is_dummy_from_operator_class(self):
         from airflow.operators.dummy import DummyOperator
 
         return issubclass(self.operator_class, DummyOperator)
 
     @deps.default
-    def _deps_from_class(self):
+    def _deps_from_operator_class(self):
         return self.operator_class.deps
 
     @template_fields.default
-    def _template_fields_from_class(self):
+    def _template_fields_from_operator_class(self):
         return self.operator_class.template_fields
 
     @template_ext.default
-    def _template_ext_from_class(self):
+    def _template_ext_from_operator_class(self):
         return self.operator_class.template_ext
+
+    @task_type.default
+    def _task_type_from_operator_class(self):
+        # Can be a string if we are de-serialized
+        val = self.operator_class
+        if isinstance(val, str):
+            return val.rsplit('.', 1)[-1]
+        return val.__name__
+
+    @task_group.default
+    def _task_group_default(self):
+        from airflow.utils.task_group import TaskGroupContext
+
+        return TaskGroupContext.get_current_task_group(self.dag)
 
     @weight_rule.default
     def _weight_rule_from_kwargs(self) -> str:
@@ -1673,20 +1687,6 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         for arg in self.mapped_kwargs.values():
             XComArg.apply_upstream_relationship(self, arg)
 
-    @task_type.default
-    def _default_task_type(self):
-        # Can be a string if we are de-serialized
-        val = self.operator_class
-        if isinstance(val, str):
-            return val.rsplit('.', 1)[-1]
-        return val.__name__
-
-    @task_group.default
-    def _default_task_group(self):
-        from airflow.utils.task_group import TaskGroupContext
-
-        return TaskGroupContext.get_current_task_group(self.dag)
-
     def get_dag(self) -> "Optional[DAG]":
         return self.dag
 
@@ -1751,6 +1751,14 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
                     'operator_extra_links',
                     'upstream_task_ids',
                     'task_type',
+                    # These are automatically populated from partial_kwargs. In
+                    # a perfect world, they should be properties like other
+                    # partial_kwargs-populated values e.g. 'queue' below, but we
+                    # must match BaseOperator's implementation and declare them
+                    # as writable attributes instead.
+                    'weight_rule',
+                    'priority_weight',
+                    'trigger_rule',
                 }
                 | {'template_fields'}
             )
