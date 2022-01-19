@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-18T09:00:10Z
+# This constraints file was automatically generated on 2022-01-19T06:21:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -196,6 +196,7 @@ cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
+connexion==2.10.0
 coverage==6.2
 crcmod==1.7
 cron-descriptor==1.2.24
@@ -210,7 +211,7 @@ defusedxml==0.7.1
 dill==0.3.1.1
 distlib==0.3.4
 distributed==2.19.0
-dnspython==2.1.0
+dnspython==2.2.0
 docker==5.0.3
 docopt==0.6.2
 docutils==0.16
@@ -231,7 +232,7 @@ flake8==4.0.1
 flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
-frozenlist==1.2.0
+frozenlist==1.3.0
 fsspec==2022.1.0
 future==0.18.2
 gcsfs==2022.1.0
@@ -247,8 +248,8 @@ google-auth-oauthlib==0.4.6
 google-auth==1.35.0
 google-cloud-appengine-logging==1.1.0
 google-cloud-audit-log==0.2.0
-google-cloud-automl==2.5.2
-google-cloud-bigquery-datatransfer==3.4.1
+google-cloud-automl==2.6.0
+google-cloud-bigquery-datatransfer==3.5.0
 google-cloud-bigquery-storage==2.11.0
 google-cloud-bigquery==2.32.0
 google-cloud-bigtable==1.7.0
@@ -257,7 +258,7 @@ google-cloud-container==1.0.1
 google-cloud-core==1.7.2
 google-cloud-datacatalog==3.6.2
 google-cloud-dataproc-metastore==1.3.1
-google-cloud-dataproc==3.1.1
+google-cloud-dataproc==3.2.0
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.10.1
 google-cloud-language==1.3.0
@@ -266,7 +267,7 @@ google-cloud-memcache==1.0.0
 google-cloud-monitoring==2.8.0
 google-cloud-os-login==2.5.1
 google-cloud-pubsub==2.9.0
-google-cloud-redis==2.5.0
+google-cloud-redis==2.5.1
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
@@ -290,7 +291,7 @@ gunicorn==20.1.0
 h11==0.12.0
 hdfs==2.6.0
 hmsclient==0.1.1
-httpcore==0.14.4
+httpcore==0.14.5
 httplib2==0.19.1
 httpx==0.21.3
 humanize==3.13.1
@@ -351,7 +352,7 @@ multi-key-dict==2.0.3
 multidict==5.2.0
 mypy-extensions==0.4.3
 mypy==0.910
-mysql-connector-python==8.0.27
+mysql-connector-python==8.0.28
 mysqlclient==2.1.0
 nbclient==0.5.10
 nbformat==5.1.3
@@ -379,7 +380,7 @@ parso==0.8.3
 partd==1.2.0
 pathspec==0.9.0
 pbr==5.8.0
-pdpyras==4.3.0
+pdpyras==4.4.0
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -391,7 +392,7 @@ pluggy==1.0.0
 ply==3.11
 plyvel==1.4.0
 portalocker==2.3.2
-pre-commit==2.16.0
+pre-commit==2.17.0
 presto-python-client==0.7.0
 prison==0.2.1
 prometheus-client==0.12.0
@@ -538,19 +539,19 @@ types-certifi==2021.10.8.1
 types-croniter==1.0.7
 types-cryptography==3.3.14
 types-docutils==0.17.4
-types-enum34==1.1.3
+types-enum34==1.1.7
 types-freezegun==1.1.6
-types-futures==3.3.3
-types-ipaddress==1.0.3
+types-futures==3.3.7
+types-ipaddress==1.0.7
 types-paramiko==2.8.10
-types-protobuf==3.19.0
+types-protobuf==3.19.4
 types-python-dateutil==2.8.7
 types-python-slugify==5.0.3
 types-pytz==2021.3.4
-types-redis==4.1.8
+types-redis==4.1.9
 types-requests==2.27.7
 types-setuptools==57.4.7
-types-six==1.16.9
+types-six==1.16.10
 types-tabulate==0.8.5
 types-termcolor==1.1.3
 types-toml==0.10.3
