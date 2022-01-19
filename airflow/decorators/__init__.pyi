@@ -141,6 +141,24 @@ class TaskDecoratorFactory:
         """
     @overload
     def virtualenv(self, python_callable: F) -> F: ...
+    @overload
+    def kubernetes(
+        python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    ) -> TaskDecorator:
+        """
+        Python operator decorator. Wraps a function into an Airflow operator.
+        Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
+
+        :param python_callable: Function to decorate
+        :type python_callable: Optional[Callable]
+        :param multiple_outputs: if set, function return value will be
+            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
+            with index as key. Dict will unroll to xcom values with keys as XCom keys.
+            Defaults to False.
+        :type multiple_outputs: bool
+        """
+    @overload
+    def kubernetes(self, python_callable: F) -> F: ...
     # [START decorator_signature]
     @overload
     def docker(

@@ -82,7 +82,6 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
-
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             input_filename = os.path.join(tmp_dir, 'script.in')
             script_filename = os.path.join(tmp_dir, 'script.py')
@@ -131,32 +130,24 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 T = TypeVar("T", bound=Callable)
 
 
-class KubernetesDecoratorMixin:
+def kubernetes_task(
+    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+):
     """
-    Mixin class used in provider managers to choose the right class
-    based on the decorator
+    Python operator decorator. Wraps a function into an Airflow operator.
+    Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
 
-    :meta private:
+    :param python_callable: Function to decorate
+    :type python_callable: Optional[Callable]
+    :param multiple_outputs: if set, function return value will be
+        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
+        with index as key. Dict will unroll to xcom values with keys as XCom keys.
+        Defaults to False.
+    :type multiple_outputs: bool
     """
-
-    def kubernetes(
-        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-    ):
-        """
-        Python operator decorator. Wraps a function into an Airflow operator.
-        Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
-
-        :param python_callable: Function to decorate
-        :type python_callable: Optional[Callable]
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
-        :type multiple_outputs: bool
-        """
-        return task_decorator_factory(
-            python_callable=python_callable,
-            multiple_outputs=multiple_outputs,
-            decorated_operator_class=_KubernetesDecoratedOperator,
-            **kwargs,
-        )
+    return task_decorator_factory(
+        python_callable=python_callable,
+        multiple_outputs=multiple_outputs,
+        decorated_operator_class=_KubernetesDecoratedOperator,
+        **kwargs,
+    )
