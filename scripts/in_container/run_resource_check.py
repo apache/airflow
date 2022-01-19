@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import subprocess
 from dataclasses import dataclass
 from typing import Dict
 
@@ -39,8 +38,8 @@ def get_size(bytes):
     Convert Bytes into Gigabytes
     1 Gigabytes = 1024*1024*1024 = 1073741824 bytes
     """
-    factor = 1024 * 1024 * 1024
-    value_gb = bytes // factor
+    factor = 1024 ** 3
+    value_gb = bytes / factor
     return value_gb
 
 
@@ -55,14 +54,14 @@ def resoure_check():
 
     # Memory current available
     svmem = psutil.virtual_memory()
-    mem_available = get_size(svmem.available)
+    mem_available = round(get_size(svmem.available))
 
     # Cpus current available
     cpus_available = psutil.cpu_count(logical=True)
 
     # Disk current available
     partition_usage = psutil.disk_usage('/')
-    disk_available = get_size(partition_usage.free)
+    disk_available = round(get_size(partition_usage.free))
 
     resources: Dict[str, Resource] = {
         'Memory': Resource(current=mem_available, minimumAllowed=MINIMUM_ALLOWED_MEMORY),
@@ -101,8 +100,6 @@ def resoure_validate():
         )
     else:
         console.print("\n[green]Resource check successful.\n")
-
-    subprocess.call(['df', '-h'])
 
 
 if __name__ == "__main__":
