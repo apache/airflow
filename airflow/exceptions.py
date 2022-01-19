@@ -105,8 +105,19 @@ class UnmappableXComPushed(AirflowException):
         super().__init__(value)
         self.value = value
 
+
+class UnmappableXComTypePushed(UnmappableXComPushed):
+    """Raise when an unmappable type is pushed."""
+
     def __str__(self) -> str:
         return f"unmappable return type {type(self.value).__qualname__!r}"
+
+
+class UnmappableXComSizePushed(UnmappableXComPushed):
+    """Raise when the pushed value is to large to map."""
+
+    def __str__(self) -> str:
+        return f"unmappable return value size: {len(self.value)}"
 
 
 class AirflowDagCycleException(AirflowException):

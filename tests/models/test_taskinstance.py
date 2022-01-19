@@ -2269,7 +2269,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    def test_error_if_unmappable(self, dag_maker):
+    def test_error_if_unmappable_type(self, dag_maker):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
@@ -2290,6 +2290,29 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == "unmappable return type 'str'"
+
+    @conf_vars({("core", "max_map_size"): "1"})
+    def test_error_if_unmappable_size(self, dag_maker):
+        """If an unmappable return value is used to map, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return [1, 2]
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.map(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(UnmappableXComPushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "unmappable return value size: 2"
 
     @pytest.mark.parametrize(
         "xcom_value, expected_length, expected_keys",
