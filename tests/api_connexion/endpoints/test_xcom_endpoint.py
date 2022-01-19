@@ -149,7 +149,7 @@ class TestGetXComEntry(TestXComEndpoint):
         XCom.set(
             key=xcom_key,
             value="TEST_VALUE",
-            execution_date=execution_date,
+            run_id=dag_run_id,
             task_id=task_id,
             dag_id=dag_id,
         )
