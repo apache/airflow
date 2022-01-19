@@ -380,7 +380,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_called_once_with(
             endpoint=f"{_account_id}/runs/",
             payload={
-                "include_related": ["trigger", "job", "repository", "environment"],
+                "include_related": None,
                 "job_definition_id": None,
                 "order_by": None,
             },
