@@ -252,6 +252,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 DEFAULT_QUEUE = conf.get("operators", "default_queue")
 DEFAULT_RETRIES = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_WEIGHT_RULE = conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
 
 
 @functools.total_ordering
@@ -553,7 +554,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         on_retry_callback: Optional[TaskStateChangeCallback] = None,
         pre_execute: Optional[TaskPreExecuteHook] = None,
         post_execute: Optional[TaskPostExecuteHook] = None,
-        trigger_rule: str = TriggerRule.ALL_SUCCESS,
+        trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
@@ -1571,6 +1572,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
 
     weight_rule: str = attr.ib()
     priority_weight: int = attr.ib()
+    trigger_rule: str = attr.ib()
 
     subdag: None = attr.ib(init=False)
 
@@ -1599,6 +1601,10 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @priority_weight.default
     def _priority_weight_from_kwargs(self) -> int:
         return self.partial_kwargs.get("priority_weight", 1)
+
+    @trigger_rule.default
+    def _trigger_rule_from_kwargs(self) -> int:
+        return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
 
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
