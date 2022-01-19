@@ -26,7 +26,7 @@ But first: Created a TOC for easy reference about BREEZE commands
 - [Updated BREEZE](#updated-breeze)
 - [BREEZE setting up autocomplete](#breeze-setting-up-autocomplete)
 - [Breeze on Linux](#breeze-on-linux)
-- [Breeze2 on Windows](#breeze2-on-windows)
+- [Breeze on Windows](#breeze-on-windows)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -106,7 +106,7 @@ You should set up the autocomplete option automatically by running:
 
 You get the auto-completion working when you re-enter the shell.
 
-# Breeze2 on Windows
+# Breeze on Windows
 
 In Windows environment, you will need to use pipx to install Breeze.
 
