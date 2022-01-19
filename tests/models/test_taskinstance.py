@@ -2269,7 +2269,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    def test_error_if_unmappable(self, caplog, dag_maker):
+    def test_error_if_unmappable(self, dag_maker):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 

@@ -1613,6 +1613,8 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             task_id=operator.task_id,
             task_group=operator.task_group,
             dag=dag,
+            upstream_task_ids=operator.upstream_task_ids,
+            downstream_task_ids=operator.downstream_task_ids,
             start_date=operator.start_date,
             end_date=operator.end_date,
             partial_kwargs={k: v for k, v in operator_init_kwargs.items() if k != "task_id"},
@@ -1637,6 +1639,8 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         Different from ``from_operator``, this DOES NOT validate ``mapped_kwargs``.
         The task decorator calling this should be responsible for validation.
         """
+        from airflow.models.xcom_arg import XComArg
+
         operator = MappedOperator(
             operator_class=decorator.operator_class,
             partial_kwargs=decorator.kwargs,
@@ -1646,6 +1650,8 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             task_group=task_group,
         )
         operator.mapped_kwargs.update(mapped_kwargs)
+        for arg in mapped_kwargs.values():
+            XComArg.apply_upstream_relationship(operator, arg)
         return operator
 
     def __attrs_post_init__(self):
