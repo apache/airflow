@@ -1933,9 +1933,11 @@ class TestTaskInstance:
             task_id,
             'run_1',
             '--mark-success',
+            '--map-index',
+            '0',
         ]
         generate_command = TI.generate_command(
-            dag_id=dag_id, task_id=task_id, run_id='run_1', mark_success=True
+            dag_id=dag_id, task_id=task_id, run_id='run_1', mark_success=True, map_index=0
         )
         assert assert_command == generate_command
 

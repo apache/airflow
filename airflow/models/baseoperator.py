@@ -1589,6 +1589,10 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         return False
 
     @property
+    def is_mapped(self) -> bool:
+        return False
+
+    @property
     def inherits_from_dummy_operator(self):
         """Used to determine if an Operator is inherited from DummyOperator"""
         # This looks like `isinstance(self, DummyOperator) would work, but this also
@@ -1853,6 +1857,10 @@ class MappedOperator(DAGNode):
         """Used to determine if an Operator is inherited from DummyOperator"""
         return self._is_dummy
 
+    @property
+    def is_mapped(self) -> bool:
+        return True
+
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: ClassVar[Optional[FrozenSet[str]]] = None
 
@@ -1866,6 +1874,7 @@ class MappedOperator(DAGNode):
                     'dag',
                     'deps',
                     'inherits_from_dummy_operator',
+                    'is_mapped',
                     'operator_extra_links',
                     'upstream_task_ids',
                     'task_type',

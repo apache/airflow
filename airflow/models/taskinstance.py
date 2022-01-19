@@ -603,6 +603,7 @@ class TaskInstance(Base, LoggingMixin):
             job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
+            map_index=self.map_index,
         )
 
     @staticmethod
@@ -622,6 +623,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
         cfg_path: Optional[str] = None,
+        map_index: int = -1,
     ) -> List[str]:
         """
         Generates the shell command required to execute this task instance.
@@ -688,6 +690,8 @@ class TaskInstance(Base, LoggingMixin):
             cmd.extend(["--subdir", file_path])
         if cfg_path:
             cmd.extend(["--cfg-path", cfg_path])
+        if map_index != -1:
+            cmd.extend(['--map-index', str(map_index)])
         return cmd
 
     @property
