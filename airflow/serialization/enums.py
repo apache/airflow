@@ -48,4 +48,4 @@ class DagAttributeTypes(str, Enum):
     TASK_GROUP = 'taskgroup'
     EDGE_INFO = 'edgeinfo'
     PARAM = 'param'
-    XCOM_REF = 'xcom_ref'
+    XCOM_REF = 'xcomref'

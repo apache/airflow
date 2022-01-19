@@ -999,11 +999,11 @@ class SerializedDAG(DAG, BaseSerialization):
 
             if isinstance(task, MappedOperator):
                 for d in (task.mapped_kwargs, task.partial_kwargs):
-                    for k in d:
-                        if not isinstance(d[k], _XcomRef):
+                    for k, v in d.items():
+                        if not isinstance(v, _XcomRef):
                             continue
 
-                        d[k] = XComArg(operator=dag.get_task(d[k].task_id), key=d[k].key)
+                        d[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
 
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
