@@ -809,7 +809,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def check_run_id_null(session) -> Iterable[str]:
+def check_run_id_null(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -914,7 +914,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -952,7 +952,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             source_table.c.execution_date == dagrun_table.c.execution_date,
         )
         invalid_rows_query = (
-            session.query(source_table.c.dag_id, source_table.c.task_id, source_table.c.execution_date)
+            session.query(source_table.c.dag_id, source_table.c.execution_date)
             .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
             .filter(dagrun_table.c.dag_id.is_(None))
         )
