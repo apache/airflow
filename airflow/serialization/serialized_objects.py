@@ -644,6 +644,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 deps=tuple(),
                 is_dummy=False,
                 template_fields=(),
+                template_ext=(),
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])
