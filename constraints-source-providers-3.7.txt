@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-20T11:46:19Z
+# This constraints file was automatically generated on 2022-01-20T15:59:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -237,7 +237,6 @@ iniconfig==1.1.1
 ipdb==0.13.9
 ipython-genutils==0.2.0
 ipython==7.31.1
-iso8601==1.0.2
 isodate==0.6.1
 itsdangerous==1.1.0
 jedi==0.18.1
@@ -256,7 +255,7 @@ kombu==5.2.3
 krb5==0.2.0
 kubernetes==21.7.0
 kylinpy==2.8.4
-lazy-object-proxy==1.4.3
+lazy-object-proxy==1.7.1
 ldap3==2.9.1
 libcst==0.4.0
 locket==0.2.1
@@ -375,7 +374,7 @@ python-jenkins==1.7.0
 python-jose==3.3.0
 python-ldap==3.4.0
 python-nvd3==0.15.0
-python-slugify==4.0.1
+python-slugify==5.0.2
 python-telegram-bot==13.10
 python3-openid==3.2.0
 pytz-deprecation-shim==0.1.0.post0
@@ -404,7 +403,7 @@ scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.9.4
 sentinels==1.0.0
-sentry-sdk==1.5.2
+sentry-sdk==1.5.3
 setproctitle==1.2.2
 simple-salesforce==1.11.4
 six==1.16.0
