@@ -53,32 +53,32 @@ class CloudFormationHook(AwsBaseHook):
             else:
                 raise e
 
-    def create_stack(self, stack_name: str, params: dict) -> None:
+    def create_stack(self, stack_name: str, cloudformation_parameters: dict) -> None:
         """
         Create stack in CloudFormation.
 
         :param stack_name: stack_name.
         :type stack_name: str
-        :param params: parameters to be passed to CloudFormation.
-        :type params: dict
+        :param cloudformation_parameters: parameters to be passed to CloudFormation.
+        :type cloudformation_parameters: dict
         """
-        if 'StackName' not in params:
-            params['StackName'] = stack_name
-        self.get_conn().create_stack(**params)
+        if 'StackName' not in cloudformation_parameters:
+            cloudformation_parameters['StackName'] = stack_name
+        self.get_conn().create_stack(**cloudformation_parameters)
 
-    def delete_stack(self, stack_name: str, params: Optional[dict] = None) -> None:
+    def delete_stack(self, stack_name: str, cloudformation_parameters: Optional[dict] = None) -> None:
         """
         Delete stack in CloudFormation.
 
         :param stack_name: stack_name.
         :type stack_name: str
-        :param params: parameters to be passed to CloudFormation (optional).
-        :type params: dict
+        :param cloudformation_parameters: parameters to be passed to CloudFormation (optional).
+        :type cloudformation_parameters: dict
         """
-        params = params or {}
-        if 'StackName' not in params:
-            params['StackName'] = stack_name
-        self.get_conn().delete_stack(**params)
+        cloudformation_parameters = cloudformation_parameters or {}
+        if 'StackName' not in cloudformation_parameters:
+            cloudformation_parameters['StackName'] = stack_name
+        self.get_conn().delete_stack(**cloudformation_parameters)
 
 
 class AWSCloudFormationHook(CloudFormationHook):
