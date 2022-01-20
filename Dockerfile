@@ -434,25 +434,28 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/log/*
 
-# Only copy install_m(y/s)sql. We do not need any other scripts in the final image.
+# Only copy mysql/mssql installation scripts for now - so that changing the other
+# scripts which are needed much later will not invalidate the docker layer here.
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
-
-# fix permission issue in Azure DevOps when running the scripts
-RUN chmod a+x /scripts/docker/install_mysql.sh && \
-    /scripts/docker/install_mysql.sh prod && \
-    chmod a+x /scripts/docker/install_mssql.sh && \
-    /scripts/docker/install_mssql.sh && \
-    adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-           --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
+# We run chmod +x to fix permission issue in Azure DevOps when running the scripts
+# However when AUFS Docker backend is used, this might cause "text file busy" error
+# when script is executed right after it's executable flag has been changed, so
+# we run additional sync afterwards. See https://github.com/moby/moby/issues/13594
+RUN chmod a+x /scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh \
+    && sync \
+    && /scripts/docker/install_mysql.sh prod \
+    && /scripts/docker/install_mssql.sh \
+    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+           --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
-    mkdir -pv "${AIRFLOW_HOME}"; \
-    mkdir -pv "${AIRFLOW_HOME}/dags"; \
-    mkdir -pv "${AIRFLOW_HOME}/logs"; \
-    chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
-    chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" ; \
-    find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x; \
-    find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
+    && mkdir -pv "${AIRFLOW_HOME}" \
+    && mkdir -pv "${AIRFLOW_HOME}/dags" \
+    && mkdir -pv "${AIRFLOW_HOME}/logs" \
+    && chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
+    && chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
+    && find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x \
+    && find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
 
 COPY --chown=airflow:0 --from=airflow-build-image \
      "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
@@ -463,10 +466,10 @@ COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 # See https://github.com/apache/airflow/issues/9248
 # Set default groups for airflow and root user
 
-RUN chmod a+x /entrypoint /clean-logs && \
-    chmod g=u /etc/passwd  && \
-    chmod g+w "${AIRFLOW_USER_HOME_DIR}/.local" && \
-    usermod -g 0 airflow -G 0
+RUN chmod a+x /entrypoint /clean-logs \
+    && chmod g=u /etc/passwd \
+    && chmod g+w "${AIRFLOW_USER_HOME_DIR}/.local" \
+    && usermod -g 0 airflow -G 0
 
 # make sure that the venv is activated for all users
 # including plain sudo, sudo with --interactive flag

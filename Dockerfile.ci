@@ -96,9 +96,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here
+# scripts which are needed much later will not invalidate the docker layer here.
 COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
-RUN /scripts/docker/install_mysql.sh dev && /scripts/docker/install_mssql.sh \
+# We run chmod +x to fix permission issue in Azure DevOps when running the scripts
+# However when AUFS Docker backend is used, this might cause "text file busy" error
+# when script is executed right after it's executable flag has been changed, so
+# we run additional sync afterwards. See https://github.com/moby/moby/issues/13594
+RUN chmod a+x /scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh \
+    && sync  \
+    && /scripts/docker/install_mysql.sh prod  \
+    && /scripts/docker/install_mysql.sh dev  \
+    && /scripts/docker/install_mssql.sh \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
               --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
