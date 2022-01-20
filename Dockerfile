@@ -437,10 +437,11 @@ RUN apt-get update \
 # Only copy install_m(y/s)sql. We do not need any other scripts in the final image.
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
 
+RUN chmod a+x /scripts/docker/install_mysql.sh; sync \
+     && chmod a+x /scripts/docker/install_mssql.sh; sync
+
 # fix permission issue in Azure DevOps when running the scripts
-RUN chmod a+x /scripts/docker/install_mysql.sh && \
-    /scripts/docker/install_mysql.sh prod && \
-    chmod a+x /scripts/docker/install_mssql.sh && \
+RUN /scripts/docker/install_mysql.sh prod && \
     /scripts/docker/install_mssql.sh && \
     adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
