@@ -23,6 +23,7 @@ import cx_Oracle
 import numpy
 
 from airflow.hooks.dbapi import DbApiHook
+import warnings
 
 PARAM_TYPES = {bool, float, int, str}
 
@@ -105,14 +106,11 @@ class OracleHook(DbApiHook):
                 if service_name:
                     dsn += "/" + service_name
                 elif conn.schema:
-                    self.log.warning(
-                        """You are using the parameter conn.schema to pass the Service Name
-                        of your Oracle Database. In this version of the Hook, conn.schema
-                        is additionally used to set the 'current_schema' attribute of the
-                        Oracle DB Session.
-                        Please use the correct parameter conn.extra.service_name instead to
-                        prevent future issues.
-                        More Info: https://github.com/apache/airflow/pull/19084"""
+                    warnings.warn(
+                        """Using conn.schema to pass the Oracle Service Name is deprecated.
+                        Please use conn.extra.service_name instead.""",
+                        DeprecationWarning,
+                        stacklevel=2,
                     )
                     dsn += "/" + conn.schema
             conn_config['dsn'] = dsn
