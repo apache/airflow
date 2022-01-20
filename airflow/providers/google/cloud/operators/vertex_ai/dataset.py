@@ -80,24 +80,16 @@ class CreateDatasetOperator(BaseOperator):
     Creates a Dataset.
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :type region: str
     :param dataset:  Required. The Dataset to create. This corresponds to the ``dataset`` field on the
         ``request`` instance; if ``request`` is provided, this should not be set.
-    :type dataset: google.cloud.aiplatform_v1.types.Dataset
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -106,7 +98,6 @@ class CreateDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "project_id", "impersonation_chain")
@@ -177,23 +168,15 @@ class GetDatasetOperator(BaseOperator):
     Get a Dataset.
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :type region: str
     :param dataset_id: Required. The ID of the Dataset to get.
-    :type dataset_id: str
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -202,7 +185,6 @@ class GetDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "dataset_id", "project_id", "impersonation_chain")
@@ -273,23 +255,15 @@ class DeleteDatasetOperator(BaseOperator):
     Deletes a Dataset.
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :type region: str
     :param dataset_id: Required. The ID of the Dataset to delete.
-    :type dataset_id: str
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -298,7 +272,6 @@ class DeleteDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "dataset_id", "project_id", "impersonation_chain")
@@ -356,25 +329,16 @@ class ExportDataOperator(BaseOperator):
     Exports data from a Dataset.
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :type region: str
     :param dataset_id: Required. The ID of the Dataset to delete.
-    :type dataset_id: str
     :param export_config:  Required. The desired output location.
-    :type export_config: google.cloud.aiplatform_v1.types.ExportDataConfig
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -383,7 +347,6 @@ class ExportDataOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "dataset_id", "project_id", "impersonation_chain")
@@ -441,26 +404,17 @@ class ImportDataOperator(BaseOperator):
     Imports data into a Dataset.
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :type region: str
     :param dataset_id: Required. The ID of the Dataset to delete.
-    :type dataset_id: str
     :param import_configs:  Required. The desired input locations. The contents of all input locations will be
         imported in one batch.
-    :type import_configs: Sequence[google.cloud.aiplatform_v1.types.ImportDataConfig]
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -469,7 +423,6 @@ class ImportDataOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "dataset_id", "project_id", "impersonation_chain")
@@ -527,32 +480,20 @@ class ListDatasetsOperator(BaseOperator):
     Lists Datasets in a Location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param filter: The standard list filter.
-    :type filter: str
     :param page_size: The standard list page size.
-    :type page_size: int
     :param page_token: The standard list page token.
-    :type page_token: str
     :param read_mask: Mask specifying which fields to read.
-    :type read_mask: google.protobuf.field_mask_pb2.FieldMask
     :param order_by: A comma-separated list of fields to order by, sorted in ascending order. Use "desc"
         after a field name for descending.
-    :type order_by: str
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -561,7 +502,6 @@ class ListDatasetsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "project_id", "impersonation_chain")
@@ -631,27 +571,17 @@ class UpdateDatasetOperator(BaseOperator):
     Updates a Dataset.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param dataset_id: Required. The ID of the Dataset to update.
-    :type dataset_id: str
     :param dataset:  Required. The Dataset which replaces the resource on the server.
-    :type dataset: google.cloud.aiplatform_v1.types.Dataset
     :param update_mask:  Required. The update mask applies to the resource.
-    :type update_mask: google.protobuf.field_mask_pb2.FieldMask
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -660,7 +590,6 @@ class UpdateDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("region", "dataset_id", "project_id", "impersonation_chain")
