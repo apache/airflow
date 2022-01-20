@@ -16,7 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google Kubernetes Engine Hook."""
+"""
+This module contains a Google Kubernetes Engine Hook.
+
+.. spelling::
+
+    gapic
+    enums
+"""
 
 import time
 import warnings

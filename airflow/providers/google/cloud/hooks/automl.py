@@ -16,7 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google AutoML hook."""
+"""
+This module contains a Google AutoML hook.
+
+.. spelling::
+
+    PredictResponse
+"""
 import sys
 from typing import Dict, Optional, Sequence, Tuple, Union
 

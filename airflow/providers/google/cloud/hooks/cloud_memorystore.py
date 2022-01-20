@@ -15,7 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hooks for Cloud Memorystore service"""
+"""
+Hooks for Cloud Memorystore service.
+
+.. spelling::
+
+    DataProtectionMode
+    FieldMask
+    pb
+    memcache
+"""
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core import path_template

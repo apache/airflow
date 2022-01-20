@@ -17,7 +17,14 @@
 # under the License.
 #
 
-"""This module contains Azure Data Explorer hook"""
+"""
+This module contains Azure Data Explorer hook.
+
+.. spelling::
+
+    KustoResponseDataSetV
+    kusto
+"""
 from typing import Any, Dict, Optional
 
 from azure.kusto.data.exceptions import KustoServiceError

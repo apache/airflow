@@ -15,7 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google PubSub operators."""
+"""
+This module contains Google PubSub operators.
+
+.. spelling::
+
+    MessageStoragePolicy
+"""
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 

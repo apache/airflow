@@ -16,7 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module contains AWS Athena hook"""
+"""
+This module contains AWS Athena hook.
+
+.. spelling::
+
+    PageIterator
+"""
 import warnings
 from time import sleep
 from typing import Any, Dict, Optional

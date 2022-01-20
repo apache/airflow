@@ -16,7 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module allows to connect to a InfluxDB database."""
+"""
+This module allows to connect to a InfluxDB database.
+
+.. spelling::
+
+    FluxTable
+"""
 
 from typing import Dict, List
 
