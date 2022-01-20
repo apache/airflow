@@ -495,7 +495,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
     :type tensorboard: str
-    :param sync: Whether to execute this method synchronously. If False, this method
+    :param sync: Whether to execute the AI Platform job synchronously. If False, this method
             will be executed in concurrent Future and any downstream object will
             be immediately returned and synced when the Future has completed.
     :type sync: bool
@@ -526,7 +526,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
     def __init__(
         self,
         *,
-        command: Sequence[str] = None,
+        command: Sequence[str] = [],
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -890,7 +890,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
     :type tensorboard: str
-    :param sync: Whether to execute this method synchronously. If False, this method
+    :param sync: Whether to execute the AI Platform job synchronously. If False, this method
             will be executed in concurrent Future and any downstream object will
             be immediately returned and synced when the Future has completed.
     :type sync: bool
@@ -1287,7 +1287,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
     :type tensorboard: str
-    :param sync: Whether to execute this method synchronously. If False, this method
+    :param sync: Whether to execute the AI Platform job synchronously. If False, this method
             will be executed in concurrent Future and any downstream object will
             be immediately returned and synced when the Future has completed.
     :type sync: bool
