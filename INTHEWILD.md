@@ -44,6 +44,7 @@ Currently, **officially** using Airflow:
 1. [Akamas](https://akamas.io) [[@GiovanniPaoloGibilisco](https://github.com/GiovanniPaoloGibilisco), [@lucacavazzana](https://github.com/lucacavazzana)]
 1. [Alan](https://alan.eu) [[@charles-go](https://github.com/charles-go)]
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
+1. [Allo-Media](https://www.allo-media.net) [[@merwan](https://github.com/merwan/)]
 1. [AloPeyk](https://alopeyk.com) [[@blcksrx](https://github.com/blcksrx), [@AloPeyk](https://github.com/AloPeyk)]
 1. [Altafino](https://altafino.com) [[@altafino](https://github.com/altafino)]
 1. [AltX](https://www.getaltx.com/about) [[@pedromduarte](https://github.com/pedromduarte)]
@@ -161,6 +162,7 @@ Currently, **officially** using Airflow:
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Dropbox](https://www.dropbox.com) [[@AlexeySanko](https://github.com/AlexeySanko)]
 1. [Dunnhumby](https://www.dunnhumby.com)
+1. [Dunzo](https://www.dunzo.com)[[@masterlittle](https://github.com/masterlittle)]
 1. [Dynata](https://www.dynata.com) [[@neil3handari](https://github.com/neil3handari)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
 1. [EBANX](https://www.ebanx.com/) [[@estevammr](https://github.com/estevammr) & [@nathangngencissk](https://github.com/nathangngencissk) & [@raafaadg](https://github.com/raafaadg) & [@whrocha](https://github.com/whrocha)]
@@ -428,6 +430,7 @@ Currently, **officially** using Airflow:
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
 1. [Udacity](https://www.udacity.com/) [[@dandikunited](https://github.com/DandikUnited), [@simon-uc](https://github.com/simon-uc)]
+1. [Uh!ive](https://uh.live/) [[@merwan](https://github.com/merwan/)]
 1. [Umami Collective](https://umamicollective.com) [[@juanuicich](https://github.com/juanuicich)]
 1. [Unacast](https://unacast.com)[[@unacast](https://github.com/unacast)]
 1. [United Airlines](https://www.united.com/) [[@ilopezfr](https://github.com/ilopezfr)]

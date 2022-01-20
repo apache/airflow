@@ -24,7 +24,7 @@ import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Type, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -78,6 +78,7 @@ class ImapHook(BaseHook):
         return self
 
     def _build_client(self, conn: Connection) -> Union[imaplib.IMAP4_SSL, imaplib.IMAP4]:
+        IMAP: Union[Type[imaplib.IMAP4_SSL], Type[imaplib.IMAP4]]
         if conn.extra_dejson.get('use_ssl', True):
             IMAP = imaplib.IMAP4_SSL
         else:

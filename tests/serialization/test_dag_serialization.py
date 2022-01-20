@@ -37,7 +37,7 @@ from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink, MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
@@ -52,7 +52,7 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup
-from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
+from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 executor_config_pod = k8s.V1Pod(
@@ -1573,7 +1573,10 @@ def test_kubernetes_optional():
 
 
 def test_mapped_operator_serde():
-    real_op = BashOperator.partial(task_id='a').map(bash_command=[1, 2, {'a': 'b'}])
+    literal = [1, 2, {'a': 'b'}]
+    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).map(
+        bash_command=literal
+    )
 
     serialized = SerializedBaseOperator._serialize(real_op)
 
@@ -1590,14 +1593,58 @@ def test_mapped_operator_serde():
                 {"__type": "dict", "__var": {'a': 'b'}},
             ]
         },
-        'partial_kwargs': {},
+        'partial_kwargs': {
+            'executor_config': {
+                '__type': 'dict',
+                '__var': {
+                    'dict': {"__type": "dict", "__var": {'sub': 'value'}},
+                },
+            },
+        },
         'task_id': 'a',
         'template_fields': ['bash_command', 'env'],
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert isinstance(op, MappedOperator)
 
     assert op.operator_class == "airflow.operators.bash.BashOperator"
+    assert op.mapped_kwargs['bash_command'] == literal
+    assert op.partial_kwargs['executor_config'] == {'dict': {'sub': 'value'}}
+
+
+def test_mapped_operator_xcomarg_serde():
+    from airflow.models.xcom_arg import XComArg
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+
+    serialized = SerializedBaseOperator._serialize(mapped)
+    assert serialized == {
+        '_is_dummy': False,
+        '_is_mapped': True,
+        '_task_module': 'tests.test_utils.mock_operators',
+        '_task_type': 'MockOperator',
+        'downstream_task_ids': [],
+        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'test_key'}}},
+        'partial_kwargs': {},
+        'task_id': 'task_2',
+        'template_fields': ['arg1', 'arg2'],
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+
+    arg = op.mapped_kwargs['arg2']
+    assert arg.task_id == 'op1'
+    assert arg.key == 'test_key'
+
+    serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
+    assert isinstance(xcom_arg, XComArg)
+    assert xcom_arg.operator is serialized_dag.task_dict['op1']
 
 
 def test_mapped_task_group_serde():
