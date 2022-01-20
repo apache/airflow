@@ -179,6 +179,7 @@ jobs:
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
+      runCoverage: ${{ steps.set-run-coverage.outputs.runCoverage }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -235,6 +236,15 @@ jobs:
             echo "Maintainer or main run running with self-hosted runner"
             echo "::set-output name=runsOn::\"self-hosted\""
           fi
+      # Avoid having to specify the coverage logic every time.
+      - name: Set run coverage
+        id: set-run-coverage
+        run: |
+          echo "::set-output name=runCoverage::true"
+        if: >
+          github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
+          github.event_name == 'push' &&
+          steps.selective-checks.outputs.default-branch == 'main'
 
   run-new-breeze-tests:
     timeout-minutes: 10
@@ -748,6 +758,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
+        if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: >
             coverage-helm
@@ -811,6 +822,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
+        if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: >
             coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
@@ -873,6 +885,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
+        if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/coverage*.xml"
@@ -934,6 +947,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
+        if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-mssql-${{matrix.python-version}}-${{matrix.mssql-version}}
           path: "./files/coverage*.xml"
@@ -993,6 +1007,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
+        if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-sqlite-${{matrix.python-version}}
           path: ./files/coverage*.xml
@@ -1068,6 +1083,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
+        if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-quarantined-${{ matrix.backend }}
           path: "./files/coverage*.xml"
@@ -1088,10 +1104,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     # Only upload coverage on merges to main
-    if: >
-      github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
-      github.event_name == 'push' &&
-      needs.build-info.outputs.default-branch == 'main'
+    if: needs.build-info.outputs.runCoverage == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
