@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunStatus, DbtCloudJobRunException
+from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 
 ACCOUNT_ID = 11111
@@ -52,7 +52,7 @@ class TestDbtCloudJobRunSensor:
             (10, True),  # SUCCESS
             (20, "exception"),  # ERROR
             (30, "exception"),  # CANCELLED
-        ]
+        ],
     )
     @patch.object(DbtCloudHook, "get_job_run_status")
     def test_poke(self, mock_job_run_status, job_run_status, expected_poke_result):

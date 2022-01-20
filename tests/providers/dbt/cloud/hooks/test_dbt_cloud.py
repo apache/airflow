@@ -16,12 +16,10 @@
 # under the License.
 
 import json
-from typing import Type
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 import pytest
-import requests_mock
-from pytest import fixture
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -32,7 +30,6 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     TokenAuth,
     fallback_to_default_account,
 )
-from airflow.providers.http.hooks.http import HttpHook
 from airflow.utils import db
 
 ACCOUNT_ID_CONN = "account_id_conn"
@@ -67,7 +64,7 @@ class TestDbtCloudJobRunStatus:
         ["1", "2", "65"],
     ]
 
-    def _get_ids(status_set):
+    def _get_ids(status_set: Any):
         return [f"checking_status_{argval}" for argval in status_set]
 
     @pytest.mark.parametrize(
@@ -482,7 +479,7 @@ class TestDbtCloudHook:
             if expected_output != "timeout":
                 assert hook.wait_for_job_run_status(**config) == expected_output
             else:
-                with pytest.raises(AirflowException):
+                with pytest.raises(DbtCloudJobRunException):
                     hook.wait_for_job_run_status(**config)
 
     @pytest.mark.parametrize(
