@@ -28,6 +28,10 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     """
     Checks the status of a dbt Cloud job run.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:DbtCloudJobRunSensor`
+
     :param dbt_cloud_conn_id: The connection identifier for connecting to dbt Cloud.
     :param run_id: The job run identifier.
     :param account_id: The dbt Cloud account identifier.

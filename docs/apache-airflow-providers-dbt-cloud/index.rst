@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -19,6 +18,11 @@
 ``apache-airflow-providers-dbt-cloud``
 ============================================
 
+dbt Cloud is a hosted service that helps data analysts and engineers productionalize dbt deployments. It comes
+equipped with turnkey support for scheduling jobs, CI/CD, serving documentation, monitoring & alerting, and
+an Integrated Developer Environment (IDE).
+
+
 Content
 -------
 
@@ -26,14 +30,14 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/dbt-cloud>
+    Connecting to dbt Cloud <connections>
     Operators <operators>
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/dbt-cloud/index>
+    Python API <_api/airflow/providers/dbt/cloud/index>
 
 .. toctree::
     :maxdepth: 1
@@ -57,29 +61,3 @@ Package apache-airflow-providers-dbt-cloud
 ------------------------------------------------------
 
 `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
-
-
-Release: 2.1.0
-
-Provider package
-----------------
-
-This is a provider package for ``dbt-cloud`` provider. All classes for this provider package
-are in ``airflow.providers.dbt.cloud`` Python package.
-
-Installation
-------------
-
-You can install this package on top of an existing airflow 2.1+ installation via
-``pip install apache-airflow-providers-dbt-cloud``
-
-PIP requirements
-----------------
-
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.1.0``
-==================  ==================
-
-.. include:: ../../airflow/providers/dbt/cloud/CHANGELOG.rst

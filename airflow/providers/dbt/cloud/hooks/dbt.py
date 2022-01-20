@@ -133,7 +133,7 @@ class DbtCloudHook(HttpHook):
         """Builds custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
             "hidden_fields": ["host", "port", "schema", "extra"],
-            "relabeling": {"login": "Account ID", "password": "Access Token"},
+            "relabeling": {"login": "Account ID", "password": "API Token"},
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:

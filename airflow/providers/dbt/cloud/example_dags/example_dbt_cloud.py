@@ -58,11 +58,13 @@ with DAG(
         wait_for_termination=False,
         additional_run_config={"threads_override": 8},
     )
+    # [END howto_operator_dbt_cloud_run_job_async]
 
+    # [START howto_operator_dbt_cloud_run_job_sensor]
     job_run_sensor = DbtCloudJobRunSensor(
         task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=20
     )
-    # [END howto_operator_dbt_cloud_run_job_async]
+    # [END howto_operator_dbt_cloud_run_job_sensor]
 
     begin >> Label("No async wait") >> trigger_job_run1
     begin >> Label("Do async wait with sensor") >> trigger_job_run2
