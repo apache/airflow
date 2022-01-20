@@ -86,7 +86,7 @@ class CustomJobHook(GoogleBaseHook):
         self,
         display_name: str,
         container_uri: str,
-        command: Sequence[str] = None,
+        command: Sequence[str] = [],
         model_serving_container_image_uri: Optional[str] = None,
         model_serving_container_predict_route: Optional[str] = None,
         model_serving_container_health_route: Optional[str] = None,
@@ -235,7 +235,7 @@ class CustomJobHook(GoogleBaseHook):
         """Returns unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
-    def wait_for_operation(self, timeout: float, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -245,7 +245,8 @@ class CustomJobHook(GoogleBaseHook):
 
     def cancel_job(self) -> None:
         """Cancel Job for training pipeline"""
-        self._job.cancel()
+        if self._job:
+            self._job.cancel()
 
     def _run_job(
         self,
@@ -590,7 +591,7 @@ class CustomJobHook(GoogleBaseHook):
         region: str,
         display_name: str,
         container_uri: str,
-        command: Sequence[str] = None,
+        command: Sequence[str] = [],
         model_serving_container_image_uri: Optional[str] = None,
         model_serving_container_predict_route: Optional[str] = None,
         model_serving_container_health_route: Optional[str] = None,
@@ -928,7 +929,7 @@ class CustomJobHook(GoogleBaseHook):
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
         :type tensorboard: str
-        :param sync: Whether to execute this method synchronously. If False, this method
+        :param sync: Whether to execute the AI Platform job synchronously. If False, this method
                 will be executed in concurrent Future and any downstream object will
                 be immediately returned and synced when the Future has completed.
         :type sync: bool
@@ -1335,7 +1336,7 @@ class CustomJobHook(GoogleBaseHook):
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
         :type tensorboard: str
-        :param sync: Whether to execute this method synchronously. If False, this method
+        :param sync: Whether to execute the AI Platform job synchronously. If False, this method
                 will be executed in concurrent Future and any downstream object will
                 be immediately returned and synced when the Future has completed.
         :type sync: bool
@@ -1743,7 +1744,7 @@ class CustomJobHook(GoogleBaseHook):
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
         :type tensorboard: str
-        :param sync: Whether to execute this method synchronously. If False, this method
+        :param sync: Whether to execute the AI Platform job synchronously. If False, this method
                 will be executed in concurrent Future and any downstream object will
                 be immediately returned and synced when the Future has completed.
         :type sync: bool
