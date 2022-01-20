@@ -145,7 +145,7 @@ class DbtCloudHook(HttpHook):
     def conn(self) -> Connection:
         _conn = self.get_connection(self.dbt_cloud_conn_id)
         if not _conn.password:
-            raise AirflowException("An access token is required to connect to dbt Cloud.")
+            raise AirflowException("An API token is required to connect to dbt Cloud.")
 
         return _conn
 
@@ -203,7 +203,7 @@ class DbtCloudHook(HttpHook):
 
     def list_accounts(self) -> List[Response]:
         """
-        Retrieves all of the dbt Cloud the configured API token is authorized to access.
+        Retrieves all of the dbt Cloud accounts the configured API token is authorized to access.
 
         :return: List of request responses.
         """
