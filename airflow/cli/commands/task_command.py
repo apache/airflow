@@ -124,7 +124,7 @@ def _get_ti(
         session=session,
     )
 
-    ti_or_none = dag_run.get_task_instance(task.task_id)
+    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(

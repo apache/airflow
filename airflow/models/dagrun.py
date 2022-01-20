@@ -441,7 +441,11 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_task_instance(
-        self, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
+        self,
+        task_id: str,
+        session: Session = NEW_SESSION,
+        *,
+        map_index: int = -1,
     ) -> Optional[TI]:
         """
         Returns the task instance specified by task_id for this dag run
