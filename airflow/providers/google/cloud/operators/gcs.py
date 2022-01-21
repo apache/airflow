@@ -746,10 +746,10 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
 
         if timespan_end is None:  # Only possible in Airflow before 2.2.
             self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
+            timespan_end = timezone.coerce_datetime(DateTime.max)
         elif timespan_start >= timespan_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
             self.log.warning("DAG schedule not periodic, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
+            timespan_end = timezone.coerce_datetime(DateTime.max)
 
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)

@@ -830,7 +830,7 @@ class PubSubPullOperator(BaseOperator):
         subscription: str,
         max_messages: int = 5,
         ack_messages: bool = False,
-        messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
+        messages_callback: Optional[Callable[[List[ReceivedMessage], "Context"], Any]] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -876,7 +876,7 @@ class PubSubPullOperator(BaseOperator):
     def _default_message_callback(
         self,
         pulled_messages: List[ReceivedMessage],
-        context: Dict[str, Any],
+        context: "Context",
     ) -> list:
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

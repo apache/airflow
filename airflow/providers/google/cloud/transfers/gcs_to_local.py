@@ -89,7 +89,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        file_encoding: Optional[str] = 'utf-8',
+        file_encoding: str = 'utf-8',
         **kwargs,
     ) -> None:
         # To preserve backward compatibility

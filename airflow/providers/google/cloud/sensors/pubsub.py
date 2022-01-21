@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google PubSub sensor."""
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
@@ -104,7 +104,7 @@ class PubSubPullSensor(BaseSensorOperator):
         return_immediately: bool = True,
         ack_messages: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
-        messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
+        messages_callback: Optional[Callable[[List[ReceivedMessage], "Context"], Any]] = None,
         delegate_to: Optional[str] = None,
         project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
