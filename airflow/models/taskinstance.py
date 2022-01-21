@@ -486,7 +486,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "BaseOperator") -> dict:
+    def insert_mapping(run_id: str, task: "BaseOperator", map_index: int = -1) -> dict:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
@@ -503,6 +503,7 @@ class TaskInstance(Base, LoggingMixin):
             'max_tries': task.retries,
             'executor_config': task.executor_config,
             'operator': task.task_type,
+            'map_index': map_index,
         }
 
     @reconstructor

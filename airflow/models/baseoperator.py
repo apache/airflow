@@ -75,6 +75,7 @@ from airflow.utils.helpers import render_template_as_native, render_template_to_
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -1799,6 +1800,53 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @property
     def depends_on_past(self) -> bool:
         return self.partial_kwargs.get("depends_on_past") or self.wait_for_downstream
+
+    def expand_mapped_task(self, upstream_ti: "TaskInstance", session: "Session" = NEW_SESSION) -> None:
+        """Create the mapped TaskInstances for mapped task."""
+        # TODO: support having multiuple mapped upstreams?
+        from airflow.models.taskmap import TaskMap
+        from airflow.settings import task_instance_mutation_hook
+
+        task_map_info: TaskMap = (
+            session.query(TaskMap)
+            .filter_by(
+                dag_id=upstream_ti.dag_id,
+                task_id=upstream_ti.task_id,
+                run_id=upstream_ti.run_id,
+                map_index=upstream_ti.map_index,
+            )
+            .one()
+        )
+
+        unmapped_ti: Optional[TaskInstance] = upstream_ti.dag_run.get_task_instance(
+            self.task_id, map_index=-1, session=session
+        )
+
+        maps = range(task_map_info.length)
+
+        if unmapped_ti:
+            # The unmapped TaskInstance still exisxts -- this means we haven't
+            # tried to run it before.
+            unmapped_ti.map_index = 0
+            maps = range(1, task_map_info.length)
+
+        for index in maps:
+            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings
+            # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
+            ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index)  # type: ignore
+            task_instance_mutation_hook(ti)
+            session.merge(ti)
+
+        # Set to "REMOVED" any (old) TaskInstances with map indices greater
+        # than the current map value
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == upstream_ti.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == upstream_ti.run_id,
+            TaskInstance.map_index >= task_map_info.length,
+        ).update({TaskInstance.state: TaskInstanceState.REMOVED})
+
+        session.flush()
 
 
 # TODO: Deprecate for Airflow 3.0
