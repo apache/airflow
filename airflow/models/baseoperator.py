@@ -1412,7 +1412,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         Make an XCom available for tasks to pull.
 
         :param context: Execution Context Dictionary
-        :type: Any
         :param key: A key for the XCom
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
@@ -1443,7 +1442,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         whenever no matches are found.
 
         :param context: Execution Context Dictionary
-        :type: Any
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is 'return_value', also
             available as a constant XCOM_RETURN_KEY. This key is automatically

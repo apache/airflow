@@ -99,7 +99,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
     :param pickle_dags: whether to pickle DAGs.
-    :type: pickle_dags: bool
     :param async_mode: Whether to start agent in async mode
     """
 

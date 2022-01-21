@@ -153,7 +153,6 @@ def region_matches_partition(region: str, partition: str) -> bool:
     Returns True if the provided region and partition are a valid pair.
 
     :param region: AWS region code to test.
-    :type: region: str
     :param partition: AWS partition code to test.
     :return: Returns True if the provided region and partition are a valid pair.
     :rtype: bool

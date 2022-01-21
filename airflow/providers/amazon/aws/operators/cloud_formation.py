@@ -65,7 +65,6 @@ class CloudFormationDeleteStackOperator(BaseOperator):
 
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
-    :type cloudformation_parameters: dict
     :param aws_conn_id: aws connection to uses
     """
 

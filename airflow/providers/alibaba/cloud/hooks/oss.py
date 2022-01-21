@@ -105,9 +105,7 @@ class OSSHook(BaseHook):
         Parses the OSS Url into a bucket name and key.
 
         :param ossurl: The OSS Url to parse.
-        :rtype ossurl: str
         :return: the parsed bucket name and key
-        :rtype: tuple of str
         """
         parsed_url = urlparse(ossurl)
 

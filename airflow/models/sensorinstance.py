@@ -96,7 +96,6 @@ class SensorInstance(Base):
         context used for a sensor and set the sensor_instance table state to sensing.
 
         :param ti: The task instance for the sensor to be registered.
-        :type: ti:
         :param poke_context: Context used for sensor poke function.
         :param execution_context: Context used for execute sensor such as timeout
             setting and email configuration.

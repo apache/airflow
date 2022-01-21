@@ -108,9 +108,7 @@ def gen_job_name(job_name: str) -> str:
     Suffix — current timestamp
 
     :param job_name:
-    :rtype job_name: str
     :return: job_name with suffix
-    :rtype: str
     """
     uniq = int(time.time())
     return f"{job_name}_{uniq}"
