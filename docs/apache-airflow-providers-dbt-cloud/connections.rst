@@ -64,3 +64,24 @@ Login (optional)
 
       If an Account ID is not provided in an Airflow connection, ``account_id`` *must* be explicitly passed to
       an operator or hook method.
+
+When specifying the connection as an environment variable, you should specify it following the standard syntax
+of a database connection. Note that all components of the URI should be URL-encoded.
+
+
+For example, to add a connection with the connection ID of "dbt_cloud_default":
+
+    When specifying an Account ID:
+
+    .. code-block:: bash
+
+        export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://account_id:api_token@'
+
+    When *not* specifying an Account ID:
+
+    .. code-block:: bash
+
+        export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://api_token@'
+
+More information on creating connections via environment variables can be found
+:ref:`here <environment_variables_secrets_backend>`.

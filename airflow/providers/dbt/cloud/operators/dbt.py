@@ -88,7 +88,6 @@ class DbtCloudRunJobOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        self.hook = DbtCloudHook(self.dbt_cloud_conn_id)
         self.account_id = account_id
         self.job_id = job_id
         self.trigger_reason = trigger_reason
@@ -98,6 +97,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
         self.additional_run_config = additional_run_config or {}
+        self.hook: DbtCloudHook
         self.run_id: int
 
     def execute(self, context: "Context") -> int:
@@ -106,6 +106,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
 
+        self.hook = DbtCloudHook(self.dbt_cloud_conn_id)
         trigger_job_response = self.hook.trigger_job_run(
             account_id=self.account_id,
             job_id=self.job_id,
@@ -184,7 +185,6 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        self.hook = DbtCloudHook(self.dbt_cloud_conn_id)
         self.run_id = run_id
         self.path = path
         self.account_id = account_id
@@ -192,7 +192,8 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
 
     def execute(self, context: "Context") -> None:
-        response = self.hook.get_job_run_artifact(
+        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
 
