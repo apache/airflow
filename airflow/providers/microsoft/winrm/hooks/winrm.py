@@ -27,7 +27,7 @@ from airflow.hooks.base import BaseHook
 try:
     from airflow.utils.platform import getuser
 except ImportError:
-    from getpass import getuser
+    from getpass import getuser  # type: ignore[misc]
 
 
 # TODO: Fixme please - I have too complex implementation

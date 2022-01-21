@@ -38,7 +38,7 @@ from airflow.hooks.base import BaseHook
 try:
     from airflow.utils.platform import getuser
 except ImportError:
-    from getpass import getuser
+    from getpass import getuser  # type: ignore[misc]
 
 TIMEOUT_DEFAULT = 10
 
