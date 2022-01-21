@@ -3595,9 +3595,9 @@ class ConnectionModelView(AirflowModelView):
         conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
 
-        # The extra value is the combination of custom fields for this conn_type and the original Extra field.
+        # The extra value is the combination of custom fields for this conn_type and the Extra field.
         # The extra form field with all extra values (including custom fields) is in the form being processed
-        # so we store those values, and override them with anything in the custom fields mapped to specific extra keys
+        # so we start with those values, and override them with anything in the custom fields.
         extra = {}
 
         extra_field = form.data.get("extra")
