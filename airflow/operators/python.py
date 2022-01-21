@@ -222,10 +222,12 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
+    Allows a pipeline to continue based on the result of a ``python_callable``.
+
     The ShortCircuitOperator is derived from the PythonOperator and evaluates the result of a
-    ``python_callable``. If the returned result is False or a Falsy value, the pipeline will be
+    ``python_callable``. If the returned result is False or a falsy value, the pipeline will be
     short-circuited. Downstream tasks will be marked with a state of "skipped" based on the short-circuiting
-    mode configured. If the returned result is True or a Truthy value, downstream tasks proceed as normal and
+    mode configured. If the returned result is True or a truthy value, downstream tasks proceed as normal and
     an ``XCom`` of the returned result is pushed.
 
     The short-circuiting can be configured to either respect or ignore the ``trigger_rule`` set for
@@ -242,7 +244,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
         skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
-    :type ignore_downstream_trigger_rules: bool
     """
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
@@ -258,7 +259,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             return condition
 
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream tasks %s", downstream_tasks)
+        self.log.debug("Downstream task IDs %s", downstream_tasks)
 
         if downstream_tasks:
             dag_run = context["dag_run"]

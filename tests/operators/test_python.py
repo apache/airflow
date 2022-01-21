@@ -27,7 +27,6 @@ from subprocess import CalledProcessError
 from typing import List
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -586,14 +585,12 @@ class TestBranchOperator(unittest.TestCase):
         )
 
 
-class TestShortCircuitOperator(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+class TestShortCircuitOperator:
+    def setup(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def setUp(self):
         self.dag = DAG(
             "short_circuit_op_test",
             start_date=DEFAULT_DATE,
@@ -605,7 +602,7 @@ class TestShortCircuitOperator(unittest.TestCase):
             self.op2 = DummyOperator(task_id="op2")
             self.op1.set_downstream(self.op2)
 
-    def tearDown(self):
+    def teardown(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
@@ -629,18 +626,21 @@ class TestShortCircuitOperator(unittest.TestCase):
     }
     all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
 
-    @parameterized.expand(
-        [
+    @pytest.mark.parametrize(
+        argnames=(
+            "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states"
+        ),
+        argvalues=[
             # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
             # tasks
             (False, True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
-            # Skip downstream tasks via a Falsy value, do not respect trigger rules, default trigger rule on
+            # Skip downstream tasks via a falsy value, do not respect trigger rules, default trigger rule on
             # all downstream tasks
             ([], True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
             # Skip downstream tasks, do not respect trigger rules, non-default trigger rule on a downstream
             # task
             (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
-            # Skip downstream tasks via a Falsy value, do not respect trigger rules, non-default trigger rule
+            # Skip downstream tasks via a falsy value, do not respect trigger rules, non-default trigger rule
             # on a downstream task
             ([], True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
             # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
@@ -650,7 +650,7 @@ class TestShortCircuitOperator(unittest.TestCase):
                 TriggerRule.ALL_SUCCESS,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
             ),
-            # Skip downstream tasks via a Falsy value, respect trigger rules, default trigger rule on all
+            # Skip downstream tasks via a falsy value, respect trigger rules, default trigger rule on all
             # downstream tasks
             (
                 [],
@@ -665,7 +665,7 @@ class TestShortCircuitOperator(unittest.TestCase):
                 TriggerRule.ALL_DONE,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
-            # Skip downstream tasks via a Falsy value, respect trigger rules, non-default trigger rule on a
+            # Skip downstream tasks via a falsy value, respect trigger rules, non-default trigger rule on a
             # downstream task
             (
                 [],
@@ -676,27 +676,45 @@ class TestShortCircuitOperator(unittest.TestCase):
             # Do not skip downstream tasks, do not respect trigger rules, default trigger rule on all
             # downstream tasks
             (True, True, TriggerRule.ALL_SUCCESS, all_success_states),
-            # Do not skip downstream tasks via a Truthy value, do not respect trigger rules, default trigger
+            # Do not skip downstream tasks via a truthy value, do not respect trigger rules, default trigger
             # rule on all downstream tasks
             (["a", "b", "c"], True, TriggerRule.ALL_SUCCESS, all_success_states),
             # Do not skip downstream tasks, do not respect trigger rules, non-default trigger rule on a
             # downstream task
             (True, True, TriggerRule.ALL_DONE, all_success_states),
-            # Do not skip downstream tasks via a Truthy value, do not respect trigger rules, non-default
+            # Do not skip downstream tasks via a truthy value, do not respect trigger rules, non-default
             # trigger rule on a downstream task
             (["a", "b", "c"], True, TriggerRule.ALL_DONE, all_success_states),
             # Do not skip downstream tasks, respect trigger rules, default trigger rule on all downstream
             # tasks
             (True, False, TriggerRule.ALL_SUCCESS, all_success_states),
-            # Do not skip downstream tasks via a Truthy value, respect trigger rules, default trigger rule on
+            # Do not skip downstream tasks via a truthy value, respect trigger rules, default trigger rule on
             # all downstream tasks
             (["a", "b", "c"], False, TriggerRule.ALL_SUCCESS, all_success_states),
             # Do not skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream
             # task
             (True, False, TriggerRule.ALL_DONE, all_success_states),
-            # Do not skip downstream tasks via a Truthy value, respect trigger rules, non-default trigger rule
+            # Do not skip downstream tasks via a truthy value, respect trigger rules, non-default trigger rule
             # on a downstream  task
             (["a", "b", "c"], False, TriggerRule.ALL_DONE, all_success_states),
+        ],
+        ids=[
+            "skip_ignore_with_default_trigger_rule_on_all_tasks",
+            "skip_falsy_result_ignore_with_default_trigger_rule_on_all_tasks",
+            "skip_ignore_respect_with_non-default_trigger_rule_on_single_task",
+            "skip_falsy_result_ignore_respect_with_non-default_trigger_rule_on_single_task",
+            "skip_respect_with_default_trigger_rule_all_tasks",
+            "skip_falsy_result_respect_with_default_trigger_rule_all_tasks",
+            "skip_respect_with_non-default_trigger_rule_on_single_task",
+            "skip_falsy_result_respect_respect_with_non-default_trigger_rule_on_single_task",
+            "no_skip_ignore_with_default_trigger_rule_on_all_tasks",
+            "no_skip_truthy_result_ignore_with_default_trigger_rule_all_tasks",
+            "no_skip_no_respect_with_non-default_trigger_rule_on_single_task",
+            "no_skip_truthy_result_ignore_with_non-default_trigger_rule_on_single_task",
+            "no_skip_respect_with_default_trigger_rule_all_tasks",
+            "no_skip_truthy_result_respect_with_default_trigger_rule_all_tasks",
+            "no_skip_respect_with_non-default_trigger_rule_on_single_task",
+            "no_skip_truthy_result_respect_with_non-default_trigger_rule_on_single_task",
         ],
     )
     def test_short_circuiting(

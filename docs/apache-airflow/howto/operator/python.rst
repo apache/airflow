@@ -96,10 +96,10 @@ ShortCircuitOperator
 ========================
 
 Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
-if a condition is satisfied or a Truthy value is obtained. The evaluation of this condition and Truthy value
-is done via the output of a ``python_callable``. If the ``python_callable`` returns True or a Truthy value,
+if a condition is satisfied or a truthy value is obtained. The evaluation of this condition and truthy value
+is done via the output of a ``python_callable``. If the ``python_callable`` returns True or a truthy value,
 the pipeline is allowed to continue and an :ref:`XCom <concepts:xcom>` of the output will be pushed. If the
-output is False or a Falsy value, the pipeline will be short-circuited based on the configured
+output is False or a falsy value, the pipeline will be short-circuited based on the configured
 short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_True"
 ShortCircuitOperator will execute while the tasks downstream of the "condition_is_False" ShortCircuitOperator
 will be skipped.

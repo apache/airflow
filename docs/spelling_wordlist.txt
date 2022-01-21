@@ -141,7 +141,6 @@ EventBufferValueType
 ExaConnection
 Exasol
 Failover
-Falsy
 Fargate
 Fernet
 FileSensor
@@ -385,7 +384,6 @@ Tez
 Thinknear
 ToC
 Tooltip
-Truthy
 Tunables
 UA
 Umask
