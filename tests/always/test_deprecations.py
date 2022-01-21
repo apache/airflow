@@ -49,7 +49,7 @@ class TestDeprecations:
         py_38 = sys.version_info >= (3, 8)
         if py_38:
             if "mssql" in path_a or "mssql" in path_b:
-                raise self.skipTest("Mssql package not available when Python >= 3.8.")
+                raise pytest.skip("Mssql package not available when Python >= 3.8.")
 
     @staticmethod
     def get_class_from_path(path_to_class, parent=False):

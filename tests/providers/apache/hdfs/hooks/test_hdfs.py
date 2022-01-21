@@ -20,6 +20,8 @@ import json
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 
@@ -29,9 +31,7 @@ try:
     snakebite_loaded = True
 except ImportError:
     snakebite_loaded = False
-
-if not snakebite_loaded:
-    raise unittest.SkipTest("Skipping test because HDFSHook is not installed")
+    pytestmark = pytest.mark.skip("Skipping test because HDFSHook is not installed")
 
 
 class TestHDFSHook(unittest.TestCase):
@@ -82,6 +82,8 @@ class TestHDFSHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections')
     def test_get_ha_client(self, mock_get_connections):
+        if not snakebite_loaded:
+            raise pytest.skip("Skipping test because HDFSHook is not installed")
         conn_1 = Connection(conn_id='hdfs_default', conn_type='hdfs', host='localhost', port=8020)
         conn_2 = Connection(conn_id='hdfs_default', conn_type='hdfs', host='localhost2', port=8020)
         mock_get_connections.return_value = [conn_1, conn_2]
