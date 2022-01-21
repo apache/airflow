@@ -84,7 +84,7 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
@@ -116,7 +116,7 @@ from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
 from airflow.version import version
@@ -1124,7 +1124,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def rendered_k8s(self):
+    @provide_session
+    def rendered_k8s(self, session: Session = NEW_SESSION):
         """Get rendered k8s yaml."""
         if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
             abort(404)
@@ -1135,14 +1136,15 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         logging.info("Retrieving rendered templates.")
-        dag = current_app.dag_bag.get_dag(dag_id)
+
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        dag_run = dag.get_dagrun(execution_date=dttm)
-        ti = dag_run.get_task_instance(task_id=task.task_id)
+        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
 
         pod_spec = None
         try:
-            pod_spec = ti.get_rendered_k8s_spec()
+            pod_spec = ti.get_rendered_k8s_spec(session=session)
         except AirflowException as e:
             msg = "Error rendering Kubernetes POD Spec: " + escape(e)
             if e.__cause__:
