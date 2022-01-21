@@ -81,7 +81,8 @@ For example, to add a connection with the connection ID of "dbt_cloud_default":
 
     .. code-block:: bash
 
-        export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://api_token@'
+        export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://:api_token@'
 
-More information on creating connections via environment variables can be found
-:ref:`here <environment_variables_secrets_backend>`.
+You can refer to the documentation on
+:ref:`creating connections via environment variables <environment_variables_secrets_backend>` for more
+information.
