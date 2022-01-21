@@ -33,15 +33,11 @@ class DmsTaskBaseSensor(BaseSensorOperator):
     Subclasses should set ``target_statuses`` and ``termination_statuses`` fields.
 
     :param replication_task_arn: AWS DMS replication task ARN
-    :type replication_task_arn: str
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     :param target_statuses: the target statuses, sensor waits until
         the task reaches any of these states
-    :type target_states: list[str]
     :param termination_statuses: the termination statuses, sensor fails when
         the task reaches any of these states
-    :type termination_statuses: list[str]
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)
@@ -99,7 +95,6 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
         :ref:`howto/sensor:DmsTaskCompletedSensor`
 
     :param replication_task_arn: AWS DMS replication task ARN
-    :type replication_task_arn: str
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)

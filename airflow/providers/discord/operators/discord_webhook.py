@@ -39,21 +39,14 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     :param http_conn_id: Http connection ID with host as "https://discord.com/api/" and
                          default webhook endpoint in the extra field in the form of
                          {"webhook_endpoint": "webhooks/{webhook.id}/{webhook.token}"}
-    :type http_conn_id: str
     :param webhook_endpoint: Discord webhook endpoint in the form of
                              "webhooks/{webhook.id}/{webhook.token}"
-    :type webhook_endpoint: str
     :param message: The message you want to send to your Discord channel
                     (max 2000 characters). (templated)
-    :type message: str
     :param username: Override the default username of the webhook. (templated)
-    :type username: str
     :param avatar_url: Override the default avatar of the webhook
-    :type avatar_url: str
     :param tts: Is a text-to-speech message
-    :type tts: bool
     :param proxy: Proxy to use to make the Discord webhook call
-    :type proxy: str
     """
 
     template_fields: Sequence[str] = ('username', 'message')

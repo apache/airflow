@@ -31,7 +31,6 @@ class AzureContainerRegistryHook(BaseHook):
     :param conn_id: :ref:`Azure Container Registry connection id<howto/connection:acr>`
         of a service principal which will be used to start the container instance
 
-    :type conn_id: str
     """
 
     conn_name_attr = 'azure_container_registry_conn_id'

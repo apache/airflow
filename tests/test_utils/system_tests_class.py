@@ -123,9 +123,7 @@ class SystemTest(TestCase, LoggingMixin):
         Runs example dag by it's ID.
 
         :param dag_id: id of a DAG to be run
-        :type dag_id: str
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
-        :type dag_folder: str
         """
         if os.environ.get("RUN_AIRFLOW_1_10") == "true":
             # For system tests purpose we are changing airflow/providers

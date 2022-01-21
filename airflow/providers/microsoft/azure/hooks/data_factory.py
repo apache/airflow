@@ -14,6 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+.. spelling::
+
+    CreateRunResponse
+    DatasetResource
+    LinkedServiceResource
+    LROPoller
+    PipelineResource
+    PipelineRun
+    TriggerResource
+    datafactory
+    mgmt
+"""
 import inspect
 import time
 from functools import wraps
@@ -101,7 +114,6 @@ class AzureDataFactoryHook(BaseHook):
     A hook to interact with Azure Data Factory.
 
     :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
-    :type azure_data_factory_conn_id: str
     """
 
     conn_type: str = 'azure_data_factory'

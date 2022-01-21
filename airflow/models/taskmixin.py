@@ -128,19 +128,11 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     start_date: Optional[pendulum.DateTime]
     end_date: Optional[pendulum.DateTime]
+    upstream_task_ids: Set[str]
+    downstream_task_ids: Set[str]
 
     def has_dag(self) -> bool:
         return self.dag is not None
-
-    @property
-    @abstractmethod
-    def upstream_task_ids(self) -> Set[str]:
-        raise NotImplementedError()
-
-    @property
-    @abstractmethod
-    def downstream_task_ids(self) -> Set[str]:
-        raise NotImplementedError()
 
     @property
     def log(self) -> "Logger":

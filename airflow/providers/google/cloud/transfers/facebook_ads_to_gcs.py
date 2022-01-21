@@ -59,33 +59,23 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         :ref:`howto/operator:FacebookAdsReportToGcsOperator`
 
     :param bucket_name: The GCS bucket to upload to
-    :type bucket_name: str
     :param object_name: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
-    :type object_name: str
     :param gcp_conn_id: Airflow Google Cloud connection ID
-    :type gcp_conn_id: str
     :param facebook_conn_id: Airflow Facebook Ads connection ID
-    :type facebook_conn_id: str
     :param api_version: The version of Facebook API. Default to None. If it is None,
         it will use the Facebook business SDK default version.
-    :type api_version: str
     :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :type fields: List[str]
     :param params: Parameters that determine the query for Facebook. This keyword is deprecated,
         please use `parameters` keyword to pass the parameters.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :type params: Dict[str, Any]
     :param parameters: Parameters that determine the query for Facebook
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :type parameters: Dict[str, Any]
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param upload_as_account: Option to export file with account_id
         This parameter only works if Account Id sets as array in Facebook Connection
         If set as True, each file will be exported in a separate file that has a prefix of account_id
         If set as False, a single file will be exported for all account_id
-    :type upload_as_account: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -94,7 +84,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

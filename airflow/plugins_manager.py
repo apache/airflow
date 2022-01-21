@@ -483,7 +483,6 @@ def get_plugin_info(attrs_to_dump: Optional[Iterable[str]] = None) -> List[Dict[
     Dump plugins attributes
 
     :param attrs_to_dump: A list of plugin attributes to dump
-    :type attrs_to_dump: List
     """
     ensure_plugins_loaded()
     integrate_executor_plugins()

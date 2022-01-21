@@ -103,12 +103,9 @@ class EksHook(AwsBaseHook):
         Creates an Amazon EKS control plane.
 
         :param name: The unique name to give to your Amazon EKS Cluster.
-        :type name: str
         :param roleArn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
           for the Kubernetes control plane to make calls to AWS API operations on your behalf.
-        :type roleArn: str
         :param resourcesVpcConfig: The VPC configuration used by the cluster control plane.
-        :type resourcesVpcConfig: Dict
 
         :return: Returns descriptive information about the created EKS Cluster.
         :rtype: Dict
@@ -136,15 +133,10 @@ class EksHook(AwsBaseHook):
         Creates an Amazon EKS managed node group for an Amazon EKS Cluster.
 
         :param clusterName: The name of the Amazon EKS cluster to create the EKS Managed Nodegroup in.
-        :type clusterName: str
         :param nodegroupName: The unique name to give your managed nodegroup.
-        :type nodegroupName: str
         :param subnets: The subnets to use for the Auto Scaling group that is created for your nodegroup.
-        :type subnets: List[str]
         :param nodeRole: The Amazon Resource Name (ARN) of the IAM role to associate with your nodegroup.
-        :type nodeRole: str
         :param tags: Optional tags to apply to your nodegroup.
-        :type tags: Dict
 
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
         :rtype: Dict
@@ -187,14 +179,10 @@ class EksHook(AwsBaseHook):
         Creates an AWS Fargate profile for an Amazon EKS cluster.
 
         :param clusterName: The name of the Amazon EKS cluster to apply the Fargate profile to.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile.
-        :type fargateProfileName: str
         :param podExecutionRoleArn: The Amazon Resource Name (ARN) of the pod execution role to
             use for pods that match the selectors in the Fargate profile.
-        :type podExecutionRoleArn: str
         :param selectors: The selectors to match for pods to use this Fargate profile.
-        :type selectors: List
 
         :return: Returns descriptive information about the created Fargate profile.
         :rtype: Dict
@@ -221,7 +209,6 @@ class EksHook(AwsBaseHook):
         Deletes the Amazon EKS Cluster control plane.
 
         :param name: The name of the cluster to delete.
-        :type name: str
 
         :return: Returns descriptive information about the deleted EKS Cluster.
         :rtype: Dict
@@ -238,9 +225,7 @@ class EksHook(AwsBaseHook):
         Deletes an Amazon EKS managed node group from a specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster that is associated with your nodegroup.
-        :type clusterName: str
         :param nodegroupName: The name of the nodegroup to delete.
-        :type nodegroupName: str
 
         :return: Returns descriptive information about the deleted EKS Managed Nodegroup.
         :rtype: Dict
@@ -261,9 +246,7 @@ class EksHook(AwsBaseHook):
         Deletes an AWS Fargate profile from a specified Amazon EKS cluster.
 
         :param clusterName: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile to delete.
-        :type fargateProfileName: str
 
         :return: Returns descriptive information about the deleted Fargate profile.
         :rtype: Dict
@@ -286,9 +269,7 @@ class EksHook(AwsBaseHook):
         Returns descriptive information about an Amazon EKS Cluster.
 
         :param name: The name of the cluster to describe.
-        :type name: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: Returns descriptive information about a specific EKS Cluster.
         :rtype: Dict
@@ -310,11 +291,8 @@ class EksHook(AwsBaseHook):
         Returns descriptive information about an Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
-        :type clusterName: str
         :param nodegroupName: The name of the nodegroup to describe.
-        :type nodegroupName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: Returns descriptive information about a specific EKS Nodegroup.
         :rtype: Dict
@@ -343,11 +321,8 @@ class EksHook(AwsBaseHook):
         Returns descriptive information about an AWS Fargate profile.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile to describe.
-        :type fargateProfileName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: Returns descriptive information about an AWS Fargate profile.
         :rtype: Dict
@@ -375,7 +350,6 @@ class EksHook(AwsBaseHook):
         Returns the current status of a given Amazon EKS Cluster.
 
         :param clusterName: The name of the cluster to check.
-        :type clusterName: str
 
         :return: Returns the current status of a given Amazon EKS Cluster.
         :rtype: ClusterStates
@@ -394,9 +368,7 @@ class EksHook(AwsBaseHook):
         Returns the current status of a given AWS Fargate profile.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile to check.
-        :type fargateProfileName: str
 
         :return: Returns the current status of a given AWS Fargate profile.
         :rtype: AWS FargateProfileStates
@@ -421,9 +393,7 @@ class EksHook(AwsBaseHook):
         Returns the current status of a given Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
-        :type clusterName: str
         :param nodegroupName: The name of the nodegroup to check.
-        :type nodegroupName: str
 
         :return: Returns the current status of a given Amazon EKS Nodegroup.
         :rtype: NodegroupStates
@@ -449,7 +419,6 @@ class EksHook(AwsBaseHook):
         Lists all Amazon EKS Clusters in your AWS account.
 
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A List containing the cluster names.
         :rtype: List
@@ -468,9 +437,7 @@ class EksHook(AwsBaseHook):
         Lists all Amazon EKS managed node groups associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing nodegroups to list.
-        :type clusterName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A List of nodegroup names within the given cluster.
         :rtype: List
@@ -489,9 +456,7 @@ class EksHook(AwsBaseHook):
         Lists all AWS Fargate profiles associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing Fargate profiles to list.
-        :type clusterName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A list of Fargate profile names within a given cluster.
         :rtype: List
@@ -508,11 +473,8 @@ class EksHook(AwsBaseHook):
         Repeatedly calls a provided boto3 API Callable and collates the responses into a List.
 
         :param api_call: The api command to execute.
-        :type api_call: Callable
         :param response_key: Which dict key to collect into the final list.
-        :type response_key: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A List of the combined results of the provided API call.
         :rtype: List
@@ -544,9 +506,7 @@ class EksHook(AwsBaseHook):
         Writes the kubeconfig file given an EKS Cluster.
 
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
-        :type eks_cluster_name: str
         :param pod_namespace: The namespace to run within kubernetes.
-        :type pod_namespace: str
         """
         if pod_username:
             warnings.warn(

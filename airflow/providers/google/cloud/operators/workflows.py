@@ -47,21 +47,14 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsCreateWorkflowOperator`
 
     :param workflow: Required. Workflow to be created.
-    :type workflow: Dict
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow", "workflow_id")
@@ -155,22 +148,15 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsUpdateWorkflowOperator`
 
     :param workflow_id: Required. The ID of the workflow to be updated.
-    :type workflow_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param update_mask: List of fields to be updated. If not present,
         the entire workflow will be updated.
-    :type update_mask: FieldMask
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("workflow_id", "update_mask")
@@ -236,19 +222,13 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsDeleteWorkflowOperator`
 
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id")
@@ -301,24 +281,17 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsListWorkflowsOperator`
 
     :param filter_: Filter to restrict results to specific workflows.
-    :type filter_: str
     :param order_by: Comma-separated list of fields that
         specifies the order of the results. Default sorting order for a field is ascending.
         To specify descending order for a field, append a "desc" suffix.
         If not specified, the results will be returned in an unspecified order.
-    :type order_by: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "order_by", "filter_")
@@ -373,19 +346,13 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsGetWorkflowOperator`
 
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id")
@@ -438,21 +405,14 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsCreateExecutionOperator`
 
     :param execution: Required. Execution to be created.
-    :type execution: Dict
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id", "execution")
@@ -510,21 +470,14 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsCancelExecutionOperator`
 
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param execution_id: Required. The ID of the execution.
-    :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
@@ -583,22 +536,15 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsListExecutionsOperator`
 
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param start_date_filter: If passed only executions older that this date will be returned.
         By default operators return executions from last 60 minutes
-    :type start_date_filter: datetime
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id")
@@ -653,21 +599,14 @@ class WorkflowsGetExecutionOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsGetExecutionOperator`
 
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param execution_id: Required. The ID of the execution.
-    :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")

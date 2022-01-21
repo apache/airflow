@@ -184,7 +184,6 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 
 cd "${AIRFLOW_SOURCES}"
 
-echo "START_AIRFLOW:=${START_AIRFLOW}"
 if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}

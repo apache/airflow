@@ -57,7 +57,7 @@ class TestCloudFormationHook(unittest.TestCase):
 
         self.hook.create_stack(
             stack_name=stack_name,
-            params={
+            cloudformation_parameters={
                 'TimeoutInMinutes': timeout,
                 'TemplateBody': template_body,
                 'Parameters': [{'ParameterKey': "VPCCidr", 'ParameterValue': '10.0.0.0/16'}],

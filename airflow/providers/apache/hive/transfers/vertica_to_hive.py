@@ -48,24 +48,16 @@ class VerticaToHiveOperator(BaseOperator):
     final destination using a ``HiveOperator``.
 
     :param sql: SQL query to execute against the Vertica database. (templated)
-    :type sql: str
     :param hive_table: target Hive table, use dot notation to target a
         specific database. (templated)
-    :type hive_table: str
     :param create: whether to create the table if it doesn't exist
-    :type create: bool
     :param recreate: whether to drop and recreate the table at every execution
-    :type recreate: bool
     :param partition: target partition as a dict of partition columns
         and values. (templated)
-    :type partition: dict
     :param delimiter: field delimiter in the file
-    :type delimiter: str
     :param vertica_conn_id: source Vertica connection
-    :type vertica_conn_id: str
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
-    :type hive_cli_conn_id: str
     """
 
     template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')

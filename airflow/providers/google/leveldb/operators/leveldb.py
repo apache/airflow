@@ -33,22 +33,14 @@ class LevelDBOperator(BaseOperator):
 
         :param command: command of plyvel(python wrap for leveldb) for DB object e.g.
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
-        :type command: str
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
-        :type key: bytes
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :type value: Optional[bytes]
         :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
-        :type keys: Optional[List[bytes]]
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
-        :type values: Optional[List[bytes]]
         :param leveldb_conn_id:
-        :type leveldb_conn_id: str
         :param create_if_missing: whether a new database should be created if needed
-        :type create_if_missing: bool
         :param create_db_extra_options: extra options of creation LevelDBOperator. See more in the link below
             `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
-        :type create_db_extra_options: Optional[Dict[str, Any]]
     """
 
     def __init__(

@@ -34,12 +34,9 @@ class Param:
     it always validates and returns the default value.
 
     :param default: The value this Param object holds
-    :type default: Any
     :param description: Optional help text for the Param
-    :type description: str
     :param schema: The validation schema of the Param, if not given then all kwargs except
         default & description will form the schema
-    :type schema: dict
     """
 
     CLASS_IDENTIFIER = '__class'
@@ -61,10 +58,8 @@ class Param:
         In future release we will require the value to be json-serializable.
 
         :param value: The value to be updated for the Param
-        :type value: Any
         :param suppress_exception: To raise an exception or not when the validations fails.
             If true and validations fails, the return value would be None.
-        :type suppress_exception: bool
         """
         try:
             json.dumps(value)
@@ -111,9 +106,7 @@ class ParamsDict(MutableMapping[str, Any]):
     def __init__(self, dict_obj: Optional[Dict] = None, suppress_exception: bool = False):
         """
         :param dict_obj: A dict or dict like object to init ParamsDict
-        :type dict_obj: Optional[dict]
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
-        :type suppress_exception: bool
         """
         params_dict: Dict[str, Param] = {}
         dict_obj = dict_obj or {}
@@ -149,10 +142,8 @@ class ParamsDict(MutableMapping[str, Any]):
         Param's type only.
 
         :param key: A key which needs to be inserted or updated in the dict
-        :type key: str
         :param value: A value which needs to be set against the key. It could be of any
             type but will be converted and stored as a Param object eventually.
-        :type value: Any
         """
         if isinstance(value, Param):
             param = value
@@ -174,7 +165,6 @@ class ParamsDict(MutableMapping[str, Any]):
         resolve method as well on the Param object.
 
         :param key: The key to fetch
-        :type key: str
         """
         param = self.__dict[key]
         return param.resolve(suppress_exception=self.suppress_exception)
@@ -227,11 +217,8 @@ class DagParam:
           EmailOperator(subject=dag.param('subject', 'Hi from Airflow!'))
 
     :param current_dag: Dag being used for parameter.
-    :type current_dag: airflow.models.DAG
     :param name: key value which is used to set the parameter
-    :type name: str
     :param default: Default value used if no parameter was set.
-    :type default: Any
     """
 
     def __init__(self, current_dag, name: str, default: Optional[Any] = None):

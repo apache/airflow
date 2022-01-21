@@ -37,26 +37,18 @@ class ADLSToGCSOperator(ADLSListOperator):
     Synchronizes an Azure Data Lake Storage path with a GCS bucket
 
     :param src_adls: The Azure Data Lake path to find the objects (templated)
-    :type src_adls: str
     :param dest_gcs: The Google Cloud Storage bucket and prefix to
         store the objects. (templated)
-    :type dest_gcs: str
     :param replace: If true, replaces same-named files in GCS
-    :type replace: bool
     :param gzip: Option to compress file for upload
-    :type gzip: bool
     :param azure_data_lake_conn_id: The connection ID to use when
         connecting to Azure Data Lake Storage.
-    :type azure_data_lake_conn_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type google_cloud_storage_conn_id: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -65,7 +57,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
 
     **Examples**:
         The following Operator would copy a single file named

@@ -33,9 +33,7 @@ class GlacierCreateJobOperator(BaseOperator):
         :ref:`howto/operator:GlacierCreateJobOperator`
 
     :param aws_conn_id: The reference to the AWS connection details
-    :type aws_conn_id: str
     :param vault_name: the Glacier vault on which job is executed
-    :type vault_name: str
     """
 
     template_fields: Sequence[str] = ("vault_name",)

@@ -137,7 +137,6 @@ class BaseJob(Base, LoggingMixin):
 
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
-        :type grace_multiplier: number
         :rtype: boolean
         """
         return (
@@ -186,7 +185,6 @@ class BaseJob(Base, LoggingMixin):
 
         :param only_if_necessary: If the heartbeat is not yet due then do
             nothing (don't update column, don't call ``heartbeat_callback``)
-        :type only_if_necessary: boolean
         """
         seconds_remaining = 0
         if self.latest_heartbeat:

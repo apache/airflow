@@ -75,9 +75,7 @@ class EC2Hook(AwsBaseHook):
         Get EC2 instance by id and return it.
 
         :param instance_id: id of the AWS EC2 instance
-        :type instance_id: str
         :param filters: List of filters to specify instances to get
-        :type filters: list
         :return: Instance object
         :rtype: ec2.Instance
         """
@@ -169,7 +167,6 @@ class EC2Hook(AwsBaseHook):
         Get EC2 instance state by id and return it.
 
         :param instance_id: id of the AWS EC2 instance
-        :type instance_id: str
         :return: current state of the instance
         :rtype: str
         """
@@ -183,12 +180,9 @@ class EC2Hook(AwsBaseHook):
         Wait EC2 instance until its state is equal to the target_state.
 
         :param instance_id: id of the AWS EC2 instance
-        :type instance_id: str
         :param target_state: target state of instance
-        :type target_state: str
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
-        :type check_interval: float
         :return: None
         :rtype: None
         """

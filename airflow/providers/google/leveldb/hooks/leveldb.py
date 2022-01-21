@@ -52,11 +52,8 @@ class LevelDBHook(BaseHook):
         Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
 
         :param name: path to create database e.g. `/tmp/testdb/`)
-        :type name: str
         :param create_if_missing: whether a new database should be created if needed
-        :type create_if_missing: bool
         :param kwargs: other options of creation plyvel.DB. See more in the link above.
-        :type kwargs: Dict[str, Any]
         :returns: DB
         :rtype: plyvel.DB
         """
@@ -85,15 +82,10 @@ class LevelDBHook(BaseHook):
 
         :param command: command of plyvel(python wrap for leveldb) for DB object e.g.
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
-        :type command: str
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
-        :type key: bytes
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :type value: Optional[bytes]
         :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
-        :type keys: Optional[List[bytes]]
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
-        :type values: Optional[List[bytes]]
         :returns: value from get or None
         :rtype: Optional[bytes]
         """
@@ -119,9 +111,7 @@ class LevelDBHook(BaseHook):
         Put a single value into a leveldb db by key
 
         :param key: key for put execution, e.g. ``b'key'``, ``b'another-key'``
-        :type key: bytes
         :param value: value for put execution e.g. ``b'value'``, ``b'another-value'``
-        :type value: bytes
         """
         if not self.db:
             raise Exception(DB_NOT_INITIALIZED_BEFORE)
@@ -132,7 +122,6 @@ class LevelDBHook(BaseHook):
         Get a single value into a leveldb db by key
 
         :param key: key for get execution, e.g. ``b'key'``, ``b'another-key'``
-        :type key: bytes
         :returns: value of key from db.get
         :rtype: bytes
         """
@@ -145,7 +134,6 @@ class LevelDBHook(BaseHook):
         Delete a single value in a leveldb db by key.
 
         :param key: key for delete execution, e.g. ``b'key'``, ``b'another-key'``
-        :type key: bytes
         """
         if not self.db:
             raise Exception(DB_NOT_INITIALIZED_BEFORE)
@@ -156,9 +144,7 @@ class LevelDBHook(BaseHook):
         Write batch of values in a leveldb db by keys
 
         :param keys: keys for write_batch execution e.g. ``[b'key', b'another-key']``
-        :type keys: List[bytes]
         :param values: values for write_batch execution e.g. ``[b'value', b'another-value']``
-        :type values: List[bytes]
         """
         if not self.db:
             raise Exception(DB_NOT_INITIALIZED_BEFORE)
