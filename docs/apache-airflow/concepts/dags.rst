@@ -260,7 +260,7 @@ The task_id returned by the Python function has to reference a task directly dow
 
     .. image:: /img/branch_note.png
 
-    The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will be still be run, even though it was not returned as part of the branch decision.
+    The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
 The ``BranchPythonOperator`` can also be used with XComs allowing branching context to dynamically decide what branch to follow based on upstream tasks. For example:
 
