@@ -20,7 +20,6 @@ from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
 
@@ -43,7 +42,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 
 T = TypeVar("T")
 
@@ -273,7 +272,10 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
     if not dry_run:
         clear_task_instances(
-            task_instances.all(), session, dag=dag, dag_run_state=State.QUEUED if reset_dag_runs else False
+            task_instances.all(),
+            session,
+            dag=dag,
+            dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
         )
 
     return task_instance_reference_collection_schema.dump(
@@ -309,14 +311,30 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
-    execution_date = data['execution_date']
-    try:
-        session.query(TI).filter_by(execution_date=execution_date, task_id=task_id, dag_id=dag_id).one()
-    except NoResultFound:
-        raise NotFound(f"Task instance not found for task {task_id} on execution_date {execution_date}")
+    execution_date = data.get('execution_date')
+    run_id = data.get('dag_run_id')
+    if (
+        execution_date
+        and (
+            session.query(TI)
+            .filter(TI.task_id == task_id, TI.dag_id == dag_id, TI.execution_date == execution_date)
+            .one_or_none()
+        )
+        is None
+    ):
+        raise NotFound(
+            detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
+        )
+
+    if run_id and not session.query(TI).get(
+        {'task_id': task_id, 'dag_id': dag_id, 'run_id': run_id, 'map_index': -1}
+    ):
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
+        raise NotFound(detail=error_message)
 
     tis = dag.set_task_instance_state(
         task_id=task_id,
+        dag_run_id=run_id,
         execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],

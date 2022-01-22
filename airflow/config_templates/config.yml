@@ -1303,6 +1303,13 @@
       type: string
       example: ~
       default:
+    - name: instance_name_has_markup
+      description: |
+        Whether the custom page title for the DAGs overview page contains any Markup language
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
     - name: auto_refresh_interval
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or tree view
@@ -1678,6 +1685,13 @@
       type: string
       example: ~
       default: "False"
+    - name: stuck_queued_task_check_interval
+      description: |
+        How often to check for stuck queued task (in seconds)
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "300"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the

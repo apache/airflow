@@ -44,27 +44,25 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.permissions import delete_dag_specific_permissions
+
+
+def db_clean_up():
+    db.clear_db_dags()
+    db.clear_db_runs()
+    db.clear_db_serialized_dags()
+    db.clear_dag_specific_permissions()
 
 
 class TestDagBag:
     @classmethod
     def setup_class(cls):
         cls.empty_dir = mkdtemp()
+        db_clean_up()
 
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls.empty_dir)
-
-    def setup_methods(self) -> None:
-        db.clear_db_dags()
-        db.clear_db_runs()
-        db.clear_db_serialized_dags()
-
-    def teardown_method(self) -> None:
-        db.clear_db_dags()
-        db.clear_db_runs()
-        db.clear_db_serialized_dags()
+        db_clean_up()
 
     def test_get_existing_dag(self):
         """
@@ -214,6 +212,19 @@ class TestDagBag:
         as schedule interval can be identified
         """
         invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        assert len(dagbag.import_errors) == 0
+        for file in invalid_dag_files:
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
+        assert len(dagbag.import_errors) == len(invalid_dag_files)
+        assert len(dagbag.dags) == 0
+
+    def test_process_file_invalid_param_check(self):
+        """
+        test if an invalid param in the dag param can be identified
+        """
+        invalid_dag_files = ["test_invalid_param.py"]
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         assert len(dagbag.import_errors) == 0
@@ -774,6 +785,7 @@ class TestDagBag:
         Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
         new or updated
         """
+        db_clean_up()
         session = settings.Session()
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)) as frozen_time:
             dagbag = DagBag(
@@ -807,7 +819,7 @@ class TestDagBag:
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
         when DAG specific perm views don't exist already or the DAG has access_control set.
         """
-        delete_dag_specific_permissions()
+        db_clean_up()
         with create_session() as session:
             security_manager = ApplessAirflowSecurityManager(session)
             mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
@@ -879,6 +891,7 @@ class TestDagBag:
 
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
+        db.clear_db_dags()
         example_dags_folder = airflow.example_dags.__path__[0]
         dagbag = DagBag(example_dags_folder)
 

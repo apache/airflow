@@ -45,9 +45,7 @@ class TriggerRuleDep(BaseTIDep):
         whether this ti can run in this iteration
 
         :param ti: the ti that we want to calculate deps for
-        :type ti: airflow.models.TaskInstance
         :param finished_tasks: all the finished tasks of the dag_run
-        :type finished_tasks: list[airflow.models.TaskInstance]
         """
         counter = Counter(task.state for task in finished_tasks if task.task_id in ti.task.upstream_task_ids)
         return (
@@ -101,24 +99,16 @@ class TriggerRuleDep(BaseTIDep):
         rule was met.
 
         :param ti: the task instance to evaluate the trigger rule of
-        :type ti: airflow.models.TaskInstance
         :param successes: Number of successful upstream tasks
-        :type successes: int
         :param skipped: Number of skipped upstream tasks
-        :type skipped: int
         :param failed: Number of failed upstream tasks
-        :type failed: int
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: int
         :param done: Number of completed upstream tasks
-        :type done: int
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
             path to add the feature
-        :type flag_upstream_failed: bool
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         """
         task = ti.task
         upstream = len(task.upstream_task_ids)

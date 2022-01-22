@@ -124,15 +124,25 @@ official Apache releases must not include the rcN suffix.
 - Update Helm Chart version in `Chart.yaml`, example: `version: 1.0.0` (without
   the RC tag). If the default version of Airflow is different from `appVersion` change it.
 
-- Commit the version change.
+- Add and commit the version change.
+
+    ```shell
+    git add chart
+    git commit -m "Chart: Bump version to $VERSION_WITHOUT_RC"
+    ```
+
+  Note: You will tag this commit, you do not need to open a PR for it.
 
 - Tag your release
 
     ```shell
-    git tag -s helm-chart/${VERSION}
+    git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart $VERSION"
     ```
 
 - Tarball the repo
+
+    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
+     in the file produced.
 
     ```shell
     git archive --format=tar.gz helm-chart/${VERSION} --prefix=airflow-chart-${VERSION_WITHOUT_RC}/ \
@@ -141,45 +151,36 @@ official Apache releases must not include the rcN suffix.
 
 - Generate chart binary
 
-    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
-     in the file produced.
 
-    Replace key email to your email address and path of keyring if it is different.
+    ```shell
+    helm package chart --dependency-update
+    ```
+
+- Sign the chart binary
+
+    In the following command, replace the email address with your email address or your KEY ID
+    so GPG uses the right key to sign the chart.
     (If you have not generated a key yet, generate it by following instructions on
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell
-    helm package chart --dependency-update --sign --key "kaxilnaik@apache.org" \
-        --keyring ~/.gnupg/secring.gpg
+    helm gpg sign -u jedcunningham@apache.org airflow-${VERSION_WITHOUT_RC}.tgz
     ```
 
-    Warning: the GnuPG v2 store your secret keyring using a new format kbx on the default
-    location `~/.gnupg/pubring.kbx`. Please use the following command to convert your keyring to the
-    legacy gpg format and run the above command again:
+    Warning: you need the `helm gpg` plugin to sign the chart. It can be found at: https://github.com/technosophos/helm-gpg
+
+    This should also generate a provenance file (Example: `airflow-1.0.0.tgz.prov`) as described in
+    https://helm.sh/docs/topics/provenance/, which can be used to verify integrity of the Helm chart.
+
+    Verify the signed chart (with example output shown):
 
     ```shell
-    gpg --export-secret-keys > ~/.gnupg/secring.gpg
+    $ helm gpg verify airflow-${VERSION_WITHOUT_RC}.tgz
+    gpg: Signature made Thu Jan  6 21:33:35 2022 MST
+    gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
+    gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
+    plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
     ```
-
-    This should also generate Provenance file (Example: `airflow-1.0.0.tgz.prov`) as described in
-    https://helm.sh/docs/topics/provenance/ which can be used to verify integrity of the Helm chart.
-
-    Verify the signed chart:
-
-    ```shell
-    helm verify airflow-${VERSION_WITHOUT_RC}.tgz --keyring ~/.gnupg/secring.gpg
-    ```
-
-    Example Output:
-
-    ```shell
-    $ helm verify airflow-${VERSION_WITHOUT_RC}.tgz --keyring ~/.gnupg/secring.gpg
-    Signed by: Kaxil Naik <kaxilnaik@apache.org>
-    Signed by: Kaxil Naik <kaxilnaik@gmail.com>
-    Using Key With Fingerprint: CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
-    Chart Hash Verified: sha256:6185e54735e136d7d30d329cd16555a3a6c951be876aca8deac2022ab0568e53
-    ```
-
 
 - Generate SHA512/ASC
 
@@ -234,7 +235,7 @@ official Apache releases must not include the rcN suffix.
 
   ```shell
   cd ${AIRFLOW_REPO_ROOT}
-  git push origin helm-chart/${VERSION}
+  git push origin tag helm-chart/${VERSION}
   ```
 
 ## Prepare Vote email on the Apache Airflow release candidate
@@ -273,11 +274,11 @@ helm install airflow apache-airflow-dev/airflow
 
 airflow-${VERSION_WITHOUT_RC}.tgz.prov - is also uploaded for verifying Chart Integrity, though not strictly required for releasing the artifact based on ASF Guidelines.
 
-$ helm verify airflow-${VERSION_WITHOUT_RC}.tgz --keyring  ~/.gnupg/secring.gpg
-Signed by: Kaxil Naik <kaxilnaik@apache.org>
-Signed by: Kaxil Naik <kaxilnaik@gmail.com>
-Using Key With Fingerprint: CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
-Chart Hash Verified: sha256:6cd3f13fc93d60424a771a1a8a4121c4439f7b6b48fab946436da0ab70d5a507
+$ helm gpg verify airflow-${VERSION_WITHOUT_RC}.tgz
+gpg: Signature made Thu Jan  6 21:33:35 2022 MST
+gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
+gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
+plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
 
 The vote will be open for at least 72 hours (2021-05-19 01:30 UTC) or until the necessary number of votes are reached.
 
@@ -307,7 +308,7 @@ Thanks,
 EOF
 ```
 
-Note, you need to update the `helm verify` output and the end of the voting period in the body.
+Note, you need to update the `helm gpg verify` output and the end of the voting period in the body.
 
 # Verify the release candidate by PMCs
 
@@ -656,6 +657,8 @@ Create a new release on GitHub with the changelog and assets from the release sv
 ## Close the milestone
 
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
+make sure to update the last updated timestamp as well.
 
 ## Announce the release on the community slack
 

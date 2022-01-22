@@ -100,10 +100,8 @@ class Variable(Base, LoggingMixin):
         for a key, and if it isn't there, stores the default value and returns it.
 
         :param key: Dict key for this Variable
-        :type key: str
         :param default: Default value to set and return if the variable
             isn't already in the DB
-        :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
         :return: Mixed
@@ -129,7 +127,7 @@ class Variable(Base, LoggingMixin):
         Gets a value for an Airflow Variable Key
 
         :param key: Variable Key
-        :param default_var: Default value of the Variable if the Variable doesn't exists
+        :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
         var_val = Variable.get_variable_from_secrets(key=key)

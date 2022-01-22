@@ -36,23 +36,17 @@ class SpannerDeployInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeployInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
-    :type instance_id: str
     :param configuration_name:  The name of the Cloud Spanner instance configuration
       defining how the instance will be created. Required for
       instances that do not yet exist.
-    :type configuration_name: str
     :param node_count: (Optional) The number of nodes allocated to the Cloud Spanner
       instance.
-    :type node_count: int
     :param display_name: (Optional) The display name for the Cloud Spanner  instance in
       the Google Cloud Console. (Must be between 4 and 30 characters.) If this value is not set
       in the constructor, the name is the same as the instance ID.
-    :type display_name: str
     :param project_id: Optional, the ID of the project which owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -61,7 +55,6 @@ class SpannerDeployInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_deploy_template_fields]
@@ -133,12 +126,9 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeleteInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
-    :type instance_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -147,7 +137,6 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_delete_template_fields]
@@ -206,17 +195,12 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerQueryDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
-    :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
-    :type database_id: str
     :param query: The query or list of queries to be executed. Can be a path to a SQL
        file.
-    :type query: str or list
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -225,7 +209,6 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_query_template_fields]
@@ -300,7 +283,6 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         Drops empty query in queries.
 
         :param queries: queries
-        :type queries: List[str]
         :rtype: None
         """
         if queries and queries[-1] == '':
@@ -317,16 +299,11 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeployDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
-    :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
-    :type database_id: str
     :param ddl_statements: The string list containing DDL for the new database.
-    :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -335,7 +312,6 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_database_deploy_template_fields]
@@ -418,19 +394,13 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerUpdateDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
-    :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
-    :type database_id: str
     :param ddl_statements: The string list containing DDL to apply to the database.
-    :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param operation_id: (Optional) Unique per database operation id that can
            be specified to implement idempotency check.
-    :type operation_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -439,7 +409,6 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_database_update_template_fields]
@@ -518,14 +487,10 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeleteDatabaseInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
-    :type instance_id: str
     :param database_id: Cloud Spanner database ID.
-    :type database_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -534,7 +499,6 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_database_delete_template_fields]

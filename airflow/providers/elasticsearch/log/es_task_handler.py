@@ -232,11 +232,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         Returns '' if no log is found or there was an error.
 
         :param log_id: the log_id of the log to read.
-        :type log_id: str
         :param offset: the offset start to read log from.
-        :type offset: str
         :param metadata: log metadata, used for steaming log download.
-        :type metadata: dict
         """
         # Offset is the unique key for sorting logs given log_id.
         search = Search(using=self.client).query('match_phrase', log_id=log_id).sort(self.offset_field)
@@ -349,7 +346,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param task_instance: task instance object
         :type: task_instance: TaskInstance
         :param try_number: task instance try_number to read logs from.
-        :type try_number: Optional[int]
         :return: URL to the external log collection service
         :rtype: str
         """

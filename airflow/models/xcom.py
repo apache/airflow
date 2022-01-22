@@ -116,7 +116,6 @@ class BaseXCom(Base, LoggingMixin):
         :param run_id: DAG run ID for the task.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload
@@ -215,7 +214,6 @@ class BaseXCom(Base, LoggingMixin):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload
@@ -310,7 +308,6 @@ class BaseXCom(Base, LoggingMixin):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload
@@ -410,7 +407,6 @@ class BaseXCom(Base, LoggingMixin):
         :param run_id: ID of DAG run to clear the XCom for.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload

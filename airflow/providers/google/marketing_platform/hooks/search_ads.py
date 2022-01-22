@@ -59,7 +59,6 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         Inserts a report request into the reporting system.
 
         :param report: Report to be generated.
-        :type report: Dict[str, Any]
         """
         response = self.get_conn().reports().request(body=report).execute(num_retries=self.num_retries)
         return response
@@ -69,7 +68,6 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         Polls for the status of a report request.
 
         :param report_id: ID of the report request being polled.
-        :type report_id: str
         """
         response = self.get_conn().reports().get(reportId=report_id).execute(num_retries=self.num_retries)
         return response
@@ -79,9 +77,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         Downloads a report file encoded in UTF-8.
 
         :param report_fragment: The index of the report fragment to download.
-        :type report_fragment: int
         :param report_id: ID of the report.
-        :type report_id: str
         """
         response = (
             self.get_conn()

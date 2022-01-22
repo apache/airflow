@@ -31,15 +31,10 @@ class SlackAPIOperator(BaseOperator):
 
     :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
         which its password is Slack API token. Optional
-    :type slack_conn_id: str
     :param token: Slack API token (https://api.slack.com/web). Optional
-    :type token: str
     :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
-    :type method: str
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
-    :type api_params: dict
     :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
-    :type client_args: dict
     """
 
     def __init__(
@@ -102,19 +97,13 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
     :param channel: channel in which to post message on slack name (#general) or
         ID (C12318391). (templated)
-    :type channel: str
     :param username: Username that airflow will be posting to Slack as. (templated)
-    :type username: str
     :param text: message to send to slack. (templated)
-    :type text: str
     :param icon_url: url to icon used for this message
-    :type icon_url: str
     :param attachments: extra formatting details. (templated)
         - see https://api.slack.com/docs/attachments.
-    :type attachments: list of hashes
     :param blocks: extra block layouts. (templated)
         - see https://api.slack.com/reference/block-kit/blocks.
-    :type blocks: list of hashes
     """
 
     template_fields: Sequence[str] = ('username', 'text', 'attachments', 'blocks', 'channel')
@@ -182,16 +171,11 @@ class SlackAPIFileOperator(SlackAPIOperator):
         )
 
     :param channel: channel in which to sent file on slack name (templated)
-    :type channel: str
     :param initial_comment: message to send to slack. (templated)
-    :type initial_comment: str
     :param filename: name of the file (templated)
-    :type filename: str
     :param filetype: slack filetype. (templated)
         - see https://api.slack.com/types/file
-    :type filetype: str
     :param content: file content. (templated)
-    :type content: str
     """
 
     template_fields: Sequence[str] = ('channel', 'initial_comment', 'filename', 'filetype', 'content')

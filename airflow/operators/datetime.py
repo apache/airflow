@@ -35,17 +35,12 @@ class BranchDateTimeOperator(BaseBranchOperator):
 
     :param follow_task_ids_if_true: task id or task ids to follow if
         ``datetime.datetime.now()`` falls above target_lower and below ``target_upper``.
-    :type follow_task_ids_if_true: str or list[str]
     :param follow_task_ids_if_false: task id or task ids to follow if
         ``datetime.datetime.now()`` falls below target_lower or above ``target_upper``.
-    :type follow_task_ids_if_false: str or list[str]
     :param target_lower: target lower bound.
-    :type target_lower: Optional[datetime.datetime]
     :param target_upper: target upper bound.
-    :type target_upper: Optional[datetime.datetime]
     :param use_task_execution_date: If ``True``, uses task's execution day to compare with targets.
         Execution date is useful for backfilling. If ``False``, uses system's date.
-    :type use_task_execution_date: bool
     """
 
     def __init__(

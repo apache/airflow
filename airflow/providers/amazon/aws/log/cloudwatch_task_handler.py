@@ -37,12 +37,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     It extends airflow FileTaskHandler and uploads to and reads from Cloudwatch.
 
     :param base_log_folder: base folder to store logs locally
-    :type base_log_folder: str
     :param log_group_arn: ARN of the Cloudwatch log group for remote log storage
         with format ``arn:aws:logs:{region name}:{account id}:log-group:{group name}``
-    :type log_group_arn: str
     :param filename_template: template for file name (local storage) or log stream name (remote)
-    :type filename_template: str
     """
 
     def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):

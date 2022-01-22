@@ -81,7 +81,6 @@ class SensorInstance(Base):
         Get the object dotted class path. Used for getting operator classpath.
 
         :param obj:
-        :type obj:
         :return: The class path of input object
         :rtype: str
         """
@@ -97,14 +96,10 @@ class SensorInstance(Base):
         context used for a sensor and set the sensor_instance table state to sensing.
 
         :param ti: The task instance for the sensor to be registered.
-        :type: ti:
         :param poke_context: Context used for sensor poke function.
-        :type poke_context: dict
         :param execution_context: Context used for execute sensor such as timeout
             setting and email configuration.
-        :type execution_context: dict
         :param session: SQLAlchemy ORM Session
-        :type session: Session
         :return: True if the ti was registered successfully.
         :rtype: Boolean
         """

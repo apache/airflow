@@ -18,7 +18,7 @@
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 
@@ -32,18 +32,14 @@ class PythonSensor(BaseSensorOperator):
     in the callable
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
-    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
-    :type op_args: list
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied.
-    :type templates_dict: dict of str
     """
 
     template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
@@ -64,8 +60,7 @@ class PythonSensor(BaseSensorOperator):
         self.templates_dict = templates_dict
 
     def poke(self, context: Context) -> bool:
-        context.update(self.op_kwargs)
-        context['templates_dict'] = self.templates_dict
+        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.log.info("Poking callable: %s", str(self.python_callable))

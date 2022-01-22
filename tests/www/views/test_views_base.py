@@ -390,3 +390,14 @@ def test_page_instance_name_xss_prevention(admin_client):
         escaped_xss_string = "&lt;script&gt;alert(&#39;Give me your credit card number&#39;)&lt;/script&gt;"
         check_content_in_response(escaped_xss_string, resp)
         check_content_not_in_response(xss_string, resp)
+
+
+@conf_vars(
+    {
+        ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
+        ("webserver", "instance_name_has_markup"): "True",
+    }
+)
+def test_page_instance_name_with_markup(admin_client):
+    resp = admin_client.get('home', follow_redirects=True)
+    check_content_in_response('<b>Bold Site Title Test</b>', resp)

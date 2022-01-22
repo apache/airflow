@@ -52,19 +52,13 @@ class SFTPToWasbOperator(BaseOperator):
         for downloading the single file or multiple files from the SFTP server.
         You can use only one wildcard within your path. The wildcard can appear
         inside the path or at the end of the path.
-    :type sftp_source_path: str
     :param container_name: Name of the container.
-    :type container_name: str
     :param blob_prefix: Prefix to name a blob.
-    :type blob_prefix: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :type sftp_conn_id: str
     :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
     :param load_options: Optional keyword arguments that
         ``WasbHook.load_file()`` takes.
-    :type load_options: dict
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -73,7 +67,6 @@ class SFTPToWasbOperator(BaseOperator):
         When wasb_overwrite_object is True, it will overwrite the existing data.
         If set to False, the operation might fail with
         ResourceExistsError in case a blob object already exists.
-    :type move_object: bool
     """
 
     template_fields: Sequence[str] = ("sftp_source_path", "container_name", "blob_prefix")

@@ -79,7 +79,7 @@ class DAGDetailSchema(DAGSchema):
     timezone = TimezoneField()
     catchup = fields.Boolean()
     orientation = fields.String()
-    concurrency = fields.Integer()  # TODO: Remove in Airflow 3.0
+    concurrency = fields.Method("get_concurrency")  # TODO: Remove in Airflow 3.0
     max_active_tasks = fields.Integer()
     start_date = fields.DateTime()
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
@@ -89,6 +89,10 @@ class DAGDetailSchema(DAGSchema):
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
+
+    @staticmethod
+    def get_concurrency(obj: DAG):
+        return obj.max_active_tasks
 
     @staticmethod
     def get_tags(obj: DAG):
