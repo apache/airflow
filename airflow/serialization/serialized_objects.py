@@ -21,7 +21,7 @@ import enum
 import logging
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type, Union
 
 import cattr
 import pendulum
@@ -36,6 +36,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
+from airflow.models.xcom_arg import XComArg
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -166,6 +167,18 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
     return timetable_class.deserialize(var[Encoding.VAR])
+
+
+class _XcomRef(NamedTuple):
+    """
+    Used to store info needed to create XComArg when deserializing MappedOperator.
+
+    We can't turn it in to a XComArg until we've loaded _all_ the tasks, so when deserializing an operator we
+    need to create _something_, and then post-process it in deserialize_dag
+    """
+
+    task_id: str
+    key: str
 
 
 class BaseSerialization:
@@ -331,6 +344,8 @@ class BaseSerialization:
             return SerializedTaskGroup.serialize_task_group(var)
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
+        elif isinstance(var, XComArg):
+            return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -374,6 +389,8 @@ class BaseSerialization:
             return tuple(cls._deserialize(v) for v in var)
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
+        elif type_ == DAT.XCOM_REF:
+            return cls._deserialize_xcomref(var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -475,6 +492,14 @@ class BaseSerialization:
                 op_params[k] = Param(v)
 
         return ParamsDict(op_params)
+
+    @classmethod
+    def _serialize_xcomarg(cls, arg: XComArg) -> dict:
+        return {"key": arg.key, "task_id": arg.operator.task_id}
+
+    @classmethod
+    def _deserialize_xcomref(cls, encoded: dict) -> _XcomRef:
+        return _XcomRef(key=encoded['key'], task_id=encoded['task_id'])
 
 
 class DependencyDetector:
@@ -687,6 +712,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k in ("mapped_kwargs", "partial_kwargs"):
+                v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
@@ -969,6 +996,14 @@ class SerializedDAG(DAG, BaseSerialization):
 
             if serializable_task.subdag is not None:
                 setattr(serializable_task.subdag, 'parent_dag', dag)
+
+            if isinstance(task, MappedOperator):
+                for d in (task.mapped_kwargs, task.partial_kwargs):
+                    for k, v in d.items():
+                        if not isinstance(v, _XcomRef):
+                            continue
+
+                        d[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
 
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want

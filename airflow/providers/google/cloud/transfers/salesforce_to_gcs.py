@@ -36,31 +36,20 @@ class SalesforceToGcsOperator(BaseOperator):
         :ref:`howto/operator:SalesforceToGcsOperator`
 
     :param query: The query to make to Salesforce.
-    :type query: str
     :param bucket_name: The bucket to upload to.
-    :type bucket_name: str
     :param object_name: The object name to set when uploading the file.
-    :type object_name: str
     :param salesforce_conn_id: the name of the connection that has the parameters
         we need to connect to Salesforce.
-    :type salesforce_conn_id: str
     :param include_deleted: True if the query should include deleted records.
-    :type include_deleted: bool
     :param query_params: Additional optional arguments
-    :type query_params: dict
     :param export_format: Desired format of files to be exported.
-    :type export_format: str
     :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
         False if you want them to be left in the same format as they were in Salesforce.
         Leaving the value as False will result in datetimes being strings. Default: False
-    :type coerce_to_timestamp: bool
     :param record_time_added: True if you want to add a Unix timestamp field
         to the resulting data that marks when the data was fetched from Salesforce. Default: False
-    :type record_time_added: bool
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param gcp_conn_id: the name of the connection that has the parameters we need to connect to GCS.
-    :type gcp_conn_id: str
     """
 
     template_fields: Sequence[str] = (

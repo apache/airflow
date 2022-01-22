@@ -41,9 +41,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
     Creates a new backup in a given project and location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param service_id:  Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -51,30 +49,22 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param backup:  Required. The backup to create. The ``name`` field is ignored. The ID of the created
         backup must be provided in the request's ``backup_id`` field.
 
         This corresponds to the ``backup`` field on the ``request`` instance; if ``request`` is provided, this
         should not be set.
-    :type backup: google.cloud.metastore_v1.types.Backup
     :param backup_id:  Required. The ID of the backup, which is used as the final component of the backup's
         name. This value must be between 1 and 64 characters long, begin with a letter, end with a letter or
         number, and consist of alphanumeric ASCII characters or hyphens.
 
         This corresponds to the ``backup_id`` field on the ``request`` instance; if ``request`` is provided,
         this should not be set.
-    :type backup_id: str
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -83,7 +73,6 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -163,9 +152,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
     Creates a new MetadataImport in a given project and location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param service_id:  Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -173,30 +160,22 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param metadata_import:  Required. The metadata import to create. The ``name`` field is ignored. The ID of
         the created metadata import must be provided in the request's ``metadata_import_id`` field.
 
         This corresponds to the ``metadata_import`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type metadata_import: google.cloud.metastore_v1.types.MetadataImport
     :param metadata_import_id:  Required. The ID of the metadata import, which is used as the final component
         of the metadata import's name. This value must be between 1 and 64 characters long, begin with a
         letter, end with a letter or number, and consist of alphanumeric ASCII characters or hyphens.
 
         This corresponds to the ``metadata_import_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type metadata_import_id: str
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -205,7 +184,6 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -270,15 +248,12 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
     Creates a metastore service in a project and location.
 
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param service:  Required. The Metastore service to create. The ``name`` field is ignored. The ID of
         the created metastore service must be provided in the request's ``service_id`` field.
 
         This corresponds to the ``service`` field on the ``request`` instance; if ``request`` is provided,
         this should not be set.
-    :type service: google.cloud.metastore_v1.types.Service
     :param service_id:  Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -286,17 +261,11 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -305,7 +274,6 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -380,9 +348,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
     Deletes a single backup.
 
     :param project_id: Required. The ID of the Google Cloud project that the backup belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the backup belongs to.
-    :type region: str
     :param service_id: Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -390,24 +356,17 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param backup_id:  Required. The ID of the backup, which is used as the final component of the backup's
         name. This value must be between 1 and 64 characters long, begin with a letter, end with a letter or
         number, and consist of alphanumeric ASCII characters or hyphens.
 
         This corresponds to the ``backup_id`` field on the ``request`` instance; if ``request`` is provided,
         this should not be set.
-    :type backup_id: str
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -416,7 +375,6 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -476,17 +434,11 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
 
     :param request:  The request object. Request message for
         [DataprocMetastore.DeleteService][google.cloud.metastore.v1.DataprocMetastore.DeleteService].
-    :type request: google.cloud.metastore_v1.types.DeleteServiceRequest
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id:
-    :type gcp_conn_id: str
     """
 
     template_fields: Sequence[str] = (
@@ -542,28 +494,19 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         ``gs://<bucket_name>/<path_inside_bucket>``. A sub-folder
         ``<export_folder>`` containing exported files will be
         created below it.
-    :type destination_gcs_folder: str
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param service_id:  Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
         hyphens.
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -572,7 +515,6 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -659,9 +601,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
     Gets the details of a single service.
 
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param service_id:  Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -669,15 +609,10 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -686,7 +621,6 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -738,9 +672,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
     Lists backups in a service.
 
     :param project_id: Required. The ID of the Google Cloud project that the backup belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the backup belongs to.
-    :type region: str
     :param service_id: Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -748,15 +680,10 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -765,7 +692,6 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -829,9 +755,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
     Restores a service from a backup.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param service_id: Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -839,33 +763,22 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param backup_project_id: Required. The ID of the Google Cloud project that the metastore
         service backup to restore from.
-    :type backup_project_id: str
     :param backup_region: Required. The ID of the Google Cloud region that the metastore
         service backup to restore from.
-    :type backup_region: str
     :param backup_service_id:  Required. The ID of the metastore service backup to restore from, which is
         used as the final component of the metastore service's name. This value must be between 2 and 63
         characters long inclusive, begin with a letter, end with a letter or number, and consist
         of alphanumeric ASCII characters or hyphens.
-    :type backup_service_id: str
     :param backup_id:  Required. The ID of the metastore service backup to restore from
-    :type backup_id: str
     :param restore_type: Optional. The type of restore. If unspecified, defaults to
         ``METADATA_ONLY``
-    :type restore_type: google.cloud.metastore_v1.types.Restore.RestoreType
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -874,7 +787,6 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -969,9 +881,7 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
     Updates the parameters of a single service.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :type region: str
     :param service_id:  Required. The ID of the metastore service, which is used as the final component of
         the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
         with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
@@ -979,7 +889,6 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
 
         This corresponds to the ``service_id`` field on the ``request`` instance; if ``request`` is
         provided, this should not be set.
-    :type service_id: str
     :param service:  Required. The metastore service to update. The server only merges fields in the service
         if they are specified in ``update_mask``.
 
@@ -987,24 +896,17 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
 
         This corresponds to the ``service`` field on the ``request`` instance; if ``request`` is provided,
         this should not be set.
-    :type service: Union[Dict, google.cloud.metastore_v1.types.Service]
     :param update_mask:  Required. A field mask used to specify the fields to be overwritten in the metastore
         service resource by the update. Fields specified in the ``update_mask`` are relative to the resource
         (not to the full request). A field is overwritten if it is in the mask.
 
         This corresponds to the ``update_mask`` field on the ``request`` instance; if ``request`` is provided,
         this should not be set.
-    :type update_mask: google.protobuf.field_mask_pb2.FieldMask
     :param request_id: Optional. A unique id used to identify the request.
-    :type request_id: str
     :param retry: Optional. Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: Optional. The timeout for this request.
-    :type timeout: float
     :param metadata: Optional. Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1013,7 +915,6 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

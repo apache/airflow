@@ -56,59 +56,37 @@ class _VaultClient(LoggingMixin):
     with VaultHook using standard Airflow Connection definition.
 
     :param url: Base URL for the Vault instance being addressed.
-    :type url: str
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
         ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
-    :type auth_type: str
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
-    :type auth_mount_point: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
          different engine. For authentication mount_points see, auth_mount_point.
-    :type mount_point: str
     :param kv_engine_version: Selects the version of the engine to run (``1`` or ``2``, default: ``2``).
-    :type kv_engine_version: int
     :param token: Authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
-    :type token: str
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
-    :type token_path: str
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_types).
-    :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
-    :type password: str
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
-    :type  key_id: str
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :type secret_id: str
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
-    :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
-    :type kubernetes_role: str
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
-    :type kubernetes_jwt_path: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON)  (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict
-    :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path
-    :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes (for ``gcp`` auth_type).
-    :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
-    :type azure_tenant_id: str
     :param azure_resource: The configured URL for the application registered in Azure Active Directory
            (for ``azure`` auth_type).
-    :type azure_resource: str
     :param radius_host: Host for radius (for ``radius`` auth_type).
-    :type radius_host: str
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
-    :type radius_secret: str
     :param radius_port: Port for radius (for ``radius`` auth_type).
-    :type radius_port: int
     """
 
     def __init__(
@@ -356,10 +334,8 @@ class _VaultClient(LoggingMixin):
         Get secret value from the KV engine.
 
         :param secret_path: The path of the secret.
-        :type secret_path: str
         :param secret_version: Specifies the version of Secret to return. If not set, the latest
             version is returned. (Can only be used in case of version 2 of KV).
-        :type secret_version: int
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html
         and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
@@ -389,7 +365,6 @@ class _VaultClient(LoggingMixin):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: The path of the secret.
-        :type secret_path: str
         :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
@@ -415,10 +390,8 @@ class _VaultClient(LoggingMixin):
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         :param secret_path: The path of the secret.
-        :type secret_path: str
         :param secret_version: Specifies the version of Secret to return. If not set, the latest
             version is returned. (Can only be used in case of version 2 of KV).
-        :type secret_version: int
         :rtype: dict
         :return: The key info. This is a Dict with "data" mapping keeping secret
                  and "metadata" mapping keeping metadata of the secret.
@@ -445,18 +418,14 @@ class _VaultClient(LoggingMixin):
         Creates or updates secret.
 
         :param secret_path: The path of the secret.
-        :type secret_path: str
         :param secret: Secret to create or update for the path specified
-        :type secret: dict
         :param method: Optional parameter to explicitly request a POST (create) or PUT (update) request to
             the selected kv secret engine. If no argument is provided for this parameter, hvac attempts to
             intelligently determine which method is appropriate. Only valid for KV engine version 1
-        :type method: str
         :param cas: Set the "cas" value to use a Check-And-Set operation. If not set the write will be
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :type cas: int
         :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 

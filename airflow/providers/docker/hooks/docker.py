@@ -31,7 +31,6 @@ class DockerHook(BaseHook, LoggingMixin):
 
     :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
         where credentials and extra configuration are stored
-    :type docker_conn_id: str
     """
 
     conn_name_attr = 'docker_conn_id'

@@ -26,7 +26,7 @@ export AIRFLOW_VERSION=2.2.2
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-buster" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \

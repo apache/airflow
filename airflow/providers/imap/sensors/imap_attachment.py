@@ -30,18 +30,13 @@ class ImapAttachmentSensor(BaseSensorOperator):
     Waits for a specific attachment on a mail server.
 
     :param attachment_name: The name of the attachment that will be checked.
-    :type attachment_name: str
     :param check_regex: If set to True the attachment's name will be parsed as regular expression.
         Through this you can get a broader set of attachments
         that it will look for than just only the equality of the attachment name.
-    :type check_regex: bool
     :param mail_folder: The mail folder in where to search for the attachment.
-    :type mail_folder: str
     :param mail_filter: If set other than 'All' only specific mails will be checked.
         See :py:meth:`imaplib.IMAP4.search` for details.
-    :type mail_filter: str
     :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>` to run the sensor against.
-    :type imap_conn_id: str
     """
 
     template_fields: Sequence[str] = ('attachment_name', 'mail_filter')
@@ -69,7 +64,6 @@ class ImapAttachmentSensor(BaseSensorOperator):
         Pokes for a mail attachment on the mail server.
 
         :param context: The context that is being provided when poking.
-        :type context: dict
         :return: True if attachment with the given name is present and False if not.
         :rtype: bool
         """

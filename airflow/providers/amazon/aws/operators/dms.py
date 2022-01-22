@@ -35,25 +35,17 @@ class DmsCreateTaskOperator(BaseOperator):
         :ref:`howto/operator:DmsCreateTaskOperator`
 
     :param replication_task_id: Replication task id
-    :type replication_task_id: str
     :param source_endpoint_arn: Source endpoint ARN
-    :type source_endpoint_arn: str
     :param target_endpoint_arn: Target endpoint ARN
-    :type target_endpoint_arn: str
     :param replication_instance_arn: Replication instance ARN
-    :type replication_instance_arn: str
     :param table_mappings: Table mappings
-    :type table_mappings: dict
     :param migration_type: Migration type ('full-load'|'cdc'|'full-load-and-cdc'), full-load by default.
-    :type migration_type: str
     :param create_task_kwargs: Extra arguments for DMS replication task creation.
-    :type create_task_kwargs: Optional[dict]
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = (
@@ -125,13 +117,11 @@ class DmsDeleteTaskOperator(BaseOperator):
         :ref:`howto/operator:DmsDeleteTaskOperator`
 
     :param replication_task_arn: Replication task ARN
-    :type replication_task_arn: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)
@@ -165,13 +155,11 @@ class DmsDescribeTasksOperator(BaseOperator):
     Describes AWS DMS replication tasks.
 
     :param describe_tasks_kwargs: Describe tasks command arguments
-    :type describe_tasks_kwargs: Optional[dict]
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('describe_tasks_kwargs',)
@@ -209,18 +197,14 @@ class DmsStartTaskOperator(BaseOperator):
         :ref:`howto/operator:DmsStartTaskOperator`
 
     :param replication_task_arn: Replication task ARN
-    :type replication_task_arn: str
     :param start_replication_task_type: Replication task start type (default='start-replication')
         ('start-replication'|'resume-processing'|'reload-target')
-    :type start_replication_task_type: str
     :param start_task_kwargs: Extra start replication task arguments
-    :type start_task_kwargs: Optional[dict]
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = (
@@ -267,13 +251,11 @@ class DmsStopTaskOperator(BaseOperator):
     Stops AWS DMS replication task.
 
     :param replication_task_arn: Replication task ARN
-    :type replication_task_arn: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('replication_task_arn',)

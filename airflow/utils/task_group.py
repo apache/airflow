@@ -44,16 +44,12 @@ class TaskGroup(DAGNode):
     :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
         with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
         set to None.
-    :type group_id: str
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
-    :type prefix_group_id: bool
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
-    :type parent_group: TaskGroup
     :param dag: The DAG that this TaskGroup belongs to.
-    :type dag: airflow.models.DAG
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators,
         will override default_args defined in the DAG level.
@@ -61,16 +57,11 @@ class TaskGroup(DAGNode):
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
         `default_args`, the actual value will be `False`.
-    :type default_args: dict
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
-    :type tooltip: str
     :param ui_color: The fill color of the TaskGroup node when displayed in the UI
-    :type ui_color: str
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
-    :type ui_fgcolor: str
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
-    :type from_decorator: add_suffix_on_collision
     """
 
     used_group_ids: Set[Optional[str]]

@@ -224,7 +224,6 @@ class DagRun(Base, LoggingMixin):
         Reloads the current dagrun from the database
 
         :param session: database session
-        :type session: Session
         """
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
         self.id = dr.id
@@ -317,26 +316,16 @@ class DagRun(Base, LoggingMixin):
         Returns a set of dag runs for the given search criteria.
 
         :param dag_id: the dag_id or list of dag_id to find dag runs for
-        :type dag_id: str or list[str]
         :param run_id: defines the run id for this dag run
-        :type run_id: str
         :param run_type: type of DagRun
-        :type run_type: airflow.utils.types.DagRunType
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime or list[datetime.datetime]
         :param state: the state of the dag run
-        :type state: DagRunState
         :param external_trigger: whether this dag run is externally triggered
-        :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
             Defaults to False
-        :type no_backfills: bool
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         :param execution_start_date: dag run that was executed from this date
-        :type execution_start_date: datetime.datetime
         :param execution_end_date: dag run that was executed until this date
-        :type execution_end_date: datetime.datetime
         """
         qry = session.query(cls)
         dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
@@ -383,13 +372,9 @@ class DagRun(Base, LoggingMixin):
         *None* is returned if no such DAG run is found.
 
         :param dag_id: the dag_id to find duplicates for
-        :type dag_id: str
         :param run_id: defines the run id for this dag run
-        :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         """
         return (
             session.query(cls)
@@ -440,18 +425,22 @@ class DagRun(Base, LoggingMixin):
         return tis.all()
 
     @provide_session
-    def get_task_instance(self, task_id: str, session: Session = NEW_SESSION) -> Optional[TI]:
+    def get_task_instance(
+        self,
+        task_id: str,
+        session: Session = NEW_SESSION,
+        *,
+        map_index: int = -1,
+    ) -> Optional[TI]:
         """
         Returns the task instance specified by task_id for this dag run
 
         :param task_id: the task id
-        :type task_id: str
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         """
         return (
             session.query(TI)
-            .filter(TI.dag_id == self.dag_id, TI.run_id == self.run_id, TI.task_id == task_id)
+            .filter_by(dag_id=self.dag_id, run_id=self.run_id, task_id=task_id, map_index=map_index)
             .one_or_none()
         )
 
@@ -502,10 +491,8 @@ class DagRun(Base, LoggingMixin):
         of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
             directly (default: true) or recorded as a pending request in the ``callback`` property
-        :type execute_callbacks: bool
         :return: Tuple containing tis that can be scheduled in the current loop & `callback` that
             needs to be executed
         """
@@ -779,7 +766,6 @@ class DagRun(Base, LoggingMixin):
         database yet. It will set state to removed or add the task if required.
 
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         """
         from airflow.settings import task_instance_mutation_hook
 
@@ -858,11 +844,8 @@ class DagRun(Base, LoggingMixin):
 
         :meta private:
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         :param dag_id: DAG ID
-        :type dag_id: unicode
         :param execution_date: execution date
-        :type execution_date: datetime
         :return: DagRun corresponding to the given dag_id and execution date
             if one exists. None otherwise.
         :rtype: airflow.models.DagRun
@@ -933,34 +916,37 @@ class DagRun(Base, LoggingMixin):
         count = 0
 
         if schedulable_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
+
+            count += with_row_locks(
+                session.query(TI).filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(schedulable_ti_ids),
-                )
-                .update({TI.state: State.SCHEDULED}, synchronize_session=False)
-            )
+                ),
+                of=TI,
+                session=session,
+                **skip_locked(session=session),
+            ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
 
         # Tasks using DummyOperator should not be executed, mark them as success
         if dummy_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
+            count += with_row_locks(
+                session.query(TI).filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(dummy_ti_ids),
-                )
-                .update(
-                    {
-                        TI.state: State.SUCCESS,
-                        TI.start_date: timezone.utcnow(),
-                        TI.end_date: timezone.utcnow(),
-                        TI.duration: 0,
-                    },
-                    synchronize_session=False,
-                )
+                ),
+                of=TI,
+                session=session,
+                **skip_locked(session=session),
+            ).update(
+                {
+                    TI.state: State.SUCCESS,
+                    TI.start_date: timezone.utcnow(),
+                    TI.end_date: timezone.utcnow(),
+                    TI.duration: 0,
+                },
+                synchronize_session=False,
             )
 
         return count

@@ -33,9 +33,7 @@ class CeleryQueueSensor(BaseSensorOperator):
     or ``active`` states.
 
     :param celery_queue: The name of the Celery queue to wait for.
-    :type celery_queue: str
     :param target_task_id: Task id for checking
-    :type target_task_id: str
     """
 
     def __init__(self, *, celery_queue: str, target_task_id: Optional[str] = None, **kwargs) -> None:
@@ -51,7 +49,6 @@ class CeleryQueueSensor(BaseSensorOperator):
         celery result has been finished execution.
 
         :param context: Airflow's execution context
-        :type context: dict
         :return: True if task has been executed, otherwise False
         :rtype: bool
         """

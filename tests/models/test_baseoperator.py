@@ -731,6 +731,21 @@ def test_map_unknown_arg_raises():
         BaseOperator(task_id='a').map(file=[1, 2, {'a': 'b'}])
 
 
+def test_map_xcom_arg():
+    """Test that dependencies are correct when mapping with an XComArg"""
+    from airflow.models.xcom_arg import XComArg
+
+    with DAG("test-dag", start_date=DEFAULT_DATE):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        finish = MockOperator(task_id="finish")
+
+        mapped >> finish
+
+    assert task1.downstream_list == [mapped]
+
+
 def test_partial_on_instance() -> None:
     """`.partial` on an instance should fail -- it's only designed to be called on classes"""
     with pytest.raises(TypeError):
