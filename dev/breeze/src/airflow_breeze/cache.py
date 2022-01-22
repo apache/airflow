@@ -36,6 +36,10 @@ def read_from_cache_file(param_name: str) -> Optional[str]:
         return None
 
 
+def touch_cache_file(param_name: str):
+    (Path(BUILD_CACHE_DIR) / f".{param_name}").touch()
+
+
 def write_to_cache_file(param_name: str, param_value: str, check_allowed_values: bool = True) -> None:
     allowed = False
     if check_allowed_values:
@@ -76,3 +80,11 @@ def check_if_values_allowed(param_name: str, param_value: str) -> Tuple[bool, Li
     if param_value in allowed_values:
         allowed = True
     return allowed, allowed_values
+
+
+def delete_cache(param_name: str) -> bool:
+    deleted = False
+    if check_if_cache_exists(param_name):
+        (Path(BUILD_CACHE_DIR) / f".{param_name}").unlink()
+        deleted = True
+    return deleted

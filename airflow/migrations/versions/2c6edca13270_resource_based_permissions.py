@@ -309,6 +309,31 @@ def remap_permissions():
             appbuilder.sm.delete_action(old_action_name)
 
 
+def undo_remap_permissions():
+    """Unapply Map Airflow permissions"""
+    appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    for old, new in mapping.items:
+        (new_resource_name, new_action_name) = new[0]
+        new_permission = appbuilder.sm.get_permission(new_action_name, new_resource_name)
+        if not new_permission:
+            continue
+        for old_resource_name, old_action_name in old:
+            old_permission = appbuilder.sm.create_permission(old_action_name, old_resource_name)
+            for role in appbuilder.sm.get_all_roles():
+                if appbuilder.sm.permission_exists_in_one_or_more_roles(
+                    new_resource_name, new_action_name, [role.id]
+                ):
+                    appbuilder.sm.add_permission_to_role(role, old_permission)
+                    appbuilder.sm.remove_permission_from_role(role, new_permission)
+        appbuilder.sm.delete_permission(new_action_name, new_resource_name)
+
+        if not appbuilder.sm.get_action(new_action_name):
+            continue
+        resources = appbuilder.sm.get_all_resources()
+        if not any(appbuilder.sm.get_permission(new_action_name, resource.name) for resource in resources):
+            appbuilder.sm.delete_action(new_action_name)
+
+
 def upgrade():
     """Apply Resource based permissions."""
     log = logging.getLogger()
@@ -319,3 +344,7 @@ def upgrade():
 
 def downgrade():
     """Unapply Resource based permissions."""
+    log = logging.getLogger()
+    handlers = log.handlers[:]
+    undo_remap_permissions()
+    log.handlers = handlers

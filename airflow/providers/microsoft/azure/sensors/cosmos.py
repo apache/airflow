@@ -39,14 +39,10 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         task_id="azure_cosmos_sensor")
 
     :param database_name: Target CosmosDB database_name.
-    :type database_name: str
     :param collection_name: Target CosmosDB collection_name.
-    :type collection_name: str
     :param document_id: The ID of the target document.
-    :type document_id: str
     :param azure_cosmos_conn_id: Reference to the
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
-    :type azure_cosmos_conn_id: str
     """
 
     template_fields: Sequence[str] = ('database_name', 'collection_name', 'document_id')

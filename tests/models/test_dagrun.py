@@ -139,6 +139,10 @@ class TestDagRun(unittest.TestCase):
         session.commit()
 
         assert 1 == len(models.DagRun.find(dag_id=dag_id1, external_trigger=True))
+        assert 1 == len(models.DagRun.find(run_id=dag_id1))
+        assert 2 == len(models.DagRun.find(run_id=[dag_id1, dag_id2]))
+        assert 2 == len(models.DagRun.find(execution_date=[now, now]))
+        assert 2 == len(models.DagRun.find(execution_date=now))
         assert 0 == len(models.DagRun.find(dag_id=dag_id1, external_trigger=False))
         assert 0 == len(models.DagRun.find(dag_id=dag_id2, external_trigger=True))
         assert 1 == len(models.DagRun.find(dag_id=dag_id2, external_trigger=False))

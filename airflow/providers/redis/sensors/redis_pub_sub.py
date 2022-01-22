@@ -30,9 +30,7 @@ class RedisPubSubSensor(BaseSensorOperator):
     Redis sensor for reading a message from pub sub channels
 
     :param channels: The channels to be subscribed to (templated)
-    :type channels: str or list of str
     :param redis_conn_id: the redis connection id
-    :type redis_conn_id: str
     """
 
     template_fields: Sequence[str] = ('channels',)
@@ -52,7 +50,6 @@ class RedisPubSubSensor(BaseSensorOperator):
         An example of message ``{'type': 'message', 'pattern': None, 'channel': b'test', 'data': b'hello'}``
 
         :param context: the context object
-        :type context: dict
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
         """
         self.log.info('RedisPubSubSensor checking for message on channels: %s', self.channels)

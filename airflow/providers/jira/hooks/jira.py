@@ -30,7 +30,6 @@ class JiraHook(BaseHook):
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     """
 
     default_conn_name = 'jira_default'

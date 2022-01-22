@@ -38,10 +38,6 @@ function build_prod_images_on_ci() {
     else
         build_images::build_prod_images_from_locally_built_airflow_packages
     fi
-
-    # Disable force pulling forced above this is needed for the subsequent scripts so that
-    # They do not try to pull/build images again
-    unset FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
 

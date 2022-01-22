@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.

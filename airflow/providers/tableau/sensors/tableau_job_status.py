@@ -34,12 +34,9 @@ class TableauJobStatusSensor(BaseSensorOperator):
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
     :param job_id: Id of the job to watch.
-    :type job_id: str
     :param site_id: The id of the site where the workbook belongs to.
-    :type site_id: Optional[str]
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
-    :type tableau_conn_id: str
     """
 
     template_fields: Sequence[str] = ('job_id',)
@@ -62,7 +59,6 @@ class TableauJobStatusSensor(BaseSensorOperator):
         Pokes until the job has successfully finished.
 
         :param context: The task context during execution.
-        :type context: dict
         :return: True if it succeeded and False if not.
         :rtype: bool
         """

@@ -17,13 +17,13 @@
 
 from typing import Collection, Optional
 
+from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
 
 from airflow import DAG
-from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters

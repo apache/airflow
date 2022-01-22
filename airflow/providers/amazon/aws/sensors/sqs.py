@@ -38,30 +38,22 @@ class SqsSensor(BaseSensorOperator):
     is pushed through XCom with the key ``messages``.
 
     :param aws_conn_id: AWS connection id
-    :type aws_conn_id: str
     :param sqs_queue: The SQS queue url (templated)
-    :type sqs_queue: str
     :param max_messages: The maximum number of messages to retrieve for each poke (templated)
-    :type max_messages: int
     :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
-    :type wait_time_seconds: int
     :param visibility_timeout: Visibility timeout, a period of time during which
         Amazon SQS prevents other consumers from receiving and processing the message.
-    :type visibility_timeout: Optional[Int]
     :param message_filtering: Specified how received messages should be filtered. Supported options are:
         `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
         (message Body filtered using a JSONPath expression).
         You may add further methods by overriding the relevant class methods.
-    :type message_filtering: Optional[Literal["literal", "jsonpath"]]
     :param message_filtering_match_values: Optional value/s for the message filter to match on.
         For example, with literal matching, if a message body matches any of the specified values
         then it is included. For JSONPath matching, the result of the JSONPath expression is used
         and may match any of the specified values.
-    :type message_filtering_match_values: Any
     :param message_filtering_config: Additional configuration to pass to the message filter.
         For example with JSONPath filtering you can pass a JSONPath expression string here,
         such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
-    :type message_filtering_config: Any
     """
 
     template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
@@ -106,7 +98,6 @@ class SqsSensor(BaseSensorOperator):
         Check for message on subscribed queue and write to xcom the message with key ``messages``
 
         :param context: the context object
-        :type context: dict
         :return: ``True`` if message is available or ``False``
         """
         sqs_conn = self.get_hook().get_conn()

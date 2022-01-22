@@ -616,25 +616,19 @@ class AirflowConfigParser(ConfigParser):
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
             'airflow.cfg', 'default', 'env var', or 'cmd'.
-        :type display_source: bool
         :param display_sensitive: If True, the values of options set by env
             vars and bash commands will be displayed. If False, those options
             are shown as '< hidden >'
-        :type display_sensitive: bool
         :param raw: Should the values be output as interpolated values, or the
             "raw" form that can be fed back in to ConfigParser
-        :type raw: bool
         :param include_env: Should the value of configuration from AIRFLOW__
             environment variables be included or not
-        :type include_env: bool
         :param include_cmds: Should the result of calling any *_cmd config be
             set (True, default), or should the _cmd options be left as the
             command to run (False)
-        :type include_cmds: bool
         :param include_secret: Should the result of calling any *_secret config be
             set (True, default), or should the _secret options be left as the
             path to get the secret from (False)
-        :type include_secret: bool
         :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.

@@ -20,7 +20,7 @@
 import os
 import sys
 from collections import deque
-from typing import List
+from typing import List, Optional
 
 import jinja2
 
@@ -80,22 +80,17 @@ def prepare_virtualenv(
     venv_directory: str,
     python_bin: str,
     system_site_packages: bool,
-    requirements: List[str] = None,
-    requirements_file_path: str = None,
+    requirements: Optional[List[str]] = None,
+    requirements_file_path: Optional[str] = None,
 ) -> str:
     """Creates a virtual environment and installs the additional python packages.
 
     :param venv_directory: The path for directory where the environment will be created.
-    :type venv_directory: str
     :param python_bin: Path to the Python executable.
-    :type python_bin: str
     :param system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
-    :type system_site_packages: bool
     :param requirements: List of additional python packages.
-    :type requirements: List[str]
     :param requirements_file_path: Path to the ``requirements.txt`` file.
-    :type requirements_file_path: str
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
@@ -127,9 +122,7 @@ def write_python_script(
 
     :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
         template file.
-    :type jinja_context: dict
     :param filename: The name of the file to dump the rendered script to.
-    :type filename: str
     :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
         to a native Python object
     """

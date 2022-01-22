@@ -50,7 +50,7 @@ function common::override_pip_version_if_needed() {
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
-        if  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+        if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
             AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
         else
             AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}

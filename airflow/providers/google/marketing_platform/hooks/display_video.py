@@ -81,10 +81,8 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         https://developers.google.com/bid-manager/guides/entity-read/overview
 
         :param partner_id The numeric ID of your Partner.
-        :type partner_id: int
         :param entity_type: The type of file Partner, Advertiser, InsertionOrder,
         LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
-        :type entity_type: str
         """
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 
@@ -93,7 +91,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Creates a query.
 
         :param query: Query object to be passed to request body.
-        :type query: Dict[str, Any]
         """
         response = self.get_conn().queries().createquery(body=query).execute(num_retries=self.num_retries)
         return response
@@ -103,7 +100,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Deletes a stored query as well as the associated stored reports.
 
         :param query_id: Query ID to delete.
-        :type query_id: str
         """
         (self.get_conn().queries().deletequery(queryId=query_id).execute(num_retries=self.num_retries))
 
@@ -112,7 +108,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Retrieves a stored query.
 
         :param query_id: Query ID to retrieve.
-        :type query_id: str
         """
         response = self.get_conn().queries().getquery(queryId=query_id).execute(num_retries=self.num_retries)
         return response
@@ -129,9 +124,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Runs a stored query to generate a report.
 
         :param query_id: Query ID to run.
-        :type query_id: str
         :param params: Parameters for the report.
-        :type params: Dict[str, Any]
         """
         (
             self.get_conn()
@@ -145,7 +138,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Uploads line items in CSV format.
 
         :param line_items: downloaded data from GCS and passed to the body request
-        :type line_items: Any
         :return: response body.
         :rtype: List[Dict[str, Any]]
         """
@@ -170,7 +162,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param request_body: dictionary with parameters that should be passed into.
             More information about it can be found here:
             https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems
-        :type request_body: Dict[str, Any]
         """
         response = (
             self.get_conn()
@@ -185,7 +176,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Creates an SDF Download Task and Returns an Operation.
 
         :param body_request: Body request.
-        :type body_request: Dict[str, Any]
 
         More information about body request n be found here:
         https://developers.google.com/display-video/api/reference/rest/v1/sdfdownloadtasks/create
@@ -203,7 +193,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Gets the latest state of an asynchronous SDF download task operation.
 
         :param operation_name: The name of the operation resource.
-        :type operation_name: str
         """
         result = (
             self.get_conn_to_display_video()
@@ -219,7 +208,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         Downloads media.
 
         :param resource_name: of the media that is being downloaded.
-        :type resource_name: str
         """
         request = self.get_conn_to_display_video().media().download_media(resourceName=resource_name)
         return request

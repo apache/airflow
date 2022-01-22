@@ -44,7 +44,6 @@ class EmrBaseSensor(BaseSensorOperator):
     Subclasses should set ``target_states`` and ``failed_states`` fields.
 
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     """
 
     ui_color = '#66c3ff'
@@ -101,7 +100,6 @@ class EmrBaseSensor(BaseSensorOperator):
         Get state from response dictionary.
 
         :param response: response from AWS API
-        :type response: dict[str, Any]
         :return: state
         :rtype: str
         """
@@ -113,7 +111,6 @@ class EmrBaseSensor(BaseSensorOperator):
         Get failure message from response dictionary.
 
         :param response: response from AWS API
-        :type response: dict[str, Any]
         :return: failure message
         :rtype: Optional[str]
         """
@@ -126,15 +123,11 @@ class EmrContainerSensor(BaseSensorOperator):
     If the job run fails, the task will fail.
 
     :param job_id: job_id to check the state of
-    :type job_id: str
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
-    :type max_retries: int
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :type aws_conn_id: str
     :param poll_interval: Time in seconds to wait between two consecutive call to
         check query status on athena, defaults to 10
-    :type poll_interval: int
     """
 
     INTERMEDIATE_STATES = (
@@ -197,13 +190,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
     until job flow to be ready (after 'STARTING' and 'BOOTSTRAPPING' states)
 
     :param job_flow_id: job_flow_id to check the state of
-    :type job_flow_id: str
     :param target_states: the target states, sensor waits until
         job flow reaches any of these states
-    :type target_states: list[str]
     :param failed_states: the failure states, sensor fails when
         job flow reaches any of these states
-    :type failed_states: list[str]
     """
 
     template_fields: Sequence[str] = ('job_flow_id', 'target_states', 'failed_states')
@@ -243,7 +233,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         Get state from response dictionary.
 
         :param response: response from AWS API
-        :type response: dict[str, Any]
         :return: current state of the cluster
         :rtype: str
         """
@@ -255,7 +244,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         Get failure message from response dictionary.
 
         :param response: response from AWS API
-        :type response: dict[str, Any]
         :return: failure message
         :rtype: Optional[str]
         """
@@ -276,15 +264,11 @@ class EmrStepSensor(EmrBaseSensor):
     With the default target states, sensor waits step to be completed.
 
     :param job_flow_id: job_flow_id which contains the step check the state of
-    :type job_flow_id: str
     :param step_id: step to check the state of
-    :type step_id: str
     :param target_states: the target states, sensor waits until
         step reaches any of these states
-    :type target_states: list[str]
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
-    :type failed_states: list[str]
     """
 
     template_fields: Sequence[str] = ('job_flow_id', 'step_id', 'target_states', 'failed_states')
@@ -326,7 +310,6 @@ class EmrStepSensor(EmrBaseSensor):
         Get state from response dictionary.
 
         :param response: response from AWS API
-        :type response: dict[str, Any]
         :return: execution state of the cluster step
         :rtype: str
         """
@@ -338,7 +321,6 @@ class EmrStepSensor(EmrBaseSensor):
         Get failure message from response dictionary.
 
         :param response: response from AWS API
-        :type response: dict[str, Any]
         :return: failure message
         :rtype: Optional[str]
         """

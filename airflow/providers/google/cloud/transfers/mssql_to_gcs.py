@@ -29,7 +29,6 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     in JSON or CSV format.
 
     :param mssql_conn_id: Reference to a specific MSSQL hook.
-    :type mssql_conn_id: str
 
     **Example**:
         The following operator will export data from the Customers table

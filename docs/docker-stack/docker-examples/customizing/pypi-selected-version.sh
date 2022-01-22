@@ -25,6 +25,7 @@ cd "${AIRFLOW_SOURCES}"
 export AIRFLOW_VERSION=2.2.2
 
 docker build . \
+    --build \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --tag "my-pypi-selected-version:0.0.1"

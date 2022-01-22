@@ -22,10 +22,11 @@ together when the DAG is displayed graphically.
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Tuple, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 from airflow.utils.types import NOTSET
 
@@ -43,16 +44,12 @@ class TaskGroup(DAGNode):
     :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
         with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
         set to None.
-    :type group_id: str
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
-    :type prefix_group_id: bool
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
-    :type parent_group: TaskGroup
     :param dag: The DAG that this TaskGroup belongs to.
-    :type dag: airflow.models.DAG
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators,
         will override default_args defined in the DAG level.
@@ -60,16 +57,11 @@ class TaskGroup(DAGNode):
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
         `default_args`, the actual value will be `False`.
-    :type default_args: dict
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
-    :type tooltip: str
     :param ui_color: The fill color of the TaskGroup node when displayed in the UI
-    :type ui_color: str
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
-    :type ui_fgcolor: str
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
-    :type from_decorator: add_suffix_on_collision
     """
 
     used_group_ids: Set[Optional[str]]
@@ -147,9 +139,8 @@ class TaskGroup(DAGNode):
         # so that we can optimize the number of edges when entire TaskGroups depend on each other.
         self.upstream_group_ids: Set[Optional[str]] = set()
         self.downstream_group_ids: Set[Optional[str]] = set()
-        # Since the parent class defines these as read-only properties, we can 't just do `self.x = ...`
-        self.__dict__['upstream_task_ids'] = set()
-        self.__dict__['downstream_task_ids'] = set()
+        self.upstream_task_ids = set()
+        self.downstream_task_ids = set()
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
@@ -183,14 +174,6 @@ class TaskGroup(DAGNode):
     def is_root(self) -> bool:
         """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
-
-    @property
-    def upstream_task_ids(self) -> Set[str]:
-        return self.__dict__['upstream_task_ids']
-
-    @property
-    def downstream_task_ids(self) -> Set[str]:
-        return self.__dict__['downstream_task_ids']
 
     def __iter__(self):
         for child in self.children.values():
@@ -386,6 +369,12 @@ class TaskGroup(DAGNode):
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
 
+    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+        """Required by DAGNode."""
+        from airflow.serialization.serialized_objects import SerializedTaskGroup
+
+        return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
+
     def map(self, arg: Iterable) -> "MappedTaskGroup":
         if self.children:
             raise RuntimeError("Cannot map a TaskGroup that already has children")
@@ -393,7 +382,7 @@ class TaskGroup(DAGNode):
             raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
         if self._parent_group:
             self._parent_group._remove(self)
-        return MappedTaskGroup(group_id=self._group_id, mapped_arg=arg)
+        return MappedTaskGroup(group_id=self._group_id, dag=self.dag, mapped_arg=arg)
 
 
 class MappedTaskGroup(TaskGroup):

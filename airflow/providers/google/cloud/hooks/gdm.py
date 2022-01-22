@@ -63,11 +63,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         Lists deployments in a google cloud project.
 
         :param project_id: The project ID for this request.
-        :type project_id: str
         :param deployment_filter: A filter expression which limits resources returned in the response.
-        :type deployment_filter: str
         :param order_by: A field name to order by, ex: "creationTimestamp desc"
-        :type order_by: Optional[str]
         :rtype: list
         """
         deployments = []  # type: List[Dict]
@@ -90,11 +87,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         Deletes a deployment and all associated resources in a google cloud project.
 
         :param project_id: The project ID for this request.
-        :type project_id: str
         :param deployment: The name of the deployment for this request.
-        :type deployment: str
         :param delete_policy: Sets the policy to use for deleting resources. (ABANDON | DELETE)
-        :type delete_policy: string
 
         :rtype: None
         """

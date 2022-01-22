@@ -37,11 +37,9 @@ class CloudBuildHook(GoogleBaseHook):
     Hook for the Google Cloud Build Service.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -50,7 +48,6 @@ class CloudBuildHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -70,7 +67,6 @@ class CloudBuildHook(GoogleBaseHook):
 
         :param operation: The proto to append resource_label airflow
             version to
-        :type operation: google.api_core.operation.Operation
 
         :return: Cloud Build ID
         :rtype: str
@@ -104,18 +100,13 @@ class CloudBuildHook(GoogleBaseHook):
         Cancels a build in progress.
 
         :param id_: The ID of the build.
-        :type id_: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
@@ -148,20 +139,14 @@ class CloudBuildHook(GoogleBaseHook):
 
         :param build: The build resource to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
-        :type build: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param wait: Optional, wait for operation to finish.
-        :type wait: Optional[bool]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
@@ -201,18 +186,13 @@ class CloudBuildHook(GoogleBaseHook):
 
         :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
-        :type trigger: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`]
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
@@ -244,18 +224,13 @@ class CloudBuildHook(GoogleBaseHook):
         Deletes a BuildTrigger by its project ID and trigger ID.
 
         :param trigger_id: The ID of the BuildTrigger to delete.
-        :type trigger_id: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
         """
         client = self.get_conn()
 
@@ -283,18 +258,13 @@ class CloudBuildHook(GoogleBaseHook):
         Returns information about a previously requested build.
 
         :param id_: The ID of the build.
-        :type id_: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
@@ -326,18 +296,13 @@ class CloudBuildHook(GoogleBaseHook):
         Returns information about a BuildTrigger.
 
         :param trigger_id: The ID of the BuildTrigger to get.
-        :type trigger_id: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
@@ -372,21 +337,14 @@ class CloudBuildHook(GoogleBaseHook):
 
         :param project_id: Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: string
         :param page_size: Optional, number of results to return in the list.
-        :type page_size: Optional[int]
         :param page_token: Optional, token to provide to skip to a particular spot in the list.
-        :type page_token: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
@@ -429,23 +387,15 @@ class CloudBuildHook(GoogleBaseHook):
 
         :param project_id: Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: string
         :param page_size: Optional, number of results to return in the list.
-        :type page_size: Optional[int]
         :param page_token: Optional, token to provide to skip to a particular spot in the list.
-        :type page_token: Optional[str]
         :param filter_: Optional, the raw filter text to constrain the results.
-        :type filter_: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: List[`google.cloud.devtools.cloudbuild_v1.types.Build`]
         """
@@ -487,20 +437,14 @@ class CloudBuildHook(GoogleBaseHook):
         using the original build request, which may or may not result in an identical build.
 
         :param id_: Build ID of the original build.
-        :type id_: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: str
         :param wait: Optional, wait for operation to finish.
-        :type wait: Optional[bool]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
@@ -541,23 +485,16 @@ class CloudBuildHook(GoogleBaseHook):
         Runs a BuildTrigger at a particular source revision.
 
         :param trigger_id: The ID of the trigger.
-        :type trigger_id: str
         :param source: Source to build against this trigger. If a dict is provided, it must be of the
             same form as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.RepoSource`
-        :type source: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.RepoSource`]
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: str
         :param wait: Optional, wait for operation to finish.
-        :type wait: Optional[bool]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
@@ -597,21 +534,15 @@ class CloudBuildHook(GoogleBaseHook):
         Updates a BuildTrigger by its project ID and trigger ID.
 
         :param trigger_id: The ID of the trigger.
-        :type trigger_id: str
         :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
-        :type trigger: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`]
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[Retry]
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Optional, additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """

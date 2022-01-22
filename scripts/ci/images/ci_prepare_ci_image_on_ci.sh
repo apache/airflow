@@ -38,11 +38,6 @@ function build_ci_image_on_ci() {
     else
         build_images::rebuild_ci_image_if_needed
     fi
-
-    # Disable force pulling forced above this is needed for the subsequent scripts so that
-    # They do not try to pull/build images again.
-    unset FORCE_PULL_IMAGES
-    unset FORCE_BUILD
     # Skip the image check entirely for the rest of the script
     export CHECK_IMAGE_FOR_REBUILD="false"
     start_end::group_end

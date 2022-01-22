@@ -28,7 +28,6 @@ class TimeSensor(BaseSensorOperator):
     Waits until the specified time of the day.
 
     :param target_time: time after which the job succeeds
-    :type target_time: datetime.time
     """
 
     def __init__(self, *, target_time, **kwargs):
@@ -46,7 +45,6 @@ class TimeSensorAsync(BaseSensorOperator):
     it is waiting.
 
     :param target_time: time after which the job succeeds
-    :type target_time: datetime.time
     """
 
     def __init__(self, *, target_time, **kwargs):
