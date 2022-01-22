@@ -58,9 +58,14 @@ class TrinoHook(DbApiHook):
     conn_type = 'trino'
     hook_name = 'Trino'
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.schema = kwargs.pop("schema", None)
+        self.connection = kwargs.pop("connection", None)
+
     def get_conn(self) -> Connection:
         """Returns a connection object"""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
+        db = self.connection or self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
         if db.password and extra.get('auth') == 'kerberos':
