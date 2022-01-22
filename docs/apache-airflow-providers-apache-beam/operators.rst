@@ -113,7 +113,7 @@ Java Pipelines with DataflowRunner
 .. _howto/operator:BeamRunGoPipelineOperator:
 
 Run Go Pipelines in Apache Beam
-===================================
+===============================
 
 The ``go_file`` argument must be specified for
 :class:`~airflow.providers.apache.beam.operators.beam.BeamRunGoPipelineOperator`
@@ -123,7 +123,7 @@ from the local filesystem the equivalent will be ``go run <go_file>``. If pullin
 init the module and install dependencies with ``go run init example.com/main`` and ``go mod tidy``.
 
 Go Pipelines with DirectRunner
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
     :language: python
@@ -138,7 +138,7 @@ Go Pipelines with DirectRunner
     :end-before: [END howto_operator_start_go_direct_runner_pipeline_gcs_file]
 
 Go Pipelines with DataflowRunner
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
     :language: python
