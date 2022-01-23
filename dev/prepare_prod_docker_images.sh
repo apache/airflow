@@ -20,7 +20,7 @@ export AIRFLOW_SOURCES_DIR
 
 set -e
 
-CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=("3.7" "3.8" "3.9")
+CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=("3.7" "3.8" "3.9" "3.10")
 
 usage() {
     local cmdname

@@ -964,12 +964,8 @@ def get_provider_package_from_package_id(package_id: str) -> str:
 
 
 def get_excluded_providers() -> List[str]:
-    """
-    Returns packages excluded for the current python version.
-    Currently the only excluded provider is apache hive for Python 3.9.
-    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
-    """
-    return ['apache.hive'] if PY39 else []
+    """Returns packages excluded for the current python version."""
+    return []
 
 
 def get_all_provider_packages() -> str:
