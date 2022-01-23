@@ -303,7 +303,7 @@ html_sidebars = {
         'searchbox.html',
         'globaltoc.html',
     ]
-    if FOR_PRODUCTION
+    if FOR_PRODUCTION and PACKAGE_VERSION != 'devel'
     else [
         'searchbox.html',
         'globaltoc.html',
