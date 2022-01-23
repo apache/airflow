@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-22T23:07:16Z
+# This constraints file was automatically generated on 2022-01-23T12:03:15Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -297,7 +297,7 @@ oss2==2.15.0
 packaging==21.3
 pandas-gbq==0.14.1
 pandas==1.4.0
-papermill==2.3.3
+papermill==2.3.4
 parameterized==0.8.1
 paramiko==2.9.2
 parso==0.8.3
