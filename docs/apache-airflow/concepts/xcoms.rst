@@ -62,7 +62,8 @@ Firstly, if you can exec into a terminal in the container then you should be abl
 
 .. code-block:: python
 
-    from  airflow.models.xcom  import XCom
+    from airflow.models.xcom  import XCom
+    
     print(XCom.__name__)
 
 which will print the actual class that is being used.
@@ -73,6 +74,7 @@ configuration::
 .. code-block:: python
 
     from airflow.settings import conf
+    
     conf.get("core", "xcom_backend")
 
 If using env vars check  with ``env|grep  AIRFLOW__CORE__XCOM``.
