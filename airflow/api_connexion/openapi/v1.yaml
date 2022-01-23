@@ -2161,8 +2161,6 @@ components:
 
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
-      required:
-        - dag_id
 
     UpdateDagRunState:
       type: object
