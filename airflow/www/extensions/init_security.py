@@ -35,7 +35,8 @@ def init_xframe_protection(app):
         return
 
     def apply_caching(response):
-        response.headers["X-Frame-Options"] = "DENY"
+        if not x_frame_enabled:
+            response.headers["X-Frame-Options"] = "DENY"
         return response
 
     app.after_request(apply_caching)
