@@ -2101,9 +2101,7 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            if self.timeout is None:
-                raise AirflowException('Timeout should be set here')
-            result = hook.wait_for_operation(self.timeout, self.operation)
+            result = hook.wait_for_operation(timeout=self.timeout, operation=self.operation)
             self.log.info("Batch %s created", self.batch_id)
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
