@@ -28,7 +28,7 @@ image.
 
 The Apache Airflow community, releases Docker Images which are `reference images` for Apache Airflow.
 Every time a new version of Airflow is released, the images are prepared in the
-[apache/airflow DockerHub](https://hub.docker.com/r/apache/airflow>)
+[apache/airflow DockerHub](https://hub.docker.com/r/apache/airflow)
 for all the supported Python versions.
 
 You can find the following images there (Assuming Airflow version `2.3.0.dev0`):
