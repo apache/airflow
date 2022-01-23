@@ -673,6 +673,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        --build-arg AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/${COMMIT_SHA}/docs/docker-stack/README.md" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
         "${docker_cache_prod_directive[@]}" \
