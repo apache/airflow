@@ -807,7 +807,7 @@ class TaskInstance(Base, LoggingMixin):
         self.pool_slots = task.pool_slots
         self.priority_weight = task.priority_weight_total
         self.run_as_user = task.run_as_user
-        # Do not set max_tries from task.retries here because max_tries is a cumulative
+        # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
