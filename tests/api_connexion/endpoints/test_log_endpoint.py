@@ -96,6 +96,7 @@ class TestGetLog:
 
         self.ti = dr.task_instances[0]
         self.ti.try_number = 1
+        self.ti.hostname = 'localhost'
 
     @pytest.fixture
     def configure_loggers(self, tmp_path):
@@ -139,7 +140,7 @@ class TestGetLog:
         )
         assert (
             response.json['content']
-            == f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
+            == f"[('localhost', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json['continuation_token'])
         assert info == {'end_of_log': True}
@@ -162,7 +163,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_of_removed_task(self):
@@ -188,7 +189,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_response_with_ti_equal_to_none(self):

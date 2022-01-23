@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class SqlSensor(BaseSensorOperator):
@@ -35,27 +36,20 @@ class SqlSensor(BaseSensorOperator):
     be passed to the sensor in which case it will fail if no rows have been returned
 
     :param conn_id: The connection to run the sensor against
-    :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
-    :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
-    :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
-    :type success: Optional<Callable[[Any], bool]>
     :param failure: Failure criteria for the sensor is a Callable that takes first_cell
         as the only argument and return a boolean (optional).
-    :type failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned.
-    :type fail_on_empty: bool
     :param hook_params: Extra config params to be passed to the underlying hook.
             Should match the desired hook constructor params.
-    :type hook_params: dict
     """
 
-    template_fields: Iterable[str] = ('sql',)
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = (
         '.hql',
         '.sql',
     )
@@ -92,7 +86,7 @@ class SqlSensor(BaseSensorOperator):
             )
         return hook
 
-    def poke(self, context):
+    def poke(self, context: Context):
         hook = self._get_hook()
 
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)

@@ -19,7 +19,7 @@
 import copy
 from abc import ABCMeta
 from contextlib import ExitStack
-from typing import Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -32,6 +32,9 @@ from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, D
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class BeamDataflowMixin(metaclass=ABCMeta):
     """
@@ -41,7 +44,9 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     """
 
     dataflow_hook: Optional[DataflowHook]
-    dataflow_config: Optional[DataflowConfiguration]
+    dataflow_config: DataflowConfiguration
+    gcp_conn_id: str
+    delegate_to: Optional[str]
 
     def _set_dataflow(
         self, pipeline_options: dict, job_name_variable_key: Optional[str] = None
@@ -112,17 +117,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
 
     :param py_file: Reference to the python Apache Beam pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file. (templated)
-    :type py_file: str
     :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/
 
-    :type runner: str
     :param py_options: Additional python options, e.g., ["-m", "-v"].
-    :type py_options: list[str]
     :param default_pipeline_options: Map of default pipeline options.
-    :type default_pipeline_options: dict
     :param pipeline_options: Map of pipeline options.The key must be a dictionary.
         The value can contain different types:
 
@@ -135,36 +136,36 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
-    :type pipeline_options: dict
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
-    :type py_interpreter: str
     :param py_requirements: Additional python package(s) to install.
         If a value is passed to this parameter, a new virtual environment has been created with
         additional packages installed.
 
         You could also install the apache_beam package if it is not installed on your system or you want
         to use a different version.
-    :type py_requirements: List[str]
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
 
         This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: Optional.
         The connection ID to use connecting to Google Cloud Storage if python file is on GCS.
-    :type gcp_conn_id: str
     :param delegate_to:  Optional.
         The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner
-    :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
-    template_fields = ["py_file", "runner", "pipeline_options", "default_pipeline_options", "dataflow_config"]
+    template_fields: Sequence[str] = (
+        "py_file",
+        "runner",
+        "pipeline_options",
+        "default_pipeline_options",
+        "dataflow_config",
+    )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
 
     def __init__(
@@ -198,26 +199,29 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
         self.py_system_site_packages = py_system_site_packages
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.dataflow_config = dataflow_config or {}
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
         self.dataflow_job_id: Optional[str] = None
+
+        if dataflow_config is None:
+            self.dataflow_config = DataflowConfiguration()
+        elif isinstance(dataflow_config, dict):
+            self.dataflow_config = DataflowConfiguration(**dataflow_config)
+        else:
+            self.dataflow_config = dataflow_config
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
                 "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Optional[Callable] = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: Optional[str] = None
-
-        if isinstance(self.dataflow_config, dict):
-            self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
 
         if is_dataflow:
             dataflow_job_name, pipeline_options, process_line_callback = self._set_dataflow(
@@ -237,7 +241,7 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
-            if is_dataflow:
+            if is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
                     self.beam_hook.start_python_pipeline(
                         variables=formatted_pipeline_options,
@@ -249,12 +253,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                         process_line_callback=process_line_callback,
                     )
 
-                self.dataflow_hook.wait_for_done(
-                    job_name=dataflow_job_name,
-                    location=self.dataflow_config.location,
-                    job_id=self.dataflow_job_id,
-                    multiple_jobs=False,
-                )
+                if dataflow_job_name and self.dataflow_config.location:
+                    self.dataflow_hook.wait_for_done(
+                        job_name=dataflow_job_name,
+                        location=self.dataflow_config.location,
+                        job_id=self.dataflow_job_id,
+                        multiple_jobs=False,
+                    )
 
             else:
                 self.beam_hook.start_python_pipeline(
@@ -302,16 +307,12 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
     Use ``pipeline_options`` to pass on pipeline_options to your job.
 
     :param jar: The reference to a self executing Apache Beam jar (templated).
-    :type jar: str
     :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
         See:
         https://beam.apache.org/documentation/runners/capability-matrix/
-    :type runner: str
     :param job_class: The name of the Apache Beam pipeline class to be executed, it
         is often not the main class configured in the pipeline jar file.
-    :type job_class: str
     :param default_pipeline_options: Map of default job pipeline_options.
-    :type default_pipeline_options: dict
     :param pipeline_options: Map of job specific pipeline_options.The key must be a dictionary.
         The value can contain different types:
 
@@ -324,25 +325,21 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
-    :type pipeline_options: dict
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Storage if jar is on GCS
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner
-    :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "jar",
         "runner",
         "job_class",
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
-    ]
+    )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
     ui_color = "#0273d4"
 
@@ -366,7 +363,6 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
         self.default_pipeline_options = default_pipeline_options or {}
         self.pipeline_options = pipeline_options or {}
         self.job_class = job_class
-        self.dataflow_config = dataflow_config or {}
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.dataflow_job_id = None
@@ -374,21 +370,25 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
         self.beam_hook: Optional[BeamHook] = None
         self._dataflow_job_name: Optional[str] = None
 
+        if dataflow_config is None:
+            self.dataflow_config = DataflowConfiguration()
+        elif isinstance(dataflow_config, dict):
+            self.dataflow_config = DataflowConfiguration(**dataflow_config)
+        else:
+            self.dataflow_config = dataflow_config
+
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
                 "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Optional[Callable] = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: Optional[str] = None
-
-        if isinstance(self.dataflow_config, dict):
-            self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
 
         if is_dataflow:
             dataflow_job_name, pipeline_options, process_line_callback = self._set_dataflow(
@@ -403,7 +403,7 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-            if is_dataflow:
+            if is_dataflow and self.dataflow_hook:
                 is_running = False
                 if self.dataflow_config.check_if_running != CheckJobRunning.IgnoreJob:
                     is_running = (
@@ -437,14 +437,19 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                             job_class=self.job_class,
                             process_line_callback=process_line_callback,
                         )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=dataflow_job_name,
-                        location=self.dataflow_config.location,
-                        job_id=self.dataflow_job_id,
-                        multiple_jobs=self.dataflow_config.multiple_jobs,
-                        project_id=self.dataflow_config.project_id,
-                    )
-
+                    if dataflow_job_name and self.dataflow_config.location:
+                        multiple_jobs = (
+                            self.dataflow_config.multiple_jobs
+                            if self.dataflow_config.multiple_jobs
+                            else False
+                        )
+                        self.dataflow_hook.wait_for_done(
+                            job_name=dataflow_job_name,
+                            location=self.dataflow_config.location,
+                            job_id=self.dataflow_job_id,
+                            multiple_jobs=multiple_jobs,
+                            project_id=self.dataflow_config.project_id,
+                        )
             else:
                 self.beam_hook.start_java_pipeline(
                     variables=pipeline_options,

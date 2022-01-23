@@ -16,11 +16,12 @@
 # under the License.
 
 import datetime
-from typing import Dict, Iterable, Union
+from typing import Iterable, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 
 
 class BranchDateTimeOperator(BaseBranchOperator):
@@ -34,17 +35,12 @@ class BranchDateTimeOperator(BaseBranchOperator):
 
     :param follow_task_ids_if_true: task id or task ids to follow if
         ``datetime.datetime.now()`` falls above target_lower and below ``target_upper``.
-    :type follow_task_ids_if_true: str or list[str]
     :param follow_task_ids_if_false: task id or task ids to follow if
         ``datetime.datetime.now()`` falls below target_lower or above ``target_upper``.
-    :type follow_task_ids_if_false: str or list[str]
     :param target_lower: target lower bound.
-    :type target_lower: Optional[datetime.datetime]
     :param target_upper: target upper bound.
-    :type target_upper: Optional[datetime.datetime]
     :param use_task_execution_date: If ``True``, uses task's execution day to compare with targets.
         Execution date is useful for backfilling. If ``False``, uses system's date.
-    :type use_task_execution_date: bool
     """
 
     def __init__(
@@ -70,9 +66,9 @@ class BranchDateTimeOperator(BaseBranchOperator):
         self.follow_task_ids_if_false = follow_task_ids_if_false
         self.use_task_execution_date = use_task_execution_date
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         if self.use_task_execution_date is True:
-            now = timezone.make_naive(context["execution_date"], self.dag.timezone)
+            now = timezone.make_naive(context["logical_date"], self.dag.timezone)
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 
@@ -100,7 +96,7 @@ def target_times_as_dates(
     if upper is not None and isinstance(upper, datetime.time):
         upper = datetime.datetime.combine(base_date, upper)
 
-    if any(date is None for date in (lower, upper)):
+    if lower is None or upper is None:
         return lower, upper
 
     if upper < lower:

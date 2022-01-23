@@ -19,7 +19,7 @@ import unittest
 from copy import deepcopy
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
+from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
 mock_crawler_name = 'test-crawler'
 mock_role_name = 'test-role'
@@ -81,21 +81,21 @@ mock_config = {
 }
 
 
-class TestAwsGlueCrawlerHook(unittest.TestCase):
+class TestGlueCrawlerHook(unittest.TestCase):
     @classmethod
     def setUp(cls):
-        cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default")
+        cls.hook = GlueCrawlerHook(aws_conn_id="aws_default")
 
     def test_init(self):
         self.assertEqual(self.hook.aws_conn_id, "aws_default")
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_has_crawler(self, mock_get_conn):
         response = self.hook.has_crawler(mock_crawler_name)
         self.assertEqual(response, True)
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_has_crawler_crawled_doesnt_exists(self, mock_get_conn):
         class MockException(Exception):
             pass
@@ -106,7 +106,7 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         self.assertEqual(response, False)
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {'Crawler': mock_config}
 
@@ -117,14 +117,14 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {'Crawler': mock_config}
         response = self.hook.update_crawler(**mock_config)
         self.assertEqual(response, False)
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_create_crawler(self, mock_get_conn):
         mock_get_conn.return_value.create_crawler.return_value = {'Crawler': {'Name': mock_crawler_name}}
         glue_crawler = self.hook.create_crawler(**mock_config)
@@ -132,15 +132,15 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         self.assertIn("Name", glue_crawler["Crawler"])
         self.assertEqual(glue_crawler["Crawler"]["Name"], mock_crawler_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_start_crawler(self, mock_get_conn):
         result = self.hook.start_crawler(mock_crawler_name)
         self.assertEqual(result, mock_get_conn.return_value.start_crawler.return_value)
 
         mock_get_conn.return_value.start_crawler.assert_called_once_with(Name=mock_crawler_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_crawler")
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_crawler")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_wait_for_crawler_completion_instant_ready(self, mock_get_conn, mock_get_crawler):
         mock_get_crawler.side_effect = [
             {'State': 'READY', 'LastCrawl': {'Status': 'MOCK_STATUS'}},
@@ -170,8 +170,8 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
             ]
         )
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    @mock.patch.object(AwsGlueCrawlerHook, "get_crawler")
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_crawler")
     @mock.patch('airflow.providers.amazon.aws.hooks.glue_crawler.sleep')
     def test_wait_for_crawler_completion_retry_two_times(self, mock_sleep, mock_get_crawler, mock_get_conn):
         mock_get_crawler.side_effect = [

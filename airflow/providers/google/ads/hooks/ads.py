@@ -16,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad hook."""
+import sys
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Generator, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.ads.googleads.v8.services.types.google_ads_service import GoogleAdsRow
@@ -66,11 +68,8 @@ class GoogleAdsHook(BaseHook):
         https://developers.google.com/google-ads/api/docs/start
 
     :param gcp_conn_id: The connection ID with the service account details.
-    :type gcp_conn_id: str
     :param google_ads_conn_id: The connection ID with the details of Google Ads config.yaml file.
-    :type google_ads_conn_id: str
     :param api_version: The Google Ads API version to use.
-    :type api_version: str
 
     :return: list of Google Ads Row object(s)
     :rtype: list[GoogleAdsRow]
@@ -106,11 +105,8 @@ class GoogleAdsHook(BaseHook):
         more like conventional python object (using proto-plus-python).
 
         :param client_ids: Google Ads client ID(s) to query the API for.
-        :type client_ids: List[str]
         :param query: Google Ads Query Language query.
-        :type query: str
         :param page_size: Number of results to return per page. Max 10000.
-        :type page_size: int
         :return: Google Ads API response, converted to Google Ads Row objects
         :rtype: list[GoogleAdsRow]
         """
@@ -127,11 +123,8 @@ class GoogleAdsHook(BaseHook):
         message instances that behave more like conventional python objects.
 
         :param client_ids: Google Ads client ID(s) to query the API for.
-        :type client_ids: List[str]
         :param query: Google Ads Query Language query.
-        :type query: str
         :param page_size: Number of results to return per page. Max 10000.
-        :type page_size: int
         :return: Google Ads API response, converted to Google Ads Row objects
         :rtype: list[GoogleAdsRow]
         """
@@ -223,11 +216,8 @@ class GoogleAdsHook(BaseHook):
         Pulls data from the Google Ads API
 
         :param client_ids: Google Ads client ID(s) to query the API for.
-        :type client_ids: List[str]
         :param query: Google Ads Query Language query.
-        :type query: str
         :param page_size: Number of results to return per page. Max 10000.
-        :type page_size: int
 
         :return: Google Ads API response, converted to Google Ads Row objects
         :rtype: list[GoogleAdsRow]
@@ -248,12 +238,11 @@ class GoogleAdsHook(BaseHook):
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(self, iterators: Generator[GRPCIterator, None, None]) -> List[GoogleAdsRow]:
+    def _extract_rows(self, iterators: List[GRPCIterator]) -> List[GoogleAdsRow]:
         """
         Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
 
         :param iterators: List of Google Page Iterator (GRPCIterator) objects
-        :type iterators: generator[GRPCIterator, None, None]
 
         :return: API response for all clients in the form of Google Ads Row object(s)
         :rtype: list[GoogleAdsRow]

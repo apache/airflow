@@ -43,7 +43,6 @@ class AzureCosmosDBHook(BaseHook):
 
     :param azure_cosmos_conn_id: Reference to the
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
-    :type azure_cosmos_conn_id: str
     """
 
     conn_name_attr = 'azure_cosmos_conn_id'

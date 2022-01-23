@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
@@ -22,6 +22,9 @@ from airflow.providers.tableau.hooks.tableau import (
     TableauJobFinishCode,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class TableauJobStatusSensor(BaseSensorOperator):
@@ -31,15 +34,12 @@ class TableauJobStatusSensor(BaseSensorOperator):
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
     :param job_id: Id of the job to watch.
-    :type job_id: str
     :param site_id: The id of the site where the workbook belongs to.
-    :type site_id: Optional[str]
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
-    :type tableau_conn_id: str
     """
 
-    template_fields = ('job_id',)
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -54,12 +54,11 @@ class TableauJobStatusSensor(BaseSensorOperator):
         self.job_id = job_id
         self.site_id = site_id
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         """
         Pokes until the job has successfully finished.
 
         :param context: The task context during execution.
-        :type context: dict
         :return: True if it succeeded and False if not.
         :rtype: bool
         """

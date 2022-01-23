@@ -281,32 +281,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 return True
         return False
 
-    def get_readable_dags(self, user):
-        """Gets the DAGs readable by authenticated user."""
-        return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
-
-    def get_editable_dags(self, user):
-        """Gets the DAGs editable by authenticated user."""
-        return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
-
     def get_readable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs readable by authenticated user."""
-        return {dag.dag_id for dag in self.get_readable_dags(user)}
+        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])
 
     def get_editable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs editable by authenticated user."""
-        return {dag.dag_id for dag in self.get_editable_dags(user)}
-
-    def get_accessible_dag_ids(self, user) -> Set[str]:
-        """Gets the DAG IDs editable or readable by authenticated user."""
-        accessible_dags = self.get_accessible_dags(
-            [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ], user
-        )
-        return {dag.dag_id for dag in accessible_dags}
+        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
 
     @provide_session
-    def get_accessible_dags(self, user_actions, user, session=None):
+    def get_accessible_dag_ids(self, user, user_actions=None, session=None) -> Set[str]:
         """Generic function to get readable or writable DAGs for user."""
+        if not user_actions:
+            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
         if user.is_anonymous:
             roles = self.get_user_roles(user)
         else:
@@ -331,14 +319,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
                 resource = permission.resource.name
                 if resource == permissions.RESOURCE_DAG:
-                    return session.query(DagModel)
+                    return {dag.dag_id for dag in session.query(DagModel.dag_id)}
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                     resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                 else:
                     resources.add(resource)
-
-        return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
+        return {dag.dag_id for dag in session.query(DagModel.dag_id).filter(DagModel.dag_id.in_(resources))}
 
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
@@ -347,8 +334,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
-            return any(self.get_readable_dags(user))
-        return any(self.get_editable_dags(user))
+            return any(self.get_readable_dag_ids(user))
+        return any(self.get_editable_dag_ids(user))
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
@@ -403,11 +390,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (e.g can_read, can_write) on the given resource.
 
         :param action_name: action_name on resource (e.g can_read, can_edit).
-        :type action_name: str
         :param resource_name: name of view-menu or resource.
-        :type resource_name: str
         :param user: user name
-        :type user: str
         :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
@@ -432,11 +416,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         Wraps the FAB built-in view access method. Won't work for AllDag access.
 
         :param user: user object
-        :type user: User
         :param action_name: action_name on resource (e.g can_read, can_edit).
-        :type action_name: str
         :param resource_name: name of resource.
-        :type resource_name: str
         :return: a bool whether user could perform certain action on the resource.
         :rtype bool
         """
@@ -502,9 +483,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         It will add the related entry to ab_permission and ab_resource two meta tables as well.
 
         :param action_name: Name of the action
-        :type action_name: str
         :param resource_name: Name of the resource
-        :type resource_name: str
         :return:
         """
         action = self.get_action(action_name)
@@ -649,11 +628,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or DagBag will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of action names (e.g.,
             {'can_read'}
-        :type access_control: dict
         :return:
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
@@ -668,14 +645,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of action names (e.g. {'can_read'})
-        :type access_control: dict
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(action_name: str) -> Permission:
+        def _get_or_create_dag_permission(action_name: str) -> Optional[Permission]:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
@@ -721,7 +696,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
             for action_name in action_names:
                 dag_perm = _get_or_create_dag_permission(action_name)
-                self.add_permission_to_role(role, dag_perm)
+                if dag_perm:
+                    self.add_permission_to_role(role, dag_perm)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""

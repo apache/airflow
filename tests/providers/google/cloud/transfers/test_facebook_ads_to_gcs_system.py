@@ -43,7 +43,6 @@ def provide_facebook_connection(key_file_path: str):
     required scopes and project id.
 
     :param key_file_path: Path to file with FACEBOOK credentials .json file.
-    :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")

@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AirbyteTriggerSyncOperator(BaseOperator):
@@ -32,31 +35,25 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     :param airbyte_conn_id: Required. The name of the Airflow connection to get connection
         information for Airbyte.
-    :type airbyte_conn_id: str
     :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
-    :type connection_id: str
     :param asynchronous: Optional. Flag to get job_id after submitting the job to the Airbyte API.
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the AirbyteJobSensor.
-    :type asynchronous: bool
     :param api_version: Optional. Airbyte API version.
-    :type api_version: str
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
-    :type wait_seconds: float
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
         Only used when ``asynchronous`` is False.
-    :type timeout: float
     """
 
-    template_fields = ('connection_id',)
+    template_fields: Sequence[str] = ('connection_id',)
 
     def __init__(
         self,
         connection_id: str,
         airbyte_conn_id: str = "airbyte_default",
         asynchronous: Optional[bool] = False,
-        api_version: Optional[str] = "v1",
-        wait_seconds: Optional[float] = 3,
+        api_version: str = "v1",
+        wait_seconds: float = 3,
         timeout: Optional[float] = 3600,
         **kwargs,
     ) -> None:
@@ -68,7 +65,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.wait_seconds = wait_seconds
         self.asynchronous = asynchronous
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Create Airbyte Job and wait to finish"""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)

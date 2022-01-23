@@ -30,7 +30,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | Build argument                           | Default value                            | Description                                 |
 +==========================================+==========================================+=============================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                          |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-buster``               | Base python image.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``21.2.4``                                | PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``21.3.1``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -197,6 +197,16 @@ You can see some examples of those in:
 | ``AIRFLOW_SOURCES_TO``                   | ``/empty``                               | Target for Airflow sources. Set to       |
 |                                          |                                          | "/opt/airflow" when you install Airflow  |
 |                                          |                                          | from local sources.                      |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_FROM``             | ``empty``                                | Sources of Airflow WWW files used for    |
+|                                          |                                          | asset compilation. Set it to             |
+|                                          |                                          | "./airflow/www" when                     |
+|                                          |                                          | you install Airflow from local sources   |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_TO``               | ``/empty``                               | Target for Airflow files used for        |
+|                                          |                                          | asset compilation. Set it to             |
+|                                          |                                          | "/opt/airflow/airflow/www" when          |
+|                                          |                                          | you install Airflow from local sources.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_VERSION_SPECIFICATION``        |                                          | Optional - might be used for using limit |
 |                                          |                                          | for Airflow version installation - for   |

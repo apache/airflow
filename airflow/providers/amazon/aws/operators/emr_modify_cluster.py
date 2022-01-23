@@ -16,55 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.emr`."""
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
+import warnings
 
+from airflow.providers.amazon.aws.operators.emr import EmrClusterLink, EmrModifyClusterOperator  # noqa
 
-class EmrModifyClusterOperator(BaseOperator):
-    """
-    An operator that modifies an existing EMR cluster.
-    :param cluster_id: cluster identifier
-    :type cluster_id: str
-    :param step_concurrency_level: Concurrency of the cluster
-    :type step_concurrency_level: int
-    :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-    :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
-    :type do_xcom_push: bool
-    """
-
-    template_fields = ['cluster_id', 'step_concurrency_level']
-    template_ext = ()
-    ui_color = '#f9c915'
-
-    def __init__(
-        self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = 'aws_default', **kwargs
-    ):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
-        self.cluster_id = cluster_id
-        self.step_concurrency_level = step_concurrency_level
-
-    def execute(self, context: Dict[str, Any]) -> int:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-
-        emr = emr_hook.get_conn()
-
-        if self.do_xcom_push:
-            context['ti'].xcom_push(key='cluster_id', value=self.cluster_id)
-
-        self.log.info('Modifying cluster %s', self.cluster_id)
-        response = emr.modify_cluster(
-            ClusterId=self.cluster_id, StepConcurrencyLevel=self.step_concurrency_level
-        )
-
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Modify cluster failed: {response}')
-        else:
-            self.log.info('Steps concurrency level %d', response['StepConcurrencyLevel'])
-            return response['StepConcurrencyLevel']
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

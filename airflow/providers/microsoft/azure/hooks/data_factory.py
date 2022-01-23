@@ -14,6 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+.. spelling::
+
+    CreateRunResponse
+    DatasetResource
+    LinkedServiceResource
+    LROPoller
+    PipelineResource
+    PipelineRun
+    TriggerResource
+    datafactory
+    mgmt
+"""
 import inspect
 import time
 from functools import wraps
@@ -101,7 +114,6 @@ class AzureDataFactoryHook(BaseHook):
     A hook to interact with Azure Data Factory.
 
     :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
-    :type azure_data_factory_conn_id: str
     """
 
     conn_type: str = 'azure_data_factory'
@@ -115,14 +127,13 @@ class AzureDataFactoryHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
-        from wtforms.validators import InputRequired
 
         return {
             "extra__azure_data_factory__tenantId": StringField(
                 lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext('Subscription ID'), validators=[InputRequired()], widget=BS3TextFieldWidget()
+                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__resource_group_name": StringField(
                 lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()

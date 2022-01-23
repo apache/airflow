@@ -15,13 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 import attr
 import papermill as pm
 
 from airflow.lineage.entities import File
 from airflow.models import BaseOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 @attr.s(auto_attribs=True)
@@ -39,19 +42,15 @@ class PapermillOperator(BaseOperator):
     Executes a jupyter notebook through papermill that is annotated with parameters
 
     :param input_nb: input notebook (can also be a NoteBook or a File inlet)
-    :type input_nb: str
     :param output_nb: output notebook (can also be a NoteBook or File outlet)
-    :type output_nb: str
     :param parameters: the notebook parameters to set
-    :type parameters: dict
     :param kernel_name: (optional) name of kernel to execute the notebook against
         (ignores kernel name in the notebook document metadata)
-    :type kernel_name: str
     """
 
     supports_lineage = True
 
-    template_fields = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
+    template_fields: Sequence[str] = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
 
     def __init__(
         self,
@@ -73,7 +72,7 @@ class PapermillOperator(BaseOperator):
         if output_nb:
             self.outlets.append(NoteBook(url=output_nb))
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         if not self.inlets or not self.outlets:
             raise ValueError("Input notebook or output notebook is not specified")
 

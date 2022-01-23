@@ -19,7 +19,7 @@
 import json
 import unittest
 
-from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 
 try:
     from moto import mock_cloudformation
@@ -28,9 +28,9 @@ except ImportError:
 
 
 @unittest.skipIf(mock_cloudformation is None, 'moto package not present')
-class TestAWSCloudFormationHook(unittest.TestCase):
+class TestCloudFormationHook(unittest.TestCase):
     def setUp(self):
-        self.hook = AWSCloudFormationHook(aws_conn_id='aws_default')
+        self.hook = CloudFormationHook(aws_conn_id='aws_default')
 
     def create_stack(self, stack_name):
         timeout = 15
@@ -57,7 +57,7 @@ class TestAWSCloudFormationHook(unittest.TestCase):
 
         self.hook.create_stack(
             stack_name=stack_name,
-            params={
+            cloudformation_parameters={
                 'TimeoutInMinutes': timeout,
                 'TemplateBody': template_body,
                 'Parameters': [{'ParameterKey': "VPCCidr", 'ParameterValue': '10.0.0.0/16'}],

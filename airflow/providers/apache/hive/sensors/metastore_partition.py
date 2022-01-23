@@ -15,9 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.sensors.sql import SqlSensor
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MetastorePartitionSensor(SqlSensor):
@@ -29,19 +32,15 @@ class MetastorePartitionSensor(SqlSensor):
     way that wouldn't leverage the indexes.
 
     :param schema: the schema
-    :type schema: str
     :param table: the table
-    :type table: str
     :param partition_name: the partition name, as defined in the PARTITIONS
         table of the Metastore. Order of the fields does matter.
         Examples: ``ds=2016-01-01`` or
         ``ds=2016-01-01/sub=foo`` for a sub partitioned table
-    :type partition_name: str
     :param mysql_conn_id: a reference to the MySQL conn_id for the metastore
-    :type mysql_conn_id: str
     """
 
-    template_fields = ('partition_name', 'table', 'schema')
+    template_fields: Sequence[str] = ('partition_name', 'table', 'schema')
     ui_color = '#8da7be'
     poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
 
@@ -67,7 +66,7 @@ class MetastorePartitionSensor(SqlSensor):
         # constructor below and apply_defaults will no longer throw an exception.
         super().__init__(**kwargs)
 
-    def poke(self, context: Dict[str, Any]) -> Any:
+    def poke(self, context: "Context") -> Any:
         if self.first_poke:
             self.first_poke = False
             if '.' in self.table:

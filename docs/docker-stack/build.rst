@@ -68,7 +68,7 @@ In the simplest case building your image consists of those steps:
 
 .. code-block:: shell
 
-   docker build . -f Dockerfile --tag my-image:0.0.1
+   docker build . -f Dockerfile --pull --tag my-image:0.0.1
 
 3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step however,
    requires locally checked out or extracted Airflow sources. If you happen to have the sources you can
@@ -223,7 +223,7 @@ You should be aware, about a few things:
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
   ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
-  a command ``docker build . --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
+  a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
 * If your way of extending image requires to create writable directories, you MUST remember about adding
@@ -522,12 +522,12 @@ described below but here is an example of rather complex command to customize th
 based on example in `this comment <https://github.com/apache/airflow/issues/8605#issuecomment-690065621>`_:
 
 In case you need to use your custom PyPI package indexes, you can also customize PYPI sources used during
-image build by adding a ``docker-context-files``/``.pypirc`` file when building the image.
-This ``.pypirc`` will not be committed to the repository (it is added to ``.gitignore``) and it will not be
+image build by adding a ``docker-context-files``/``pip.conf`` file when building the image.
+This ``pip.conf`` will not be committed to the repository (it is added to ``.gitignore``) and it will not be
 present in the final production image. It is added and used only in the build segment of the image.
-Therefore this ``.pypirc`` file can safely contain list of package indexes you want to use,
-usernames and passwords used for authentication. More details about ``.pypirc`` file can be found in the
-`pypirc specification <https://packaging.python.org/specifications/pypirc/>`_.
+Therefore this ``pip.conf`` file can safely contain list of package indexes you want to use,
+usernames and passwords used for authentication. More details about ``pip.conf`` file can be found in the
+`pip configuration <https://pip.pypa.io/en/stable/topics/configuration/>`_.
 
 Such customizations are independent of the way how airflow is installed.
 

@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Salesforce customer
 data and upload to an S3 bucket.
@@ -22,8 +26,7 @@ data and upload to an S3 bucket.
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOperator
-from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObjectsOperator
+from airflow.providers.amazon.aws.operators.s3 import S3CopyObjectOperator, S3DeleteObjectsOperator
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
 
 BASE_PATH = "salesforce/customers"

@@ -16,25 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PSRPOperator(BaseOperator):
     """PowerShell Remoting Protocol operator.
 
     :param psrp_conn_id: connection id
-    :type psrp_conn_id: str
     :param command: command to execute on remote host. (templated)
-    :type command: str
     :param powershell: powershell to execute on remote host. (templated)
-    :type powershell: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "command",
         "powershell",
     )
@@ -56,7 +56,7 @@ class PSRPOperator(BaseOperator):
         self.command = command
         self.powershell = powershell
 
-    def execute(self, context: dict) -> List[str]:
+    def execute(self, context: "Context") -> List[str]:
         with PSRPHook(self.conn_id) as hook:
             ps = hook.invoke_powershell(
                 f"cmd.exe /c @'\n{self.command}\n'@" if self.command else self.powershell

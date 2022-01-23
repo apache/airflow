@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GlacierToGCSOperator(BaseOperator):
@@ -36,24 +39,16 @@ class GlacierToGCSOperator(BaseOperator):
         :ref:`howto/operator:GlacierToGCSOperator`
 
     :param aws_conn_id: The reference to the AWS connection details
-    :type aws_conn_id: str
     :param gcp_conn_id: The reference to the GCP connection details
-    :type gcp_conn_id: str
     :param vault_name: the Glacier vault on which job is executed
-    :type vault_name: string
     :param bucket_name: the Google Cloud Storage bucket where the data will be transferred
-    :type bucket_name: str
     :param object_name: the name of the object to check in the Google cloud
         storage bucket.
-    :type object_name: str
     :param gzip: option to compress local file or file data for upload
-    :type gzip: bool
     :param chunk_size: size of chunk in bytes the that will downloaded from Glacier vault
-    :type chunk_size: int
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -62,10 +57,9 @@ class GlacierToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("vault_name", "bucket_name", "object_name")
+    template_fields: Sequence[str] = ("vault_name", "bucket_name", "object_name")
 
     def __init__(
         self,
@@ -92,7 +86,7 @@ class GlacierToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = google_impersonation_chain
 
-    def execute(self, context) -> str:
+    def execute(self, context: 'Context') -> str:
         glacier_hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

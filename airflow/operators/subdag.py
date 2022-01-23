@@ -34,7 +34,8 @@ from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.context import Context
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -60,7 +61,6 @@ class SubDagOperator(BaseSensorOperator):
     :param subdag: the DAG object to run as a subdag of the current DAG.
     :param session: sqlalchemy session
     :param conf: Configuration for the subdag
-    :type conf: dict
     :param propagate_skipped_state: by setting this argument you can define
         whether the skipped state of leaf task(s) should be propagated to the
         parent dag's downstream task.
@@ -69,12 +69,14 @@ class SubDagOperator(BaseSensorOperator):
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
+    subdag: "DAG"
+
     @provide_session
     def __init__(
         self,
         *,
         subdag: DAG,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
         conf: Optional[Dict] = None,
         propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
         **kwargs,
@@ -177,7 +179,7 @@ class SubDagOperator(BaseSensorOperator):
             if dag_run.state == State.FAILED:
                 self._reset_dag_run_and_task_instances(dag_run, execution_date)
 
-    def poke(self, context):
+    def poke(self, context: Context):
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date=execution_date)
         return dag_run.state != State.RUNNING

@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 Example DAG showing how to use Asana TaskOperators.
 """
@@ -28,12 +32,12 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaUpdateTaskOperator,
 )
 
-ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
-ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
+ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE", "update_task")
+ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE", "delete_task")
 # This example assumes a default project ID has been specified in the connection. If you
 # provide a different id in ASANA_PROJECT_ID_OVERRIDE, it will override this default
 # project ID in the AsanaFindTaskOperator example below
-ASANA_PROJECT_ID_OVERRIDE = os.environ.get("ASANA_PROJECT_ID_OVERRIDE")
+ASANA_PROJECT_ID_OVERRIDE = os.environ.get("ASANA_PROJECT_ID_OVERRIDE", "test_project")
 # This connection should specify a personal access token and a default project ID
 CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 

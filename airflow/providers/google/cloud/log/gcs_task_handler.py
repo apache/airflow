@@ -16,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import sys
 from typing import Collection, Optional
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.client_info import ClientInfo
-from google.cloud import storage
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow import version
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
@@ -45,25 +49,18 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     failure, it reads from host machine's local disk.
 
     :param base_log_folder: Base log folder to place logs.
-    :type base_log_folder: str
     :param gcs_log_folder: Path to a remote location where logs will be saved. It must have the prefix
         ``gs://``. For example: ``gs://bucket/remote/log/location``
-    :type gcs_log_folder: str
     :param filename_template: template filename string
-    :type filename_template: str
     :param gcp_key_path: Path to Google Cloud Service Account file (JSON). Mutually exclusive with
         gcp_keyfile_dict.
         If omitted, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
-    :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
-    :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes
-    :type gcp_scopes: str
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
-    :type project_id: str
     """
 
     def __init__(
@@ -170,9 +167,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         was created.
 
         :param log: the log to write to the remote_log_location
-        :type log: str
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: str (path)
         """
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)

@@ -52,11 +52,8 @@ class TelegramHook(BaseHook):
         # or telegram_hook.send_message(None', {"text": "message"})
 
     :param telegram_conn_id: connection that optionally has Telegram API token in the password field
-    :type telegram_conn_id: str
     :param token: optional telegram API token
-    :type token: str
     :param chat_id: optional chat_id of the telegram chat/channel/group
-    :type chat_id: str
     """
 
     def __init__(
@@ -79,14 +76,12 @@ class TelegramHook(BaseHook):
         """
         return telegram.bot.Bot(token=self.token)
 
-    def __get_token(self, token: Optional[str], telegram_conn_id: str) -> str:
+    def __get_token(self, token: Optional[str], telegram_conn_id: Optional[str]) -> str:
         """
         Returns the telegram API token
 
         :param token: telegram API token
-        :type token: str
         :param telegram_conn_id: telegram connection name
-        :type telegram_conn_id: str
         :return: telegram API token
         :rtype: str
         """
@@ -103,14 +98,12 @@ class TelegramHook(BaseHook):
 
         raise AirflowException("Cannot get token: No valid Telegram connection supplied.")
 
-    def __get_chat_id(self, chat_id: Optional[str], telegram_conn_id: str) -> Optional[str]:
+    def __get_chat_id(self, chat_id: Optional[str], telegram_conn_id: Optional[str]) -> Optional[str]:
         """
         Returns the telegram chat ID for a chat/channel/group
 
         :param chat_id: optional chat ID
-        :type chat_id: str
         :param telegram_conn_id: telegram connection name
-        :type telegram_conn_id: str
         :return: telegram chat ID
         :rtype: str
         """
@@ -133,7 +126,6 @@ class TelegramHook(BaseHook):
         Sends the message to a telegram channel or chat.
 
         :param api_params: params for telegram_instance.send_message. It can also be used to override chat_id
-        :type api_params: dict
         """
         kwargs = {
             "chat_id": self.chat_id,

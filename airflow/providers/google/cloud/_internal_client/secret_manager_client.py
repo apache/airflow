@@ -16,14 +16,16 @@
 # under the License.
 
 import re
+import sys
 from typing import Optional
 
 import google
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
@@ -42,7 +44,6 @@ class _SecretManagerClient(LoggingMixin):
 
 
     :param credentials: Credentials used to authenticate to GCP
-    :type credentials: google.auth.credentials.Credentials
     """
 
     def __init__(
@@ -57,7 +58,6 @@ class _SecretManagerClient(LoggingMixin):
         """
         Returns true if the secret name is valid.
         :param secret_name: name of the secret
-        :type secret_name: str
         :return:
         """
         return bool(re.match(SECRET_ID_PATTERN, secret_name))
@@ -75,11 +75,8 @@ class _SecretManagerClient(LoggingMixin):
         Get secret value from the Secret Manager.
 
         :param secret_id: Secret Key
-        :type secret_id: str
         :param project_id: Project id to use
-        :type project_id: str
         :param secret_version: version of the secret (default is 'latest')
-        :type secret_version: str
         """
         name = self.client.secret_version_path(project_id, secret_id, secret_version)
         try:

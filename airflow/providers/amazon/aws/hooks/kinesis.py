@@ -17,12 +17,13 @@
 # under the License.
 
 """This module contains AWS Firehose hook"""
+import warnings
 from typing import Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsFirehoseHook(AwsBaseHook):
+class FirehoseHook(AwsBaseHook):
     """
     Interact with AWS Kinesis Firehose.
 
@@ -33,7 +34,6 @@ class AwsFirehoseHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param delivery_stream: Name of the delivery stream
-    :type delivery_stream: str
     """
 
     def __init__(self, delivery_stream: str, *args, **kwargs) -> None:
@@ -46,3 +46,19 @@ class AwsFirehoseHook(AwsBaseHook):
         response = self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)
 
         return response
+
+
+class AwsFirehoseHook(FirehoseHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

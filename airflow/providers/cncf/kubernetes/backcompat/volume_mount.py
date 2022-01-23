@@ -38,13 +38,9 @@ class VolumeMount:
         running container.
 
         :param name: the name of the volume mount
-        :type name: str
         :param mount_path:
-        :type mount_path: str
         :param sub_path: subpath within the volume mount
-        :type sub_path: Optional[str]
         :param read_only: whether to access pod with read-only mode
-        :type read_only: bool
         """
         self.name = name
         self.mount_path = mount_path

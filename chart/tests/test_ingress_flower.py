@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import itertools
 import unittest
 
 import jmespath
@@ -56,27 +57,56 @@ class IngressFlowerTest(unittest.TestCase):
         )
         assert "foo" == jmespath.search("spec.ingressClassName", docs[0])
 
-    def test_should_ingress_hosts_have_priority_over_host(self):
+    def test_should_ingress_hosts_objs_have_priority_over_host(self):
         docs = render_chart(
             values={
                 "ingress": {
                     "enabled": True,
                     "flower": {
-                        "tls": {"enabled": True, "secretName": "supersecret"},
-                        "hosts": ["*.a-host", "b-host"],
+                        "tls": {"enabled": True, "secretName": "oldsecret"},
+                        "hosts": [
+                            {"name": "*.a-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
+                            {"name": "b-host", "tls": {"enabled": True, "secretName": "newsecret2"}},
+                            {"name": "c-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
+                            {"name": "d-host", "tls": {"enabled": False, "secretName": ""}},
+                            {"name": "e-host"},
+                        ],
                         "host": "old-host",
                     },
                 }
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
-        assert (
-            ["*.a-host", "b-host"]
-            == jmespath.search("spec.rules[*].host", docs[0])
-            == jmespath.search("spec.tls[0].hosts", docs[0])
+        assert ["*.a-host", "b-host", "c-host", "d-host", "e-host"] == jmespath.search(
+            "spec.rules[*].host", docs[0]
+        )
+        assert [
+            {"hosts": ["*.a-host"], "secretName": "newsecret1"},
+            {"hosts": ["b-host"], "secretName": "newsecret2"},
+            {"hosts": ["c-host"], "secretName": "newsecret1"},
+        ] == jmespath.search("spec.tls[*]", docs[0])
+
+    def test_should_ingress_hosts_strs_have_priority_over_host(self):
+        docs = render_chart(
+            values={
+                "ingress": {
+                    "enabled": True,
+                    "flower": {
+                        "tls": {"enabled": True, "secretName": "secret"},
+                        "hosts": ["*.a-host", "b-host", "c-host", "d-host"],
+                        "host": "old-host",
+                    },
+                }
+            },
+            show_only=["templates/flower/flower-ingress.yaml"],
         )
 
-    def test_should_ingress_host_still_work(self):
+        assert ["*.a-host", "b-host", "c-host", "d-host"] == jmespath.search("spec.rules[*].host", docs[0])
+        assert [
+            {"hosts": ["*.a-host", "b-host", "c-host", "d-host"], "secretName": "secret"}
+        ] == jmespath.search("spec.tls[*]", docs[0])
+
+    def test_should_ingress_deprecated_host_and_top_level_tls_still_work(self):
         docs = render_chart(
             values={
                 "ingress": {
@@ -92,7 +122,7 @@ class IngressFlowerTest(unittest.TestCase):
         assert (
             ["old-host"]
             == jmespath.search("spec.rules[*].host", docs[0])
-            == jmespath.search("spec.tls[0].hosts", docs[0])
+            == list(itertools.chain.from_iterable(jmespath.search("spec.tls[*].hosts", docs[0])))
         )
 
     def test_should_ingress_host_entry_not_exist(self):

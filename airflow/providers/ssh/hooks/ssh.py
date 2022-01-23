@@ -17,14 +17,20 @@
 # under the License.
 """Hook for SSH connections."""
 import os
+import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -47,31 +53,22 @@ class SSHHook(BaseHook):
         Connections from where all the required parameters can be fetched like
         username, password or key_file. Thought the priority is given to the
         param passed during init
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect
-    :type remote_host: str
     :param username: username to connect to the remote_host
-    :type username: str
     :param password: password of the username to connect to the remote_host
-    :type password: str
     :param key_file: path to key file to use to connect to the remote_host
-    :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
-    :type port: int
     :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
         The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :type conn_timeout: int
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
-    :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
-    :type keepalive_interval: int
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
-    _pkey_loaders = (
+    _pkey_loaders: Sequence[Type[paramiko.PKey]] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
@@ -103,7 +100,7 @@ class SSHHook(BaseHook):
     def __init__(
         self,
         ssh_conn_id: Optional[str] = None,
-        remote_host: Optional[str] = None,
+        remote_host: str = '',
         username: Optional[str] = None,
         password: Optional[str] = None,
         key_file: Optional[str] = None,
@@ -123,17 +120,17 @@ class SSHHook(BaseHook):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
+        self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
         self.allow_host_key_change = False
-        self.host_proxy = None
         self.host_key = None
         self.look_for_keys = True
 
         # Placeholder for deprecated __enter__
-        self.client = None
+        self.client: Optional[paramiko.SSHClient] = None
 
         # Use connection to override defaults
         if self.ssh_conn_id is not None:
@@ -142,7 +139,7 @@ class SSHHook(BaseHook):
                 self.username = conn.login
             if self.password is None:
                 self.password = conn.password
-            if self.remote_host is None:
+            if not self.remote_host:
                 self.remote_host = conn.host
             if self.port is None:
                 self.port = conn.port
@@ -242,13 +239,18 @@ class SSHHook(BaseHook):
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
-                self.host_proxy = paramiko.ProxyCommand(host_info.get('proxycommand'))
+                self.host_proxy_cmd = host_info['proxycommand']
 
             if not (self.password or self.key_file):
                 if host_info and host_info.get('identityfile'):
-                    self.key_file = host_info.get('identityfile')[0]
+                    self.key_file = host_info['identityfile'][0]
 
         self.port = self.port or SSH_PORT
+
+    @cached_property
+    def host_proxy(self) -> Optional[paramiko.ProxyCommand]:
+        cmd = self.host_proxy_cmd
+        return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
         """
@@ -282,7 +284,7 @@ class SSHHook(BaseHook):
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
-        connect_kwargs = dict(
+        connect_kwargs: Dict[str, Any] = dict(
             hostname=self.remote_host,
             username=self.username,
             timeout=self.conn_timeout,
@@ -305,7 +307,9 @@ class SSHHook(BaseHook):
         client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
-            client.get_transport().set_keepalive(self.keepalive_interval)
+            # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
+            # type "Optional[Transport]" and item "None" has no attribute "set_keepalive".
+            client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
 
         self.client = client
         return client
@@ -331,11 +335,8 @@ class SSHHook(BaseHook):
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
 
         :param remote_port: The remote port to create a tunnel to
-        :type remote_port: int
         :param remote_host: The remote host to create a tunnel to (default localhost)
-        :type remote_host: str
         :param local_port:  The local port to attach the tunnel to
-        :type local_port: int
 
         :return: sshtunnel.SSHTunnelForwarder object
         """

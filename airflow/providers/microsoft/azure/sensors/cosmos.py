@@ -15,9 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
@@ -35,17 +39,13 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         task_id="azure_cosmos_sensor")
 
     :param database_name: Target CosmosDB database_name.
-    :type database_name: str
     :param collection_name: Target CosmosDB collection_name.
-    :type collection_name: str
     :param document_id: The ID of the target document.
-    :type document_id: str
     :param azure_cosmos_conn_id: Reference to the
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
-    :type azure_cosmos_conn_id: str
     """
 
-    template_fields = ('database_name', 'collection_name', 'document_id')
+    template_fields: Sequence[str] = ('database_name', 'collection_name', 'document_id')
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         self.collection_name = collection_name
         self.document_id = document_id
 
-    def poke(self, context: dict) -> bool:
-        self.log.info("*** Intering poke")
+    def poke(self, context: "Context") -> bool:
+        self.log.info("*** Entering poke")
         hook = AzureCosmosDBHook(self.azure_cosmos_conn_id)
         return hook.get_document(self.document_id, self.database_name, self.collection_name) is not None

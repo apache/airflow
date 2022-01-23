@@ -246,7 +246,7 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
             job_id=self.operator.dataflow_job_id,
             job_name=job_name,
             location='us-central1',
-            multiple_jobs=dataflow_config.multiple_jobs,
+            multiple_jobs=False,
             project_id=dataflow_hook_mock.return_value.project_id,
         )
 

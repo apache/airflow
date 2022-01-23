@@ -17,12 +17,23 @@
 # under the License.
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import cx_Oracle
 import numpy
 
 from airflow.hooks.dbapi import DbApiHook
+
+PARAM_TYPES = {bool, float, int, str}
+
+
+def _map_param(value):
+    if value in PARAM_TYPES:
+        # In this branch, value is a Python type; calling it produces
+        # an instance of the type which is understood by the Oracle driver
+        # in the out parameter mapping mechanism.
+        value = value()
+    return value
 
 
 class OracleHook(DbApiHook):
@@ -31,7 +42,6 @@ class OracleHook(DbApiHook):
 
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         used for Oracle credentials.
-    :type oracle_conn_id: str
     """
 
     conn_name_attr = 'oracle_conn_id'
@@ -39,7 +49,7 @@ class OracleHook(DbApiHook):
     conn_type = 'oracle'
     hook_name = 'Oracle'
 
-    supports_autocommit = False
+    supports_autocommit = True
 
     def get_conn(self) -> 'OracleHook':
         """
@@ -159,17 +169,12 @@ class OracleHook(DbApiHook):
 
         :param table: target Oracle table, use dot notation to target a
             specific database
-        :type table: str
         :param rows: the rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: the names of the columns to fill in the table
-        :type target_fields: iterable of str
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 1000, Set greater than 0.
             Set 1 to insert each row in each single transaction
-        :type commit_every: int
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
@@ -177,10 +182,9 @@ class OracleHook(DbApiHook):
         else:
             target_fields = ''
         conn = self.get_conn()
-        cur = conn.cursor()  # type: ignore[attr-defined]
         if self.supports_autocommit:
-            cur.execute('SET autocommit = 0')
-        conn.commit()  # type: ignore[attr-defined]
+            self.set_autocommit(conn, False)
+        cur = conn.cursor()  # type: ignore[attr-defined]
         i = 0
         for row in rows:
             i += 1
@@ -225,19 +229,17 @@ class OracleHook(DbApiHook):
 
         :param table: target Oracle table, use dot notation to target a
             specific database
-        :type table: str
         :param rows: the rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: the names of the columns to fill in the table, default None.
             If None, each rows should have some order as table columns name
-        :type target_fields: iterable of str Or None
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
-        :type commit_every: int
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
         conn = self.get_conn()
+        if self.supports_autocommit:
+            self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields if target_fields else rows[0]
         prepared_stm = 'insert into {tablename} {columns} values ({values})'.format(
@@ -265,3 +267,58 @@ class OracleHook(DbApiHook):
         self.log.info('[%s] inserted %s rows', table, row_count)
         cursor.close()
         conn.close()  # type: ignore[attr-defined]
+
+    def callproc(
+        self,
+        identifier: str,
+        autocommit: bool = False,
+        parameters: Optional[Union[List, Dict]] = None,
+    ) -> Optional[Union[List, Dict]]:
+        """
+        Call the stored procedure identified by the provided string.
+
+        Any 'OUT parameters' must be provided with a value of either the
+        expected Python type (e.g., `int`) or an instance of that type.
+
+        The return value is a list or mapping that includes parameters in
+        both directions; the actual return type depends on the type of the
+        provided `parameters` argument.
+
+        See
+        https://cx-oracle.readthedocs.io/en/latest/api_manual/cursor.html#Cursor.var
+        for further reference.
+        """
+        if parameters is None:
+            parameters = []
+
+        args = ",".join(
+            f":{name}"
+            for name in (parameters if isinstance(parameters, dict) else range(1, len(parameters) + 1))
+        )
+
+        sql = f"BEGIN {identifier}({args}); END;"
+
+        def handler(cursor):
+            if cursor.bindvars is None:
+                return
+
+            if isinstance(cursor.bindvars, list):
+                return [v.getvalue() for v in cursor.bindvars]
+
+            if isinstance(cursor.bindvars, dict):
+                return {n: v.getvalue() for (n, v) in cursor.bindvars.items()}
+
+            raise TypeError(f"Unexpected bindvars: {cursor.bindvars!r}")
+
+        result = self.run(
+            sql,
+            autocommit=autocommit,
+            parameters=(
+                {name: _map_param(value) for (name, value) in parameters.items()}
+                if isinstance(parameters, dict)
+                else [_map_param(value) for value in parameters]
+            ),
+            handler=handler,
+        )
+
+        return result

@@ -157,7 +157,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     assert resp.status_code == 200
 
     resp_html: str = resp.data.decode("utf-8")
-    assert "echo Hello Apache Airflow" in resp_html
+    assert "echo Hello Apache Airflow" not in resp_html
     assert (
         "Webserver does not have access to User-defined Macros or Filters when "
         "Dag Serialization is enabled. Hence for the task that have not yet "

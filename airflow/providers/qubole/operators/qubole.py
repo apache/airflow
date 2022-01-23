@@ -18,7 +18,7 @@
 """Qubole operator"""
 import re
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -30,6 +30,9 @@ from airflow.providers.qubole.hooks.qubole import (
     QuboleHook,
     flatten_list,
 )
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class QDSLink(BaseOperatorLink):
@@ -63,8 +66,11 @@ class QuboleOperator(BaseOperator):
     """
     Execute tasks (commands) on QDS (https://qubole.com).
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:QuboleOperator`
+
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     kwargs:
         :command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd
@@ -179,7 +185,7 @@ class QuboleOperator(BaseOperator):
         handler in task definition.
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'query',
         'script_location',
         'sub_command',
@@ -210,7 +216,7 @@ class QuboleOperator(BaseOperator):
         'cluster_label',
     )
 
-    template_ext: Iterable[str] = ('.txt',)
+    template_ext: Sequence[str] = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
@@ -239,7 +245,7 @@ class QuboleOperator(BaseOperator):
         )
         return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         return self.get_hook().execute(context)
 
     def on_kill(self, ti=None) -> None:

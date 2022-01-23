@@ -43,13 +43,9 @@ class SqoopHook(BaseHook):
         * ``password_file``: Path to file containing the password.
 
     :param conn_id: Reference to the sqoop connection.
-    :type conn_id: str
     :param verbose: Set sqoop to verbose.
-    :type verbose: bool
     :param num_mappers: Number of map tasks to import in parallel.
-    :type num_mappers: int
     :param properties: Properties to set via the -D argument
-    :type properties: dict
     """
 
     conn_name_attr = 'conn_id'
@@ -81,6 +77,7 @@ class SqoopHook(BaseHook):
         self.verbose = verbose
         self.num_mappers = num_mappers
         self.properties = properties or {}
+        self.sub_process_pid: int
         self.log.info("Using connection to: %s:%s/%s", self.conn.host, self.conn.port, self.conn.schema)
 
     def get_conn(self) -> Any:
@@ -107,6 +104,7 @@ class SqoopHook(BaseHook):
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: %s", masked_cmd)
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs) as sub_process:
+            self.sub_process_pid = sub_process.pid
             for line in iter(sub_process.stdout):  # type: ignore
                 self.log.info(line.strip())
             sub_process.wait()
