@@ -18,7 +18,6 @@
 import inspect
 import os
 import pickle
-import tempfile
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
@@ -37,23 +36,19 @@ def _generate_decode_command(env_var, file):
     # We don't need `f.close()` as the interpreter is about to exit anyway
     return (
         f'python -c "import base64, os;'
-        # rf'x = base64.b64decode(os.environ[\"{env_var}\"]);'
-        # r
         rf'x = os.environ[\"{env_var}\"];'
-        # r
         rf'f = open(\"{file}\", \"w\"); f.write(x);"'
     )
 
 
 def _b64_encode_file(filename):
     with open(filename) as file_to_encode:
-        # return base64.b64encode(file_to_encode.read())
         return file_to_encode.read()
 
 
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     """
-    Wraps a Python callable and captures args/kwargs when called for execution.
+    Wraps a Python callable and executes in a kubernetes pod
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
@@ -120,128 +115,40 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             )
         else:
             template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
-        template = template_env.get_template('python_virtualenv_script.jinja2')
+        template = template_env.get_template('python_kubernetes_script.jinja2')
 
         template.stream(**jinja_context).dump(filename)
 
     def execute(self, context: 'Context'):
 
-        tmp_dir = tempfile.mkdtemp(prefix='venv')
-        # tempfile.mkdtemp()
-        input_filename = os.path.join(tmp_dir, 'script.in')
-        script_filename = os.path.join(tmp_dir, 'script.py')
+        with TemporaryDirectory(prefix='venv') as tmp_dir:
+            script_filename = os.path.join(tmp_dir, 'script.py')
+            py_source = self._get_python_source()
 
-        with open(input_filename, 'wb') as file:
-            if self.op_args or self.op_kwargs:
-                self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
-        py_source = self._get_python_source()
-        print("KUBERNETES DECORATOR" + py_source)
+            write_python_script(
+                jinja_context=dict(
+                    op_args=self.op_args,
+                    op_kwargs=self.op_kwargs,
+                    pickling_library=self.pickling_library.__name__,
+                    python_callable=self.python_callable.__name__,
+                    python_callable_source=py_source,
+                    string_args_global=False,
+                ),
+                filename=script_filename,
+            )
 
-        write_python_script(
-            jinja_context=dict(
-                op_args=self.op_args,
-                op_kwargs=self.op_kwargs,
-                pickling_library=self.pickling_library.__name__,
-                python_callable=self.python_callable.__name__,
-                python_callable_source=py_source,
-                string_args_global=False,
-            ),
-            filename=script_filename,
-        )
+            self.env_vars.append(
+                k8s.V1EnvVar(name="__PYTHON_SCRIPT", value=_b64_encode_file(script_filename))
+            )
 
-        # Pass the python script to be executed, and the input args, via environment variables
-        # and its injected to the pod as a config map
-        # self.environment["__PYTHON_SCRIPT"] = _b64_encode_file(script_filename)
-        # if self.op_args or self.op_kwargs:
-        #     self.environment["__PYTHON_INPUT"] = _b64_encode_file(input_filename)
-        # else:
-        #     self.environment["__PYTHON_INPUT"] = ""
-        #
-        # self.command = (
-        #     f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} &&"""
-        #     f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in")} &&'
-        #     f'python /tmp/script.py /tmp/script.in /tmp/script.out\''
-        # )
+            self.cmds.append("bash")
+            self.arguments.append("-cx")
 
-        # volumeMounts:
-        # - mountPath: / singlefile / hosts
-        # name: etc
-        # subPath: hosts
-        #
-        #
-        # volumes:
-        # - name: etc
-        # hostPath:
-        # path: / etc
+            self.arguments.append(
+                f'{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} && python /tmp/script.py && sleep 1000'
+            )
 
-        # directory_prefix = script_filename.rsplit('/',1)[0]
-        #
-        # #directory_prefix = '/tmp/venv8upj253q' + '/'
-        # file_name = script_filename.rsplit('/',1)[1]
-        #
-        #
-        # #script_filename='/tmp_node/venv8upj253q/script.py'
-        # self.volumes.append(k8s.V1Volume(name='script-2', host_path=
-        # k8s.V1HostPathVolumeSource(path=script_filename, type='File')))
-        # self.volume_mounts.append(k8s.V1VolumeMount(mount_path=script_filename, name='script-2', read_only=True))
-        #                                             #sub_path=file_name))
-
-        # Pass the python script to be executed, and the input args, via environment variables
-        # and its injected to the pod as a config map
-        self.environment = {}
-        self.environment["__PYTHON_SCRIPT"] = _b64_encode_file(script_filename)
-
-        print("ENVIRONMENT" + str(self.environment))
-        # if self.op_args or self.op_kwargs:
-        #     self.environment["__PYTHON_INPUT"] = _b64_encode_file(input_filename)
-        # else:
-        #     self.environment["__PYTHON_INPUT"] = ""
-
-        self.env_vars.append(k8s.V1EnvVar(name="__PYTHON_SCRIPT", value=_b64_encode_file(script_filename)))
-
-        self.cmds.append("bash")
-        self.arguments.append("-cx")
-        argument_string = (
-            f'{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} && python /tmp/script.py'
-        )
-        print("ARGUMENT" + argument_string)
-
-        self.arguments.append(
-            f'{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} && python /tmp/script.py && sleep 1000'
-        )
-
-        print("COMMAND" + str(self.cmds))
-
-        print("ARGUMENTS" + str(self.arguments))
-
-        # self.command = f"python {script_filename}"
-        # self.command = f"ls /tmp"
-        # self.command = "python"
-
-        # self.cmds.append(self.command)
-        # self.arguments.append(script_filename)
-        # self.arguments.append(script_filename)
-        # self.arguments.append(script_filename)
-        # self.arguments.append("/tmp/script.in")
-        # self.arguments.append("/tmp/script.out")
-
-        # volumes:
-        # - name: config - volume
-        #     configMap:
-        #     name: sherlock - config
-
-        # cmap = k8s.V1ConfigMap()
-        # cmap.data = {}
-        # cmap.data['script'] = script_filename
-        #
-        # vol_source = k8s.V1ConfigMapVolumeSource(name='script')
-        #
-        # self.volumes.append(k8s.V1Volume(name='config-volume', config_map=vol_source))
-        #
-        # self.env_from.append(k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='script')))
-
-        # print("KUBERNETES COMMAND" + self.command)
-        return super().execute(context)
+            return super().execute(context)
 
     def _get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
@@ -257,7 +164,7 @@ def kubernetes_task(
     python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ):
     """
-    Python operator decorator. Wraps a function into an Airflow operator.
+    Kubernetes operator decorator. Wraps a function to be executed in K8s using KubernetesPodOperator.
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate

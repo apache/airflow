@@ -145,9 +145,9 @@ class TaskDecoratorFactory:
     def kubernetes(
         python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
     ) -> TaskDecorator:
-        """
-        Python operator decorator. Wraps a function into an Airflow operator.
-        Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
+        """Wraps a function to be executed on a k8s pod using KubernetesPodOperator
+
+        Also accepts any argument that KubernetesPodOperator will via ``kwargs``.
 
         :param python_callable: Function to decorate
         :type python_callable: Optional[Callable]
