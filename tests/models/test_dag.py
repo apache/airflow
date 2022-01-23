@@ -42,7 +42,7 @@ from sqlalchemy import inspect
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
@@ -581,6 +581,7 @@ class TestDag(unittest.TestCase):
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
+        assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
 
         dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
         _next = dag.following_schedule(utc)
@@ -1860,7 +1861,7 @@ class TestDag(unittest.TestCase):
 
     def test_validate_params_on_trigger_dag(self):
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-        with pytest.raises(TypeError, match="No value passed and Param has no default value"):
+        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
@@ -1868,7 +1869,9 @@ class TestDag(unittest.TestCase):
             )
 
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-        with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
+        with pytest.raises(
+            ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
+        ):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
@@ -2188,7 +2191,8 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.params['value'] == self.VALUE
 
 
-def test_set_task_instance_state(session, dag_maker):
+@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
+def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2201,7 +2205,12 @@ def test_set_task_instance_state(session, dag_maker):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
+    dagrun = dag_maker.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
 
     def get_ti_from_db(task):
         return (
@@ -2223,7 +2232,11 @@ def test_set_task_instance_state(session, dag_maker):
     session.flush()
 
     altered = dag.set_task_instance_state(
-        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS, session=session
+        task_id=task_1.task_id,
+        dag_run_id=run_id,
+        execution_date=execution_date,
+        state=State.SUCCESS,
+        session=session,
     )
 
     # After _mark_task_instance_state, task_1 is marked as SUCCESS

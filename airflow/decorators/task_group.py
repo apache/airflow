@@ -22,14 +22,14 @@ together when the DAG is displayed graphically.
 import functools
 import warnings
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Optional, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Optional, TypeVar, Union, cast, overload
 
 import attr
 
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.dag import DAG
 
 F = TypeVar("F", bound=Callable[..., Any])
 T = TypeVar("T", bound=Callable)
@@ -42,7 +42,7 @@ task_group_sig = signature(TaskGroup.__init__)
 class TaskGroupDecorator(Generic[R]):
     """:meta private:"""
 
-    function: Callable[..., R] = attr.ib(validator=attr.validators.is_callable())
+    function: Callable[..., Optional[R]] = attr.ib(validator=attr.validators.is_callable())
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
     """kwargs for the TaskGroup"""
 
@@ -61,15 +61,30 @@ class TaskGroupDecorator(Generic[R]):
     def _make_task_group(self, **kwargs) -> TaskGroup:
         return TaskGroup(**kwargs)
 
-    def __call__(self, *args, **kwargs) -> R:
-        with self._make_task_group(add_suffix_on_collision=True, **self.kwargs):
+    def __call__(self, *args, **kwargs) -> Union[R, TaskGroup]:
+        with self._make_task_group(add_suffix_on_collision=True, **self.kwargs) as task_group:
             # Invoke function to run Tasks inside the TaskGroup
-            return self.function(*args, **kwargs)
+            retval = self.function(*args, **kwargs)
+
+        # If the task-creating function returns a task, forward the return value
+        # so dependencies bind to it. This is equivalent to
+        #   with TaskGroup(...) as tg:
+        #       t2 = task_2(task_1())
+        #   start >> t2 >> end
+        if retval is not None:
+            return retval
+
+        # Otherwise return the task group as a whole, equivalent to
+        #   with TaskGroup(...) as tg:
+        #       task_1()
+        #       task_2()
+        #   start >> tg >> end
+        return task_group
 
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).partial(**kwargs)
 
-    def map(self, **kwargs) -> R:
+    def map(self, **kwargs) -> Union[R, TaskGroup]:
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).map(**kwargs)
 
 
@@ -97,7 +112,7 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
         self.partial_kwargs.update(kwargs)
         return self
 
-    def map(self, **kwargs) -> R:
+    def map(self, **kwargs) -> Union[R, TaskGroup]:
         if self.mapped_kwargs:
             raise RuntimeError("Already a mapped task group")
         self.mapped_kwargs = kwargs

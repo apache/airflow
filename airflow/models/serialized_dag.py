@@ -250,9 +250,7 @@ class SerializedDagModel(Base):
         DAG is saved in a separate database query.
 
         :param dags: the DAG objects to save to the DB
-        :type dags: List[airflow.models.dag.DAG]
         :param session: ORM Session
-        :type session: Session
         :return: None
         """
         for dag in dags:
@@ -269,9 +267,7 @@ class SerializedDagModel(Base):
         in serialized_dag table
 
         :param dag_id: DAG ID
-        :type dag_id: str
         :param session: ORM Session
-        :type session: Session
         """
         return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()
 
@@ -282,7 +278,6 @@ class SerializedDagModel(Base):
         Get the maximum date when any DAG was last updated in serialized_dag table
 
         :param session: ORM Session
-        :type session: Session
         """
         return session.query(func.max(cls.last_updated)).scalar()
 
@@ -293,9 +288,7 @@ class SerializedDagModel(Base):
         Get the latest DAG version for a given DAG ID.
 
         :param dag_id: DAG ID
-        :type dag_id: str
         :param session: ORM Session
-        :type session: Session
         :return: DAG Hash, or None if the DAG is not found
         :rtype: str | None
         """
@@ -308,7 +301,6 @@ class SerializedDagModel(Base):
         Get the dependencies between DAGs
 
         :param session: ORM Session
-        :type session: Session
         """
         if session.bind.dialect.name in ["sqlite", "mysql"]:
             query = session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies"))

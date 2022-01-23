@@ -377,7 +377,7 @@ class ProvidersManager(LoggingMixin):
             log.info("You have no providers installed.")
             return
         try:
-            for path in airflow.providers.__path__:
+            for path in airflow.providers.__path__:  # type: ignore[attr-defined]
                 self._add_provider_info_from_local_source_files_on_path(path)
         except Exception as e:
             log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
@@ -571,10 +571,10 @@ class ProvidersManager(LoggingMixin):
         if name in self._taskflow_decorators:
             try:
                 existing = self._taskflow_decorators[name]
-                other_name = f'{existing.__module__}.{existing.__name}'
+                other_name = f'{existing.__module__}.{existing.__name__}'
             except Exception:
                 # If problem importing, then get the value from the functools.partial
-                other_name = self._taskflow_decorators._raw_dict[name].args[0]
+                other_name = self._taskflow_decorators._raw_dict[name].args[0]  # type: ignore[attr-defined]
 
             log.warning(
                 "The taskflow decorator '%s' has been already registered (by %s).",
@@ -594,7 +594,10 @@ class ProvidersManager(LoggingMixin):
         return getattr(obj, attr_name)
 
     def _import_hook(
-        self, connection_type: Optional[str], hook_class_name: str = None, package_name: str = None
+        self,
+        connection_type: Optional[str],
+        hook_class_name: Optional[str] = None,
+        package_name: Optional[str] = None,
     ) -> Optional[HookInfo]:
         """
         Imports hook and retrieves hook information. Either connection_type (for lazy loading)
@@ -611,19 +614,21 @@ class ProvidersManager(LoggingMixin):
 
         if connection_type is None and hook_class_name is None:
             raise ValueError("Either connection_type or hook_class_name must be set")
-        if connection_type and hook_class_name:
+        if connection_type is not None and hook_class_name is not None:
             raise ValueError(
                 f"Both connection_type ({connection_type} and "
                 f"hook_class_name {hook_class_name} are set. Only one should be set!"
             )
-        if connection_type:
+        if connection_type is not None:
             class_provider = self._hook_provider_dict[connection_type]
             package_name = class_provider.package_name
             hook_class_name = class_provider.hook_class_name
         else:
+            if not hook_class_name:
+                raise ValueError("Either connection_type or hook_class_name must be set")
             if not package_name:
                 raise ValueError(
-                    f"Provider package name is not set when hook_class_name ({hook_class_name}) " f"is used"
+                    f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
         if not _sanity_check(package_name, hook_class_name):
@@ -777,14 +782,14 @@ class ProvidersManager(LoggingMixin):
         return self._provider_dict
 
     @property
-    def hooks(self) -> Dict[str, Optional[HookInfo]]:
+    def hooks(self) -> MutableMapping[str, Optional[HookInfo]]:
         """
         Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
         None values if a hook discovered cannot be imported!
         """
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
-        return self._hooks_lazy_dict  # type: ignore
+        return self._hooks_lazy_dict
 
     @property
     def taskflow_decorators(self) -> Dict[str, Callable]:

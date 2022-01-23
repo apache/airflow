@@ -63,9 +63,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     in_env_var_format is set to True.
 
     :param context: The context for the task_instance of interest.
-    :type context: dict
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
-    :type in_env_var_format: bool
     :return: task_instance context as dict.
     """
     params = {}

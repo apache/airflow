@@ -36,18 +36,12 @@ class SparkKubernetesSensor(BaseSensorOperator):
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
     :param application_name: spark Application resource name
-    :type application_name:  str
     :param namespace: the kubernetes namespace where the sparkApplication reside in
-    :type namespace: str
     :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster.
-    :type kubernetes_conn_id: str
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
-    :type attach_log: bool
     :param api_group: kubernetes api group of sparkApplication
-    :type api_group: str
     :param api_version: kubernetes api version of sparkApplication
-    :type api_version: str
     """
 
     template_fields: Sequence[str] = ("application_name", "namespace")

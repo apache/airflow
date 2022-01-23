@@ -61,7 +61,6 @@ class KubernetesHook(BaseHook):
 
     :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
-    :type conn_id: str
     """
 
     conn_name_attr = 'kubernetes_conn_id'
@@ -195,15 +194,10 @@ class KubernetesHook(BaseHook):
         Creates custom resource definition object in Kubernetes
 
         :param group: api group
-        :type group: str
         :param version: api version
-        :type version: str
         :param plural: api plural
-        :type plural: str
         :param body: crd object definition
-        :type body: Union[str, dict]
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
@@ -226,15 +220,10 @@ class KubernetesHook(BaseHook):
         Get custom resource definition object from Kubernetes
 
         :param group: api group
-        :type group: str
         :param version: api version
-        :type version: str
         :param plural: api plural
-        :type plural: str
         :param name: crd object name
-        :type name: str
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
@@ -266,10 +255,8 @@ class KubernetesHook(BaseHook):
         Retrieves a log stream for a container in a kubernetes pod.
 
         :param pod_name: pod name
-        :type pod_name: str
         :param container: container name
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
@@ -293,10 +280,8 @@ class KubernetesHook(BaseHook):
         Retrieves a container's log from the specified pod.
 
         :param pod_name: pod name
-        :type pod_name: str
         :param container: container name
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CoreV1Api(self.api_client)
         return api.read_namespaced_pod_log(

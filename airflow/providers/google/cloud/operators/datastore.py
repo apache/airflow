@@ -40,31 +40,22 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/export-import-entities
 
     :param bucket: name of the cloud storage bucket to backup data
-    :type bucket: str
     :param namespace: optional namespace path in the specified Cloud Storage bucket
         to backup data. If this namespace does not exist in GCS, it will be created.
-    :type namespace: str
     :param datastore_conn_id: the name of the Datastore connection id to use
-    :type datastore_conn_id: str
     :param cloud_storage_conn_id: the name of the cloud storage connection id to
         force-write backup
-    :type cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param entity_filter: description of what data from the project is included in the
         export, refer to
         https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
-    :type entity_filter: dict
     :param labels: client-assigned labels for cloud storage
-    :type labels: dict
     :param polling_interval_in_seconds: number of seconds to wait before polling for
         execution status again
-    :type polling_interval_in_seconds: int
     :param overwrite_existing: if the storage bucket + namespace is not empty, it will be
         emptied prior to exports. This enables overwriting existing backups.
-    :type overwrite_existing: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,7 +64,6 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -157,28 +147,20 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/export-import-entities
 
     :param bucket: container in Cloud Storage to store data
-    :type bucket: str
     :param file: path of the backup metadata file in the specified Cloud Storage bucket.
         It should have the extension .overall_export_metadata
-    :type file: str
     :param namespace: optional namespace of the backup metadata file in
         the specified Cloud Storage bucket.
-    :type namespace: str
     :param entity_filter: description of what data from the project is included in
         the export, refer to
         https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
-    :type entity_filter: dict
     :param labels: client-assigned labels for cloud storage
-    :type labels: dict
     :param datastore_conn_id: the name of the connection id to use
-    :type datastore_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param polling_interval_in_seconds: number of seconds to wait before polling for
         execution status again
-    :type polling_interval_in_seconds: float
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -187,7 +169,6 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -265,15 +246,11 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/allocateIds
 
     :param partial_keys: a list of partial keys.
-    :type partial_keys: list
     :param project_id: Google Cloud project ID against which to make the request.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -282,7 +259,6 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -332,15 +308,11 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
 
     :param transaction_options: Options for a new transaction.
-    :type transaction_options: Dict[str, Any]
     :param project_id: Google Cloud project ID against which to make the request.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -349,7 +321,6 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -399,15 +370,11 @@ class CloudDatastoreCommitOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/commit
 
     :param body: the body of the commit request.
-    :type body: dict
     :param project_id: Google Cloud project ID against which to make the request.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -416,7 +383,6 @@ class CloudDatastoreCommitOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -466,15 +432,11 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/rollback
 
     :param transaction: the transaction to roll back.
-    :type transaction: str
     :param project_id: Google Cloud project ID against which to make the request.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -483,7 +445,6 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -532,15 +493,11 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/rest/v1/projects/runQuery
 
     :param body: the body of the query request.
-    :type body: dict
     :param project_id: Google Cloud project ID against which to make the request.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -549,7 +506,6 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -599,13 +555,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/get
 
     :param name: the name of the operation resource.
-    :type name: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -614,7 +567,6 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -659,13 +611,10 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/delete
 
     :param name: the name of the operation resource.
-    :type name: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -674,7 +623,6 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

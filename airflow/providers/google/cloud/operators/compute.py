@@ -77,19 +77,14 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         :ref:`howto/operator:ComputeEngineStartInstanceOperator`
 
     :param zone: Google Cloud zone where the instance exists.
-    :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
-    :type resource_id: str
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -98,7 +93,6 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gce_instance_start_template_fields]
@@ -130,19 +124,14 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         :ref:`howto/operator:ComputeEngineStopInstanceOperator`
 
     :param zone: Google Cloud zone where the instance exists.
-    :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
-    :type resource_id: str
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -151,7 +140,6 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gce_instance_stop_template_fields]
@@ -189,25 +177,18 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         :ref:`howto/operator:ComputeEngineSetMachineTypeOperator`
 
     :param zone: Google Cloud zone where the instance exists.
-    :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
-    :type resource_id: str
     :param body: Body required by the Compute Engine setMachineType API, as described in
         https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType#request-body
-    :type body: dict
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
-    :type api_version: str
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -216,7 +197,6 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gce_instance_set_machine_type_template_fields]
@@ -344,7 +324,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         :ref:`howto/operator:ComputeEngineCopyInstanceTemplateOperator`
 
     :param resource_id: Name of the Instance Template
-    :type resource_id: str
     :param body_patch: Patch to the body of instanceTemplates object following rfc7386
         PATCH semantics. The body_patch content follows
         https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
@@ -352,25 +331,19 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         all the other fields are optional. It is important to follow PATCH semantics
         - arrays are replaced fully, so if you need to update an array you should
         provide the whole target array as patch element.
-    :type body_patch: dict
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param request_id: Optional, unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again).
         It should be in UUID format as defined in RFC 4122.
-    :type request_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
-    :type api_version: str
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -379,7 +352,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gce_instance_template_copy_operator_template_fields]
@@ -482,28 +454,20 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         :ref:`howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator`
 
     :param resource_id: Name of the Instance Group Manager
-    :type resource_id: str
     :param zone: Google Cloud zone where the Instance Group Manager exists.
-    :type zone: str
     :param source_template: URL of the template to replace.
-    :type source_template: str
     :param destination_template: URL of the target template.
-    :type destination_template: str
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param request_id: Optional, unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again).
         It should be in UUID format as defined in RFC 4122.
-    :type request_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -512,7 +476,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gce_igm_update_template_operator_template_fields]

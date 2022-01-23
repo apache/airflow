@@ -43,23 +43,14 @@ class GoogleAdsToGcsOperator(BaseOperator):
         :ref:`howto/operator:GoogleAdsToGcsOperator`
 
     :param client_ids: Google Ads client IDs to query
-    :type client_ids: List[str]
     :param query: Google Ads Query Language API query
-    :type query: str
     :param attributes: List of Google Ads Row attributes to extract
-    :type attributes: List[str]
     :param bucket: The GCS bucket to upload to
-    :type bucket: str
     :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
-    :type obj: str
     :param gcp_conn_id: Airflow Google Cloud connection ID
-    :type gcp_conn_id: str
     :param google_ads_conn_id: Airflow Google Ads connection ID
-    :type google_ads_conn_id: str
     :param page_size: The number of results per API page request. Max 10,000
-    :type page_size: int
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -68,9 +59,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param api_version: Optional Google Ads API version to use.
-    :type api_version: Optional[str]
     """
 
     template_fields: Sequence[str] = (

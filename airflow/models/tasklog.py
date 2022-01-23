@@ -35,7 +35,9 @@ class LogTemplate(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     filename = Column(Text, nullable=False)
     task_prefix = Column(Text, nullable=False)
+    elasticsearch_id = Column(Text, nullable=False)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
-        return f"LogTemplate(filename={self.filename!r}, task_prefix={self.task_prefix!r})"
+        attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "task_prefix", "elasticsearch_id"))
+        return f"LogTemplate({attrs})"

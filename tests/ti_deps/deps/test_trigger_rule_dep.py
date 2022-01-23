@@ -41,7 +41,7 @@ def get_task_instance(session, dag_maker):
                 task_id='test_task', trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
             )
             if upstream_task_ids:
-                task._upstream_task_ids.update(upstream_task_ids)
+                task.upstream_task_ids.update(upstream_task_ids)
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task

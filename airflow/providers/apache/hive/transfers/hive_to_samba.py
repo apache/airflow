@@ -36,14 +36,10 @@ class HiveToSambaOperator(BaseOperator):
     results of the query as a csv to a Samba location.
 
     :param hql: the hql to be exported. (templated)
-    :type hql: str
     :param destination_filepath: the file path to where the file will be pushed onto samba
-    :type destination_filepath: str
     :param samba_conn_id: reference to the samba destination
-    :type samba_conn_id: str
     :param hiveserver2_conn_id: Reference to the
         :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
-    :type hiveserver2_conn_id: str
     """
 
     template_fields: Sequence[str] = ('hql', 'destination_filepath')

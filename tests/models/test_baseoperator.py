@@ -18,7 +18,7 @@
 import logging
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, NamedTuple
 from unittest import mock
 
 import jinja2
@@ -42,7 +42,8 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
+from tests.test_utils.config import conf_vars
+from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -86,6 +87,11 @@ class DummySubClass(DummyClass):
         self.test_sub_param = test_sub_param
 
 
+class MockNamedTuple(NamedTuple):
+    var1: str
+    var2: str
+
+
 class TestBaseOperator:
     def test_apply(self):
         dummy = DummyClass(test_param=True)
@@ -125,6 +131,30 @@ class TestBaseOperator:
         error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
+
+    def test_illegal_args(self):
+        """
+        Tests that Operators reject illegal arguments
+        """
+        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
+            with pytest.warns(PendingDeprecationWarning, match=msg):
+                BaseOperator(
+                    task_id='test_illegal_args',
+                    illegal_argument_1234='hello?',
+                )
+
+    def test_illegal_args_forbidden(self):
+        """
+        Tests that operators raise exceptions on illegal arguments when
+        illegal arguments are not allowed.
+        """
+        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        with pytest.raises(AirflowException, match=msg):
+            BaseOperator(
+                task_id='test_illegal_args',
+                illegal_argument_1234='hello?',
+            )
 
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
@@ -699,6 +729,21 @@ def test_task_mapping_default_args():
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
         BaseOperator(task_id='a').map(file=[1, 2, {'a': 'b'}])
+
+
+def test_map_xcom_arg():
+    """Test that dependencies are correct when mapping with an XComArg"""
+    from airflow.models.xcom_arg import XComArg
+
+    with DAG("test-dag", start_date=DEFAULT_DATE):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        finish = MockOperator(task_id="finish")
+
+        mapped >> finish
+
+    assert task1.downstream_list == [mapped]
 
 
 def test_partial_on_instance() -> None:

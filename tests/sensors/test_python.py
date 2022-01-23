@@ -84,8 +84,6 @@ class TestPythonSensor(TestPythonBase):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ds_templated = DEFAULT_DATE.date().isoformat()
-        # 2 calls: first: at start, second: before timeout
-        assert 2 == len(recorded_calls)
         self._assert_calls_equal(
             recorded_calls[0],
             Call(
@@ -125,10 +123,6 @@ class TestPythonSensor(TestPythonBase):
         with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        # 2 calls: first: at start, second: before timeout
-        # But sometimes 1 is also OK if the system is "busy" - we anyhow only check the first one which
-        # will always be there
-        assert len(recorded_calls) >= 1
         self._assert_calls_equal(
             recorded_calls[0],
             Call(

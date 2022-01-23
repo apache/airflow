@@ -589,6 +589,11 @@ autodoc_mock_imports = [
 # The default options for autodoc directives. They are applied to all autodoc directives automatically.
 autodoc_default_options = {'show-inheritance': True, 'members': True}
 
+autodoc_typehints = 'description'
+autodoc_typehints_description_target = 'documented'
+autodoc_typehints_format = 'short'
+
+
 # -- Options for sphinx.ext.intersphinx ----------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
 

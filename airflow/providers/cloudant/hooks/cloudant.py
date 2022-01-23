@@ -31,7 +31,6 @@ class CloudantHook(BaseHook):
     .. seealso:: the latest documentation `here <https://python-cloudant.readthedocs.io/en/latest/>`_.
 
     :param cloudant_conn_id: The connection id to authenticate and get a session object from cloudant.
-    :type cloudant_conn_id: str
     """
 
     conn_name_attr = 'cloudant_conn_id'

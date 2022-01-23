@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import re
 import unittest
 from copy import deepcopy
 from pathlib import Path
@@ -414,30 +413,35 @@ class TestPytestSnowflakeHook:
             ) == hook.get_uri()
 
     @pytest.mark.parametrize(
-        "sql,query_ids",
+        "sql,expected_sql,expected_query_ids",
         [
-            ('select * from table', ['uuid', 'uuid']),
-            ('select * from table;select * from table2', ['uuid', 'uuid', 'uuid2', 'uuid2']),
-            (['select * from table;'], ['uuid', 'uuid']),
-            (['select * from table;', 'select * from table2;'], ['uuid', 'uuid', 'uuid2', 'uuid2']),
+            ("select * from table", ["select * from table"], ["uuid"]),
+            (
+                "select * from table;select * from table2",
+                ["select * from table;", "select * from table2"],
+                ["uuid1", "uuid2"],
+            ),
+            (["select * from table;"], ["select * from table;"], ["uuid1"]),
+            (
+                ["select * from table;", "select * from table2;"],
+                ["select * from table;", "select * from table2;"],
+                ["uuid1", "uuid2"],
+            ),
         ],
     )
-    def test_run_storing_query_ids_extra(self, sql, query_ids):
-        with unittest.mock.patch.dict(
-            'os.environ', AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**BASE_CONNECTION_KWARGS).get_uri()
-        ), unittest.mock.patch('airflow.providers.snowflake.hooks.snowflake.connector') as mock_connector:
-            hook = SnowflakeHook()
-            conn = mock_connector.connect.return_value
-            cur = mock.MagicMock(rowcount=0)
-            conn.cursor.return_value = cur
-            type(cur).sfqid = mock.PropertyMock(side_effect=query_ids)
-            mock_params = {"mock_param": "mock_param"}
-            hook.run(sql, parameters=mock_params)
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_storing_query_ids_extra(self, mock_conn, sql, expected_sql, expected_query_ids):
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=expected_query_ids)
+        mock_params = {"mock_param": "mock_param"}
+        hook.run(sql, parameters=mock_params)
 
-            sql_list = sql if isinstance(sql, list) else re.findall(".*?[;]", sql)
-            cur.execute.assert_has_calls([mock.call(query, mock_params) for query in sql_list])
-            assert hook.query_ids == query_ids[::2]
-            cur.close.assert_called()
+        cur.execute.assert_has_calls([mock.call(query, mock_params) for query in expected_sql])
+        assert hook.query_ids == expected_query_ids
+        cur.close.assert_called()
 
     @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run')
     def test_connection_success(self, mock_run):

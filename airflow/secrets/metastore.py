@@ -56,7 +56,6 @@ class MetastoreBackend(BaseSecretsBackend):
         Get Airflow Variable from Metadata DB
 
         :param key: Variable Key
-        :type key: str
         :return: Variable Value
         """
         from airflow.models.variable import Variable

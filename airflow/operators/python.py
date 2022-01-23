@@ -49,17 +49,13 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
     def my_task()
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
-    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
-    :type op_args: list
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
-    :type multiple_outputs: bool
     :return:
     """
     # To maintain backwards compatibility, we import the task object into this file
@@ -109,26 +105,20 @@ class PythonOperator(BaseOperator):
 
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
-    :type op_kwargs: dict (templated)
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
-    :type op_args: list (templated)
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied. (templated)
-    :type templates_dict: dict[str]
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
-    :type templates_exts: list[str]
     :param show_return_value_in_logs: a bool value whether to show return_value
         logs. Defaults to True, which allows return value log output.
         It can be set to False to prevent log output of return value when you return huge data
         such as transmission a large amount of XCom to TaskAPI.
-    :type show_return_value_in_logs: bool
     """
 
     template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
@@ -173,8 +163,7 @@ class PythonOperator(BaseOperator):
         self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Context) -> Any:
-        context_merge(context, self.op_kwargs)
-        context_merge(context, {'templates_dict': self.templates_dict})
+        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
@@ -284,38 +273,31 @@ class PythonVirtualenvOperator(PythonOperator):
 
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
-    :type python_callable: function
-    :param requirements: A list of requirements as specified in a pip install command
-    :type requirements: list[str]
+    :param requirements: Either a list of requirement strings, or a (templated)
+        "requirements file" as specified by pip.
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
-    :type python_version: Optional[Union[str, int, float]]
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
         but requires you to include dill in your requirements.
-    :type use_dill: bool
     :param system_site_packages: Whether to include
         system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
-    :type system_site_packages: bool
     :param op_args: A list of positional arguments to pass to python_callable.
-    :type op_args: list
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
-    :type op_kwargs: dict
     :param string_args: Strings that are present in the global var virtualenv_string_args,
         available to python_callable at runtime as a list[str]. Note that args are split
         by newline.
-    :type string_args: list[str]
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied
-    :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
-    :type templates_exts: list[str]
     """
 
+    template_fields: Sequence[str] = ('requirements',)
+    template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',
         'ds_nodash',
@@ -354,7 +336,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Optional[Iterable[str]] = None,
+        requirements: Union[None, Iterable[str], str] = None,
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
@@ -390,14 +372,16 @@ class PythonVirtualenvOperator(PythonOperator):
             templates_exts=templates_exts,
             **kwargs,
         )
-        self.requirements = list(requirements or [])
+        if not requirements:
+            self.requirements: Union[List[str], str] = []
+        elif isinstance(requirements, str):
+            self.requirements = requirements
+        else:
+            self.requirements = list(requirements)
         self.string_args = string_args or []
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
-        if not self.system_site_packages:
-            if self.use_dill and 'dill' not in self.requirements:
-                self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Context) -> Any:
@@ -410,6 +394,19 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
+            requirements_file_name = f'{tmp_dir}/requirements.txt'
+
+            if not isinstance(self.requirements, str):
+                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
+            else:
+                requirements_file_contents = self.requirements
+
+            if not self.system_site_packages and self.use_dill:
+                requirements_file_contents += '\ndill'
+
+            with open(requirements_file_name, 'w') as file:
+                file.write(requirements_file_contents)
+
             if self.templates_dict:
                 self.op_kwargs['templates_dict'] = self.templates_dict
 
@@ -422,7 +419,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements=self.requirements,
+                requirements_file_path=requirements_file_name,
             )
 
             self._write_args(input_filename)

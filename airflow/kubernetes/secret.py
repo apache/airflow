@@ -35,20 +35,15 @@ class Secret(K8SModel):
 
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
             `volume`
-        :type deploy_type: str
         :param deploy_target: (Optional) The environment variable when
             `deploy_type` `env` or file path when `deploy_type` `volume` where
             expose secret. If `key` is not provided deploy target should be None.
-        :type deploy_target: str or None
         :param secret: Name of the secrets object in Kubernetes
-        :type secret: str
         :param key: (Optional) Key of the secret within the Kubernetes Secret
             if not provided in `deploy_type` `env` it will mount all secrets in object
-        :type key: str or None
         :param items: (Optional) items that can be added to a volume secret for specifying projects of
         secret keys to paths
         https://kubernetes.io/docs/concepts/configuration/secret/#projection-of-secret-keys-to-specific-paths
-        :type items: List[k8s.V1KeyToPath]
         """
         if deploy_type not in ('env', 'volume'):
             raise AirflowConfigException("deploy_type must be env or volume")

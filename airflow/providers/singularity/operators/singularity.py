@@ -40,28 +40,18 @@ class SingularityOperator(BaseOperator):
     be done with --volumes
 
     :param image: Singularity image or URI from which to create the container.
-    :type image: str
     :param auto_remove: Delete the container when the process exits.
         The default is False.
-    :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
-    :type command: str or list
     :param start_command: Start command to pass to the container instance.
-    :type start_command: str or list
     :param environment: Environment variables to set in the container. (templated)
-    :type environment: dict
     :param working_dir: Set a working directory for the instance.
-    :type working_dir: str
     :param force_pull: Pull the image on every run. Default is False.
-    :type force_pull: bool
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2']``.
-    :type volumes: Optional[List[str]]
     :param options: Other flags (list) to provide to the instance start.
-    :type options: list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client).
-    :type working_dir: str
     """
 
     template_fields: Sequence[str] = (
