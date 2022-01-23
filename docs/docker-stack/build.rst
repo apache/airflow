@@ -81,7 +81,9 @@ In the simplest case building your image consists of those steps:
 
 4) Once you build the image locally you have usually several options to make them available for your deployment:
 
-* For ``docker-compose`` deployment, that's all you need. The image is stored in Docker engine cache
+* For ``docker-compose`` deployment, open your ``docker-compose.yaml`` file and search for the phrase "In order 
+  to add custom dependencies". Follow these instructions of commenting the "image" line and uncommenting the 
+  "build" line. Then run `docker-compose build` to build the images. The image is stored in Docker engine cache
   and Docker Compose will use it from there.
 
 * For some - development targeted - Kubernetes deployments you can load the images directly to
