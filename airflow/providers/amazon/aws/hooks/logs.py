@@ -66,9 +66,7 @@ class AwsLogsHook(AwsBaseHook):
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
         next_token = None
-
-        event_count = 1
-        while event_count > 0:
+        while True:
             if next_token is not None:
                 token_arg: Optional[Dict[str, str]] = {'nextToken': next_token}
             else:
@@ -94,7 +92,7 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
-            if 'nextForwardToken' in response:
+            if next_token != response['nextForwardToken']:
                 next_token = response['nextForwardToken']
             else:
                 return
