@@ -63,7 +63,7 @@ Firstly, if you can exec into a terminal in the container then you should be abl
 .. code-block:: python
 
     from airflow.models.xcom  import XCom
-    
+
     print(XCom.__name__)
 
 which will print the actual class that is being used.
@@ -74,7 +74,7 @@ configuration::
 .. code-block:: python
 
     from airflow.settings import conf
-    
+
     conf.get("core", "xcom_backend")
 
 If using env vars check  with ``env|grep  AIRFLOW__CORE__XCOM``.
@@ -98,7 +98,6 @@ An observed problem is that it is very difficult to acquire logs from the contai
       File "/home/airflow/.local/lib/python3.9/site-packages/airflow/__main__.py", line 48, in main
         args.func(args)
       File "/home/airflow/.local/lib/python3.9/site-packages/airflow/cli/cli_parser.py", line 47, in command
-    ...
         from airflow.models.xcom import XCOM_RETURN_KEY, XCom
       File "/home/airflow/.local/lib/python3.9/site-packages/airflow/models/xcom.py", line 379, in <module>
         XCom = resolve_xcom_backend()
@@ -108,5 +107,6 @@ An observed problem is that it is very difficult to acquire logs from the contai
         raise AirflowConfigException(
     airflow.exceptions.AirflowConfigException: The object could not be loaded. Please check "xcom_backend" key in "core" section. Current value: "xcom_custom_backend.S3XComBackend".
     [2022-01-06 00:02:16,880] {settings.py:331} DEBUG - Disposing DB connection pool (PID 214)
+    
 
 As you can see, in this example the path to the custom XCom is incorrect. This in turn prevents the entire Helm chart from deploying successfully.
