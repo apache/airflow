@@ -860,8 +860,15 @@ def _move_dangling_data_to_new_table(
         cte_sql = stmt.ctes[cte]
 
         session.execute(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source")
+    elif dialect_name == "mysql":
+        # MySQL with replication needs this split in to two queries, so just do it for all MySQL
+        # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
+        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table.name}")
+        session.execute(
+            f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
+        )
     else:
-        # Postgres, MySQL and SQLite all support the same "create as select"
+        # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
         session.execute(
             f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
         )
