@@ -1792,6 +1792,14 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     def executor_config(self) -> Optional[dict]:
         return self.partial_kwargs.get("executor_config")
 
+    @property
+    def wait_for_downstream(self) -> bool:
+        return bool(self.partial_kwargs.get("wait_for_downstream"))
+
+    @property
+    def depends_on_past(self) -> bool:
+        return self.partial_kwargs.get("depends_on_past") or self.wait_for_downstream
+
 
 # TODO: Deprecate for Airflow 3.0
 Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]
