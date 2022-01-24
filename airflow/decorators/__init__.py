@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any
+
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -22,13 +24,22 @@ from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers_manager import ProvidersManager
 
-__all__ = ["dag", "task", "task_group", "python_task", "virtualenv_task"]
+# Please keep this in sync with the .pyi's __all__.
+__all__ = [
+    "TaskDecorator",
+    "TaskDecoratorCollection",
+    "dag",
+    "task",
+    "task_group",
+    "python_task",
+    "virtualenv_task",
+]
 
 
-class _TaskDecoratorFactory:
+class TaskDecoratorCollection:
     """Implementation to provide the ``@task`` syntax."""
 
-    python = staticmethod(python_task)
+    python: Any = staticmethod(python_task)
     virtualenv = staticmethod(virtualenv_task)
 
     __call__ = python  # Alias '@task' to '@task.python'.
@@ -36,11 +47,11 @@ class _TaskDecoratorFactory:
     def __getattr__(self, name: str) -> TaskDecorator:
         """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
         if name.startswith("__"):
-            raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
+            raise AttributeError(f"{type(self).__name__} has no attribute {name!r}")
         decorators = ProvidersManager().taskflow_decorators
         if name not in decorators:
             raise AttributeError(f"task decorator {name!r} not found")
         return decorators[name]
 
 
-task = _TaskDecoratorFactory()
+task = TaskDecoratorCollection()

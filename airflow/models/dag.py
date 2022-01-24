@@ -88,7 +88,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
-    from airflow.decorators import TaskDecoratorFactory
+    from airflow.decorators import TaskDecoratorCollection
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -2112,10 +2112,10 @@ class DAG(LoggingMixin):
             get_downstream(t)
 
     @property
-    def task(self) -> "TaskDecoratorFactory":
+    def task(self) -> "TaskDecoratorCollection":
         from airflow.decorators import task
 
-        return cast("TaskDecoratorFactory", functools.partial(task, dag=self))
+        return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
     def add_task(self, task):
         """

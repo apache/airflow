@@ -22,13 +22,26 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TypeVar, Union, overload
 
-__all__ = ["task"]
+from airflow.decorators.base import TaskDecorator
+from airflow.decorators.python import python_task
+from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.task_group import task_group
+from airflow.models.dag import dag
 
-F = TypeVar("F", bound=Callable)
+# Please keep this in sync with __init__.py's __all__.
+__all__ = [
+    "TaskDecorator",
+    "TaskDecoratorCollection",
+    "dag",
+    "task",
+    "task_group",
+    "python_task",
+    "virtualenv_task",
+]
 
-TaskDecorator = Callable[[F], F]
+Function = TypeVar("Function", bound=Callable)
 
-class TaskDecoratorFactory:
+class TaskDecoratorCollection:
     @overload
     def python(
         self,
@@ -57,35 +70,21 @@ class TaskDecoratorFactory:
         """
     # [START mixin_for_typing]
     @overload
-    def python(self, python_callable: F) -> F: ...
+    def python(self, python_callable: Function) -> Function: ...
     # [END mixin_for_typing]
     @overload
     def __call__(
         self,
         *,
         multiple_outputs: Optional[bool] = None,
-        # Should match 'python()' signature.
         templates_dict: Optional[Mapping[str, Any]] = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
-        """Create a decorator to convert the decorated callable to a task.
-
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
-        :param templates_dict: a dictionary where the values are templates that
-            will get templated by the Airflow engine sometime between
-            ``__init__`` and ``execute`` takes place and are made available
-            in your callable's context after the template has been applied
-        :param show_return_value_in_logs: a bool value whether to show return_value
-            logs. Defaults to True, which allows return value log output.
-            It can be set to False to prevent log output of return value when you return huge data
-            such as transmission a large amount of XCom to TaskAPI.
-        """
+        """Aliasing ``python``; signature should match exactly."""
     @overload
-    def __call__(self, python_callable: F) -> F: ...
+    def __call__(self, python_callable: Function) -> Function:
+        """Aliasing ``python``; signature should match exactly."""
     @overload
     def virtualenv(
         self,
@@ -127,9 +126,8 @@ class TaskDecoratorFactory:
             such as transmission a large amount of XCom to TaskAPI.
         """
     @overload
-    def virtualenv(self, python_callable: F) -> F: ...
+    def virtualenv(self, python_callable: Function) -> Function: ...
     # [START decorator_signature]
-    @overload
     def docker(
         self,
         *,
@@ -228,4 +226,4 @@ class TaskDecoratorFactory:
         """
         # [END decorator_signature]
 
-task = TaskDecoratorFactory()
+task: TaskDecoratorCollection
