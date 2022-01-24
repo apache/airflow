@@ -304,10 +304,9 @@ class SerializedDagModel(Base):
         """
         if session.bind.dialect.name in ["sqlite", "mysql"]:
             query = session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies"))
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         elif session.bind.dialect.name == "mssql":
             query = session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies"))
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
-            iterator = session.query(cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies"))
+            query = session.query(cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies"))
+        iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
