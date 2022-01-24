@@ -121,6 +121,7 @@ def write_python_script(
     jinja_context: dict,
     filename: str,
     render_template_as_native_obj: bool = False,
+    template_file: str = 'python_virtualenv_script.jinja2',
 ):
     """
     Renders the python script to a file to execute in the virtual environment.
@@ -141,5 +142,5 @@ def write_python_script(
         )
     else:
         template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
-    template = template_env.get_template('python_virtualenv_script.jinja2')
+    template = template_env.get_template(template_file)
     template.stream(**jinja_context).dump(filename)

@@ -31,30 +31,26 @@ with DAG(
     tags=['example'],
 ) as dag:
 
-    @task.kubernetes(image='python:3.9-slim-buster', name='k8s_test', namespace='default')
+    @task.kubernetes(image='python:3.8-slim-buster', name='k8s_test', namespace='default')
     def execute_in_k8s_pod():
         import time
 
         print("Hello from k8s pod")
-        time.sleep(100)
+        time.sleep(2)
 
     @task.kubernetes()
     def print_pattern():
-        line = "Kubernetes Decorator"
-        pat = ""
-        for i in range(0, line):
-            for j in range(0, line):
-                if (
-                    (j == 1 and i != 0 and i != line - 1)
-                    or ((i == 0 or i == line - 1) and j > 1 and j < line - 2)
-                    or (i == ((line - 1) / 2) and j > line - 5 and j < line - 1)
-                    or (j == line - 2 and i != 0 and i != line - 1 and i >= ((line - 1) / 2))
-                ):
-                    pat = pat + "*"
-                else:
-                    pat = pat + " "
-            pat = pat + "\n"
-        return pat
+        n = 5
+        for i in range(0, n):
+            # inner loop to handle number of columns
+            # values changing acc. to outer loop
+            for j in range(0, i + 1):
+                # printing stars
+                print("* ", end="")
+
+            # ending line after each row
+            print("\r")
+
 
     execute_in_k8s_pod_instance = execute_in_k8s_pod()
     print_pattern_instance = print_pattern()

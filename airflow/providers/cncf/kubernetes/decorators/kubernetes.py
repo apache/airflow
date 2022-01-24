@@ -18,6 +18,8 @@
 import inspect
 import os
 import pickle
+import uuid
+from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
@@ -41,9 +43,9 @@ def _generate_decode_command(env_var, file):
     )
 
 
-def _b64_encode_file(filename):
-    with open(filename) as file_to_encode:
-        return file_to_encode.read()
+def _read_file_contents(filename):
+    with open(filename) as script_file:
+        return script_file.read()
 
 
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
@@ -72,52 +74,21 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def __init__(
         self,
-        use_dill=False,
         **kwargs,
     ) -> None:
-        print("KUBERNETES EXECUTOR" + str(kwargs))
-        command = "dummy command"
-        self.pickling_library = dill if use_dill else pickle
+        self.pickling_library = pickle
 
         # Image, name and namespace are all required.
         if not 'image' in kwargs:
-            kwargs['image'] = 'python'
+            kwargs['image'] = 'python:3.8-slim-buster'
 
         if not 'name' in kwargs:
-            kwargs['name'] = 'test'
+            kwargs['name'] = f'k8s_airflow_pod_{uuid.uuid4().hex}'
 
         if not 'namespace' in kwargs:
             kwargs['namespace'] = 'default'
 
         super().__init__(**kwargs)
-
-    def write_python_script(
-        jinja_context: dict,
-        filename: str,
-        render_template_as_native_obj: bool = False,
-    ):
-        """
-        Renders the python script to a file to execute in the virtual environment.
-
-        :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
-            template file.
-        :type jinja_context: dict
-        :param filename: The name of the file to dump the rendered script to.
-        :type filename: str
-        :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
-            to a native Python object
-        """
-        template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
-        template_env: jinja2.Environment
-        if render_template_as_native_obj:
-            template_env = jinja2.nativetypes.NativeEnvironment(
-                loader=template_loader, undefined=jinja2.StrictUndefined
-            )
-        else:
-            template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
-        template = template_env.get_template('python_kubernetes_script.jinja2')
-
-        template.stream(**jinja_context).dump(filename)
 
     def execute(self, context: 'Context'):
 
@@ -125,27 +96,29 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             script_filename = os.path.join(tmp_dir, 'script.py')
             py_source = self._get_python_source()
 
-            write_python_script(
-                jinja_context=dict(
+            jinja_context = dict(
                     op_args=self.op_args,
                     op_kwargs=self.op_kwargs,
                     pickling_library=self.pickling_library.__name__,
                     python_callable=self.python_callable.__name__,
                     python_callable_source=py_source,
                     string_args_global=False,
-                ),
+                )
+            write_python_script(
+                jinja_context=jinja_context,
                 filename=script_filename,
+                template_file='python_kubernetes_script.jinja2'
             )
 
             self.env_vars.append(
-                k8s.V1EnvVar(name="__PYTHON_SCRIPT", value=_b64_encode_file(script_filename))
+                k8s.V1EnvVar(name="__PYTHON_SCRIPT", value=_read_file_contents(script_filename))
             )
 
             self.cmds.append("bash")
-            self.arguments.append("-cx")
 
+            self.arguments.append("-cx")
             self.arguments.append(
-                f'{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} && python /tmp/script.py && sleep 1000'
+                f'{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} && python /tmp/script.py'
             )
 
             return super().execute(context)
