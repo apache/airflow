@@ -186,6 +186,18 @@ BATCH_CONFIG = {
         "main_class": "org.apache.spark.examples.SparkPi",
     },
 }
+CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
+    project_id=PROJECT_ID,
+    region=REGION,
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=0,
+    properties={
+        "spark:spark.history.fs.logDirectory": f"gs://{BUCKET}/logging",
+    },
+    enable_component_gateway=True,
+).make()
+CLUSTER_NAME_FOR_PHS = "phs-cluster-name"
 BATCH_CONFIG_WITH_PHS = {
     "spark_batch": {
         "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
@@ -194,7 +206,7 @@ BATCH_CONFIG_WITH_PHS = {
     "environment_config": {
         "peripherals_config": {
             "spark_history_server_config": {
-                "dataproc_cluster": f"projects/{PROJECT_ID}/regions/{REGION}/clusters/phs-cluster-name"
+                "dataproc_cluster": f"projects/{PROJECT_ID}/regions/{REGION}/clusters/{CLUSTER_NAME_FOR_PHS}"
             }
         }
     },
@@ -324,6 +336,16 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
 
+    # [START how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+    create_cluster_for_phs = DataprocCreateClusterOperator(
+        task_id="create_cluster_for_phs",
+        project_id=PROJECT_ID,
+        cluster_config=CLUSTER_GENERATOR_CONFIG_FOR_PHS,
+        region=REGION,
+        cluster_name=CLUSTER_NAME_FOR_PHS,
+    )
+    # [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+
     # [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
     create_batch_with_phs = DataprocCreateBatchOperator(
         task_id="create_batch_with_phs",
@@ -355,4 +377,4 @@ with models.DAG(
     # [END how_to_cloud_dataproc_delete_batch_operator]
 
     create_batch >> get_batch >> list_batches >> delete_batch
-    create_batch_with_phs
+    create_cluster_for_phs >> create_batch_with_phs
