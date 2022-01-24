@@ -1603,6 +1603,7 @@ def test_mapped_operator_serde():
         },
         'task_id': 'a',
         'template_fields': ['bash_command', 'env'],
+        'template_ext': ['.sh', '.bash'],
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1632,6 +1633,7 @@ def test_mapped_operator_xcomarg_serde():
         'partial_kwargs': {},
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
+        'template_ext': [],
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)

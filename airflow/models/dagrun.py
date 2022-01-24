@@ -830,9 +830,13 @@ class DagRun(Base, LoggingMixin):
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)
             session.flush()
-        except IntegrityError as err:
-            self.log.info(str(err))
-            self.log.info('Hit IntegrityError while creating the TIs for %s- %s', dag.dag_id, self.run_id)
+        except IntegrityError:
+            self.log.info(
+                'Hit IntegrityError while creating the TIs for %s- %s',
+                dag.dag_id,
+                self.run_id,
+                exc_info=True,
+            )
             self.log.info('Doing session rollback.')
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
