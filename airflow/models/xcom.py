@@ -433,11 +433,9 @@ class BaseXCom(Base, LoggingMixin):
 
         query = session.query(cls).filter(cls.dag_id == dag_id, cls.task_id == task_id)
         if execution_date is not None:
-            from airflow.models.dagrun import DagRun
-
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
-            query = query.join(cls.dag_run).filter(DagRun.execution_date == execution_date)
+            query = query.filter(cls.execution_date == execution_date)
         else:
             query = query.filter(cls.run_id == run_id)
 
