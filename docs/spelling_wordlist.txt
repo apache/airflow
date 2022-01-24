@@ -80,6 +80,7 @@ Ctrl
 DAGs
 DBs
 Daemonize
+DagCallbackRequest
 DagFileProcessorManager
 DagRun
 DagRunState
@@ -136,6 +137,7 @@ EmrCreateJobFlow
 Enum
 Env
 EnvVar
+EventBufferValueType
 ExaConnection
 Exasol
 Failover
@@ -329,6 +331,7 @@ Sasl
 SecretManagerClient
 Seedlist
 Sendgrid
+SerializedDAG
 SlackHook
 SnowflakeHook
 Spark

@@ -94,4 +94,10 @@ with DAG(
         target_state=ClusterStates.NONEXISTENT,
     )
 
-    create_cluster_and_nodegroup >> await_create_nodegroup >> start_pod >> delete_all >> await_delete_cluster
+    (
+        create_cluster_and_nodegroup
+        >> await_create_nodegroup
+        >> start_pod
+        >> delete_all
+        >> await_delete_cluster
+    )

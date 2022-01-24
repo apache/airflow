@@ -45,7 +45,6 @@ def provide_wasb_default_connection(key_file_path: str):
     Context manager to provide a temporary value for wasb_default connection
 
     :param key_file_path: Path to file with wasb_default credentials .json file.
-    :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")
@@ -68,7 +67,6 @@ def provide_azure_data_lake_default_connection(key_file_path: str):
     """
     Context manager to provide a temporary value for azure_data_lake_default connection
     :param key_file_path: Path to file with azure_data_lake_default credentials .json file.
-    :type key_file_path: str
     """
     required_fields = {'login', 'password', 'extra'}
 

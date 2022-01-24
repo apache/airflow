@@ -36,12 +36,9 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     Waits for a stack to be created successfully on AWS CloudFormation.
 
     :param stack_name: The name of the stack to wait for (templated)
-    :type stack_name: str
     :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are
         stored
-    :type aws_conn_id: str
     :param poke_interval: Time in seconds that the job should wait between each try
-    :type poke_interval: int
     """
 
     template_fields: Sequence[str] = ('stack_name',)
@@ -72,12 +69,9 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     Waits for a stack to be deleted successfully on AWS CloudFormation.
 
     :param stack_name: The name of the stack to wait for (templated)
-    :type stack_name: str
     :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are
         stored
-    :type aws_conn_id: str
     :param poke_interval: Time in seconds that the job should wait between each try
-    :type poke_interval: int
     """
 
     template_fields: Sequence[str] = ('stack_name',)

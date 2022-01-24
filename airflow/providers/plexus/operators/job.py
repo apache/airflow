@@ -33,7 +33,6 @@ class PlexusJobOperator(BaseOperator):
     Submits a Plexus job.
 
     :param job_params: parameters required to launch a job.
-    :type job_params: dict
 
     Required job parameters are the following
         - "name": job name created by user.
@@ -143,7 +142,6 @@ class PlexusJobOperator(BaseOperator):
         user-provided value.
 
         :param hook: plexus hook object
-        :type hook: airflow hook
         """
         missing_params = self.required_params - set(self.job_params)
         if len(missing_params) > 0:

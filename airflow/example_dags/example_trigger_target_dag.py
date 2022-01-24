@@ -34,7 +34,6 @@ def run_this_func(dag_run=None):
     Print the payload "message" passed to the DagRun conf attribute.
 
     :param dag_run: The DagRun object
-    :type dag_run: DagRun
     """
     print(f"Remotely received value of {dag_run.conf.get('message')} for key=message")
 

@@ -68,19 +68,14 @@ class CloudTranslateHook(GoogleBaseHook):
 
         See https://cloud.google.com/translate/docs/translating-text
 
-        :type values: str or list
         :param values: String or list of strings to translate.
-        :type target_language: str
         :param target_language: The language to translate results into. This
                                 is required by the API and defaults to
                                 the target language of the current instance.
-        :type format_: str
         :param format_: (Optional) One of ``text`` or ``html``, to specify
                         if the input text is plain text or HTML.
-        :type source_language: str or None
         :param source_language: (Optional) The language of the text to
                                 be translated.
-        :type model: str or None
         :param model: (Optional) The model used to translate the text, such
                       as ``'base'`` or ``'nmt'``.
         :rtype: str or list

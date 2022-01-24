@@ -43,13 +43,9 @@ class SqliteHook(DbApiHook):
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
-        :type table: str
         :param values: The row to insert into the table
-        :type values: tuple of cell values
         :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """

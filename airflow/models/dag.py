@@ -195,90 +195,65 @@ class DAG(LoggingMixin):
 
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
-    :type dag_id: str
     :param description: The description for the DAG to e.g. be shown on the webserver
-    :type description: str
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
         execution_date to figure out the next schedule
-    :type schedule_interval: datetime.timedelta or
-        dateutil.relativedelta.relativedelta or str that acts as a cron
-        expression
     :param timetable: Specify which timetable to use (in which case schedule_interval
         must not be set). See :doc:`/howto/timetable` for more information
-    :type timetable: airflow.timetables.base.Timetable
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
-    :type start_date: datetime.datetime
     :param end_date: A date beyond which your DAG won't run, leave to None
         for open ended scheduling
-    :type end_date: datetime.datetime
     :param template_searchpath: This list of folders (non relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
         default
-    :type template_searchpath: str or list[str]
     :param template_undefined: Template undefined type.
-    :type template_undefined: jinja2.StrictUndefined
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
         templates related to this DAG. Note that you can pass any
         type of object here.
-    :type user_defined_macros: dict
     :param user_defined_filters: a dictionary of filters that will be exposed
         in your jinja templates. For example, passing
         ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
         you to ``{{ 'world' | hello }}`` in all jinja templates related to
         this DAG.
-    :type user_defined_filters: dict
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators.
         Note that operators have the same hook, and precede those defined
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
         `default_args`, the actual value will be `False`.
-    :type default_args: dict
     :param params: a dictionary of DAG level parameters that are made
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
-    :type params: dict
     :param max_active_tasks: the number of task instances allowed to run
         concurrently
-    :type max_active_tasks: int
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
-    :type max_active_runs: int
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created. The timeout
         is only enforced for scheduled DagRuns.
-    :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
         passed to the callback.
-    :type sla_miss_callback: callable
     :param default_view: Specify DAG default view (tree, graph, duration,
                                                    gantt, landing_times), default tree
-    :type default_view: str
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
-    :type orientation: str
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
-    :type catchup: bool
     :param on_failure_callback: A function to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
-    :type on_failure_callback: callable
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
-    :type on_success_callback: callable
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
-    :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
-    :type is_paused_upon_creation: bool or None
     :param jinja_environment_kwargs: additional configuration options to be passed to Jinja
         ``Environment`` for template rendering
 
@@ -294,13 +269,10 @@ class DAG(LoggingMixin):
         **See**: `Jinja Environment documentation
         <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
 
-    :type jinja_environment_kwargs: dict
     :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
-    :type render_template_as_native_obj: bool
     :param tags: List of tags to help filtering DAGs in the UI.
-    :type tags: List[str]
     """
 
     _comps = {
@@ -870,9 +842,7 @@ class DAG(LoggingMixin):
         dag's schedule interval. Returned dates can be used for execution dates.
 
         :param start_date: The start date of the interval.
-        :type start_date: datetime
         :param end_date: The end date of the interval. Defaults to ``timezone.utcnow()``.
-        :type end_date: datetime
         :return: A list of dates within the interval following the dag's schedule.
         :rtype: list
         """
@@ -1171,7 +1141,6 @@ class DAG(LoggingMixin):
         Returns the number of active "running" dag runs
 
         :param external_trigger: True for externally triggered active dag runs
-        :type external_trigger: bool
         :param session:
         :return: number greater than 0 for active dag runs
         """
@@ -1651,23 +1620,14 @@ class DAG(LoggingMixin):
         in failed or upstream_failed state.
 
         :param task_id: Task ID of the TaskInstance
-        :type task_id: str
         :param execution_date: Execution date of the TaskInstance
-        :type execution_date: Optional[datetime.datetime]
         :param dag_run_id: The run_id of the TaskInstance
-        :type dag_run_id: Optional[str]
         :param state: State to set the TaskInstance to
-        :type state: TaskInstanceState
         :param upstream: Include all upstream tasks of the given task_id
-        :type upstream: bool
         :param downstream: Include all downstream tasks of the given task_id
-        :type downstream: bool
         :param future: Include all future TaskInstances of the given task_id
-        :type future: bool
         :param commit: Commit changes
-        :type commit: bool
         :param past: Include all past TaskInstances of the given task_id
-        :type past: bool
         """
         from airflow.api.common.mark_tasks import set_state
 
@@ -1837,32 +1797,20 @@ class DAG(LoggingMixin):
         a specified date range.
 
         :param task_ids: List of task ids to clear
-        :type task_ids: List[str]
         :param start_date: The minimum execution_date to clear
-        :type start_date: datetime.datetime or None
         :param end_date: The maximum execution_date to clear
-        :type end_date: datetime.datetime or None
         :param only_failed: Only clear failed tasks
-        :type only_failed: bool
         :param only_running: Only clear running tasks.
-        :type only_running: bool
         :param confirm_prompt: Ask for confirmation
-        :type confirm_prompt: bool
         :param include_subdags: Clear tasks in subdags and clear external tasks
             indicated by ExternalTaskMarker
-        :type include_subdags: bool
         :param include_parentdag: Clear tasks in the parent dag of the subdag.
-        :type include_parentdag: bool
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
-        :type dry_run: bool
         :param session: The sqlalchemy session to use
-        :type session: sqlalchemy.orm.session.Session
         :param dag_bag: The DagBag used to find the dags subdags (Optional)
-        :type dag_bag: airflow.models.dagbag.DagBag
         :param exclude_task_ids: A set of ``task_id`` that should not be cleared
-        :type exclude_task_ids: frozenset
         """
         if get_tis:
             warnings.warn(
@@ -2034,7 +1982,6 @@ class DAG(LoggingMixin):
 
         :param task_ids_or_regex: Either a list of task_ids, or a regex to
             match against task ids (as a string, or compiled regex pattern).
-        :type task_ids_or_regex: [str] or str or re.Pattern
         :param include_downstream: Include all downstream tasks of matched
             tasks, in addition to matched tasks.
         :param include_upstream: Include all upstream tasks of matched tasks,
@@ -2175,7 +2122,6 @@ class DAG(LoggingMixin):
         Add a task to the DAG
 
         :param task: the task you want to add
-        :type task: task
         """
         if not self.start_date and not task.start_date:
             raise AirflowException("DAG is missing the start_date parameter")
@@ -2212,7 +2158,6 @@ class DAG(LoggingMixin):
         Add a list of tasks to the DAG
 
         :param tasks: a lit of tasks you want to add
-        :type tasks: list of tasks
         """
         for task in tasks:
             self.add_task(task)
@@ -2249,31 +2194,19 @@ class DAG(LoggingMixin):
         Runs the DAG.
 
         :param start_date: the start date of the range to run
-        :type start_date: datetime.datetime
         :param end_date: the end date of the range to run
-        :type end_date: datetime.datetime
         :param mark_success: True to mark jobs as succeeded without running them
-        :type mark_success: bool
         :param local: True to run the tasks using the LocalExecutor
-        :type local: bool
         :param executor: The executor instance to run the tasks
-        :type executor: airflow.executor.base_executor.BaseExecutor
         :param donot_pickle: True to avoid pickling DAG object and send to workers
-        :type donot_pickle: bool
         :param ignore_task_deps: True to skip upstream tasks
-        :type ignore_task_deps: bool
         :param ignore_first_depends_on_past: True to ignore depends_on_past
             dependencies for the first set of tasks only
-        :type ignore_first_depends_on_past: bool
         :param pool: Resource pool to use
-        :type pool: str
         :param delay_on_limit_secs: Time in seconds to wait before next attempt to run
             dag run when max_active_runs limit has been reached
-        :type delay_on_limit_secs: float
         :param verbose: Make logging output more verbose
-        :type verbose: bool
         :param conf: user defined dictionary passed from CLI
-        :type conf: dict
         :param rerun_failed_tasks:
         :type: bool
         :param run_backwards:
@@ -2341,27 +2274,16 @@ class DAG(LoggingMixin):
         Returns the dag run.
 
         :param run_id: defines the run id for this dag run
-        :type run_id: str
         :param run_type: type of DagRun
-        :type run_type: airflow.utils.types.DagRunType
         :param execution_date: the execution date of this dag run
-        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: airflow.utils.state.DagRunState
         :param start_date: the date this dag run should be evaluated
-        :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
-        :type external_trigger: bool
         :param conf: Dict containing configuration/parameters to pass to the DAG
-        :type conf: dict
         :param creating_job_id: id of the job creating this DagRun
-        :type creating_job_id: int
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         :param dag_hash: Hash of Serialized DAG
-        :type dag_hash: str
         :param data_interval: Data interval of the DagRun
-        :type data_interval: tuple[datetime, datetime] | None
         """
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
@@ -2439,7 +2361,6 @@ class DAG(LoggingMixin):
         Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
 
         :param dags: the DAG objects to save to the DB
-        :type dags: List[airflow.models.dag.DAG]
         :return: None
         """
         if not dags:
@@ -2570,7 +2491,6 @@ class DAG(LoggingMixin):
         marked as active in the ORM
 
         :param active_dag_ids: list of DAG IDs that are active
-        :type active_dag_ids: list[unicode]
         :return: None
         """
         if len(active_dag_ids) == 0:
@@ -2589,7 +2509,6 @@ class DAG(LoggingMixin):
 
         :param expiration_date: set inactive DAGs that were touched before this
             time
-        :type expiration_date: datetime
         :return: None
         """
         for dag in (
@@ -2614,11 +2533,8 @@ class DAG(LoggingMixin):
 
         :param session: ORM session
         :param dag_id: ID of the DAG to get the task concurrency of
-        :type dag_id: unicode
         :param task_ids: A list of valid task IDs for the given DAG
-        :type task_ids: list[unicode]
         :param states: A list of states to filter by if supplied
-        :type states: list[state]
         :return: The number of running tasks
         :rtype: int
         """
@@ -3002,9 +2918,7 @@ def dag(*dag_args, **dag_kwargs):
     Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
 
     :param dag_args: Arguments for DAG object
-    :type dag_args: Any
     :param dag_kwargs: Kwargs for DAG object.
-    :type dag_kwargs: Any
     """
 
     def wrapper(f: Callable):

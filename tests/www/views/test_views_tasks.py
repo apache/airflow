@@ -263,7 +263,7 @@ def test_rendered_k8s_without_k8s(admin_client):
     assert 404 == resp.status_code
 
 
-def test_dag_details_trigger_origin_tree_view(app, admin_client):
+def test_tree_trigger_origin_tree_view(app, admin_client):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -272,14 +272,30 @@ def test_dag_details_trigger_origin_tree_view(app, admin_client):
         state=State.RUNNING,
     )
 
-    url = 'dag_details?dag_id=test_tree_view'
+    url = 'tree?dag_id=test_tree_view'
     resp = admin_client.get(url, follow_redirects=True)
     params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
-def test_dag_details_trigger_origin_graph_view(app, admin_client):
+def test_graph_trigger_origin_graph_view(app, admin_client):
+    app.dag_bag.get_dag('test_tree_view').create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+    )
+
+    url = 'graph?dag_id=test_tree_view'
+    resp = admin_client.get(url, follow_redirects=True)
+    params = {'dag_id': 'test_tree_view', 'origin': '/graph?dag_id=test_tree_view'}
+    href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    check_content_in_response(href, resp)
+
+
+def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
     app.dag_bag.get_dag('test_graph_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -290,7 +306,7 @@ def test_dag_details_trigger_origin_graph_view(app, admin_client):
 
     url = 'dag_details?dag_id=test_graph_view'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_graph_view', 'origin': '/graph?dag_id=test_graph_view'}
+    params = {'dag_id': 'test_graph_view', 'origin': '/dag_details?dag_id=test_graph_view'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 

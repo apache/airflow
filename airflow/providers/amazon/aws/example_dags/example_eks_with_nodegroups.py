@@ -55,7 +55,7 @@ with DAG(
 ) as dag:
 
     # [START howto_operator_eks_create_cluster]
-    # Create an Amazon EKS Cluster control plane without attaching a compute service.
+    # Create an Amazon EKS Cluster control plane without attaching compute service.
     create_cluster = EksCreateClusterOperator(
         task_id='create_eks_cluster',
         cluster_role_arn=ROLE_ARN,

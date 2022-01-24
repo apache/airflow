@@ -34,7 +34,7 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksF
 
 CLUSTER_NAME = 'fargate-demo'
 FARGATE_PROFILE_NAME = f'{CLUSTER_NAME}-profile'
-SELECTORS = environ.get('FARGATE_SELECTORS', [{'namespace': 'default'}])
+SELECTORS = [{'namespace': 'default'}]
 
 ROLE_ARN = environ.get('EKS_DEMO_ROLE_ARN', 'arn:aws:iam::123456789012:role/role_name')
 SUBNETS = environ.get('EKS_DEMO_SUBNETS', 'subnet-12345ab subnet-67890cd').split(' ')

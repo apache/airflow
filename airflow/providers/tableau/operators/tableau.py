@@ -51,23 +51,15 @@ class TableauOperator(BaseOperator):
         :ref:`howto/operator:TableauOperator`
 
     :param resource: The name of the resource to use.
-    :type resource: str
     :param method: The name of the resource's method to execute.
-    :type method: str
     :param find: The reference of resource that will receive the action.
-    :type find: str
     :param match_with: The resource field name to be matched with find parameter.
-    :type match_with: Optional[str]
     :param site_id: The id of the site where the workbook belongs to.
-    :type site_id: Optional[str]
     :param blocking_refresh: By default will be blocking means it will wait until it has finished.
-    :type blocking_refresh: bool
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
-    :type check_interval: float
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
-    :type tableau_conn_id: str
     """
 
     def __init__(
@@ -97,7 +89,6 @@ class TableauOperator(BaseOperator):
         """
         Executes the Tableau API resource and pushes the job id or downloaded file URI to xcom.
         :param context: The task context during execution.
-        :type context: dict
         :return: the id of the job that executes the extract refresh or downloaded file URI.
         :rtype: str
         """

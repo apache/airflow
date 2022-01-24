@@ -33,11 +33,8 @@ class SqliteOperator(BaseOperator):
         sql statement, a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
         (templated)
-    :type sql: str or list[str]
     :param sqlite_conn_id: reference to a specific sqlite database
-    :type sqlite_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     """
 
     template_fields: Sequence[str] = ('sql',)

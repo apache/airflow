@@ -32,9 +32,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         :ref:`howto/operator:RedshiftResumeClusterOperator`
 
     :param cluster_identifier: id of the AWS Redshift Cluster
-    :type cluster_identifier: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -73,9 +71,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
         :ref:`howto/operator:RedshiftPauseClusterOperator`
 
     :param cluster_identifier: id of the AWS Redshift Cluster
-    :type cluster_identifier: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)

@@ -48,12 +48,9 @@ class CassandraRecordSensor(BaseSensorOperator):
 
     :param table: Target Cassandra table.
         Use dot notation to target a specific keyspace.
-    :type table: str
     :param keys: The keys and their values to be monitored
-    :type keys: dict
     :param cassandra_conn_id: The connection ID to use
         when connecting to Cassandra cluster
-    :type cassandra_conn_id: str
     """
 
     template_fields: Sequence[str] = ('table', 'keys')
