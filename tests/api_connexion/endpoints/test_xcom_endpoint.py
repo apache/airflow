@@ -320,7 +320,7 @@ class TestGetXComEntries(TestXComEndpoint):
             XCom.set(
                 key=f'test-xcom-key-{i}',
                 value="TEST",
-                execution_date=execution_date,
+                run_id=dag_run_id,
                 task_id=task_id,
                 dag_id=dag_id,
             )
