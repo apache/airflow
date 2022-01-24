@@ -55,6 +55,7 @@ class Operator:
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
     template_ext: Collection[str]
+    owner: str
 
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
@@ -64,7 +65,7 @@ class Operator:
         """Returns dag id if it has one or an adhoc + owner"""
         dag = self.get_dag()
         if dag:
-            return self.dag.dag_id
+            return dag.dag_id
         return f"adhoc_{self.owner}"
 
     def get_template_env(self) -> jinja2.Environment:
