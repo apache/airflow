@@ -23,7 +23,6 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
-import dill
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
@@ -97,17 +96,17 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             py_source = self._get_python_source()
 
             jinja_context = dict(
-                    op_args=self.op_args,
-                    op_kwargs=self.op_kwargs,
-                    pickling_library=self.pickling_library.__name__,
-                    python_callable=self.python_callable.__name__,
-                    python_callable_source=py_source,
-                    string_args_global=False,
-                )
+                op_args=self.op_args,
+                op_kwargs=self.op_kwargs,
+                pickling_library=self.pickling_library.__name__,
+                python_callable=self.python_callable.__name__,
+                python_callable_source=py_source,
+                string_args_global=False,
+            )
             write_python_script(
                 jinja_context=jinja_context,
                 filename=script_filename,
-                template_file='python_kubernetes_script.jinja2'
+                template_file='python_kubernetes_script.jinja2',
             )
 
             self.env_vars.append(

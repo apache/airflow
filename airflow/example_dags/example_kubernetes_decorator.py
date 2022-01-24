@@ -51,7 +51,6 @@ with DAG(
             # ending line after each row
             print("\r")
 
-
     execute_in_k8s_pod_instance = execute_in_k8s_pod()
     print_pattern_instance = print_pattern()
     execute_in_k8s_pod_instance >> print_pattern_instance

@@ -16,11 +16,9 @@
 # under the License.
 
 from unittest import mock
-from unittest.mock import MagicMock
 
-import pytest
+
 from airflow.decorators import task
-from airflow.models.dag import DAG
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
@@ -30,7 +28,6 @@ class TestKubernetesDecorator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.__init__")
     def test_basic_kubernetes_operator(self, execute_mock, init_mock, dag_maker):
-
         @task
         def dummy_f():
             pass
@@ -38,6 +35,7 @@ class TestKubernetesDecorator:
         @task.kubernetes(task_id="kubernetes_operator")
         def f():
             import random
+
             return [random.random() for _ in range(100)]
 
         with dag_maker():
