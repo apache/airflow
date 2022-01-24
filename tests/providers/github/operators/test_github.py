@@ -20,18 +20,15 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from github.GitTag import GitTag
-
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.github.sensors.github import GithubTagSensor
+from airflow.providers.github.operators.github import GithubOperator
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
-
-class TestGithubSensor(unittest.TestCase):
+class TestGithubOperator(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG('test_dag_id', default_args=args)
@@ -47,24 +44,24 @@ class TestGithubSensor(unittest.TestCase):
         )
 
     @patch("airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock)
-    def test_github_tag_created(self, github_mock):
-        class MockTag(object):
+    def test_find_repos(self, github_mock):
+        class MockRepository(object):
             pass
-        tag = MockTag()
-        tag.name = "v1.0"
 
-        github_mock.return_value.get_repo.return_value.get_tags.return_value = [tag]
+        repo = MockRepository()
+        repo.full_name = "apache/airflow"
 
-        github_tag_sensor = GithubTagSensor(
-            task_id='search-ticket-test',
-            tag_name='v1.0',
-            repository_name="pateash/jetbrains_settings",
-            timeout=60,
-            poke_interval=10,
+        github_mock.return_value.get_repo.return_value = repo
+
+        github_operator = GithubOperator(
+            task_id='githib-test',
+            github_method="get_repo",
+            github_method_args={'full_name_or_id': 'apache/airflow'},
+            result_processor=lambda r: r.full_name,
             dag=self.dag,
         )
 
-        github_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        github_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+        assert github_mock.called
         assert github_mock.return_value.get_repo.called
-        assert github_mock.return_value.get_repo.return_value.get_tags.called
