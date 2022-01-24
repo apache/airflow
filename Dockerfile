@@ -337,7 +337,7 @@ RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
 FROM ${PYTHON_BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
-# xtrace - to show commands executed)
+# xtrace - to show commands executed
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG AIRFLOW_UID
