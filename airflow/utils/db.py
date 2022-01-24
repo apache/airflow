@@ -861,7 +861,7 @@ def _move_dangling_data_to_new_table(
 
         session.execute(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source")
     elif dialect_name == "mysql":
-        # MySQL when replcation is turned needs this split in to two queries, so just do it for all MySQL
+        # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
         session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table.name}")
         session.execute(
