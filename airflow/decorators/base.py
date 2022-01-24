@@ -196,13 +196,13 @@ class DecoratedOperator(BaseOperator):
         return args, kwargs
 
 
-T = TypeVar("T", bound=Callable)
+Function = TypeVar("Function", bound=Callable)
 
 OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define(slots=False)
-class _TaskDecorator(Generic[T, OperatorSubclass]):
+class _TaskDecorator(Generic[Function, OperatorSubclass]):
     """
     Helper class for providing dynamic task mapping to decorated functions.
 
@@ -211,7 +211,7 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     :meta private:
     """
 
-    function: T = attr.ib(validator=attr.validators.is_callable())
+    function: Function = attr.ib(validator=attr.validators.is_callable())
     operator_class: Type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
@@ -296,7 +296,7 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
 
     def partial(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "_TaskDecorator[T, OperatorSubclass]":
+    ) -> "_TaskDecorator[Function, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs, {'task_id'})
         partial_kwargs = self.kwargs.copy()
         partial_kwargs.update(kwargs)
@@ -307,11 +307,11 @@ class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
 
     @overload
-    def __call__(self, python_callable: T) -> T:
+    def __call__(self, python_callable: Function) -> Function:
         """For the "bare decorator" ``@task`` case."""
 
     @overload
-    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> "TaskDecorator":
+    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> Callable[[Function], Function]:
         """For the decorator factory ``@task()`` case."""
 
 
