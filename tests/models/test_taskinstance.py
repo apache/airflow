@@ -37,7 +37,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
-    UnmappableXComSizePushed,
+    UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
 )
 from airflow.models import (
@@ -2292,8 +2292,8 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == "unmappable return type 'str'"
 
-    @conf_vars({("core", "max_map_size"): "1"})
-    def test_error_if_unmappable_size(self, dag_maker):
+    @conf_vars({("core", "max_map_length"): "1"})
+    def test_error_if_unmappable_length(self, dag_maker):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
@@ -2308,12 +2308,12 @@ class TestTaskInstanceRecordTaskMapXComPush:
             pull_something.map(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
-        with pytest.raises(UnmappableXComSizePushed) as ctx:
+        with pytest.raises(UnmappableXComLengthPushed) as ctx:
             ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
-        assert str(ctx.value) == "unmappable return value size: 2 > 1"
+        assert str(ctx.value) == "unmappable return value length: 2 > 1"
 
     @pytest.mark.parametrize(
         "xcom_value, expected_length, expected_keys",

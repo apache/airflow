@@ -84,7 +84,7 @@ from airflow.exceptions import (
     DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
-    UnmappableXComSizePushed,
+    UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -2106,9 +2106,9 @@ class TaskInstance(Base, LoggingMixin):
             return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
-        max_map_size = conf.getint("core", "max_map_size", fallback=1024)
-        if len(value) > max_map_size:
-            raise UnmappableXComSizePushed(value, max_map_size)
+        max_map_length = conf.getint("core", "max_map_length", fallback=1024)
+        if len(value) > max_map_length:
+            raise UnmappableXComLengthPushed(value, max_map_length)
         session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session

@@ -453,10 +453,10 @@
       type: string
       example: ~
       default: "128"
-    - name: max_map_size
+    - name: max_map_length
       description: |
-        The maximum list/dict size an XCom can push to trigger task mapping. If the pushed list/dict
-        size exceeds this value, the task pushing the XCom will be failed automatically to prevent the
+        The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
+        length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
         mapped tasks from clogging the scheduler.
       version_added: 2.3.0
       type: integer

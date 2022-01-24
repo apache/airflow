@@ -109,16 +109,16 @@ class UnmappableXComTypePushed(AirflowException):
         return f"unmappable return type {type(self.value).__qualname__!r}"
 
 
-class UnmappableXComSizePushed(AirflowException):
-    """Raise when the pushed value is to large to map as a downstream's dependency."""
+class UnmappableXComLengthPushed(AirflowException):
+    """Raise when the pushed value is too large to map as a downstream's dependency."""
 
-    def __init__(self, value: Sized, max_size: int) -> None:
+    def __init__(self, value: Sized, max_length: int) -> None:
         super().__init__(value)
         self.value = value
-        self.max_size = max_size
+        self.max_length = max_length
 
     def __str__(self) -> str:
-        return f"unmappable return value size: {len(self.value)} > {self.max_size}"
+        return f"unmappable return value length: {len(self.value)} > {self.max_length}"
 
 
 class AirflowDagCycleException(AirflowException):
