@@ -19,7 +19,7 @@
 import datetime
 import stat
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pysftp
 import tenacity
@@ -61,7 +61,7 @@ class SFTPHook(SSHHook):
     hook_name = 'SFTP'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         return {
             "hidden_fields": ['schema'],
             "relabeling": {

@@ -90,7 +90,7 @@ class ComputeEngineSSHHook(SSHHook):
     hook_name = 'Google Cloud SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
             "relabeling": {},
