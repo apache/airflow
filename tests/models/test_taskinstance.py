@@ -2264,7 +2264,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
             push_something()
 
-        ti = dag_maker.create_dagrun().task_instances[0]
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
@@ -2283,7 +2283,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
             pull_something.map(value=push_something())
 
-        ti = dag_maker.create_dagrun().task_instances[0]
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComPushed) as ctx:
             ti.run()
 
