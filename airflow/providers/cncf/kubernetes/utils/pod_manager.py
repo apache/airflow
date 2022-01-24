@@ -199,7 +199,8 @@ class PodManager(LoggingMixin):
                     ),
                 )
                 for line in logs:
-                    timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                    line = line.decode('utf-8', errors="backslashreplace")
+                    timestamp, message = self.parse_log_line(line)
                     self.log.info(message)
             except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
                 self.log.warning(
