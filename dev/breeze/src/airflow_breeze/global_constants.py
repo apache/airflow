@@ -14,7 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from pathlib import Path
+from typing import List
 
+from airflow_breeze.utils.path_utils import get_airflow_sources_root
 
 AIRFLOW_SOURCES = ""
 
@@ -188,3 +191,18 @@ MYSQL_HOST_PORT = "23306"
 MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
+
+EXCLUDE_DOCS_PACKAGE_FOLDER = [
+    'exts',
+    'integration-logos',
+    'rtd-deprecation',
+    '_build',
+    '_doctrees',
+    '_inventory_cache',
+]
+
+
+def get_available_packages() -> List[str]:
+    docs_path_content = Path(get_airflow_sources_root(), 'docs').glob('*/')
+    available_packages = [x.name for x in docs_path_content if x.is_dir()]
+    return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))

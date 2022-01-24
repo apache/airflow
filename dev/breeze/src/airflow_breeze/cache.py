@@ -21,7 +21,7 @@ from typing import Any, List, Optional, Tuple
 
 from airflow_breeze import global_constants
 from airflow_breeze.console import console
-from airflow_breeze.global_constants import BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 
 
 def check_if_cache_exists(param_name: str) -> bool:

@@ -280,6 +280,7 @@ repos:
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
+          - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
       - id: autoflake

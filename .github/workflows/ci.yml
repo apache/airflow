@@ -488,17 +488,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
-      - name: "Static checks (no mypy)"
+      - name: "Static checks"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
           VERBOSE: false
-          SKIP: "identity,mypy"
-      - name: "MyPy static checks"
-        run: ./scripts/ci/static_checks/run_static_checks.sh mypy
-        env:
-          VERBOSE: false
-          DO_NOT_FAIL_ON_ERROR: "true"
-          COLUMNS: 300
+          SKIP: "identity"
+          COLUMNS: 250
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building

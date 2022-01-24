@@ -15,23 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[pytest]
-addopts =
-    -rasl
-    --verbosity=2
-;    This will treat all tests as flaky
-;    --force-flaky
-norecursedirs =
-    .eggs
-    airflow
-    tests/dags_with_system_exit
-    tests/test_utils
-    tests/dags_corrupted
-    tests/dags
-faulthandler_timeout = 480
-log_level = INFO
-filterwarnings =
-    error::pytest.PytestCollectionWarning
-markers =
-    need_serialized_dag
-asyncio-mode = strict
+from dataclasses import dataclass
+from typing import List, Tuple
+
+
+@dataclass
+class DocBuilder:
+    package_filter: Tuple[str]
+    docs_only: bool
+    spellcheck_only: bool
+
+    @property
+    def args_doc_builder(self) -> List[str]:
+        doc_args = []
+        if self.docs_only:
+            doc_args.append("--docs-only")
+        if self.spellcheck_only:
+            doc_args.append("--spellcheck-only")
+        if self.package_filter and len(self.package_filter) > 0:
+            for single_filter in self.package_filter:
+                doc_args.extend(["--package-filter", single_filter])
+        return doc_args
