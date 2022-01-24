@@ -17,7 +17,6 @@
 
 from unittest import mock
 
-
 from airflow.decorators import task
 from airflow.utils import timezone
 
@@ -26,24 +25,42 @@ DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 class TestKubernetesDecorator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.__init__")
-    def test_basic_kubernetes_operator(self, execute_mock, init_mock, dag_maker):
-        @task
-        def dummy_f():
-            pass
-
-        @task.kubernetes(task_id="kubernetes_operator")
-        def f():
-            import random
-
-            return [random.random() for _ in range(100)]
+    # @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.__init__")
+    def test_task_creation_with_params(self, execute_mock, dag_maker):
+        @task.kubernetes(image='python:3.8-slim-buster', name='k8s_test', namespace='default')
+        def k8s_decorator_func():
+            print("decorator func")
 
         with dag_maker():
-            df = dummy_f()
-            ret = f()
-            df.set_downstream(ret)
+            ret = k8s_decorator_func()
+            ret
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+
         ti = dr.get_task_instances()[0]
-        assert len(ti.xcom_pull()) == 100
+        assert ti.task_id == 'k8s_decorator_func'
+        assert ti.state == 'success'
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    # @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.__init__")
+    def test_task_creation_default_params(self, execute_mock, dag_maker):
+        @task.kubernetes()
+        def k8s_decorator_func():
+            print("decorator func")
+
+        with dag_maker():
+            ret = k8s_decorator_func()
+            ret
+
+        dr = dag_maker.create_dagrun()
+        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+
+        ti = dr.get_task_instances()[0]
+        assert ti.task_id == 'k8s_decorator_func'
+        assert ti.state == 'success'
+
+        # Default pod parameters
+        assert ret.operator.cmds[0] == 'bash'
+        assert ret.operator.arguments[0] == '-cx'
+        assert ret.operator.env_vars[0].name == '__PYTHON_SCRIPT'

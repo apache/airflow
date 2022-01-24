@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
 from kubernetes.client import models as k8s
 
-from airflow.decorators.base import DecoratedOperator, task_decorator_factory
+from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
 
@@ -87,6 +87,12 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         if not 'namespace' in kwargs:
             kwargs['namespace'] = 'default'
 
+        kwargs_to_upstream = {
+            "python_callable": kwargs["python_callable"],
+            "op_args": kwargs["op_args"],
+            "op_kwargs": kwargs["op_kwargs"],
+        }
+
         super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
@@ -134,7 +140,7 @@ T = TypeVar("T", bound=Callable)
 
 def kubernetes_task(
     python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-):
+) -> TaskDecorator:
     """
     Kubernetes operator decorator. Wraps a function to be executed in K8s using KubernetesPodOperator.
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
