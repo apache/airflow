@@ -415,7 +415,7 @@ Maintainer tasks
 ----------------
 
 Maintainers also can use Breeze for other purposes (those are commands that regular contributors likely
-do not need:
+do not need):
 
 * Prepare cache for CI: ``breeze prepare-build-cache`` (needs buildx plugin and write access to cache ghcr.io)
 * Generate constraints with ``breeze generate-constraints`` (needed when conflicting changes are merged)
