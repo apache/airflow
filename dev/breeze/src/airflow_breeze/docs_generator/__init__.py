@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART
-
-
-def test_visuals():
-    assert 2051 == len(ASCIIART)
-
-
-def test_get_extra_docker_flags():
-    airflow_sources = get_airflow_sources_root()
-    all = True
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) < 10
-    all = False
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) > 60

@@ -15,18 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART
+from dataclasses import dataclass
+from typing import List, Tuple
 
 
-def test_visuals():
-    assert 2051 == len(ASCIIART)
+@dataclass
+class DocBuilder:
+    package_filter: Tuple[str]
+    docs_only: bool
+    spellcheck_only: bool
 
-
-def test_get_extra_docker_flags():
-    airflow_sources = get_airflow_sources_root()
-    all = True
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) < 10
-    all = False
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) > 60
+    @property
+    def args_doc_builder(self) -> List[str]:
+        doc_args = []
+        if self.docs_only:
+            doc_args.append("--docs-only")
+        if self.spellcheck_only:
+            doc_args.append("--spellcheck-only")
+        if self.package_filter and len(self.package_filter) > 0:
+            for single_filter in self.package_filter:
+                doc_args.extend(["--package-filter", single_filter])
+        return doc_args
