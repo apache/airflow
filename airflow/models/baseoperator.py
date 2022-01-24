@@ -1825,7 +1825,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         maps = range(task_map_info.length)
 
         if unmapped_ti:
-            # The unmapped TaskInstance still exisxts -- this means we haven't
+            # The unmapped TaskInstance still exists -- this means we haven't
             # tried to run it before.
             unmapped_ti.map_index = 0
             maps = range(1, task_map_info.length)
