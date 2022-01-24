@@ -466,6 +466,9 @@ transfers:
   - source-integration-name: Local
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.local_to_s3
+  - source-integration-name: SQL
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
