@@ -45,9 +45,8 @@ def upgrade():
         # CREATE TABLE ... AS SELECT does not work well when MySQL replication
         # is enabled, so we do this in multiple steps instead.
         op.execute("CREATE TABLE __airflow_tmp_xcom LIKE xcom")
-        with op.batch_alter_table("__airflow_tmp_xcom") as batch_op:
-            batch_op.add_column(Column("run_id", StringID()))
-            batch_op.drop_column("execution_date")
+        op.add_column("__airflow_tmp_xcom", Column("run_id", StringID()))
+        op.drop_column("__airflow_tmp_xcom", "execution_date")
         op.execute(
             """
             INSERT INTO __airflow_tmp_xcom
@@ -70,9 +69,8 @@ def upgrade():
             """,
         )
 
-    with op.batch_alter_table("__airflow_tmp_xcom") as batch_op:
-        batch_op.alter_column("timestamp", existing_type=StringID(), nullable=False)
-        batch_op.create_primary_key("xcom_pkey", ["key", "dag_id", "task_id", "run_id"])
+    op.alter_column("__airflow_tmp_xcom", "timestamp", existing_type=StringID(), nullable=False)
+    op.create_primary_key("xcom_pkey", "__airflow_tmp_xcom", ["key", "dag_id", "task_id", "run_id"])
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
@@ -87,9 +85,8 @@ def downgrade():
         # CREATE TABLE ... AS SELECT does not work well when MySQL replication
         # is enabled, so we do this in multiple steps instead.
         op.execute("CREATE TABLE __airflow_tmp_xcom LIKE xcom")
-        with op.batch_alter_table("__airflow_tmp_xcom") as batch_op:
-            batch_op.add_column(Column("execution_date", TIMESTAMP))
-            batch_op.drop_column("run_id")
+        op.add_column("__airflow_tmp_xcom", Column("execution_date", TIMESTAMP))
+        op.drop_column("__airflow_tmp_xcom", "run_id")
         op.execute(
             """
             INSERT INTO __airflow_tmp_xcom
@@ -112,9 +109,8 @@ def downgrade():
             """,
         )
 
-    with op.batch_alter_table("__airflow_tmp_xcom") as batch_op:
-        batch_op.alter_column("timestamp", existing_type=StringID(), nullable=False)
-        batch_op.create_primary_key("xcom_pkey", ["key", "dag_id", "task_id", "execution_date"])
+    op.alter_column("__airflow_tmp_xcom", "timestamp", existing_type=StringID(), nullable=False)
+    op.create_primary_key("xcom_pkey", "__airflow_tmp_xcom", ["key", "dag_id", "task_id", "execution_date"])
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
