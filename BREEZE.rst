@@ -400,7 +400,7 @@ Additional management tasks:
 * Execute arbitrary command in the test environment with ``breeze shell`` command
 * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
 
-Kubernetes tests related.
+Kubernetes tests related:
 
 * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
 * Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
