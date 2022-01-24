@@ -118,7 +118,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
     @parameterized.expand([["dict"], ["dict[str, int]"], ["Dict"], ["Dict[str, int]"]])
     def test_infer_multiple_outputs_using_dict_typing(self, test_return_annotation):
         if sys.version_info < (3, 9) and test_return_annotation == "dict[str, int]":
-            self.skipTest("dict[...] not a supported typing prior to Python 3.9")
+            raise pytest.skip("dict[...] not a supported typing prior to Python 3.9")
 
             @task_decorator
             def identity_dict(x: int, y: int) -> eval(test_return_annotation):

@@ -31,14 +31,10 @@ class EC2StartInstanceOperator(BaseOperator):
     Start AWS EC2 instance using boto3.
 
     :param instance_id: id of the AWS EC2 instance
-    :type instance_id: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     :param region_name: (optional) aws region name associated with the client
-    :type region_name: Optional[str]
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
-    :type check_interval: float
     """
 
     template_fields: Sequence[str] = ("instance_id", "region_name")
@@ -77,14 +73,10 @@ class EC2StopInstanceOperator(BaseOperator):
     Stop AWS EC2 instance using boto3.
 
     :param instance_id: id of the AWS EC2 instance
-    :type instance_id: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     :param region_name: (optional) aws region name associated with the client
-    :type region_name: Optional[str]
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
-    :type check_interval: float
     """
 
     template_fields: Sequence[str] = ("instance_id", "region_name")

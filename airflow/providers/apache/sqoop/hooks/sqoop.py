@@ -43,13 +43,9 @@ class SqoopHook(BaseHook):
         * ``password_file``: Path to file containing the password.
 
     :param conn_id: Reference to the sqoop connection.
-    :type conn_id: str
     :param verbose: Set sqoop to verbose.
-    :type verbose: bool
     :param num_mappers: Number of map tasks to import in parallel.
-    :type num_mappers: int
     :param properties: Properties to set via the -D argument
-    :type properties: dict
     """
 
     conn_name_attr = 'conn_id'

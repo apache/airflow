@@ -29,7 +29,6 @@ class AzureContainerVolumeHook(BaseHook):
     :param azure_container_volume_conn_id: Reference to the
         :ref:`Azure Container Volume connection id <howto/connection:azure_container_volume>`
         of an Azure account of which container volumes should be used.
-    :type azure_container_volume_conn_id: str
     """
 
     conn_name_attr = "azure_container_volume_conn_id"

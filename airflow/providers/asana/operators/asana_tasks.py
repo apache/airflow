@@ -35,14 +35,11 @@ class AsanaCreateTaskOperator(BaseOperator):
         :ref:`howto/operator:AsanaCreateTaskOperator`
 
     :param conn_id: The Asana connection to use.
-    :type conn_id: str
     :param name: Name of the Asana task.
-    :type name: str
     :param task_parameters: Any of the optional task creation parameters.
         See https://developers.asana.com/docs/create-a-task for a complete list.
         You must specify at least one of 'workspace', 'parent', or 'projects'
         either here or in the connection.
-    :type task_parameters: dict
     """
 
     def __init__(
@@ -77,12 +74,9 @@ class AsanaUpdateTaskOperator(BaseOperator):
         :ref:`howto/operator:AsanaUpdateTaskOperator`
 
     :param conn_id: The Asana connection to use.
-    :type conn_id: str
     :param asana_task_gid: Asana task ID to update
-    :type asana_task_gid: str
     :param task_parameters: Any task parameters that should be updated.
         See https://developers.asana.com/docs/update-a-task for a complete list.
-    :type task_update_parameters: dict
     """
 
     def __init__(
@@ -114,9 +108,7 @@ class AsanaDeleteTaskOperator(BaseOperator):
         :ref:`howto/operator:AsanaDeleteTaskOperator`
 
     :param conn_id: The Asana connection to use.
-    :type conn_id: str
     :param asana_task_gid: Asana Task ID to delete.
-    :type asana_task_gid: str
     """
 
     def __init__(
@@ -147,11 +139,9 @@ class AsanaFindTaskOperator(BaseOperator):
         :ref:`howto/operator:AsanaFindTaskOperator`
 
     :param conn_id: The Asana connection to use.
-    :type conn_id: str
     :param search_parameters: The parameters used to find relevant tasks. You must
         specify at least one of `project`, `section`, `tag`, `user_task_list`, or both
         `assignee` and `workspace` either here or in the connection.
-    :type search_parameters: dict
     """
 
     def __init__(

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-echo "${COLOR_BLUE}Disable swap${COLOR_RESET}"
-sudo swapoff -a
-sudo rm -f /swapfile
+from datetime import datetime
 
-echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
-sudo apt clean || true
+from airflow import DAG
+from airflow.models.param import Param
+from airflow.operators.python import PythonOperator
 
-echo "${COLOR_BLUE}Pruning docker${COLOR_RESET}"
-docker_v system prune --all --force --volumes
+with DAG(
+    "test_invalid_param",
+    start_date=datetime(2021, 1, 1),
+    schedule_interval="@once",
+    params={
+        # a mandatory str param
+        "str_param": Param(type="string", minLength=2, maxLength=4),
+    },
+) as the_dag:
 
-echo "${COLOR_BLUE}Free disk space  ${COLOR_RESET}"
-df -h
+    def print_these(*params):
+        for param in params:
+            print(param)
 
-# always logout from the docker registry - this is necessary as we can have an expired token from
-# previous job!.
-docker_v logout "ghcr.io"
+    PythonOperator(
+        task_id="ref_params",
+        python_callable=print_these,
+        op_args=[
+            "{{ params.str_param }}",
+        ],
+    )

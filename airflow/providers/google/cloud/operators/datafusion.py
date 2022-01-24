@@ -39,19 +39,13 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionRestartInstanceOperator`
 
     :param instance_name: The name of the instance to restart.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -60,7 +54,6 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -115,19 +108,13 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionDeleteInstanceOperator`
 
     :param instance_name: The name of the instance to restart.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -136,7 +123,6 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -191,22 +177,15 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionCreateInstanceOperator`
 
     :param instance_name: The name of the instance to create.
-    :type instance_name: str
     :param instance: An instance of Instance.
         https://cloud.google.com/data-fusion/docs/reference/rest/v1beta1/projects.locations.instances#Instance
-    :type instance: Dict[str, Any]
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -215,7 +194,6 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -291,29 +269,21 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionUpdateInstanceOperator`
 
     :param instance_name: The name of the instance to create.
-    :type instance_name: str
     :param instance: An instance of Instance.
         https://cloud.google.com/data-fusion/docs/reference/rest/v1beta1/projects.locations.instances#Instance
-    :type instance: Dict[str, Any]
     :param update_mask: Field mask is used to specify the fields that the update will overwrite
         in an instance resource. The fields specified in the updateMask are relative to the resource,
         not the full request. A field will be overwritten if it is in the mask. If the user does not
         provide a mask, all the supported fields (labels and options currently) will be overwritten.
         A comma-separated list of fully qualified names of fields. Example: "user.displayName,photo".
         https://developers.google.com/protocol-buffers/docs/reference/google.protobuf?_ga=2.205612571.-968688242.1573564810#google.protobuf.FieldMask
-    :type update_mask: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -322,7 +292,6 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -384,19 +353,13 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionGetInstanceOperator`
 
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -405,7 +368,6 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -459,26 +421,18 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionCreatePipelineOperator`
 
     :param pipeline_name: Your pipeline name.
-    :type pipeline_name: str
     :param pipeline: The pipeline definition. For more information check:
         https://docs.cdap.io/cdap/current/en/developer-manual/pipelines/developing-pipelines.html#pipeline-configuration-file-format
-    :type pipeline: Dict[str, Any]
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -487,7 +441,6 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -555,25 +508,17 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionDeletePipelineOperator`
 
     :param pipeline_name: Your pipeline name.
-    :type pipeline_name: str
     :param version_id: Version of pipeline to delete
-    :type version_id: Optional[str]
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -582,7 +527,6 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -652,25 +596,17 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
 
 
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param artifact_version: Artifact version to filter instances
-    :type artifact_version: Optional[str]
     :param artifact_name: Artifact name to filter instances
-    :type artifact_name: Optional[str]
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -679,7 +615,6 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -749,31 +684,21 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionStartPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
-    :type pipeline_name: str
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param success_states: If provided the operator will wait for pipeline to be in one of
         the provided states.
-    :type success_states: List[str]
     :param pipeline_timeout: How long (in seconds) operator should wait for the pipeline to be in one of
         ``success_states``. Works only if ``success_states`` are provided.
-    :type pipeline_timeout: int
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param runtime_args: Optional runtime args to be passed to the pipeline
-    :type runtime_args: dict
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -782,11 +707,9 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param asynchronous: Flag to return after submitting the pipeline Id to the Data Fusion API.
         This is useful for submitting long running pipelines and
         waiting on them asynchronously using the CloudDataFusionPipelineStateSensor
-    :type asynchronous: bool
     """
 
     template_fields: Sequence[str] = (
@@ -878,23 +801,16 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionStopPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
-    :type pipeline_name: str
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -903,7 +819,6 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

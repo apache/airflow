@@ -117,17 +117,13 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
 
     :param py_file: Reference to the python Apache Beam pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file. (templated)
-    :type py_file: str
     :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/
 
-    :type runner: str
     :param py_options: Additional python options, e.g., ["-m", "-v"].
-    :type py_options: list[str]
     :param default_pipeline_options: Map of default pipeline options.
-    :type default_pipeline_options: dict
     :param pipeline_options: Map of pipeline options.The key must be a dictionary.
         The value can contain different types:
 
@@ -140,33 +136,27 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
-    :type pipeline_options: dict
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
-    :type py_interpreter: str
     :param py_requirements: Additional python package(s) to install.
         If a value is passed to this parameter, a new virtual environment has been created with
         additional packages installed.
 
         You could also install the apache_beam package if it is not installed on your system or you want
         to use a different version.
-    :type py_requirements: List[str]
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
 
         This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: Optional.
         The connection ID to use connecting to Google Cloud Storage if python file is on GCS.
-    :type gcp_conn_id: str
     :param delegate_to:  Optional.
         The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner
-    :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
     template_fields: Sequence[str] = (
@@ -317,16 +307,12 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
     Use ``pipeline_options`` to pass on pipeline_options to your job.
 
     :param jar: The reference to a self executing Apache Beam jar (templated).
-    :type jar: str
     :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
         See:
         https://beam.apache.org/documentation/runners/capability-matrix/
-    :type runner: str
     :param job_class: The name of the Apache Beam pipeline class to be executed, it
         is often not the main class configured in the pipeline jar file.
-    :type job_class: str
     :param default_pipeline_options: Map of default job pipeline_options.
-    :type default_pipeline_options: dict
     :param pipeline_options: Map of job specific pipeline_options.The key must be a dictionary.
         The value can contain different types:
 
@@ -339,15 +325,11 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
-    :type pipeline_options: dict
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Storage if jar is on GCS
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner
-    :type dataflow_config: Union[dict, providers.google.cloud.operators.dataflow.DataflowConfiguration]
     """
 
     template_fields: Sequence[str] = (

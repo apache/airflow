@@ -34,7 +34,6 @@ class FirehoseHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param delivery_stream: Name of the delivery stream
-    :type delivery_stream: str
     """
 
     def __init__(self, delivery_stream: str, *args, **kwargs) -> None:

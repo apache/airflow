@@ -33,13 +33,9 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     Checks the status of a pipeline run.
 
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
-    :type azure_data_factory_conn_id: str
     :param run_id: The pipeline run identifier.
-    :type run_id: str
     :param resource_group_name: The resource group name.
-    :type resource_group_name: str
     :param factory_name: The data factory name.
-    :type factory_name: str
     """
 
     template_fields: Sequence[str] = (

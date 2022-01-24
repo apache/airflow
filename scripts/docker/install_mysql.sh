@@ -44,7 +44,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    local key="A4A9406876FCBD3C456770C88C718D3B5072E1F5"
+    local key="467B942D3A79BD29"
     readonly key
 
     GNUPGHOME="$(mktemp -d)"

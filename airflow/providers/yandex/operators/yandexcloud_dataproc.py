@@ -28,77 +28,50 @@ class DataprocCreateClusterOperator(BaseOperator):
     """Creates Yandex.Cloud Data Proc cluster.
 
     :param folder_id: ID of the folder in which cluster should be created.
-    :type folder_id: Optional[str]
     :param cluster_name: Cluster name. Must be unique inside the folder.
-    :type cluster_name: Optional[str]
     :param cluster_description: Cluster description.
-    :type cluster_description: str
     :param cluster_image_version: Cluster image version. Use default.
-    :type cluster_image_version: str
     :param ssh_public_keys: List of SSH public keys that will be deployed to created compute instances.
-    :type ssh_public_keys: Optional[Union[str, Iterable[str]]]
     :param subnet_id: ID of the subnetwork. All Data Proc cluster nodes will use one subnetwork.
-    :type subnet_id: str
     :param services: List of services that will be installed to the cluster. Possible options:
         HDFS, YARN, MAPREDUCE, HIVE, TEZ, ZOOKEEPER, HBASE, SQOOP, FLUME, SPARK, SPARK, ZEPPELIN, OOZIE
-    :type services: Iterable[str]
     :param s3_bucket: Yandex.Cloud S3 bucket to store cluster logs.
                       Jobs will not work if the bucket is not specified.
-    :type s3_bucket: Optional[str]
     :param zone: Availability zone to create cluster in.
                  Currently there are ru-central1-a, ru-central1-b and ru-central1-c.
-    :type zone: str
     :param service_account_id: Service account id for the cluster.
                                Service account can be created inside the folder.
-    :type service_account_id: Optional[str]
     :param masternode_resource_preset: Resources preset (CPU+RAM configuration)
                                        for the primary node of the cluster.
-    :type masternode_resource_preset: str
     :param masternode_disk_size: Masternode storage size in GiB.
-    :type masternode_disk_size: int
     :param masternode_disk_type: Masternode storage type. Possible options: network-ssd, network-hdd.
-    :type masternode_disk_type: str
     :param datanode_resource_preset: Resources preset (CPU+RAM configuration)
                                      for the data nodes of the cluster.
-    :type datanode_resource_preset: str
     :param datanode_disk_size: Datanodes storage size in GiB.
-    :type datanode_disk_size: int
     :param datanode_disk_type: Datanodes storage type. Possible options: network-ssd, network-hdd.
-    :type datanode_disk_type: str
     :param computenode_resource_preset: Resources preset (CPU+RAM configuration)
                                         for the compute nodes of the cluster.
-    :type computenode_resource_preset: str
     :param computenode_disk_size: Computenodes storage size in GiB.
-    :type computenode_disk_size: int
     :param computenode_disk_type: Computenodes storage type. Possible options: network-ssd, network-hdd.
-    :type computenode_disk_type: str
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type connection_id: Optional[str]
-    :type computenode_max_count: int
     :param computenode_max_count: Maximum number of nodes of compute autoscaling subcluster.
     :param computenode_warmup_duration: The warmup time of the instance in seconds. During this time,
                                         traffic is sent to the instance,
                                         but instance metrics are not collected. In seconds.
-    :type computenode_warmup_duration: int
     :param computenode_stabilization_duration: Minimum amount of time in seconds for monitoring before
                                    Instance Groups can reduce the number of instances in the group.
                                    During this time, the group size doesn't decrease,
                                    even if the new metric values indicate that it should. In seconds.
-    :type computenode_stabilization_duration: int
     :param computenode_preemptible: Preemptible instances are stopped at least once every 24 hours,
                         and can be stopped at any time if their resources are needed by Compute.
-    :type computenode_preemptible: bool
     :param computenode_cpu_utilization_target: Defines an autoscaling rule
                                    based on the average CPU utilization of the instance group.
                                    in percents. 10-100.
                                    By default is not set and default autoscaling strategy is used.
-    :type computenode_cpu_utilization_target: int
     :param computenode_decommission_timeout: Timeout to gracefully decommission nodes during downscaling.
                                              In seconds.
-    :type computenode_decommission_timeout: int
     :param log_group_id: Id of log group to write logs. By default logs will be sent to default log group.
                     To disable cloud log sending set cluster property dataproc:disable_cloud_logging = true
-    :type log_group_id: str
     """
 
     def __init__(
@@ -213,9 +186,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """Deletes Yandex.Cloud Data Proc cluster.
 
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type connection_id: Optional[str]
     :param cluster_id: ID of the cluster to remove. (templated)
-    :type cluster_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('cluster_id',)
@@ -243,22 +214,14 @@ class DataprocCreateHiveJobOperator(BaseOperator):
     """Runs Hive job in Data Proc cluster.
 
     :param query: Hive query.
-    :type query: Optional[str]
     :param query_file_uri: URI of the script that contains Hive queries. Can be placed in HDFS or S3.
-    :type query_file_uri: Optional[str]
     :param properties: A mapping of property names to values, used to configure Hive.
-    :type properties: Optional[Dist[str, str]]
     :param script_variables: Mapping of query variable names to values.
-    :type script_variables: Optional[Dist[str, str]]
     :param continue_on_failure: Whether to continue executing queries if a query fails.
-    :type continue_on_failure: bool
     :param name: Name of the job. Used for labeling.
-    :type name: str
     :param cluster_id: ID of the cluster to run job in.
                        Will try to take the ID from Dataproc Hook object if ot specified. (templated)
-    :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type connection_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('cluster_id',)
@@ -311,26 +274,16 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
 
     :param main_jar_file_uri: URI of jar file with job.
                               Can be placed in HDFS or S3. Can be specified instead of main_class.
-    :type main_jar_file_uri: Optional[str]
     :param main_class: Name of the main class of the job. Can be specified instead of main_jar_file_uri.
-    :type main_class: Optional[str]
     :param file_uris: URIs of files used in the job. Can be placed in HDFS or S3.
-    :type file_uris: Optional[Iterable[str]]
     :param archive_uris: URIs of archive files used in the job. Can be placed in HDFS or S3.
-    :type archive_uris: Optional[Iterable[str]]
     :param jar_file_uris: URIs of JAR files used in the job. Can be placed in HDFS or S3.
-    :type jar_file_uris: Optional[Iterable[str]]
     :param properties: Properties for the job.
-    :type properties: Optional[Dist[str, str]]
     :param args: Arguments to be passed to the job.
-    :type args: Optional[Iterable[str]]
     :param name: Name of the job. Used for labeling.
-    :type name: str
     :param cluster_id: ID of the cluster to run job in.
                        Will try to take the ID from Dataproc Hook object if ot specified. (templated)
-    :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type connection_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('cluster_id',)
@@ -388,34 +341,21 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     """Runs Spark job in Data Proc cluster.
 
     :param main_jar_file_uri: URI of jar file with job. Can be placed in HDFS or S3.
-    :type main_jar_file_uri: Optional[str]
     :param main_class: Name of the main class of the job.
-    :type main_class: Optional[str]
     :param file_uris: URIs of files used in the job. Can be placed in HDFS or S3.
-    :type file_uris: Optional[Iterable[str]]
     :param archive_uris: URIs of archive files used in the job. Can be placed in HDFS or S3.
-    :type archive_uris: Optional[Iterable[str]]
     :param jar_file_uris: URIs of JAR files used in the job. Can be placed in HDFS or S3.
-    :type jar_file_uris: Optional[Iterable[str]]
     :param properties: Properties for the job.
-    :type properties: Optional[Dist[str, str]]
     :param args: Arguments to be passed to the job.
-    :type args: Optional[Iterable[str]]
     :param name: Name of the job. Used for labeling.
-    :type name: str
     :param cluster_id: ID of the cluster to run job in.
                        Will try to take the ID from Dataproc Hook object if ot specified. (templated)
-    :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type connection_id: Optional[str]
     :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
-    :type packages: Optional[Iterable[str]]
     :param repositories: List of additional remote repositories to search for the maven coordinates
                         given with --packages.
-    :type repositories: Optional[Iterable[str]]
     :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies
                         provided in --packages to avoid dependency conflicts.
-    :type exclude_packages: Optional[Iterable[str]]
     """
 
     template_fields: Sequence[str] = ('cluster_id',)
@@ -482,34 +422,21 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     """Runs Pyspark job in Data Proc cluster.
 
     :param main_python_file_uri: URI of python file with job. Can be placed in HDFS or S3.
-    :type main_python_file_uri: Optional[str]
     :param python_file_uris: URIs of python files used in the job. Can be placed in HDFS or S3.
-    :type python_file_uris: Optional[Iterable[str]]
     :param file_uris: URIs of files used in the job. Can be placed in HDFS or S3.
-    :type file_uris: Optional[Iterable[str]]
     :param archive_uris: URIs of archive files used in the job. Can be placed in HDFS or S3.
-    :type archive_uris: Optional[Iterable[str]]
     :param jar_file_uris: URIs of JAR files used in the job. Can be placed in HDFS or S3.
-    :type jar_file_uris: Optional[Iterable[str]]
     :param properties: Properties for the job.
-    :type properties: Optional[Dist[str, str]]
     :param args: Arguments to be passed to the job.
-    :type args: Optional[Iterable[str]]
     :param name: Name of the job. Used for labeling.
-    :type name: str
     :param cluster_id: ID of the cluster to run job in.
                        Will try to take the ID from Dataproc Hook object if ot specified. (templated)
-    :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type connection_id: Optional[str]
     :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
-    :type packages: Optional[Iterable[str]]
     :param repositories: List of additional remote repositories to search for the maven coordinates
                          given with --packages.
-    :type repositories: Optional[Iterable[str]]
     :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies
                          provided in --packages to avoid dependency conflicts.
-    :type exclude_packages: Optional[Iterable[str]]
     """
 
     template_fields: Sequence[str] = ('cluster_id',)

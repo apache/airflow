@@ -100,10 +100,8 @@ class Variable(Base, LoggingMixin):
         for a key, and if it isn't there, stores the default value and returns it.
 
         :param key: Dict key for this Variable
-        :type key: str
         :param default: Default value to set and return if the variable
             isn't already in the DB
-        :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
         :return: Mixed

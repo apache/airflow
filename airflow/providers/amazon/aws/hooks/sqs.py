@@ -43,10 +43,8 @@ class SqsHook(AwsBaseHook):
         Create queue using connection object
 
         :param queue_name: name of the queue.
-        :type queue_name: str
         :param attributes: additional attributes for the queue (default: None)
             For details of the attributes parameter see :py:meth:`SQS.create_queue`
-        :type attributes: dict
 
         :return: dict with the information about the queue
             For details of the returned value see :py:meth:`SQS.create_queue`
@@ -65,14 +63,10 @@ class SqsHook(AwsBaseHook):
         Send message to the queue
 
         :param queue_url: queue url
-        :type queue_url: str
         :param message_body: the contents of the message
-        :type message_body: str
         :param delay_seconds: seconds to delay the message
-        :type delay_seconds: int
         :param message_attributes: additional attributes for the message (default: None)
             For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
-        :type message_attributes: dict
 
         :return: dict with the information about the message sent
             For details of the returned value see :py:meth:`botocore.client.SQS.send_message`

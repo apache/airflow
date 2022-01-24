@@ -45,7 +45,6 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
         task_ids.
 
         :param context: Context dictionary as passed to execute()
-        :type context: dict
         """
         raise NotImplementedError
 

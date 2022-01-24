@@ -33,6 +33,8 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
+# Use the same builder frontend version for everyone
+# syntax=docker/dockerfile:1.3
 ARG AIRFLOW_VERSION="2.2.2"
 ARG AIRFLOW_EXTRAS="amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
@@ -42,10 +44,11 @@ ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
+ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
 
 ARG AIRFLOW_PIP_VERSION=21.3.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
 # and we can install version according to specification (For example ==2.0.2 or <3.0.0).
@@ -327,34 +330,6 @@ RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
     fi
 
-ARG BUILD_ID
-ARG COMMIT_SHA
-ARG AIRFLOW_IMAGE_REPOSITORY
-ARG AIRFLOW_IMAGE_DATE_CREATED
-
-ENV BUILD_ID=${BUILD_ID} COMMIT_SHA=${COMMIT_SHA}
-
-LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
-  org.apache.airflow.module="airflow" \
-  org.apache.airflow.component="airflow" \
-  org.apache.airflow.image="airflow-build-image" \
-  org.apache.airflow.version="${AIRFLOW_VERSION}" \
-  org.apache.airflow.build-image.build-id=${BUILD_ID} \
-  org.apache.airflow.build-image.commit-sha=${COMMIT_SHA} \
-  org.opencontainers.image.source=${AIRFLOW_IMAGE_REPOSITORY} \
-  org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
-  org.opencontainers.image.authors="dev@airflow.apache.org" \
-  org.opencontainers.image.url="https://airflow.apache.org" \
-  org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
-  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
-  org.opencontainers.image.revision="${COMMIT_SHA}" \
-  org.opencontainers.image.vendor="Apache Software Foundation" \
-  org.opencontainers.image.licenses="Apache-2.0" \
-  org.opencontainers.image.ref.name="airflow-build-image" \
-  org.opencontainers.image.title="Build Image Segment for Production Airflow Image" \
-  org.opencontainers.image.description="Reference build-time dependencies image for production-ready Apache Airflow image"
-
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
 # installed Airflow and all it's dependencies from the build image to make it smaller.
@@ -422,6 +397,7 @@ ARG AIRFLOW_HOME
 # production image is prepared from sources rather than from package
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 ARG AIRFLOW_IMAGE_REPOSITORY
+ARG AIRFLOW_IMAGE_README_URL
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -460,25 +436,28 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/log/*
 
-# Only copy install_m(y/s)sql. We do not need any other scripts in the final image.
+# Only copy mysql/mssql installation scripts for now - so that changing the other
+# scripts which are needed much later will not invalidate the docker layer here.
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
-
-# fix permission issue in Azure DevOps when running the scripts
-RUN chmod a+x /scripts/docker/install_mysql.sh && \
-    /scripts/docker/install_mysql.sh prod && \
-    chmod a+x /scripts/docker/install_mssql.sh && \
-    /scripts/docker/install_mssql.sh && \
-    adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-           --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
+# We run chmod +x to fix permission issue in Azure DevOps when running the scripts
+# However when AUFS Docker backend is used, this might cause "text file busy" error
+# when script is executed right after it's executable flag has been changed, so
+# we run additional sync afterwards. See https://github.com/moby/moby/issues/13594
+RUN chmod a+x /scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh \
+    && sync \
+    && /scripts/docker/install_mysql.sh prod \
+    && /scripts/docker/install_mssql.sh \
+    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+           --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
-    mkdir -pv "${AIRFLOW_HOME}"; \
-    mkdir -pv "${AIRFLOW_HOME}/dags"; \
-    mkdir -pv "${AIRFLOW_HOME}/logs"; \
-    chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
-    chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" ; \
-    find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x; \
-    find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
+    && mkdir -pv "${AIRFLOW_HOME}" \
+    && mkdir -pv "${AIRFLOW_HOME}/dags" \
+    && mkdir -pv "${AIRFLOW_HOME}/logs" \
+    && chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
+    && chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
+    && find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x \
+    && find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
 
 COPY --chown=airflow:0 --from=airflow-build-image \
      "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
@@ -489,10 +468,10 @@ COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 # See https://github.com/apache/airflow/issues/9248
 # Set default groups for airflow and root user
 
-RUN chmod a+x /entrypoint /clean-logs && \
-    chmod g=u /etc/passwd  && \
-    chmod g+w "${AIRFLOW_USER_HOME_DIR}/.local" && \
-    usermod -g 0 airflow -G 0
+RUN chmod a+x /entrypoint /clean-logs \
+    && chmod g=u /etc/passwd \
+    && chmod g+w "${AIRFLOW_USER_HOME_DIR}/.local" \
+    && usermod -g 0 airflow -G 0
 
 # make sure that the venv is activated for all users
 # including plain sudo, sudo with --interactive flag
@@ -547,7 +526,9 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.licenses="Apache-2.0" \
   org.opencontainers.image.ref.name="airflow" \
   org.opencontainers.image.title="Production Airflow Image" \
-  org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
+  org.opencontainers.image.description="Reference, production-ready Apache Airflow image" \
+  io.artifacthub.package.license='Apache-2.0' \
+  io.artifacthub.package.readme-url='${AIRFLOW_IMAGE_README_URL}'
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []

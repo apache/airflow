@@ -32,18 +32,14 @@ class PythonSensor(BaseSensorOperator):
     in the callable
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
-    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
-    :type op_args: list
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied.
-    :type templates_dict: dict of str
     """
 
     template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')

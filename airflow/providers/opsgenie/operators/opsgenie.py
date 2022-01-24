@@ -40,37 +40,23 @@ class OpsgenieCreateAlertOperator(BaseOperator):
         :ref:`howto/operator:OpsgenieCreateAlertOperator`
 
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
-    :type opsgenie_conn_id: str
     :param message: The Message of the Opsgenie alert (templated)
-    :type message: str
     :param alias: Client-defined identifier of the alert (templated)
-    :type alias: str
     :param description: Description field of the alert (templated)
-    :type description: str
     :param responders: Teams, users, escalations and schedules that
         the alert will be routed to send notifications.
-    :type responders: list[dict]
     :param visible_to: Teams and users that the alert will become visible
         to without sending any notification.
-    :type visible_to: list[dict]
     :param actions: Custom actions that will be available for the alert.
-    :type actions: list[str]
     :param tags: Tags of the alert.
-    :type tags: list[str]
     :param details: Map of key-value pairs to use as custom properties of the alert.
-    :type details: dict
     :param entity: Entity field of the alert that is
         generally used to specify which domain alert is related to. (templated)
-    :type entity: str
     :param source: Source field of the alert. Default value is
         IP address of the incoming request.
-    :type source: str
     :param priority: Priority level of the alert. Default value is P3. (templated)
-    :type priority: str
     :param user: Display name of the request owner.
-    :type user: str
     :param note: Additional note that will be added while creating the alert. (templated)
-    :type note: str
     """
 
     template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
@@ -162,20 +148,13 @@ class OpsgenieCloseAlertOperator(BaseOperator):
         :ref:`howto/operator:OpsgenieCloseAlertOperator`
 
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
-    :type opsgenie_conn_id: str
     :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
-    :type identifier: str
     :param identifier_type: Type of the identifier that is provided as an in-line parameter.
         Possible values are 'id', 'alias' or 'tiny'
-    :type identifier_type: str
     :param user: display name of the request owner
-    :type user: str
     :param note: additional note that will be added while creating the alert
-    :type note: str
     :param source: source field of the alert. Default value is IP address of the incoming request
-    :type source: str
     :param close_alert_kwargs: additional params to pass
-    :type close_alert_kwargs: dict
     """
 
     def __init__(

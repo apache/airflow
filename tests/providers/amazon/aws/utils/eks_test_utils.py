@@ -49,13 +49,9 @@ def attributes_to_test(
 
     :param inputs: A class containing lists of tuples to use for verifying the output
     of cluster or nodegroup creation tests.
-    :type inputs: InputTypes
     :param cluster_name: The name of the cluster under test.
-    :type cluster_name: str
     :param fargate_profile_name: The name of the Fargate profile under test if applicable.
-    :type fargate_profile_name: str
     :param nodegroup_name: The name of the nodegroup under test if applicable.
-    :type nodegroup_name: str
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
     :rtype: List[Tuple]
     """
@@ -90,11 +86,8 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> Li
     Generates a number of EKS Clusters with data and adds them to the mocked backend.
 
     :param eks_hook: An EksHook object used to call the EKS API.
-    :type eks_hook: EksHook
     :param num_clusters: Number of clusters to generate.
-    :type num_clusters: int
     :param minimal: If True, only the required values are generated; if False all values are generated.
-    :type minimal: bool
     :return: Returns a list of the names of the generated clusters.
     :rtype: List[str]
     """
@@ -114,13 +107,9 @@ def generate_fargate_profiles(
     Generates a number of EKS Fargate profiles with data and adds them to the mocked backend.
 
     :param eks_hook: An EksHook object used to call the EKS API.
-    :type eks_hook: EksHook
     :param cluster_name: The name of the EKS Cluster to attach the nodegroups to.
-    :type cluster_name: str
     :param num_profiles: Number of Fargate profiles to generate.
-    :type num_profiles: int
     :param minimal: If True, only the required values are generated; if False all values are generated.
-    :type minimal: bool
     :return: Returns a list of the names of the generated nodegroups.
     :rtype: List[str]
     """
@@ -142,13 +131,9 @@ def generate_nodegroups(
     Generates a number of EKS Managed Nodegroups with data and adds them to the mocked backend.
 
     :param eks_hook: An EksHook object used to call the EKS API.
-    :type eks_hook: EksHook
     :param cluster_name: The name of the EKS Cluster to attach the nodegroups to.
-    :type cluster_name: str
     :param num_nodegroups: Number of clusters to generate.
-    :type num_nodegroups: int
     :param minimal: If True, only the required values are generated; if False all values are generated.
-    :type minimal: bool
     :return: Returns a list of the names of the generated nodegroups.
     :rtype: List[str]
     """
@@ -168,9 +153,7 @@ def region_matches_partition(region: str, partition: str) -> bool:
     Returns True if the provided region and partition are a valid pair.
 
     :param region: AWS region code to test.
-    :type: region: str
     :param partition: AWS partition code to test.
-    :type partition: str
     :return: Returns True if the provided region and partition are a valid pair.
     :rtype: bool
     """
@@ -193,9 +176,7 @@ def _input_builder(options: InputTypes, minimal: bool) -> Dict:
 
     :param options: A class containing lists of tuples to use for to create
     the cluster or nodegroup used in testing.
-    :type options: InputTypes
     :param minimal: If True, only the required values are generated; if False all values are generated.
-    :type minimal: bool
     :return: Returns a dict containing the keys and values to be validated in testing.
     :rtype: Dict
     """
@@ -210,7 +191,6 @@ def string_to_regex(value: str) -> Pattern[str]:
     Converts a string template into a regex template for pattern matching.
 
     :param value: The template string to convert.
-    :type value: str
     :returns: Returns a regex pattern
     :rtype: Pattern[str]
     """

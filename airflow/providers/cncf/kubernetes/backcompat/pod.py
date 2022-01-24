@@ -34,19 +34,12 @@ class Resources:
 
     """
     :param request_memory: requested memory
-    :type request_memory: str
     :param request_cpu: requested CPU number
-    :type request_cpu: float | str
     :param request_ephemeral_storage: requested ephemeral storage
-    :type request_ephemeral_storage: str
     :param limit_memory: limit for memory usage
-    :type limit_memory: str
     :param limit_cpu: Limit for CPU used
-    :type limit_cpu: float | str
     :param limit_gpu: Limits for GPU used
-    :type limit_gpu: int
     :param limit_ephemeral_storage: Limit for ephemeral storage
-    :type limit_ephemeral_storage: float | str
     """
 
     def __init__(

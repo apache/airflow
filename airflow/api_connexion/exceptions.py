@@ -18,8 +18,8 @@ from typing import Any, Dict, Optional
 
 import flask
 import werkzeug
+from connexion import FlaskApi, ProblemException, problem
 
-from airflow._vendor.connexion import FlaskApi, ProblemException, problem
 from airflow.utils.docs import get_docs_url
 
 doc_link = get_docs_url("stable-rest-api-ref.html")
@@ -36,11 +36,7 @@ EXCEPTIONS_LINK_MAP = {
 
 
 def common_error_handler(exception: BaseException) -> flask.Response:
-    """
-    Used to capture connexion exceptions and add link to the type field
-
-    :type exception: Exception
-    """
+    """Used to capture connexion exceptions and add link to the type field."""
     if isinstance(exception, ProblemException):
 
         link = EXCEPTIONS_LINK_MAP.get(exception.status)

@@ -66,10 +66,8 @@ class TableauHook(BaseHook):
 
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.
-    :type site_id: Optional[str]
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
-    :type tableau_conn_id: str
     """
 
     conn_name_attr = 'tableau_conn_id'
@@ -140,7 +138,6 @@ class TableauHook(BaseHook):
 
         :param resource_name: The name of the resource to paginate.
             For example: jobs or workbooks.
-        :type resource_name: str
         :return: all items by returning a Pager.
         :rtype: tableauserverclient.Pager
         """
@@ -156,7 +153,6 @@ class TableauHook(BaseHook):
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.
-        :type job_id: str
         :return: An Enum that describe the Tableau job’s return code
         :rtype: TableauJobFinishCode
         """
@@ -168,12 +164,9 @@ class TableauHook(BaseHook):
         to target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
-        :type job_id: str
         :param target_state: Enum that describe the Tableau job’s target state
-        :type target_state: TableauJobFinishCode
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
-        :type check_interval: float
         :return: return True if the job is equal to the target_status, False otherwise.
         :rtype: bool
         """

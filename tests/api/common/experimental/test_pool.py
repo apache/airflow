@@ -18,7 +18,6 @@
 
 import random
 import string
-import unittest
 
 import pytest
 
@@ -30,12 +29,13 @@ from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_pools
 
 
-class TestPool(unittest.TestCase):
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+class TestPool:
 
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
-    def setUp(self):
+    def setup_method(self):
         clear_db_pools()
         self.pools = [Pool.get_default_pool()]
         for i in range(self.USER_POOL_COUNT):

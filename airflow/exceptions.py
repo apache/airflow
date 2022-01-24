@@ -23,7 +23,7 @@ import datetime
 import warnings
 from typing import Any, Dict, List, NamedTuple, Optional
 
-from airflow.api_connexion.exceptions import NotFound as ApiConnextionNotFound
+from airflow.api_connexion.exceptions import NotFound as ApiConnexionNotFound
 from airflow.utils.code_utils import prepare_code_snippet
 from airflow.utils.platform import is_tty
 
@@ -44,7 +44,7 @@ class AirflowBadRequest(AirflowException):
     status_code = 400
 
 
-class AirflowNotFoundException(AirflowException, ApiConnextionNotFound):
+class AirflowNotFoundException(AirflowException, ApiConnexionNotFound):
     """Raise when the requested object/resource is not available in the system."""
 
     status_code = 404
@@ -63,7 +63,6 @@ class AirflowRescheduleException(AirflowException):
     Raise when the task should be re-scheduled at a later time.
 
     :param reschedule_date: The date when the task should be rescheduled
-    :type reschedule_date: datetime.datetime
     """
 
     def __init__(self, reschedule_date):
@@ -165,6 +164,10 @@ class DuplicateTaskIdFound(AirflowException):
 
 class SerializationError(AirflowException):
     """A problem occurred when trying to serialize a DAG."""
+
+
+class ParamValidationError(AirflowException):
+    """Raise when DAG params is invalid"""
 
 
 class TaskNotFound(AirflowNotFoundException):

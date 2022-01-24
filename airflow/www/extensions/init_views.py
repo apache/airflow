@@ -19,10 +19,9 @@ import logging
 import warnings
 from os import path
 
+from connexion import App, ProblemException
 from flask import Flask, request
 
-from airflow._vendor import connexion
-from airflow._vendor.connexion import ProblemException
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
 from airflow.security import permissions
@@ -191,7 +190,7 @@ def init_api_connexion(app: Flask) -> None:
             return views.not_found(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
-    connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
+    connexion_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
     connexion_app.app = app
     api_bp = connexion_app.add_api(
         specification='v1.yaml', base_path=base_path, validate_responses=True, strict_validation=True

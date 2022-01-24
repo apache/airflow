@@ -34,9 +34,7 @@ class InfluxDBOperator(BaseOperator):
 
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement
-    :type sql: str
     :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
-    :type influxdb_conn_id: str
     """
 
     template_fields: Sequence[str] = ('sql',)

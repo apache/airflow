@@ -71,27 +71,16 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param skipped: Tasks that have been skipped
-        :type skipped: set[tuple[TaskInstanceKey]]
         :param succeeded: Tasks that have succeeded so far
-        :type succeeded: set[tuple[TaskInstanceKey]]
         :param failed: Tasks that have failed
-        :type failed: set[tuple[TaskInstanceKey]]
         :param not_ready: Tasks not ready for execution
-        :type not_ready: set[tuple[TaskInstanceKey]]
         :param deadlocked: Deadlocked tasks
-        :type deadlocked: set[airflow.models.TaskInstance]
         :param active_runs: Active dag runs at a certain point in time
-        :type active_runs: list[DagRun]
         :param executed_dag_run_dates: Datetime objects for the executed dag runs
-        :type executed_dag_run_dates: set[datetime.datetime]
         :param finished_runs: Number of finished runs so far
-        :type finished_runs: int
         :param total_runs: Number of total dag runs able to run
-        :type total_runs: int
         """
 
         # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
@@ -142,31 +131,19 @@ class BackfillJob(BaseJob):
     ):
         """
         :param dag: DAG object.
-        :type dag: airflow.models.DAG
         :param start_date: start date for the backfill date range.
-        :type start_date: datetime.datetime
         :param end_date: end date for the backfill date range.
-        :type end_date: datetime.datetime
         :param mark_success: flag whether to mark the task auto success.
-        :type mark_success: bool
         :param donot_pickle: whether pickle
-        :type donot_pickle: bool
         :param ignore_first_depends_on_past: whether to ignore depend on past
-        :type ignore_first_depends_on_past: bool
         :param ignore_task_deps: whether to ignore the task dependency
-        :type ignore_task_deps: bool
         :param pool: pool to backfill
-        :type pool: str
         :param delay_on_limit_secs:
         :param verbose:
-        :type verbose: flag to whether display verbose message to backfill console
         :param conf: a dictionary which user could pass k-v pairs for backfill
-        :type conf: dictionary
         :param rerun_failed_tasks: flag to whether to
                                    auto rerun the failed task in backfill
-        :type rerun_failed_tasks: bool
         :param run_backwards: Whether to process the dates from most to least recent
-        :type run_backwards bool
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         :type: bool
@@ -197,7 +174,6 @@ class BackfillJob(BaseJob):
         to tasks to run in case required.
 
         :param ti_status: the internal status of the backfill job tasks
-        :type ti_status: BackfillJob._DagRunTaskStatus
         """
         tis_to_be_scheduled = []
         refreshed_tis = []
@@ -354,9 +330,7 @@ class BackfillJob(BaseJob):
         run in the given dag run.
 
         :param dag_run: the dag run to get the tasks from
-        :type dag_run: airflow.models.DagRun
         :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         """
         tasks_to_run = {}
 
@@ -416,15 +390,10 @@ class BackfillJob(BaseJob):
         them in a backfill process.
 
         :param ti_status: the internal status of the job
-        :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to run the task instances
-        :type executor: BaseExecutor
         :param pickle_id: the pickle_id if dag is pickled, None otherwise
-        :type pickle_id: int
         :param start_date: the start date of the backfill job
-        :type start_date: datetime.datetime
         :param session: the current session object
-        :type session: sqlalchemy.orm.session.Session
         :return: the list of execution_dates for the finished dag runs
         :rtype: list
         """
@@ -710,17 +679,11 @@ class BackfillJob(BaseJob):
         Returns a list of execution dates of the dag runs that were executed.
 
         :param dagrun_infos: Schedule information for dag runs
-        :type dagrun_infos: list[DagRunInfo]
         :param ti_status: internal BackfillJob status structure to tis track progress
-        :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to use, it must be previously started
-        :type executor: BaseExecutor
         :param pickle_id: numeric id of the pickled dag, None if not pickled
-        :type pickle_id: int
         :param start_date: backfill start date
-        :type start_date: datetime.datetime
         :param session: the current session object
-        :type session: sqlalchemy.orm.session.Session
         """
         for dagrun_info in dagrun_infos:
             for dag in [self.dag] + self.dag.subdags:
@@ -860,7 +823,6 @@ class BackfillJob(BaseJob):
         are made in sequence.
 
         :param filter_by_dag_run: the dag_run we want to process, None if all
-        :type filter_by_dag_run: airflow.models.DagRun
         :return: the number of TIs reset
         :rtype: int
         """
