@@ -96,3 +96,9 @@ class TestSubprocessHook(unittest.TestCase):
             stderr=STDOUT,
             stdout=PIPE,
         )
+
+    def test_task_decode(self):
+        hook = SubprocessHook()
+        command=['bash', '-c', "source "+__file__[:-2]+'sh']
+        result = hook.run_command(command=command)
+        assert result.exit_code==0
