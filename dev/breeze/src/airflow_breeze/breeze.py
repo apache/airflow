@@ -18,7 +18,7 @@
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import click
 import click_completion
@@ -26,9 +26,22 @@ from click import ClickException
 from click_completion import get_auto_shell
 
 from airflow_breeze.ci.build_image import build_image
+from airflow_breeze.ci.build_params import BuildParams
 from airflow_breeze.console import console
-from airflow_breeze.global_constants import ALLOWED_BACKENDS, ALLOWED_PYTHON_MAJOR_MINOR_VERSION
-from airflow_breeze.utils.path_utils import __AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, find_airflow_sources_root
+from airflow_breeze.docs_generator import build_documentation
+from airflow_breeze.docs_generator.doc_builder import DocBuilder
+from airflow_breeze.global_constants import (
+    ALLOWED_BACKENDS,
+    ALLOWED_PYTHON_MAJOR_MINOR_VERSION,
+    get_available_packages,
+)
+from airflow_breeze.utils.docker_command_utils import check_docker_resources
+from airflow_breeze.utils.path_utils import (
+    __AIRFLOW_SOURCES_ROOT,
+    BUILD_CACHE_DIR,
+    find_airflow_sources_root,
+    get_airflow_sources_root,
+)
 from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -252,6 +265,9 @@ def setup_autocomplete():
 @click.option('--cheatsheet/--no-cheatsheet', default=None)
 @click.option('--asciiart/--no-asciiart', default=None)
 def change_config(python, backend, cheatsheet, asciiart):
+    """
+    Toggles on/off cheatsheet, asciiart
+    """
     from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
 
     if asciiart:
@@ -274,6 +290,26 @@ def change_config(python, backend, cheatsheet, asciiart):
     if backend is not None:
         write_to_cache_file('BACKEND', backend)
         console.print(f'[blue]Backend cached_value {backend}')
+
+
+@option_verbose
+@main.command(name='build-docs')
+@click.option('--docs-only', is_flag=True)
+@click.option('--spellcheck-only', is_flag=True)
+@click.option('--package-filter', type=click.Choice(get_available_packages()), multiple=True)
+def build_docs(verbose: bool, docs_only: bool, spellcheck_only: bool, package_filter: Tuple[str]):
+    """
+    Builds documentation in the container
+    """
+    params = BuildParams()
+    airflow_sources = str(get_airflow_sources_root())
+    mount_all_flag = False
+    ci_image_name = params.airflow_ci_image_name
+    check_docker_resources(verbose, mount_all_flag, airflow_sources, ci_image_name)
+    doc_builder = DocBuilder(
+        package_filter=package_filter, docs_only=docs_only, spellcheck_only=spellcheck_only
+    )
+    build_documentation.build(verbose, mount_all_flag, airflow_sources, ci_image_name, doc_builder)
 
 
 if __name__ == '__main__':

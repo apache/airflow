@@ -76,13 +76,13 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         TaskInstance,
-        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),  # type: ignore
+        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),  # type: ignore[has-type]
         backref=backref('queued_by_job', uselist=False),
     )
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=id == foreign(DagRun.creating_job_id),
+        primaryjoin=id == foreign(DagRun.creating_job_id),  # type: ignore[has-type]
         backref=backref('creating_job'),
     )
 
