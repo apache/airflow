@@ -18,7 +18,7 @@
 #
 """This module contains Google Vertex AI operators."""
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
@@ -29,6 +29,9 @@ from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
 VERTEX_AI_MODEL_LINK = (
@@ -191,7 +194,7 @@ class CreateAutoMLForecastingTrainingJobOperator(_AutoMLTrainingJobBaseOperator)
         self.validation_options = validation_options
         self.budget_milli_node_hours = budget_milli_node_hours
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         model = self.hook.create_auto_ml_forecasting_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -285,7 +288,7 @@ class CreateAutoMLImageTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.budget_milli_node_hours = budget_milli_node_hours
         self.disable_early_stopping = disable_early_stopping
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         model = self.hook.create_auto_ml_image_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -379,7 +382,7 @@ class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
             export_evaluated_data_items_override_destination
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         model = self.hook.create_auto_ml_tabular_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -461,7 +464,7 @@ class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.validation_filter_split = validation_filter_split
         self.test_filter_split = test_filter_split
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         model = self.hook.create_auto_ml_text_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -524,7 +527,7 @@ class CreateAutoMLVideoTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.training_filter_split = training_filter_split
         self.test_filter_split = test_filter_split
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         model = self.hook.create_auto_ml_video_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -590,7 +593,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -657,7 +660,7 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

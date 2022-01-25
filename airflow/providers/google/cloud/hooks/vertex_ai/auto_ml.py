@@ -222,7 +222,7 @@ class AutoMLHook(GoogleBaseHook):
         """Returns unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
-    def wait_for_operation(self, timeout: float, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
