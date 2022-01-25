@@ -17,7 +17,7 @@
 # under the License.
 
 """This module allows to connect to a Github."""
-
+import logging
 from typing import Dict, Optional
 
 from github import Github as GithubClient
@@ -29,9 +29,9 @@ class GithubHook(BaseHook):
     """
     Interact with Github.
 
-    Performs a connection to Github and retrieves client.
+    Performs a connection to GitHub and retrieves client.
 
-    :param github_conn_id: Reference to :ref:`Github connection id <howto/connection:github>`.
+    :param github_conn_id: Reference to :ref:`GitHub connection id <howto/connection:github>`.
     :type github_conn_id: str
     """
 
@@ -48,28 +48,34 @@ class GithubHook(BaseHook):
 
     def get_conn(self) -> GithubClient:
         """
-        Function that initiates a new Github connection
-        with token and hostname name
+        Function that initiates a new GitHub connection
+        with token and hostname ( for GitHub Enterprise )
         """
         if self.client is not None:
             return self.client
 
-        access_token = self.get_connection(self.github_conn_id).password
+        conn = self.get_connection(self.github_conn_id)
+        access_token = conn.password
+        host = conn.host
 
-        self.client = GithubClient(login_or_token=access_token)
+        if not host:
+            self.client = GithubClient(login_or_token=access_token)
+        else:
+            self.client = GithubClient(login_or_token=access_token, base_url=host)
+
         return self.client
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'login', 'extra'],
+            "hidden_fields": ['schema', 'port', 'login', 'extra'],
             "relabeling": {
-                # 'host': 'Github Enterprise Url',
+                'host': 'Github Enterprise Url (Optional)',
                 'password': 'Github Access Token',
             },
             "placeholders": {
-                # 'host': 'https://{hostname}/api/v3',
+                'host': 'https://{hostname}/api/v3 (for Github Enterprise Connection)',
                 'password': 'token credentials auth',
             },
         }

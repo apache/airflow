@@ -24,7 +24,7 @@ from airflow.providers.github.hooks.github import GithubHook
 
 @task(task_id="github_task")
 def test_github_hook():
-    bucket_name = 'test-influx'
+    bucket_name = 'test-github'
     github_hook = GithubHook()
     client = github_hook.get_conn()
     print(client)
