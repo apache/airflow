@@ -156,7 +156,7 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     popd
     ```
 
-- Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
+- Tag & Push the constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
     git checkout origin/constraints-${VERSION_BRANCH}
@@ -297,6 +297,7 @@ protected_branches:
    git checkout -b constraints-${BRANCH_PREFIX}
    git push origin tag constraints-${BRANCH_PREFIX}
    ```
+
 
 ## Prepare PyPI convenience "snapshot" packages
 
@@ -794,6 +795,13 @@ At this point we release an official package:
     git checkout constraints-${RC}
     git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
     git push origin tag "constraints-${VERSION}"
+    ```
+
+- In case you release "latest stable" version, also update "latest" constraints
+
+    ```shell script
+    git tag -f -s "constraints-latest" -m "Latest constraints set to Apache Airflow ${VERSION}"
+    git push origin tag "constraints-latest"
     ```
 
 - Push Tag for the final version
