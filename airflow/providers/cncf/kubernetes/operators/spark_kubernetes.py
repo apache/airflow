@@ -34,7 +34,7 @@ class SparkKubernetesOperator(BaseOperator):
         For more detail about Spark Application Object have a look at the reference:
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
-    :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' 
+    :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication'
         as either a JSON string or a Dict.
     :type application_file:  str
     :param namespace: kubernetes namespace to put sparkApplication

@@ -236,7 +236,7 @@ class KubernetesHook(BaseHook):
         try:
             api.delete_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, name=name
-                )
+            )
         except client.rest.ApiException as e:
             raise AirflowException(f"Exception when calling -> delete_namespaced_custom_object: {e}\n")
         return None
