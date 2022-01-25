@@ -81,8 +81,23 @@ In the simplest case building your image consists of those steps:
 
 4) Once you build the image locally you have usually several options to make them available for your deployment:
 
-* For ``docker-compose`` deployment, that's all you need. The image is stored in docker engine cache
-  and docker compose will use it from there.
+* For ``docker-compose`` deployment, if you've already built your image, and want to continue
+  building the image manually when needed with ``docker build``, you can edit the
+  docker-compose.yaml and replace the "apache/airflow:<version>" image with the
+  image you've just built ``my-image:0.0.1`` - it will be used from your local Docker
+  Engine cache. You can also simply set ``AIRFLOW_IMAGE_NAME`` variable to
+  point to your image and ``docker-compose`` will use it automatically without having
+  to modify the file.
+
+* Also for ``docker-compose`` deployment, you can delegate image building to the docker-compose.
+  To do that - open your ``docker-compose.yaml`` file and search for the phrase "In order to add custom dependencies".
+  Follow these instructions of commenting the "image" line and uncommenting the "build" line.
+  This is a standard docker-compose feature and you can read about it in
+  `Docker Compose build reference <https://docs.docker.com/compose/reference/build/>`_.
+  Run ``docker-compose build`` to build the images. Similarly as in the previous case, the
+  image is stored in Docker engine cache and Docker Compose will use it from there.
+  The ``docker-compose build`` command uses the same ``docker build`` command that
+  you can run manually under-the-hood.
 
 * For some - development targeted - Kubernetes deployments you can load the images directly to
   Kubernetes clusters. Clusters such as ``kind`` or ``minikube`` have dedicated ``load`` method to load the
