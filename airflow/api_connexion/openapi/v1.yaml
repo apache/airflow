@@ -2434,6 +2434,11 @@ components:
         notification_sent:
           type: boolean
 
+    NullableSLAMiss:
+      oneOf:
+        - type: null
+        - $ref: '#/components/schemas/SLAMiss'
+
     TaskInstance:
       type: object
       properties:
@@ -2462,8 +2467,7 @@ components:
           type: number
           nullable: true
         state:
-          $ref: '#/components/schemas/TaskState'
-          nullable: true
+          $ref: '#/components/schemas/NullableTaskState'
         try_number:
           type: integer
         max_tries:
@@ -2494,8 +2498,7 @@ components:
         executor_config:
           type: string
         sla_miss:
-          $ref: '#/components/schemas/SLAMiss'
-          nullable: true
+          $ref: '#/components/schemas/NullableSLAMiss'
 
     TaskInstanceCollection:
       type: object
@@ -2657,8 +2660,7 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
-              $ref: '#/components/schemas/TimeDelta'
+              $ref: '#/components/schemas/NullableTimeDelta'
             doc_md:
               type: string
               readOnly: true
@@ -2748,11 +2750,9 @@ components:
           type: number
           readOnly: true
         execution_timeout:
-          $ref: '#/components/schemas/TimeDelta'
-          nullable: true
+          $ref: '#/components/schemas/NullableTimeDelta'
         retry_delay:
-          $ref: '#/components/schemas/TimeDelta'
-          nullable: true
+          $ref: '#/components/schemas/NullableTimeDelta'
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -3302,6 +3302,13 @@ components:
         seconds: {type: integer}
         microseconds: {type: integer}
 
+    NullableTimeDelta:
+      description: |
+        nullable timeDelta. marks a timeDelta object to be nullable.
+      oneOf:
+        - type: null
+        - $ref: '#/components/schemas/TimeDelta'
+
     RelativeDelta:
       description: Relative delta
       # TODO: Why we need these fields?
@@ -3441,6 +3448,11 @@ components:
         - deferred
         - sensing
         - removed
+
+    NullableTaskState:
+      oneOf:
+        - type: null
+        - $ref: '#/components/schemas/TaskState'
 
     DagState:
       description: |
