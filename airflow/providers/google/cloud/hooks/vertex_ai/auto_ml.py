@@ -270,25 +270,19 @@ class AutoMLHook(GoogleBaseHook):
         Create an AutoML Tabular Training Job.
 
         :param project_id: Required. Project to run training in.
-        :type project_id: str
         :param region: Required. Location to run training in.
-        :type region: str
         :param display_name: Required. The user-defined name of this TrainingPipeline.
-        :type display_name: str
         :param dataset: Required. The dataset within the same Project from which data will be used to train
             the Model. The Dataset must use schema compatible with Model being trained, and what is
             compatible should be described in the used TrainingPipeline's [training_task_definition]
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition]. For tabular
             Datasets, all their data is exported to training, to pick and choose from.
-        :type dataset: datasets.TabularDataset
         :param target_column: Required. The name of the column values of which the Model is to predict.
-        :type target_column: str
         :param optimization_prediction_type: The type of prediction the Model is to produce.
             "classification" - Predict one out of multiple target values is picked for each row.
             "regression" - Predict a value based on its relation to other values. This type is available only
             to columns that contain semantically numeric values, i.e. integers or floating point number, even
             if stored as e.g. strings.
-        :type optimization_prediction_type: str
         :param optimization_objective: Optional. Objective function the Model is to be optimized towards.
             The training task creates a Model that maximizes/minimizes the value of the objective function
             over the validation set.
@@ -313,7 +307,6 @@ class AutoMLHook(GoogleBaseHook):
             "minimize-rmse" (default) - Minimize root-mean-squared error (RMSE).
             "minimize-mae" - Minimize mean-absolute error (MAE).
             "minimize-rmsle" - Minimize root-mean-squared log error (RMSLE).
-        :type optimization_objective: str
         :param column_specs: Optional. Alternative to column_transformations where the keys of the dict are
             column names and their respective values are one of AutoMLTabularTrainingJob.column_data_types.
             When creating transformation for BigQuery Struct column, the column should be flattened using "."
@@ -321,7 +314,6 @@ class AutoMLHook(GoogleBaseHook):
             no transformations on it, such a column is ignored by the training, except for the targetColumn,
             which should have no transformations defined on. Only one of column_transformations or
             column_specs should be passed.
-        :type column_specs: Dict[str, str]
         :param column_transformations: Optional. Transformations to apply to the input columns (i.e. columns
             other than the targetColumn). Each transformation may produce multiple result values from the
             column's value, and all are used for training. When creating transformation for BigQuery Struct
@@ -330,21 +322,17 @@ class AutoMLHook(GoogleBaseHook):
             ignored by the training, except for the targetColumn, which should have no transformations
             defined on. Only one of column_transformations or column_specs should be passed. Consider using
             column_specs as column_transformations will be deprecated eventually.
-        :type column_transformations: List[Dict[str, Dict[str, str]]]
         :param optimization_objective_recall_value: Optional. Required when maximize-precision-at-recall
             optimizationObjective was picked, represents the recall value at which the optimization is done.
             The minimum value is 0 and the maximum is 1.0.
-        :type optimization_objective_recall_value: float
         :param optimization_objective_precision_value: Optional. Required when maximize-recall-at-precision
             optimizationObjective was picked, represents the precision value at which the optimization is
             done.
             The minimum value is 0 and the maximum is 1.0.
-        :type optimization_objective_precision_value: float
         :param labels: Optional. The labels with user-defined metadata to organize TrainingPipelines. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type labels: Dict[str, str]
         :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the training pipeline. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``. The key needs to be
@@ -352,40 +340,32 @@ class AutoMLHook(GoogleBaseHook):
             be secured by this key.
             Note: Model trained by this TrainingPipeline is also secured by this key if ``model_to_upload``
             is not set separately.
-        :type: training_encryption_spec_key_name: str
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the model. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``. The key needs to be
             in the same region as where the compute resource is created. If set, the trained Model will be
             secured by this key.
-        :type model_encryption_spec_key_name: str
         :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
             the Model. This is ignored if Dataset is not provided.
-        :type training_fraction_split: float
         :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
             validate the Model. This is ignored if Dataset is not provided.
-        :type validation_fraction_split: float
         :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
             the Model. This is ignored if Dataset is not provided.
-        :type test_fraction_split: float
         :param predefined_split_column_name: Optional. The key is a name of one of the Dataset's data
             columns. The value of the key (either the label's value or value in the column) must be one of
             {``training``, ``validation``, ``test``}, and it defines to which set the given piece of data is
             assigned. If for a piece of data the key is not present or has an invalid value, that piece is
             ignored by the pipeline. Supported only for tabular and time series Datasets.
-        :type predefined_split_column_name: str
         :param timestamp_split_column_name: Optional. The key is a name of one of the Dataset's data columns.
             The value of the key values of the key (the values in the column) must be in RFC 3339 `date-time`
             format, where `time-offset` = `"Z"` (e.g. 1985-04-12T23:20:50.52Z). If for a piece of data the
             key is not present or has an invalid value, that piece is ignored by the pipeline. Supported only
             for tabular and time series Datasets. This parameter must be used with training_fraction_split,
             validation_fraction_split and test_fraction_split.
-        :type timestamp_split_column_name: str
         :param weight_column: Optional. Name of the column that should be used as the weight column. Higher
             values in this column give more importance to the row during Model training. The column must have
             numeric values between 0 and 10000 inclusively, and 0 value means that the row is ignored. If the
             weight column field is not set, then all rows are assumed to have equal weight of 1.
-        :type weight_column: str
         :param budget_milli_node_hours (int): Optional. The train budget of creating this Model, expressed in
             milli node hours i.e. 1,000 value in this field means 1 node hour. The training cost of the model
             will not exceed this budget. The final cost will be attempted to be close to the budget, though
@@ -393,24 +373,19 @@ class AutoMLHook(GoogleBaseHook):
             happen when further model training ceases to provide any improvements. If the budget is set to a
             value known to be insufficient to train a Model for the given training set, the training won't be
             attempted and will error. The minimum value is 1000 and the maximum is 72000.
-        :type budget_milli_node_hours: int
         :param model_display_name: Optional. If the script produces a managed Vertex AI Model. The display
             name of the Model. The name can be up to 128 characters long and can be consist of any UTF-8
             characters. If not provided upon creation, the job's display_name is used.
-        :type model_display_name: str
         :param model_labels: Optional. The labels with user-defined metadata to organize your Models. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type model_labels Dict[str, str]
         :param disable_early_stopping: Required. If true, the entire budget is used. This disables the early
             stopping feature. By default, the early stopping feature is enabled, which means that training
             might stop before the entire training budget has been used, if further training does no longer
             brings significant improvement to the model.
-        :type disable_early_stopping: bool
         :param export_evaluated_data_items: Whether to export the test set predictions to a BigQuery table.
             If False, then the export is not performed.
-        :type export_evaluated_data_items: bool
         :param export_evaluated_data_items_bigquery_destination_uri: Optional. URI of desired destination
             BigQuery table for exported test set predictions.
 
@@ -421,17 +396,14 @@ class AutoMLHook(GoogleBaseHook):
             .evaluated_examples``
 
             Applies only if [export_evaluated_data_items] is True.
-        :type export_evaluated_data_items_bigquery_destination_uri: string
         :param export_evaluated_data_items_override_destination: Whether to override the contents of
             [export_evaluated_data_items_bigquery_destination_uri], if the table exists, for exported test
             set predictions. If False, and the table exists, then the training job will fail. Applies only if
             [export_evaluated_data_items] is True and [export_evaluated_data_items_bigquery_destination_uri]
             is specified.
-        :type export_evaluated_data_items_override_destination: bool
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
-        :type sync: bool
         """
         self._job = self.get_auto_ml_tabular_training_job(
             project=project_id,
@@ -514,43 +486,31 @@ class AutoMLHook(GoogleBaseHook):
         Create an AutoML Forecasting Training Job.
 
         :param project_id: Required. Project to run training in.
-        :type project_id: str
         :param region: Required. Location to run training in.
-        :type region: str
         :param display_name: Required. The user-defined name of this TrainingPipeline.
-        :type display_name: str
         :param dataset: Required. The dataset within the same Project from which data will be used to train
             the Model. The Dataset must use schema compatible with Model being trained, and what is
             compatible should be described in the used TrainingPipeline's [training_task_definition]
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition]. For time series
             Datasets, all their data is exported to training, to pick and choose from.
-        :type dataset: datasets.TimeSeriesDataset
         :param target_column: Required. Name of the column that the Model is to predict values for.
-        :type target_column: str
         :param time_column: Required. Name of the column that identifies time order in the time series.
-        :type time_column: str
         :param time_series_identifier_column: Required. Name of the column that identifies the time series.
-        :type time_series_identifier_column: str
         :param unavailable_at_forecast_columns: Required. Column names of columns that are unavailable at
             forecast. Each column contains information for the given entity (identified by the
             [time_series_identifier_column]) that is unknown before the forecast (e.g. population of a city
             in a given year, or weather on a given day).
-        :type unavailable_at_forecast_columns: List[str]
         :param available_at_forecast_columns: Required. Column names of columns that are available at
             forecast. Each column contains information for the given entity (identified by the
             [time_series_identifier_column]) that is known at forecast.
-        :type available_at_forecast_columns: List[str]
         :param forecast_horizon: Required. The amount of time into the future for which forecasted values for
             the target are returned. Expressed in number of units defined by the [data_granularity_unit] and
             [data_granularity_count] field. Inclusive.
-        :type forecast_horizon: int
         :param data_granularity_unit: Required. The data granularity unit. Accepted values are ``minute``,
             ``hour``, ``day``, ``week``, ``month``, ``year``.
-        :type data_granularity_unit: str
         :param data_granularity_count: Required. The number of data granularity units between data points in
             the training data. If [data_granularity_unit] is `minute`, can be 1, 5, 10, 15, or 30. For all
             other values of [data_granularity_unit], must be 1.
-        :type data_granularity_count: int
         :param optimization_objective: Optional. Objective function the model is to be optimized towards. The
             training process creates a Model that optimizes the value of the objective function over the
             validation set. The supported optimization objectives:
@@ -562,7 +522,6 @@ class AutoMLHook(GoogleBaseHook):
                 mean-absolute-error (MAE).
             "minimize-quantile-loss" - Minimize the quantile loss at the defined quantiles. (Set this
                 objective to build quantile forecasts.)
-        :type optimization_objective: str
         :param column_specs: Optional. Alternative to column_transformations where the keys of the dict are
             column names and their respective values are one of AutoMLTabularTrainingJob.column_data_types.
             When creating transformation for BigQuery Struct column, the column should be flattened using "."
@@ -570,7 +529,6 @@ class AutoMLHook(GoogleBaseHook):
             no transformations on it, such a column is ignored by the training, except for the targetColumn,
             which should have no transformations defined on. Only one of column_transformations or
             column_specs should be passed.
-        :type column_specs: Dict[str, str]
         :param column_transformations: Optional. Transformations to apply to the input columns (i.e. columns
             other than the targetColumn). Each transformation may produce multiple result values from the
             column's value, and all are used for training. When creating transformation for BigQuery Struct
@@ -579,12 +537,10 @@ class AutoMLHook(GoogleBaseHook):
             ignored by the training, except for the targetColumn, which should have no transformations
             defined on. Only one of column_transformations or column_specs should be passed. Consider using
             column_specs as column_transformations will be deprecated eventually.
-        :type column_transformations: List[Dict[str, Dict[str, str]]]
         :param labels: Optional. The labels with user-defined metadata to organize TrainingPipelines. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type labels: Dict[str, str]
         :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the training pipeline. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``. The key needs to be
@@ -592,46 +548,36 @@ class AutoMLHook(GoogleBaseHook):
             be secured by this key.
             Note: Model trained by this TrainingPipeline is also secured by this key if ``model_to_upload``
             is not set separately.
-        :type training_encryption_spec_key_name: str
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the model. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``. The key needs to be
             in the same region as where the compute resource is created.
             If set, the trained Model will be secured by this key.
-        :type model_encryption_spec_key_name: str
         :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
             the Model. This is ignored if Dataset is not provided.
-        :type training_fraction_split: float
         :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
             validate the Model. This is ignored if Dataset is not provided.
-        :type validation_fraction_split: float
         :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
             the Model. This is ignored if Dataset is not provided.
-        :type test_fraction_split: float
         :param predefined_split_column_name: Optional. The key is a name of one of the Dataset's data
             columns. The value of the key (either the label's value or value in the column) must be one of
             {``TRAIN``, ``VALIDATE``, ``TEST``}, and it defines to which set the given piece of data is
             assigned. If for a piece of data the key is not present or has an invalid value, that piece is
             ignored by the pipeline.
             Supported only for tabular and time series Datasets.
-        :type predefined_split_column_name: str
         :param weight_column: Optional. Name of the column that should be used as the weight column. Higher
             values in this column give more importance to the row during Model training. The column must have
             numeric values between 0 and 10000 inclusively, and 0 value means that the row is ignored. If the
             weight column field is not set, then all rows are assumed to have equal weight of 1.
-        :type weight_column: str
         :param time_series_attribute_columns: Optional. Column names that should be used as attribute
             columns. Each column is constant within a time series.
-        :type time_series_attribute_columns: List[str]
         :param context_window: Optional. The amount of time into the past training and prediction data is
             used for model training and prediction respectively. Expressed in number of units defined by the
             [data_granularity_unit] and [data_granularity_count] fields. When not provided uses the default
             value of 0 which means the model sets each series context window to be 0 (also known as "cold
             start"). Inclusive.
-        :type context_window: int
         :param export_evaluated_data_items: Whether to export the test set predictions to a BigQuery table.
             If False, then the export is not performed.
-        :type export_evaluated_data_items: bool
         :param export_evaluated_data_items_bigquery_destination_uri: Optional. URI of desired destination
             BigQuery table for exported test set predictions. Expected format:
             ``bq://<project_id>:<dataset_id>:<table>``
@@ -639,23 +585,19 @@ class AutoMLHook(GoogleBaseHook):
             ``<project_id>:export_evaluated_examples_<model_name>_<yyyy_MM_dd'T'HH_mm_ss_SSS'Z'>
             .evaluated_examples``
             Applies only if [export_evaluated_data_items] is True.
-        :type export_evaluated_data_items_bigquery_destination_uri: string
         :param export_evaluated_data_items_override_destination: Whether to override the contents of
             [export_evaluated_data_items_bigquery_destination_uri], if the table exists, for exported test
             set predictions. If False, and the table exists, then the training job will fail.
             Applies only if [export_evaluated_data_items] is True and
             [export_evaluated_data_items_bigquery_destination_uri] is specified.
-        :type export_evaluated_data_items_override_destination: bool
         :param quantiles: Quantiles to use for the `minizmize-quantile-loss`
             [AutoMLForecastingTrainingJob.optimization_objective]. This argument is required in this case.
             Accepts up to 5 quantiles in the form of a double from 0 to 1, exclusive. Each quantile must be
             unique.
-        :type quantiles: List[float]
         :param validation_options: Validation options for the data validation component. The available
             options are: "fail-pipeline" - (default), will validate against the validation and fail the
             pipeline if it fails. "ignore-validation" - ignore the results of the validation and continue the
             pipeline
-        :type validation_options: str
         :param budget_milli_node_hours: Optional. The train budget of creating this Model, expressed in milli
             node hours i.e. 1,000 value in this field means 1 node hour. The training cost of the model will
             not exceed this budget. The final cost will be attempted to be close to the budget, though may
@@ -663,20 +605,16 @@ class AutoMLHook(GoogleBaseHook):
             when further model training ceases to provide any improvements. If the budget is set to a value
             known to be insufficient to train a Model for the given training set, the training won't be
             attempted and will error. The minimum value is 1000 and the maximum is 72000.
-        :type budget_milli_node_hours: int
         :param model_display_name: Optional. If the script produces a managed Vertex AI Model. The display
             name of the Model. The name can be up to 128 characters long and can be consist of any UTF-8
             characters. If not provided upon creation, the job's display_name is used.
-        :type model_display_name: str
         :param model_labels: Optional. The labels with user-defined metadata to organize your Models. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type model_labels: Dict[str, str]
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
-        :type sync: bool
         """
         self._job = self.get_auto_ml_forecasting_training_job(
             project=project_id,
@@ -753,29 +691,23 @@ class AutoMLHook(GoogleBaseHook):
         Create an AutoML Image Training Job.
 
         :param project_id: Required. Project to run training in.
-        :type project_id: str
         :param region: Required. Location to run training in.
-        :type region: str
         :param display_name: Required. The user-defined name of this TrainingPipeline.
-        :type display_name: str
         :param dataset: Required. The dataset within the same Project from which data will be used to train
             the Model. The Dataset must use schema compatible with Model being trained, and what is
             compatible should be described in the used TrainingPipeline's [training_task_definition]
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition]. For tabular
             Datasets, all their data is exported to training, to pick and choose from.
-        :type dataset: datasets.ImageDataset
         :param prediction_type: The type of prediction the Model is to produce, one of:
             "classification" - Predict one out of multiple target values is picked for each row.
             "object_detection" - Predict a value based on its relation to other values. This type is
                 available only to columns that contain semantically numeric values, i.e. integers or floating
                 point number, even if stored as e.g. strings.
-        :type prediction_type: str
         :param multi_label: Required. Default is False. If false, a single-label (multi-class) Model will be
             trained (i.e. assuming that for each image just up to one annotation may be applicable). If true,
             a multi-label Model will be trained (i.e. assuming that for each image multiple annotations may
             be applicable).
             This is only applicable for the "classification" prediction_type and will be ignored otherwise.
-        :type multi_label: bool
         :param model_type: Required. One of the following:
             "CLOUD" - Default for Image Classification.
                 A Model best tailored to be used within Google Cloud, and
@@ -802,17 +734,14 @@ class AutoMLHook(GoogleBaseHook):
                 or Core ML model and used on a mobile or edge device afterwards.
                 Expected to have a higher latency, but should also have a higher
                 prediction quality than other mobile models.
-        :type model_type: str
         :param base_model: Optional. Only permitted for Image Classification models. If it is specified, the
             new model will be trained based on the `base` model. Otherwise, the new model will be trained
             from scratch. The `base` model must be in the same Project and Location as the new Model to
             train, and have the same model_type.
-        :type base_model: models.Model
         :param labels: Optional. The labels with user-defined metadata to organize TrainingPipelines. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type labels: Dict[str, str]
         :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the training pipeline. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``. The key needs to be
@@ -820,40 +749,32 @@ class AutoMLHook(GoogleBaseHook):
             be secured by this key.
             Note: Model trained by this TrainingPipeline is also secured by this key if ``model_to_upload``
             is not set separately.
-        :type training_encryption_spec_key_name: str
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the model. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
             The key needs to be in the same region as where the compute resource is created.
             If set, the trained Model will be secured by this key.
-        :type model_encryption_spec_key_name: str
         :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
             the Model. This is ignored if Dataset is not provided.
-        :type training_fraction_split: float
         :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
             validate the Model. This is ignored if Dataset is not provided.
-        :type validation_fraction_split: float
         :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
             the Model. This is ignored if Dataset is not provided.
-        :type test_fraction_split: float
         :param training_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
             this filter are used to train the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type training_filter_split: str
         :param validation_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
             this filter are used to validate the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type validation_filter_split: str
         :param test_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match this
             filter are used to test the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type test_filter_split: str
         :param budget_milli_node_hours: Optional. The train budget of creating this Model, expressed in milli
             node hours i.e. 1,000 value in this field means 1 node hour.
             Defaults by `prediction_type`:
@@ -868,25 +789,20 @@ class AutoMLHook(GoogleBaseHook):
             discretion. This especially may happen when further model training ceases to provide any
             improvements. If the budget is set to a value known to be insufficient to train a Model for the
             given training set, the training won't be attempted and will error.
-        :type budget_milli_node_hours: int
         :param model_display_name: Optional. The display name of the managed Vertex AI Model. The name can be
             up to 128 characters long and can be consist of any UTF-8 characters. If not provided upon
             creation, the job's display_name is used.
-        :type model_display_name: str
         :param model_labels: Optional. The labels with user-defined metadata to organize your Models. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type model_labels: Dict[str, str]
         :param disable_early_stopping: Required. If true, the entire budget is used. This disables the early
             stopping feature. By default, the early stopping feature is enabled, which means that training
             might stop before the entire training budget has been used, if further training does no longer
             brings significant improvement to the model.
-        :type disable_early_stopping: bool
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
-        :type sync: bool
         """
         self._job = self.get_auto_ml_image_training_job(
             project=project_id,
@@ -946,16 +862,12 @@ class AutoMLHook(GoogleBaseHook):
         Create an AutoML Text Training Job.
 
         :param project_id: Required. Project to run training in.
-        :type project_id: str
         :param region: Required. Location to run training in.
-        :type region: str
         :param display_name: Required. The user-defined name of this TrainingPipeline.
-        :type display_name: str
         :param dataset: Required. The dataset within the same Project from which data will be used to train
             the Model. The Dataset must use schema compatible with Model being trained, and what is
             compatible should be described in the used TrainingPipeline's [training_task_definition]
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition].
-        :type dataset: datasets.TextDataset
         :param prediction_type: The type of prediction the Model is to produce, one of:
             "classification" - A classification model analyzes text data and returns a list of categories
                 that apply to the text found in the data. Vertex AI offers both single-label and multi-label
@@ -965,24 +877,20 @@ class AutoMLHook(GoogleBaseHook):
             "sentiment" - A sentiment analysis model inspects text data and identifies the prevailing
                 emotional opinion within it, especially to determine a writer's attitude as positive,
                 negative, or neutral.
-        :type prediction_type: str
         :param multi_label: Required and only applicable for text classification task. If false, a
             single-label (multi-class) Model will be trained (i.e. assuming that for each text snippet just
             up to one annotation may be applicable). If true, a multi-label Model will be trained (i.e.
             assuming that for each text snippet multiple annotations may be applicable).
-        :type multi_label: bool
         :param sentiment_max: Required and only applicable for sentiment task. A sentiment is expressed as an
             integer ordinal, where higher value means a more positive sentiment. The range of sentiments that
             will be used is between 0 and sentimentMax (inclusive on both ends), and all the values in the
             range must be represented in the dataset before a model can be created. Only the Annotations with
             this sentimentMax will be used for training. sentimentMax value must be between 1 and 10
             (inclusive).
-        :type sentiment_max: int
         :param labels: Optional. The labels with user-defined metadata to organize TrainingPipelines. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type labels: Dict[str, str]
         :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the training pipeline. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
@@ -990,53 +898,42 @@ class AutoMLHook(GoogleBaseHook):
             If set, this TrainingPipeline will be secured by this key.
             Note: Model trained by this TrainingPipeline is also secured by this key if ``model_to_upload``
             is not set separately.
-        :type training_encryption_spec_key_name: str
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the model. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
             The key needs to be in the same region as where the compute resource is created.
             If set, the trained Model will be secured by this key.
-        :type model_encryption_spec_key_name: str
         :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
             the Model. This is ignored if Dataset is not provided.
-        :type training_fraction_split: float
         :param validation_fraction_split: Optional. The fraction of the input data that is to be used to
             validate the Model. This is ignored if Dataset is not provided.
-        :type validation_fraction_split: float
         :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
             the Model. This is ignored if Dataset is not provided.
-        :type test_fraction_split: float
         :param training_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
             this filter are used to train the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type training_filter_split: str
         :param validation_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
             this filter are used to validate the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type validation_filter_split: str
         :param test_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match this
             filter are used to test the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type test_filter_split: str
         :param model_display_name: Optional. The display name of the managed Vertex AI Model. The name can be
             up to 128 characters long and can consist of any UTF-8 characters.
             If not provided upon creation, the job's display_name is used.
-        :type model_display_name: str
         :param model_labels: Optional. The labels with user-defined metadata to organize your Models. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type model_labels: Dict[str, str]
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
-        :type sync: bool
         """
         self._job = self.get_auto_ml_text_training_job(
             project=project_id,
@@ -1090,17 +987,13 @@ class AutoMLHook(GoogleBaseHook):
         Create an AutoML Video Training Job.
 
         :param project_id: Required. Project to run training in.
-        :type project_id: str
         :param region: Required. Location to run training in.
-        :type region: str
         :param display_name: Required. The user-defined name of this TrainingPipeline.
-        :type display_name: str
         :param dataset: Required. The dataset within the same Project from which data will be used to train
             the Model. The Dataset must use schema compatible with Model being trained, and what is
             compatible should be described in the used TrainingPipeline's [training_task_definition]
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition]. For tabular
             Datasets, all their data is exported to training, to pick and choose from.
-        :type dataset: datasets.VideoDataset
         :param prediction_type: The type of prediction the Model is to produce, one of:
             "classification" - A video classification model classifies shots and segments in your videos
                 according to your own defined labels.
@@ -1109,7 +1002,6 @@ class AutoMLHook(GoogleBaseHook):
                 pre-defined, custom labels.
             "action_recognition" - A video action reconition model pinpoints the location of actions with
                 short temporal durations (~1 second).
-        :type prediction_type: str
         :param model_type: Required. One of the following:
             "CLOUD" - available for "classification", "object_tracking" and "action_recognition"
                 A Model best tailored to be used within Google Cloud,
@@ -1133,12 +1025,10 @@ class AutoMLHook(GoogleBaseHook):
                 A model that trades off quality for low latency, to be
                 exported (see ModelService.ExportModel) and used on an
                 NVIDIA Jetson device.
-        :type model_type: str
         :param labels: Optional. The labels with user-defined metadata to organize TrainingPipelines. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type labels: Dict[str, str]
         :param training_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the training pipeline. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
@@ -1146,44 +1036,35 @@ class AutoMLHook(GoogleBaseHook):
             If set, this TrainingPipeline will be secured by this key.
             Note: Model trained by this TrainingPipeline is also secured by this key if ``model_to_upload``
             is not set separately.
-        :type training_encryption_spec_key_name: str
         :param model_encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer
             managed encryption key used to protect the model. Has the form:
             ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
             The key needs to be in the same region as where the compute resource is created.
             If set, the trained Model will be secured by this key.
-        :type model_encryption_spec_key_name: str
         :param training_fraction_split: Optional. The fraction of the input data that is to be used to train
             the Model. This is ignored if Dataset is not provided.
-        :type training_fraction_split: float
         :param test_fraction_split: Optional. The fraction of the input data that is to be used to evaluate
             the Model. This is ignored if Dataset is not provided.
-        :type test_fraction_split: float
         :param training_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match
             this filter are used to train the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type training_filter_split: str
         :param test_filter_split: Optional. A filter on DataItems of the Dataset. DataItems that match this
             filter are used to test the Model. A filter with same syntax as the one used in
             DatasetService.ListDataItems may be used. If a single DataItem is matched by more than one of the
             FilterSplit filters, then it is assigned to the first set that applies to it in the training,
             validation, test order. This is ignored if Dataset is not provided.
-        :type test_filter_split: str
         :param model_display_name: Optional. The display name of the managed Vertex AI Model. The name can be
             up to 128 characters long and can be consist of any UTF-8 characters. If not provided upon
             creation, the job's display_name is used.
-        :type model_display_name: str
         :param model_labels: Optional. The labels with user-defined metadata to organize your Models. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
             allowed. See https://goo.gl/xmQnxf for more information and examples of labels.
-        :type model_labels: Dict[str, str]
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
-        :type sync: bool
         """
         self._job = self.get_auto_ml_video_training_job(
             project=project_id,
@@ -1224,17 +1105,11 @@ class AutoMLHook(GoogleBaseHook):
         Deletes a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param training_pipeline: Required. The name of the TrainingPipeline resource to be deleted.
-        :type training_pipeline: str
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_pipeline_service_client(region)
         name = client.training_pipeline_path(project_id, region, training_pipeline)
@@ -1263,17 +1138,11 @@ class AutoMLHook(GoogleBaseHook):
         Gets a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param training_pipeline: Required. The name of the TrainingPipeline resource.
-        :type training_pipeline: str
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_pipeline_service_client(region)
         name = client.training_pipeline_path(project_id, region, training_pipeline)
@@ -1305,9 +1174,7 @@ class AutoMLHook(GoogleBaseHook):
         Lists TrainingPipelines in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param filter: Optional. The standard list filter. Supported fields:
 
             -  ``display_name`` supports = and !=.
@@ -1323,23 +1190,16 @@ class AutoMLHook(GoogleBaseHook):
             -  ``NOT display_name="my_pipeline"``
 
             -  ``state="PIPELINE_STATE_FAILED"``
-        :type filter: str
         :param page_size: Optional. The standard list page size.
-        :type page_size: int
         :param page_token: Optional. The standard list page token. Typically obtained via
             [ListTrainingPipelinesResponse.next_page_token][google.cloud.aiplatform.v1.ListTrainingPipelinesResponse.next_page_token]
             of the previous
             [PipelineService.ListTrainingPipelines][google.cloud.aiplatform.v1.PipelineService.ListTrainingPipelines]
             call.
-        :type page_token: str
         :param read_mask: Optional. Mask specifying which fields to read.
-        :type read_mask: google.protobuf.field_mask_pb2.FieldMask
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_pipeline_service_client(region)
         parent = client.common_location_path(project_id, region)
