@@ -81,6 +81,13 @@ You can create the URL to the file substituting the variables in the template be
 
   https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt
 
+You can also use "latest" as version when you install "latest" stable version of Airflow. The "latest"
+constraints always points to the "latest" released Airflow version constraints:
+
+.. code-block::
+
+  https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.7.txt
+
 Installation and upgrade scenarios
 ''''''''''''''''''''''''''''''''''
 
