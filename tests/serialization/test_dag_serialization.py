@@ -1608,6 +1608,7 @@ def test_mapped_operator_serde():
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert isinstance(op, MappedOperator)
+    assert op.deps is MappedOperator.DEFAULT_DEPS
 
     assert op.operator_class == "airflow.operators.bash.BashOperator"
     assert op.mapped_kwargs['bash_command'] == literal
@@ -1637,6 +1638,7 @@ def test_mapped_operator_xcomarg_serde():
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.DEFAULT_DEPS
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'

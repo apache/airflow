@@ -18,8 +18,7 @@
 #
 
 import time
-from collections import OrderedDict
-from typing import Optional, Set
+from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Set, Tuple
 
 import pendulum
 from sqlalchemy.orm.session import Session, make_transient
@@ -47,6 +46,9 @@ from airflow.utils.configuration import conf as airflow_conf, tmp_configuration_
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import MappedOperator
 
 
 class BackfillJob(BaseJob):
@@ -98,7 +100,7 @@ class BackfillJob(BaseJob):
             finished_runs=0,
             total_runs=0,
         ):
-            self.to_run = to_run or OrderedDict()
+            self.to_run = to_run or {}
             self.running = running or {}
             self.skipped = skipped or set()
             self.succeeded = succeeded or set()
@@ -167,7 +169,6 @@ class BackfillJob(BaseJob):
         self.run_at_least_once = run_at_least_once
         super().__init__(*args, **kwargs)
 
-    @provide_session
     def _update_counters(self, ti_status, session=None):
         """
         Updates the counters per state of the tasks that were running. Can re-add
@@ -234,14 +235,22 @@ class BackfillJob(BaseJob):
             session.query(TI).filter(filter_for_tis).update(
                 values={TI.state: TaskInstanceState.SCHEDULED}, synchronize_session=False
             )
+            session.flush()
 
-    def _manage_executor_state(self, running):
+    def _manage_executor_state(
+        self, running, session
+    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance]]]:
         """
         Checks if the executor agrees with the state of task instances
-        that are running
+        that are running.
+
+        Expands downstream mapped tasks when necessary
 
         :param running: dict of key, task to verify
+        :return: An iterable of expanded TaskInstance per MappedTask
         """
+        from airflow.models.baseoperator import MappedOperator
+
         executor = self.executor
 
         # TODO: query all instead of refresh from db
@@ -266,6 +275,11 @@ class BackfillJob(BaseJob):
                 )
                 self.log.error(msg)
                 ti.handle_failure_with_callback(error=msg)
+                continue
+            if ti.state not in self.STATES_COUNT_AS_RUNNING:
+                for node in ti.task.mapped_dependants():
+                    assert isinstance(node, MappedOperator)
+                    yield node, ti.run_id, node.expand_mapped_task(ti, session)
 
     @provide_session
     def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):
@@ -409,7 +423,6 @@ class BackfillJob(BaseJob):
             # or leaf to root, as otherwise tasks might be
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
-            @provide_session
             def _per_task_process(key, ti: TaskInstance, session=None):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
@@ -577,7 +590,8 @@ class BackfillJob(BaseJob):
                                     "Not scheduling since Task concurrency limit is reached."
                                 )
 
-                        _per_task_process(key, ti)
+                        _per_task_process(key, ti, session)
+                        session.commit()
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
@@ -597,11 +611,23 @@ class BackfillJob(BaseJob):
                 ti_status.deadlocked.update(ti_status.to_run.values())
                 ti_status.to_run.clear()
 
-            # check executor state
-            self._manage_executor_state(ti_status.running)
+            # check executor state -- and expand any mapped TIs
+            for node, run_id, mapped_tis in self._manage_executor_state(ti_status.running, session):
+
+                def to_keep(key: TaskInstanceKey) -> bool:
+                    if key.dag_id != node.dag_id or key.task_id != node.task_id or key.run_id != run_id:
+                        # For another Dag/Task/Run -- don't remove
+                        return True
+                    return False
+
+                # remove the old unmapped TIs for node -- they have been replaced with the mapped TIs
+                ti_status.to_run = {key: ti for (key, ti) in ti_status.to_run.items() if to_keep(key)}
+
+                ti_status.to_run.update({ti.key: ti for ti in mapped_tis})
 
             # update the task counters
-            self._update_counters(ti_status=ti_status)
+            self._update_counters(ti_status=ti_status, session=session)
+            session.commit()
 
             # update dag run state
             _dag_runs = ti_status.active_runs[:]
@@ -613,6 +639,7 @@ class BackfillJob(BaseJob):
                     executed_run_dates.append(run.execution_date)
 
             self._log_progress(ti_status)
+            session.commit()
 
         # return updated status
         return executed_run_dates
@@ -623,15 +650,25 @@ class BackfillJob(BaseJob):
             # Sorting by execution date first
             sorted_ti_keys = sorted(
                 set_ti_keys,
-                key=lambda ti_key: (ti_key.run_id, ti_key.dag_id, ti_key.task_id, ti_key.try_number),
+                key=lambda ti_key: (
+                    ti_key.run_id,
+                    ti_key.dag_id,
+                    ti_key.task_id,
+                    ti_key.map_index,
+                    ti_key.try_number,
+                ),
             )
-            return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Run ID", "Try number"])
+            return tabulate(
+                sorted_ti_keys, headers=["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"]
+            )
 
         def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:
             # Sorting by execution date first
             sorted_tis = sorted(set_tis, key=lambda ti: (ti.run_id, ti.dag_id, ti.task_id, ti.try_number))
-            tis_values = ((ti.dag_id, ti.task_id, ti.run_id, ti.try_number) for ti in sorted_tis)
-            return tabulate(tis_values, headers=["DAG ID", "Task ID", "Run ID", "Try number"])
+            tis_values = (
+                (ti.dag_id, ti.task_id, ti.run_id, ti.map_index, ti.try_number) for ti in sorted_tis
+            )
+            return tabulate(tis_values, headers=["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"])
 
         err = ''
         if ti_status.failed:

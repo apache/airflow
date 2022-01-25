@@ -17,7 +17,7 @@
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Union
 
 import pendulum
 
@@ -268,3 +268,46 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """This is used by SerializedTaskGroup to serialize a task group's content."""
         raise NotImplementedError()
+
+    def mapped_dependants(self) -> Iterator["DAGNode"]:
+        """Return any mapped nodes that are direct dependencies of the current task
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        from airflow.models.baseoperator import MappedOperator
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+
+        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
+            """Recursively walk children in a task group.
+
+            This yields all direct children (including both tasks and task
+            groups), and all children of any task groups.
+            """
+            for key, child in group.children.items():
+                yield key, child
+                if isinstance(child, TaskGroup):
+                    yield from _walk_group(child)
+
+        dag = self.dag
+        if not dag:
+            raise RuntimeError("Cannot check for mapped_dependants when not attached to a DAG")
+        for key, child in _walk_group(dag.task_group):
+            if key == self.node_id:
+                continue
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+                continue
+            if self.node_id in child.upstream_task_ids:
+                yield child
+
+    def has_mapped_dependants(self) -> bool:
+        """Whether any downstream dependencies depend on this task for mapping.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        return any(self.mapped_dependants())

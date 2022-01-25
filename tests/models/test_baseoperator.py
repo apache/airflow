@@ -799,11 +799,21 @@ def test_partial_on_class_invalid_ctor_args() -> None:
     ["num_existing_tis", "expected"],
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id='only-unmapped-ti-exists'),
-        pytest.param(3, [(0, None), (1, None), (2, None)], id='all-tis-exist'),
+        pytest.param(
+            3,
+            [(0, 'success'), (1, 'success'), (2, 'success')],
+            id='all-tis-exist',
+        ),
         pytest.param(
             5,
-            [(0, None), (1, None), (2, None), (3, TaskInstanceState.REMOVED), (4, TaskInstanceState.REMOVED)],
-            id="tis-to-be-remove",
+            [
+                (0, 'success'),
+                (1, 'success'),
+                (2, 'success'),
+                (3, TaskInstanceState.REMOVED),
+                (4, TaskInstanceState.REMOVED),
+            ],
+            id="tis-to-be-removed",
         ),
     ),
 )
@@ -836,7 +846,8 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         ).delete()
 
     for index in range(num_existing_tis):
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index)  # type: ignore
+        # Give the existing TIs a state to make sure we don't change them
+        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
         session.add(ti)
     session.flush()
 

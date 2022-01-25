@@ -24,12 +24,15 @@ DebugExecutor
 """
 
 import threading
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import MappedOperator
 
 
 class DebugExecutor(BaseExecutor):
@@ -76,6 +79,8 @@ class DebugExecutor(BaseExecutor):
         key = ti.key
         try:
             params = self.tasks_params.pop(ti.key, {})
+            if ti.task.is_mapped:
+                ti.task = cast("MappedOperator", ti.task).unmap()
             ti._run_raw_task(job_id=ti.job_id, **params)
             self.change_state(key, State.SUCCESS)
             ti._run_finished_callback()

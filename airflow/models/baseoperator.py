@@ -50,7 +50,7 @@ import attr
 import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -66,6 +66,7 @@ from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -247,7 +248,12 @@ class BaseOperatorMeta(abc.ABCMeta):
         # Validate that the args we passed are known -- at call/DAG parse time, not run time!
         _validate_kwarg_names_for_mapping(operator_class, "partial", kwargs)
         return MappedOperator(
-            task_id=task_id, operator_class=operator_class, dag=dag, partial_kwargs=kwargs, mapped_kwargs={}
+            task_id=task_id,
+            operator_class=operator_class,
+            dag=dag,
+            partial_kwargs=kwargs,
+            mapped_kwargs={},
+            deps=MappedOperator._deps(operator_class.deps),
         )
 
 
@@ -1459,9 +1465,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """Return if this operator can use smart service. Default False."""
         return False
 
-    @property
-    def is_mapped(self) -> bool:
-        return False
+    is_mapped: ClassVar[bool] = False
 
     @property
     def inherits_from_dummy_operator(self):
@@ -1490,39 +1494,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
     def map(self, **kwargs) -> "MappedOperator":
         return MappedOperator.from_operator(self, kwargs)
-
-    def has_mapped_dependants(self) -> bool:
-        """Whether any downstream dependencies depend on this task for mapping.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-        """
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
-
-        if not self.has_dag():
-            return False
-
-        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
-            """Recursively walk children in a task group.
-
-            This yields all direct children (including both tasks and task
-            groups), and all children of any task groups.
-            """
-            for key, child in group.children.items():
-                yield key, child
-                if isinstance(child, TaskGroup):
-                    yield from _walk_group(child)
-
-        for key, child in _walk_group(self.dag.task_group):
-            if key == self.task_id:
-                continue
-            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
-                continue
-            if self.task_id in child.upstream_task_ids:
-                return True
-        return False
 
 
 def _validate_kwarg_names_for_mapping(
@@ -1591,7 +1562,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     # Needed for SerializedBaseOperator
     _is_dummy: bool = attr.ib()
 
-    deps: Iterable[BaseTIDep] = attr.ib()
+    deps: Iterable[BaseTIDep]
     operator_extra_links: Iterable['BaseOperatorLink'] = ()
     template_fields: Collection[str] = attr.ib()
     template_ext: Collection[str] = attr.ib()
@@ -1602,15 +1573,15 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
 
     subdag: None = attr.ib(init=False)
 
+    DEFAULT_DEPS: ClassVar[FrozenSet[BaseTIDep]] = frozenset(BaseOperator.deps) | frozenset(
+        [MappedTaskIsExpanded()]
+    )
+
     @_is_dummy.default
     def _is_dummy_from_operator_class(self):
         from airflow.operators.dummy import DummyOperator
 
         return issubclass(self.operator_class, DummyOperator)
-
-    @deps.default
-    def _deps_from_operator_class(self):
-        return self.operator_class.deps
 
     @template_fields.default
     def _template_fields_from_operator_class(self):
@@ -1649,6 +1620,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
         dag: Optional["DAG"] = getattr(operator, '_dag', None)
+        tg: Optional["TaskGroup"] = getattr(operator, 'task_group', None)
         if dag:
             # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
             # are mapped, we want to _remove_ that task from the dag
@@ -1658,7 +1630,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         return MappedOperator(
             operator_class=type(operator),
             task_id=operator.task_id,
-            task_group=operator.task_group,
+            task_group=tg,
             dag=dag,
             upstream_task_ids=operator.upstream_task_ids,
             downstream_task_ids=operator.downstream_task_ids,
@@ -1668,7 +1640,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             mapped_kwargs=mapped_kwargs,
             owner=operator.owner,
             max_active_tis_per_dag=operator.max_active_tis_per_dag,
-            deps=operator.deps,
+            deps=cls._deps(operator.deps),
         )
 
     @classmethod
@@ -1695,11 +1667,19 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             task_id=task_id,
             dag=dag,
             task_group=task_group,
+            deps=cls._deps(decorator.operator_class.deps),
         )
         operator.mapped_kwargs.update(mapped_kwargs)
         for arg in mapped_kwargs.values():
             XComArg.apply_upstream_relationship(operator, arg)
         return operator
+
+    @classmethod
+    def _deps(cls, deps: Iterable[BaseTIDep]):
+        if deps is BaseOperator.deps:
+            return cls.DEFAULT_DEPS
+        else:
+            return frozenset(deps) | {MappedTaskIsExpanded()}
 
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
@@ -1756,9 +1736,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         """Used to determine if an Operator is inherited from DummyOperator"""
         return self._is_dummy
 
-    @property
-    def is_mapped(self) -> bool:
-        return True
+    is_mapped: ClassVar[bool] = True
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: ClassVar[Optional[FrozenSet[str]]] = None
@@ -1777,6 +1755,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
                     'operator_extra_links',
                     'upstream_task_ids',
                     'task_type',
+                    'task_group',
                     # These are automatically populated from partial_kwargs. In
                     # a perfect world, they should be properties like other
                     # partial_kwargs-populated values e.g. 'queue' below, but we
@@ -1826,8 +1805,14 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     def depends_on_past(self) -> bool:
         return self.partial_kwargs.get("depends_on_past") or self.wait_for_downstream
 
-    def expand_mapped_task(self, upstream_ti: "TaskInstance", session: "Session" = NEW_SESSION) -> None:
-        """Create the mapped TaskInstances for mapped task."""
+    def expand_mapped_task(
+        self, upstream_ti: "TaskInstance", session: "Session" = NEW_SESSION
+    ) -> Sequence[TaskInstance]:
+        """
+        Create the mapped TaskInstances for mapped task.
+
+        :return: The mapped TaskInstances
+        """
         # TODO: support having multiuple mapped upstreams?
         from airflow.models.taskmap import TaskMap
         from airflow.settings import task_instance_mutation_hook
@@ -1846,6 +1831,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             # TODO: What would lead to this? How can this be better handled?
             raise RuntimeError("mapped operator cannot be expanded; upstream not found")
 
+        state = None
         unmapped_ti: Optional[TaskInstance] = (
             session.query(TaskInstance)
             .filter(
@@ -1858,6 +1844,8 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             .one_or_none()
         )
 
+        ret: List[TaskInstance] = []
+
         if unmapped_ti:
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
@@ -1867,20 +1855,34 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
                 self.log.info("Marking %s as SKIPPED since the map has 0 values to expand", unmapped_ti)
                 unmapped_ti.state = TaskInstanceState.SKIPPED
                 session.flush()
-                return
+                return ret
             # Otherwise convert this into the first mapped index, and create
             # TaskInstance for other indexes.
             unmapped_ti.map_index = 0
+            state = unmapped_ti.state
+            self.log.debug("Updated in place to become %s", unmapped_ti)
+            ret.append(unmapped_ti)
             indexes_to_map = range(1, task_map_info_length)
         else:
-            indexes_to_map = range(task_map_info_length)
+            # Only create "missing" ones.
+            current_max_mapping = (
+                session.query(func.max(TaskInstance.map_index))
+                .filter(
+                    TaskInstance.dag_id == upstream_ti.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == upstream_ti.run_id,
+                )
+                .scalar()
+            )
+            indexes_to_map = range(current_max_mapping + 1, task_map_info_length)
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
-            ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index)  # type: ignore
+            ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index, state=state)  # type: ignore
+            self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
-            session.merge(ti)
+            ret.append(session.merge(ti))
 
         # Set to "REMOVED" any (old) TaskInstances with map indices greater
         # than the current map value
@@ -1892,6 +1894,25 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         ).update({TaskInstance.state: TaskInstanceState.REMOVED})
 
         session.flush()
+
+        return ret
+
+    def unmap(self) -> BaseOperator:
+        """Get the "normal" Operator after applying the current mapping"""
+        assert not isinstance(self.operator_class, str)
+
+        dag = self.get_dag()
+        if not dag:
+            raise RuntimeError("Cannot unmapp a task unless it has a dag")
+
+        args = {
+            **self.partial_kwargs,
+            **self.mapped_kwargs,
+        }
+        dag._remove_task(self.task_id)
+        task = self.operator_class(task_id=self.task_id, dag=self.dag, **args)
+
+        return task
 
 
 # TODO: Deprecate for Airflow 3.0

@@ -190,7 +190,7 @@ class TestBackfillJob:
             ("run_this_last", end_date),
         ]
         assert [
-            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', 1), (State.SUCCESS, None))
+            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', 1, -1), (State.SUCCESS, None))
             for (task_id, when) in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -267,7 +267,7 @@ class TestBackfillJob:
 
         job.run()
         assert [
-            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', 1), (State.SUCCESS, None))
+            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', 1, -1), (State.SUCCESS, None))
             for task_id in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -1230,12 +1230,11 @@ class TestBackfillJob:
         subdag.clear()
         dag.clear()
 
-    def test_update_counters(self, dag_maker):
-        with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE) as dag:
+    def test_update_counters(self, dag_maker, session):
+        with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE, session=session) as dag:
             task1 = DummyOperator(task_id='dummy', owner='airflow')
         dr = dag_maker.create_dagrun()
         job = BackfillJob(dag=dag)
-        session = settings.Session()
 
         ti = TI(task1, dr.execution_date)
         ti.refresh_from_db()
@@ -1245,7 +1244,7 @@ class TestBackfillJob:
         # test for success
         ti.set_state(State.SUCCESS, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 1
         assert len(ti_status.skipped) == 0
@@ -1257,7 +1256,7 @@ class TestBackfillJob:
         # test for skipped
         ti.set_state(State.SKIPPED, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 1
@@ -1269,7 +1268,7 @@ class TestBackfillJob:
         # test for failed
         ti.set_state(State.FAILED, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1281,7 +1280,7 @@ class TestBackfillJob:
         # test for retry
         ti.set_state(State.UP_FOR_RETRY, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1297,7 +1296,7 @@ class TestBackfillJob:
         ti.set_state(State.UP_FOR_RESCHEDULE, session)
         assert ti.try_number == 3  # see ti.try_number property in taskinstance module
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1315,7 +1314,7 @@ class TestBackfillJob:
         session.merge(ti)
         session.commit()
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
