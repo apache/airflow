@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
-from github import Repository, GithubException
+from github import GithubException
 
 from airflow import AirflowException
 from airflow.providers.github.operators.github import GithubOperator
@@ -63,7 +63,7 @@ class GithubSensor(BaseSensorOperator):
             result_processor=self.result_processor,
         )
 
-    def poke(self, context: Dict) -> Any:
+    def poke(self, context: Context) -> bool:
         return self.github_operator.execute(context=context)
 
 
@@ -85,9 +85,13 @@ class GithubRepositorySensor(GithubSensor):
         result_processor: Optional[Callable] = None,
         **kwargs,
     ) -> None:
-        super().__init__(github_conn_id=github_conn_id, result_processor=result_processor,
-                         method_name="get_repo",
-                         method_params={'full_name_or_id': repository_name}, **kwargs)
+        super().__init__(
+            github_conn_id=github_conn_id,
+            result_processor=result_processor,
+            method_name="get_repo",
+            method_params={'full_name_or_id': repository_name},
+            **kwargs,
+        )
 
     def poke(self, context: Context) -> bool:
         """
@@ -121,15 +125,18 @@ class GithubTagSensor(GithubRepositorySensor):
     ) -> None:
         self.repository_name = repository_name
         self.tag_name = tag_name
-        super().__init__(github_conn_id=github_conn_id, repository_name=repository_name,
-                         result_processor=self.tag_checker,
-                         **kwargs)
+        super().__init__(
+            github_conn_id=github_conn_id,
+            repository_name=repository_name,
+            result_processor=self.tag_checker,
+            **kwargs,
+        )
 
-    def poke(self, context: Dict) -> Any:
+    def poke(self, context: Context) -> bool:
         self.log.info('Poking for tag: %s in repository: %s', self.tag_name, self.repository_name)
         return GithubSensor.poke(self, context=context)
 
-    def tag_checker(self, repo: Repository) -> Optional[bool]:
+    def tag_checker(self, repo: Any) -> Optional[bool]:
         """Checking existence of Tag in a Repository"""
         result = None
         try:
@@ -143,11 +150,7 @@ class GithubTagSensor(GithubRepositorySensor):
             raise AirflowException(f"Github operator error: {str(e)}")
 
         if result is True:
-            self.log.info(
-                "Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name
-            )
+            self.log.info("Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name)
         else:
-            self.log.info(
-                "Tag %s doesn't exists in %s repository yet.", self.tag_name, self.repository_name
-            )
+            self.log.info("Tag %s doesn't exists in %s repository yet.", self.tag_name, self.repository_name)
         return result

@@ -20,8 +20,6 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from github.GitTag import GitTag
-
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.github.sensors.github import GithubTagSensor
@@ -46,10 +44,13 @@ class TestGithubSensor(unittest.TestCase):
             )
         )
 
-    @patch("airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock)
+    @patch(
+        "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
+    )
     def test_github_tag_created(self, github_mock):
-        class MockTag(object):
+        class MockTag:
             pass
+
         tag = MockTag()
         tag.name = "v1.0"
 

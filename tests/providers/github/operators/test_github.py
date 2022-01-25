@@ -28,6 +28,7 @@ from airflow.utils import db, timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
+
 class TestGithubOperator(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -43,9 +44,11 @@ class TestGithubOperator(unittest.TestCase):
             )
         )
 
-    @patch("airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock)
+    @patch(
+        "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
+    )
     def test_find_repos(self, github_mock):
-        class MockRepository(object):
+        class MockRepository:
             pass
 
         repo = MockRepository()
@@ -54,7 +57,7 @@ class TestGithubOperator(unittest.TestCase):
         github_mock.return_value.get_repo.return_value = repo
 
         github_operator = GithubOperator(
-            task_id='githib-test',
+            task_id='github-test',
             github_method="get_repo",
             github_method_args={'full_name_or_id': 'apache/airflow'},
             result_processor=lambda r: r.full_name,

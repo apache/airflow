@@ -39,7 +39,9 @@ class TestGithubHook(unittest.TestCase):
             )
         )
 
-    @patch("airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock)
+    @patch(
+        "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
+    )
     def test_github_client_connection(self, github_mock):
         github_hook = GithubHook()
 

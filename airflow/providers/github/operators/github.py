@@ -15,27 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional, Callable, Any
+from typing import Any, Callable, Optional
 
 from github import GithubException
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.github.hooks.github import GithubHook
+from airflow.utils.context import Context
 
 
 class GithubOperator(BaseOperator):
     """
-    GithubOperator to interact and perform action on Github API.
-    This operator is designed to use Github Python SDK: https://github.com/PyGithub/PyGithub
+    GithubOperator to interact and perform action on GitHub API.
+    This operator is designed to use GitHub Python SDK: https://github.com/PyGithub/PyGithub
 
-    :param github_conn_id: reference to a pre-defined Github Connection
+    :param github_conn_id: reference to a pre-defined GitHub Connection
     :type github_conn_id: str
-    :param github_method: method name from Github Python SDK to be called
+    :param github_method: method name from GitHub Python SDK to be called
     :type github_method: str
     :param github_method_args: required method parameters for the github_method. (templated)
     :type github_method_args: dict
-    :param result_processor: function to further process the response from Github
+    :param result_processor: function to further process the response from GitHub
     :type result_processor: function
     """
 
@@ -56,9 +57,9 @@ class GithubOperator(BaseOperator):
         self.github_method_args = github_method_args
         self.result_processor = result_processor
 
-    def execute(self, context: Dict) -> Any:
+    def execute(self, context: Context) -> Any:
         try:
-            # Default method execution is on the top level Github client
+            # Default method execution is on the top level GitHub client
             hook = GithubHook(github_conn_id=self.github_conn_id)
             resource = hook.client
 
@@ -71,4 +72,4 @@ class GithubOperator(BaseOperator):
         except GithubException as github_error:
             raise AirflowException(f"Failed to execute GithubOperator, error: {str(github_error)}")
         except Exception as e:
-            raise AirflowException(f"Github operator error: {str(e)}")
+            raise AirflowException(f'GitHub operator error: {str(e)}')

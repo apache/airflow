@@ -18,9 +18,9 @@
 
 """This module allows to connect to a Github."""
 
-from typing import Dict
+from typing import Dict, Optional
 
-from github import Github as GithubClient, PaginatedList
+from github import Github as GithubClient
 
 from airflow.hooks.base import BaseHook
 
@@ -42,9 +42,8 @@ class GithubHook(BaseHook):
 
     def __init__(self, github_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.connection = None
         self.github_conn_id = github_conn_id
-        self.client = None
+        self.client: Optional[GithubClient] = None
         self.get_conn()
 
     def get_conn(self) -> GithubClient:
@@ -55,8 +54,7 @@ class GithubHook(BaseHook):
         if self.client is not None:
             return self.client
 
-        self.connection = self.get_connection(self.github_conn_id)
-        access_token = self.connection.password
+        access_token = self.get_connection(self.github_conn_id).password
 
         self.client = GithubClient(login_or_token=access_token)
         return self.client
