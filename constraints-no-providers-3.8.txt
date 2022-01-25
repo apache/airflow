@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-24T18:11:04Z
+# This constraints file was automatically generated on 2022-01-25T11:52:32Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -42,7 +42,7 @@ attrs==20.3.0
 bcrypt==3.2.0
 billiard==3.6.4.0
 blinker==1.4
-cachetools==4.2.4
+cachetools==5.0.0
 cattrs==1.10.0
 celery==5.2.3
 certifi==2020.12.5
@@ -78,7 +78,7 @@ gevent==21.12.0
 google-ads==14.0.0
 google-api-core==2.4.0
 google-auth-oauthlib==0.4.6
-google-auth==2.3.3
+google-auth==2.4.1
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
