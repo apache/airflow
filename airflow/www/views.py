@@ -3594,19 +3594,17 @@ class ConnectionModelView(AirflowModelView):
         """Process form data."""
         conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
-        extra = {
-            key: form.data[key]
-            for key in self.extra_fields
-            if key in form.data and key.startswith(f"extra__{conn_type}__")
-        }
 
-        # If parameters are added to the classic `Extra` field, include these values along with
-        # custom-field extras.
-        extra_conn_params = form.data.get("extra")
+        # The extra value is the combination of custom fields for this conn_type and the Extra field.
+        # The extra form field with all extra values (including custom fields) is in the form being processed
+        # so we start with those values, and override them with anything in the custom fields.
+        extra = {}
 
-        if extra_conn_params:
+        extra_field = form.data.get("extra")
+
+        if extra_field:
             try:
-                extra.update(json.loads(extra_conn_params))
+                extra.update(json.loads(extra_field))
             except (JSONDecodeError, TypeError):
                 flash(
                     Markup(
@@ -3615,10 +3613,18 @@ class ConnectionModelView(AirflowModelView):
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_conn_params}",
+                        f"{extra_field}",
                     ),
                     category="error",
                 )
+
+        custom_fields = {
+            key: form.data[key]
+            for key in self.extra_fields
+            if key in form.data and key.startswith(f"extra__{conn_type}__")
+        }
+
+        extra.update(custom_fields)
 
         if extra.keys():
             form.extra.data = json.dumps(extra)

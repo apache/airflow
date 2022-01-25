@@ -14,19 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from airflow_breeze.docs_generator.doc_builder import DocBuilder
 from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART
+from airflow_breeze.utils.run_utils import run_command
 
 
-def test_visuals():
-    assert 2051 == len(ASCIIART)
-
-
-def test_get_extra_docker_flags():
-    airflow_sources = get_airflow_sources_root()
-    all = True
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) < 10
-    all = False
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) > 60
+def build(
+    verbose: bool,
+    mount_all_flag: bool,
+    airflow_sources: str,
+    airflow_ci_image_name: str,
+    doc_builder: DocBuilder,
+):
+    extra_docker_flags = get_extra_docker_flags(mount_all_flag, airflow_sources)
+    cmd = []
+    cmd.extend(["docker", "run"])
+    cmd.extend(extra_docker_flags)
+    cmd.extend(["-t", "-e", "GITHUB_ACTIONS="])
+    cmd.extend(["--entrypoint", "/usr/local/bin/dumb-init", "--pull", "never"])
+    cmd.extend([airflow_ci_image_name, "--", "/opt/airflow/scripts/in_container/run_docs_build.sh"])
+    cmd.extend(doc_builder.args_doc_builder)
+    run_command(cmd, verbose=verbose, text=True)

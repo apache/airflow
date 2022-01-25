@@ -175,7 +175,7 @@ class TestDaskExecutorQueue(unittest.TestCase):
         success_future = next(k for k, v in executor.futures.items() if v == 'success')
 
         # wait for the futures to execute, with a timeout
-        timeout = timezone.utcnow() + timedelta(seconds=30)
+        timeout = timezone.utcnow() + timedelta(seconds=120)
         while not success_future.done():
             if timezone.utcnow() > timeout:
                 raise ValueError(

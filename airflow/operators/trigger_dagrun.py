@@ -61,7 +61,7 @@ class TriggerDagRunOperator(BaseOperator):
     :param trigger_dag_id: The dag_id to trigger (templated).
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
-    :param conf: Configuration for the DAG run.
+    :param conf: Configuration for the DAG run (templated).
     :param execution_date: Execution date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.

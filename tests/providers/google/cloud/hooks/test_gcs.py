@@ -27,7 +27,9 @@ from unittest import mock
 
 import dateutil
 import pytest
-from google.cloud import exceptions, storage
+
+# dynamic storage type in google.cloud needs to be type-ignored
+from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
