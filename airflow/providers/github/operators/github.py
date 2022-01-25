@@ -36,7 +36,7 @@ class GithubOperator(BaseOperator):
     :type github_method: str
     :param github_method_args: required method parameters for the github_method. (templated)
     :type github_method_args: dict
-    :param result_processor: function to further process the response from GitHub
+    :param result_processor: function to further process the response from GitHub API
     :type result_processor: function
     """
 

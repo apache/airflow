@@ -67,11 +67,11 @@ class GithubSensor(BaseSensorOperator):
         return self.github_operator.execute(context=context)
 
 
-class GithubRepositorySensor(GithubSensor):
+class BaseGithubRepositorySensor(GithubSensor):
     """
-    Base github sensor at Repository level.
+    Base GitHub sensor at Repository level.
 
-    :param github_conn_id: reference to a pre-defined Github Connection
+    :param github_conn_id: reference to a pre-defined GitHub Connection
     :type github_conn_id: str
     :param repository_name: full qualified name of the repository to be monitored, ex. "apache/airflow"
     :type repository_name: str
@@ -101,7 +101,7 @@ class GithubRepositorySensor(GithubSensor):
         raise AirflowException('Override me.')
 
 
-class GithubTagSensor(GithubRepositorySensor):
+class GithubTagSensor(BaseGithubRepositorySensor):
     """
     Monitors a github tag for its creation.
 
@@ -109,7 +109,7 @@ class GithubTagSensor(GithubRepositorySensor):
     :type github_conn_id: str
     :param tag_name: name of the tag to be monitored
     :type tag_name: str
-    :param repository_name: full qualified name of the repository to be monitored, ex. "apache/airflow"
+    :param repository_name: fully qualified name of the repository to be monitored, ex. "apache/airflow"
     :type repository_name: str
     """
 
