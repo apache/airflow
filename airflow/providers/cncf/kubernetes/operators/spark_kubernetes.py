@@ -17,8 +17,10 @@
 # under the License.
 from typing import TYPE_CHECKING, Optional, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+import airflow.utils.yaml as yaml
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -32,8 +34,9 @@ class SparkKubernetesOperator(BaseOperator):
         For more detail about Spark Application Object have a look at the reference:
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
-    :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' as either a
-        path to a '.json' file or a JSON string.
+    :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' 
+        as either a JSON string or a Dict.
+    :type application_file:  str
     :param namespace: kubernetes namespace to put sparkApplication
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the to Kubernetes cluster.
@@ -62,13 +65,29 @@ class SparkKubernetesOperator(BaseOperator):
         self.api_group = api_group
         self.api_version = api_version
 
+        self.name = yaml.load(self.application_file, Loader=yaml.FullLoader)['metadata']['name']
+        self.plural = "sparkapplications"
+
     def execute(self, context: 'Context'):
-        self.log.info("Creating sparkApplication")
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
+        try:
+            hook.delete_custom_object(
+                group=self.api_group,
+                version=self.api_version,
+                plural=self.plural,
+                name=self.name,
+                namespace=self.namespace
+            )
+            self.log.info(f"Deleted previous Spark Application: {self.name} - {self.namespace}")
+        except AirflowException:
+            self.log.info("No application with the same name and namespace does exist.")
+            pass
+
+        self.log.info("Creating sparkApplication")
         response = hook.create_custom_object(
             group=self.api_group,
             version=self.api_version,
-            plural="sparkapplications",
+            plural=self.plural,
             body=self.application_file,
             namespace=self.namespace,
         )
