@@ -15,23 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[pytest]
-addopts =
-    -rasl
-    --verbosity=2
-;    This will treat all tests as flaky
-;    --force-flaky
-norecursedirs =
-    .eggs
-    airflow
-    tests/dags_with_system_exit
-    tests/test_utils
-    tests/dags_corrupted
-    tests/dags
-faulthandler_timeout = 480
-log_level = INFO
-filterwarnings =
-    error::pytest.PytestCollectionWarning
-markers =
-    need_serialized_dag
-asyncio-mode = strict
+from airflow_breeze.global_constants import get_available_packages
+
+AVAILABLE_PACKAGES_STARTING_LIST = ("apache-airflow", "helm-chart", "docker-stack")
+
+
+def test_get_available_packages():
+    assert len(get_available_packages()) > 70
+    for package in get_available_packages():
+        assert package.startswith(AVAILABLE_PACKAGES_STARTING_LIST)
