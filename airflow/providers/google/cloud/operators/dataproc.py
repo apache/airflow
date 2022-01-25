@@ -161,6 +161,8 @@ class ClusterGenerator:
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :param customer_managed_key: The customer-managed key used for disk encryption
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
+    :param enable_component_gateway: Provides access to the web interfaces of default and selected optional
+        components on the cluster.
     """
 
     def __init__(
@@ -197,6 +199,7 @@ class ClusterGenerator:
         auto_delete_time: Optional[datetime] = None,
         auto_delete_ttl: Optional[int] = None,
         customer_managed_key: Optional[str] = None,
+        enable_component_gateway: Optional[bool] = False,
         **kwargs,
     ) -> None:
 
@@ -232,6 +235,7 @@ class ClusterGenerator:
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
         self.customer_managed_key = customer_managed_key
+        self.enable_component_gateway = enable_component_gateway
         self.single_node = num_workers == 0
 
         if self.custom_image and self.image_version:
@@ -339,6 +343,7 @@ class ClusterGenerator:
             'lifecycle_config': {},
             'encryption_config': {},
             'autoscaling_config': {},
+            'endpoint_config': {},
         }
         if self.num_preemptible_workers > 0:
             cluster_data['secondary_worker_config'] = {
@@ -401,6 +406,8 @@ class ClusterGenerator:
             cluster_data['encryption_config'] = {'gce_pd_kms_key_name': self.customer_managed_key}
         if self.autoscaling_policy:
             cluster_data['autoscaling_config'] = {'policy_uri': self.autoscaling_policy}
+        if self.enable_component_gateway:
+            cluster_data['endpoint_config'] = {'enable_http_port_access': self.enable_component_gateway}
 
         return cluster_data
 
