@@ -182,7 +182,7 @@ class CustomObjectLauncher(PodLauncher):
         body_template['spec']['successfulRunHistoryLimit'] = kwargs['success_run_history_limit']
         body_template['spec']['restartPolicy'] = kwargs['restart_policy']
         body_template['spec']['imagePullPolicy'] = kwargs['image_pull_policy']
-        body_template['spec']['hadoopConf'] = kwargs['hadoop_config'] if kwargs['hadoop_config'] else {}
+        body_template['spec']['hadoopConf'] = kwargs['hadoop_config'] or {}
         body_template['spec']['mainApplicationFile'] = f'local://{kwargs["code_path"]}'
         body_template['spec']['driver']['serviceAccount'] = kwargs['service_account_name']
         body_template['spec']['driver']['coreLimit'] = kwargs['driver_cpu']
