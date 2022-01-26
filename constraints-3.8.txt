@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-25T12:02:30Z
+# This constraints file was automatically generated on 2022-01-26T10:28:59Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -158,7 +158,7 @@ azure-mgmt-datafactory==1.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==20.0.0
+azure-mgmt-resource==20.1.0
 azure-nspkg==3.0.2
 azure-storage-blob==12.8.1
 azure-storage-common==2.1.0
@@ -196,7 +196,7 @@ colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.10.0
-coverage==6.2
+coverage==6.3
 crcmod==1.7
 cron-descriptor==1.2.24
 croniter==1.2.0
@@ -394,7 +394,7 @@ portalocker==2.3.2
 pre-commit==2.17.0
 presto-python-client==0.7.0
 prison==0.2.1
-prometheus-client==0.12.0
+prometheus-client==0.13.0
 prompt-toolkit==3.0.24
 proto-plus==1.18.1
 protobuf==3.19.3
@@ -403,7 +403,7 @@ psycopg2-binary==2.9.3
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py4j==0.10.9.2
+py4j==0.10.9.3
 py==1.11.0
 pyOpenSSL==20.0.1
 pyarrow==6.0.1
@@ -428,7 +428,7 @@ pyparsing==2.4.7
 pypsrp==0.7.0
 pyrsistent==0.16.1
 pysftp==0.2.9
-pyspark==3.2.0
+pyspark==3.2.1
 pyspnego==0.3.1
 pytest-asyncio==0.17.2
 pytest-cov==3.0.0
@@ -475,7 +475,7 @@ scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.9.4
 sentinels==1.0.0
-sentry-sdk==1.5.3
+sentry-sdk==1.5.4
 setproctitle==1.2.2
 simple-salesforce==1.11.4
 six==1.16.0
