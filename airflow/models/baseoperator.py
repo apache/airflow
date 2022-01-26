@@ -50,6 +50,7 @@ import attr
 import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -1829,7 +1830,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
                 TaskInstance.run_id == upstream_ti.run_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.map_index == -1,
-                TaskInstance.state.in_(State.unfinished),
+                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
             .one_or_none()
         )
@@ -1842,7 +1843,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
                 # unmapped task instance as SKIPPED (if needed).
                 self.log.info("Marking %s as SKIPPED since the map has 0 values to expand", unmapped_ti)
                 unmapped_ti.state = TaskInstanceState.SKIPPED
-                session.merge(unmapped_ti)
+                session.flush()
                 return
             # Otherwise convert this into the first mapped index, and create
             # TaskInstance for other indexes.
