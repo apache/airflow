@@ -247,20 +247,14 @@ jobs:
           steps.selective-checks.outputs.default-branch == 'main'
 
   run-new-breeze-tests:
+    uses: ./.github/workflows/setup-environment.yml
+    with:
+      runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     timeout-minutes: 10
     name: Breeze2 tests
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
       - run: python -m pytest ./dev/breeze/ -n auto --color=yes
 
   tests-ui:
