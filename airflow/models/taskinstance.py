@@ -220,7 +220,7 @@ def clear_task_instances(
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
-            ti.state = TaskInstanceState.NONE
+            ti.state = None
             ti.external_executor_id = None
             session.merge(ti)
 
