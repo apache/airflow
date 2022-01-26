@@ -1821,7 +1821,6 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         if task_map_info_length is None:
             # TODO: What would lead to this? How can this be better handled?
             raise RuntimeError("mapped operator cannot be expanded; upstream not found")
-        # TODO: Add db constraint to ensure this is never negative.
 
         unmapped_ti: Optional[TaskInstance] = (
             session.query(TaskInstance)
