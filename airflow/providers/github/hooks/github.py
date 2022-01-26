@@ -17,7 +17,6 @@
 # under the License.
 
 """This module allows to connect to a Github."""
-import logging
 from typing import Dict, Optional
 
 from github import Github as GithubClient

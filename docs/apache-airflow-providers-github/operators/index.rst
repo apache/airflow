@@ -17,8 +17,8 @@
 
 .. _howto/operator:GithubOperator:
 
-GithubOperator
-=================
+Operators
+=========
 
 Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
 Operations in a `Github <https://www.github.com/>`__.
@@ -42,3 +42,24 @@ An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='a
     :language: python
     :start-after: [START howto_operator_list_tags_github]
     :end-before: [END howto_operator_list_tags_github]
+
+
+Sensors
+=======
+
+You can build your own sensor  using :class:`~airflow.providers.github.sensors.GithubSensor`,
+
+You can also implement your own sensor on Repository using :class:`~airflow.providers.github.sensors.BaseGithubRepositorySensor`,
+an example of this is :class:`~airflow.providers.github.sensors.GithubTagSensor`
+
+
+Use the :class:`~airflow.providers.github.sensors.GithubTagSensor` to wait for creation of
+a Tag in `Github <https://www.github.com/>`__.
+
+An example for tag **v1.0**:
+
+.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+    :language: python
+    :start-after: [START howto_tag_sensor_github]
+    :end-before: [END howto_tag_sensor_github]
+
