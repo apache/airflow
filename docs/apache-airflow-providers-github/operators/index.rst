@@ -23,11 +23,11 @@ GithubOperator
 Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
 Operations in a `Github <https://www.github.com/>`__.
 
-You can build your own sensor on Repository using :class:`~airflow.providers.github.operators.GithubOperator`,
-and passing **github_method** and **github_method_args** from top level PyGithub methods.
+You can build your own operator using :class:`~airflow.providers.github.operators.GithubOperator`
+and passing **github_method** and **github_method_args** from top level `PyGithub <https://www.pygithub.readthedocs.io/>`__ methods.
 You can further process the result using **result_processor** Callable as you like.
 
-An example of Listing all Repositories owned by a user, `client.get_user().get_repos()` can be implemented as following:
+An example of Listing all Repositories owned by a user, **client.get_user().get_repos()** can be implemented as following:
 
 .. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
     :language: python
@@ -35,7 +35,8 @@ An example of Listing all Repositories owned by a user, `client.get_user().get_r
     :end-before: [END howto_operator_list_repos_github]
 
 
-An example of Listing Tags in a Repository, `client.get_repo(full_name_or_id='apache/airflow').get_tags()` can be implemented as following:
+
+An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='apache/airflow').get_tags()** can be implemented as following:
 
 .. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
     :language: python
