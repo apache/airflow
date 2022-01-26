@@ -16,21 +16,34 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator: Github Sensors:
+.. _howto/connection:influxdb:
 
-You can build your own sensor on Repository using :class:`~airflow.providers.github.sensors.BaseGithubRepositorySensor`,
-an example of this is :class:`~airflow.providers.github.sensors.GithubTagSensor`
+InfluxDB Connection
+====================
+The InfluxDB connection type provides connection to a InfluxDB database.
 
-GithubTagSensor
-=================
+Configuring the Connection
+--------------------------
+Host (required)
+    The host to connect to.
 
-Use the :class:`~airflow.providers.github.sensors.GithubTagSensor` to wait for creation of
-a Tag in `Github <https://www.github.com/>`__.
+Extra (required)
+    Specify the extra parameters (as json dictionary) that can be used in InfluxDB
+    connection.
 
-An example of waiting for **v1.0**:
+    The following extras are required:
 
-.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
-    :language: python
-    :start-after: [START howto_tag_sensor_github]
-    :end-before: [END howto_tag_sensor_github]
+        - token - Create token - https://docs.influxdata.com/influxdb/cloud/security/tokens/create-token/
+        - org_name - Create organization - https://docs.influxdata.com/influxdb/cloud/reference/cli/influx/org/create/
 
+      * ``token``: Create token using the influxdb cli or UI
+      * ``org_name``: Create org name using influxdb cli or UI
+
+      Example "extras" field:
+
+      .. code-block:: JSON
+
+         {
+            "token": "343434343423234234234343434",
+            "org_name": "Test"
+         }
