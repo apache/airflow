@@ -164,6 +164,7 @@ check_integration "Kerberos" "kerberos" "run_nc kdc-server-example-com 88" 50
 check_integration "MongoDB" "mongo" "run_nc mongo 27017" 50
 check_integration "Redis" "redis" "run_nc redis 6379" 50
 check_integration "Cassandra" "cassandra" "run_nc cassandra 9042" 50
+check_integration "Jaeger" "jaeger" "run_nc jaeger 16686" 50
 check_integration "OpenLDAP" "openldap" "run_nc openldap 389" 50
 check_integration "Trino (HTTP)" "trino" "run_nc trino 8080" 50
 check_integration "Trino (HTTPS)" "trino" "run_nc trino 7778" 50

@@ -18,6 +18,11 @@
 # under the License.
 
 import setproctitle
+from opentelemetry import trace
+from opentelemetry.exporter.jaeger.proto.grpc import JaegerExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from airflow import settings
 
@@ -37,3 +42,18 @@ def on_starting(server):
 
     # Load providers before forking workers
     ProvidersManager().connection_form_widgets
+
+
+def post_fork(server, worker):
+    """
+    Needed to workoround open-telemetry not working well with gunicorn fork model.
+
+    See more: https://opentelemetry-python.readthedocs.io/en/latest/examples/fork-process-model/README.html
+    """
+    server.log.info("Worker spawned (pid: %s)", worker.pid)
+
+    resource = Resource.create(attributes={"service.name": "airflow-service"})
+
+    trace.set_tracer_provider(TracerProvider(resource=resource))
+    span_processor = BatchSpanProcessor(JaegerExporter())
+    trace.get_tracer_provider().add_span_processor(span_processor)

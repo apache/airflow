@@ -395,6 +395,9 @@ def webserver(args):
             'python:airflow.www.gunicorn_config',
         ]
 
+        if args.opentelemetry:
+            run_args = ['opentelemetry-instrument'] + run_args
+
         if args.access_logfile:
             run_args += ['--access-logfile', str(args.access_logfile)]
 

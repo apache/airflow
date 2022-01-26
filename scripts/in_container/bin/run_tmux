@@ -53,18 +53,25 @@ tmux set mouse on
 tmux rename-window -t 0 'Main'
 tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
 
+COMMAND_PREFIX=""
+COMMAND_SUFFIX=""
+if [[ ${INTEGRATION_JAEGER} == "true" ]]; then
+    COMMAND_PREFIX="opentelemetry-instrument"
+    COMMAND_SUFFIX="--opentelemetry"
+fi
+
 tmux split-window -v
 tmux select-pane -t 1
-tmux send-keys 'airflow scheduler' C-m
+tmux send-keys "${COMMAND_PREFIX} airflow scheduler" C-m
 
 tmux split-window -h
 tmux select-pane -t 2
-tmux send-keys 'airflow webserver' C-m
+tmux send-keys "${COMMAND_PREFIX} airflow webserver ${COMMAND_SUFFIX}" C-m
 
 if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
     tmux select-pane -t 0
     tmux split-window -h
-    tmux send-keys 'airflow triggerer' C-m
+    tmux send-keys "${COMMAND_PREFIX} airflow triggerer" C-m
 fi
 
 # Attach Session, on the Main window

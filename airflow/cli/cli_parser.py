@@ -489,6 +489,11 @@ ARG_WORKERS = Arg(
     type=int,
     help="Number of workers to run the webserver on",
 )
+ARG_OPENTELEMETRY = Arg(
+    ("-otel", "--opentelemetry"),
+    action="store_true",
+    help="The flag to run airflow with opentelemetry"
+)
 ARG_WORKERCLASS = Arg(
     ("-k", "--workerclass"),
     default=conf.get('webserver', 'WORKER_CLASS'),
@@ -1661,6 +1666,7 @@ airflow_commands: List[CLICommand] = [
             ARG_SSL_CERT,
             ARG_SSL_KEY,
             ARG_DEBUG,
+            ARG_OPENTELEMETRY
         ),
     ),
     ActionCommand(

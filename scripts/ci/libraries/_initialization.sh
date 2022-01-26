@@ -199,7 +199,7 @@ function initialization::initialize_branch_variables() {
 
 # Determine available integrations
 function initialization::initialize_available_integrations() {
-    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino"
+    export AVAILABLE_INTEGRATIONS="cassandra jaeger kerberos mongo openldap pinot rabbitmq redis statsd trino"
 }
 
 # Needs to be declared outside of function for MacOS
