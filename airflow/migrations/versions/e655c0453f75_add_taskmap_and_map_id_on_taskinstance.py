@@ -24,7 +24,7 @@ Create Date: 2021-12-13 22:59:41.052584
 """
 
 from alembic import op
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, text
+from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, text
 
 from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
@@ -75,6 +75,7 @@ def upgrade():
         Column("map_index", Integer, primary_key=True),
         Column("length", Integer, nullable=False),
         Column("keys", ExtendedJSON, nullable=True),
+        CheckConstraint("length >= 0", name="task_map_length_not_negative"),
         ForeignKeyConstraint(
             ["dag_id", "task_id", "run_id", "map_index"],
             [

@@ -84,7 +84,8 @@ from airflow.exceptions import (
     DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
-    UnmappableXComPushed,
+    UnmappableXComLengthPushed,
+    UnmappableXComTypePushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
@@ -486,7 +487,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "BaseOperator") -> dict:
+    def insert_mapping(run_id: str, task: "BaseOperator", map_index: int) -> dict:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
@@ -503,6 +504,7 @@ class TaskInstance(Base, LoggingMixin):
             'max_tries': task.retries,
             'executor_config': task.executor_config,
             'operator': task.task_type,
+            'map_index': map_index,
         }
 
     @reconstructor
@@ -2104,8 +2106,10 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            self.log.info("Failing %s for unmappable XCom push %r", self.key, type(value).__qualname__)
-            raise UnmappableXComPushed(value)
+            raise UnmappableXComTypePushed(value)
+        max_map_length = conf.getint("core", "max_map_length", fallback=1024)
+        if len(value) > max_map_length:
+            raise UnmappableXComLengthPushed(value, max_map_length)
         session.merge(TaskMap.from_task_instance_xcom(self, value))
 
     @provide_session
