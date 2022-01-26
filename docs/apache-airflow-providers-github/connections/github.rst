@@ -20,28 +20,23 @@
 
 Github Connection
 ====================
-The Github connection type provides connection to a Github database.
+The Github connection type provides connection to a Github or Github Enterprise.
 
 Configuring the Connection
 --------------------------
-Host (required)
-    The host to connect to.
+Access Token (required)
+    Personal Access token with required permissions.
+        - GitHub - Create token - https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token/
+        - GitHub Enterprise - Create token - https://docs.github.com/en/enterprise-cloud@latest/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token/
 
-Extra (required)
-    Specify the extra parameters (as json dictionary) that can be used in Github
+Host (optional)
+    Specify the Github Enterprise Url (as string) that can be used for Github Enterprise
     connection.
 
-    The following extras are required:
+    The following Url should be in following format:
 
-        - token - Create token - https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token/
+    * ``hostname``: Url for Your GitHub Enterprise Deployment.
 
-      * ``token``: Create token using the influxdb cli or UI
+    .. code-block::
 
-      Example "extras" field:
-
-      .. code-block:: JSON
-
-         {
-            "token": "343434343423234234234343434",
-            "org_name": "Test"
-         }
+        https://{hostname}/api/v3

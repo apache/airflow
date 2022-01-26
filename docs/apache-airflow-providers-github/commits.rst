@@ -19,21 +19,3 @@
 
 Package apache-airflow-providers-github
 ------------------------------------------------------
-
-`Github <https://www.github.com/>`__
-
-
-This is detailed commit list of changes for versions provider package: ``github``.
-For high-level changelog, see :doc:`package information including changelog <index>`.
-
-
-1.0.0
-.....
-
-Latest change: 2021-09-29
-
-=================================================================================================  ===========  ======================================================================
-Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================
-`e84527509e <https://github.com/apache/airflow/commit/e84527509e50f37dbbfb9c0698647a03c1a42c71>`_  2021-09-29   ``Updating the Github example DAG to use the TaskFlow API (#18596)``
-=================================================================================================  ===========  ======================================================================
