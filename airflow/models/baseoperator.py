@@ -1840,6 +1840,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             if task_map_info_length < 1:
                 # If the upstream maps this to a zero-length value, simply marked the
                 # unmapped task instance as SKIPPED (if needed).
+                self.log.info("Marking %s as SKIPPED since the map has 0 values to expand", unmapped_ti)
                 unmapped_ti.state = TaskInstanceState.SKIPPED
                 session.merge(unmapped_ti)
                 return
