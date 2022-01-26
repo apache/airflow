@@ -21,7 +21,7 @@
 """Exceptions used by Airflow"""
 import datetime
 import warnings
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Sized
 
 from airflow.api_connexion.exceptions import NotFound as ApiConnexionNotFound
 from airflow.utils.code_utils import prepare_code_snippet
@@ -98,8 +98,8 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
-class UnmappableXComPushed(AirflowException):
-    """Raise when an unmappable value is pushed as a mapped downstream's dependency."""
+class UnmappableXComTypePushed(AirflowException):
+    """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
 
     def __init__(self, value: Any) -> None:
         super().__init__(value)
@@ -107,6 +107,18 @@ class UnmappableXComPushed(AirflowException):
 
     def __str__(self) -> str:
         return f"unmappable return type {type(self.value).__qualname__!r}"
+
+
+class UnmappableXComLengthPushed(AirflowException):
+    """Raise when the pushed value is too large to map as a downstream's dependency."""
+
+    def __init__(self, value: Sized, max_length: int) -> None:
+        super().__init__(value)
+        self.value = value
+        self.max_length = max_length
+
+    def __str__(self) -> str:
+        return f"unmappable return value length: {len(self.value)} > {self.max_length}"
 
 
 class AirflowDagCycleException(AirflowException):
