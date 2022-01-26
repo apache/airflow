@@ -486,7 +486,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "BaseOperator", map_index: int = -1) -> dict:
+    def insert_mapping(run_id: str, task: "BaseOperator", map_index: int) -> dict:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
