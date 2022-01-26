@@ -2161,6 +2161,12 @@ def test_refresh_from_task(pool_override):
     assert ti.executor_config == task.executor_config
     assert ti.operator == DummyOperator.__name__
 
+    # Test that refresh_from_task does not reset ti.max_tries
+    expected_max_tries = task.retries + 10
+    ti.max_tries = expected_max_tries
+    ti.refresh_from_task(task)
+    assert ti.max_tries == expected_max_tries
+
 
 class TestRunRawTaskQueriesCount:
     """
