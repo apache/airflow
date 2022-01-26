@@ -750,6 +750,16 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 ]
             )
 
+        if isinstance(self.template_fields, str):
+            warnings.warn(
+                f"The `template_fields` value for {self.task_type} is a string "
+                "but should be a list or tuple of string. Wrapping it in a list for execution. "
+                f"Please update {self.task_type} accordingly.",
+                UserWarning,
+                stacklevel=2,
+            )
+            self.template_fields = [self.template_fields]
+
     def __eq__(self, other):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
@@ -1056,7 +1066,14 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         seen_oids: Set,
     ) -> None:
         for attr_name in template_fields:
-            content = getattr(parent, attr_name)
+            try:
+                content = getattr(parent, attr_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"{attr_name!r} is configured as a template field "
+                    f"but {parent.task_type} does not have this attribute."
+                )
+
             if content:
                 rendered_content = self.render_template(content, context, jinja_env, seen_oids)
                 setattr(parent, attr_name, rendered_content)
@@ -1262,7 +1279,14 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """Performs dry run for the operator - just render template fields."""
         self.log.info('Dry run')
         for field in self.template_fields:
-            content = getattr(self, field)
+            try:
+                content = getattr(self, field)
+            except AttributeError:
+                raise AttributeError(
+                    f"{field!r} is configured as a template field "
+                    f"but {self.task_type} does not have this attribute."
+                )
+
             if content and isinstance(content, str):
                 self.log.info('Rendering template for %s', field)
                 self.log.info(content)

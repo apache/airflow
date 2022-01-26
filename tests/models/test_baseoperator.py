@@ -288,10 +288,34 @@ class TestBaseOperator:
         """Test render_template when a nested template field is missing."""
         task = BaseOperator(task_id="op1")
 
-        with pytest.raises(AttributeError) as ctx:
-            task.render_template(ClassWithCustomAttributes(template_fields=["missing_field"]), {})
+        error_message = (
+            "'missing_field' is configured as a template field but ClassWithCustomAttributes does not have "
+            "this attribute."
+        )
+        with pytest.raises(AttributeError, match=error_message):
+            task.render_template(
+                ClassWithCustomAttributes(
+                    template_fields=["missing_field"], task_type="ClassWithCustomAttributes"
+                ),
+                {},
+            )
 
-        assert "'ClassWithCustomAttributes' object has no attribute 'missing_field'" == str(ctx.value)
+    def test_string_template_field_attr_is_converted_to_list(self):
+        """Verify template_fields attribute is converted to a list if declared as a string."""
+
+        class StringTemplateFieldsOperator(BaseOperator):
+            template_fields = "a_string"
+
+        warning_message = (
+            "The `template_fields` value for StringTemplateFieldsOperator is a string but should be a "
+            "list or tuple of string. Wrapping it in a list for execution. Please update "
+            "StringTemplateFieldsOperator accordingly."
+        )
+        with pytest.warns(UserWarning, match=warning_message) as warnings:
+            task = StringTemplateFieldsOperator(task_id="op1")
+
+            assert len(warnings) == 1
+            assert isinstance(task.template_fields, list)
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
