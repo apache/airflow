@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-influxdb``
+``apache-airflow-providers-github``
 =======================================
 
 Content
@@ -26,32 +26,32 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/influxdb>
+    Connection types <connections/github>
     Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/influxdb/index>
+    Python API <_api/airflow/providers/github/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/influxdb/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/github/example_dags>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-github/>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-github/>
     Installing from sources <installing-providers-from-sources>
 
 .. toctree::
@@ -70,25 +70,25 @@ Content
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-influxdb
+Package apache-airflow-providers-github
 ------------------------------------------------------
 
-`InfluxDB <https://www.influxdata.com/>`__
+`Github <https://www.github.com/>`__
 
 
-Release: 1.1.0
+Release: 1.0.0
 
 Provider package
 ----------------
 
-This is a provider package for ``influxdb`` provider. All classes for this provider package
-are in ``airflow.providers.influxdb`` python package.
+This is a provider package for ``github`` provider. All classes for this provider package
+are in ``airflow.providers.github`` python package.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow 2.1+ installation via
-``pip install apache-airflow-providers-influxdb``
+``pip install apache-airflow-providers-github``
 
 PIP requirements
 ----------------
@@ -96,8 +96,7 @@ PIP requirements
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``influxdb-client``  ``>=1.19.0``
-``pandas``           ``>=0.17.1, <2.0``
+``PyGithub``
 ===================  ==================
 
-.. include:: ../../airflow/providers/influxdb/CHANGELOG.rst
+.. include:: ../../airflow/providers/github/CHANGELOG.rst

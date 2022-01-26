@@ -15,19 +15,29 @@
     specific language governing permissions and limitations
     under the License.
 
-
-
 .. _howto/operator:GithubOperator:
 
 GithubOperator
 =================
 
 Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
-SQL commands in a `Github <https://www.github.com/>`__ database.
+Operations in a `Github <https://www.github.com/>`__.
 
-An example of running the query using the operator:
+You can build your own sensor on Repository using :class:`~airflow.providers.github.operators.GithubOperator`,
+and passing **github_method** and **github_method_args** from top level PyGithub methods.
+You can further process the result using **result_processor** Callable as you like.
 
-.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github_query.py
+An example of Listing all Repositories owned by a user, `client.get_user().get_repos()` can be implemented as following:
+
+.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
     :language: python
-    :start-after: [START howto_operator_github]
-    :end-before: [END howto_operator_github]
+    :start-after: [START howto_operator_list_repos_github]
+    :end-before: [END howto_operator_list_repos_github]
+
+
+An example of Listing Tags in a Repository, `client.get_repo(full_name_or_id='apache/airflow').get_tags()` can be implemented as following:
+
+.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+    :language: python
+    :start-after: [START howto_operator_list_tags_github]
+    :end-before: [END howto_operator_list_tags_github]

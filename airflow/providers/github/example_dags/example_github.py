@@ -14,44 +14,54 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 from datetime import datetime
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.providers.github.hooks.github import GithubHook
+from airflow.providers.github.operators.github import GithubOperator
+from airflow.providers.github.sensors.github import GithubTagSensor
 
-
-@task(task_id="github_task")
-def test_github_hook():
-    bucket_name = 'test-github'
-    github_hook = GithubHook()
-    client = github_hook.get_conn()
-    print(client)
-    print(f"Organization name {github_hook.org_name}")
-
-    # Make sure enough permissions to create bucket.
-    github_hook.create_bucket(bucket_name, "Bucket to test github connection", github_hook.org_name)
-    github_hook.write(bucket_name, "test_point", "location", "Prague", "temperature", 25.3, True)
-
-    tables = github_hook.query('from(bucket:"test-influx") |> range(start: -10m)')
-
-    for table in tables:
-        print(table)
-        for record in table.records:
-            print(record.values)
-
-    bucket_id = github_hook.find_bucket_id_by_name(bucket_name)
-    print(bucket_id)
-    # Delete bucket takes bucket id.
-    github_hook.delete_bucket(bucket_name)
-
-
-with DAG(
-    dag_id='github_example_dag',
-    schedule_interval=None,
+dag = DAG(
+    'example_github_operator',
     start_date=datetime(2021, 1, 1),
-    max_active_runs=1,
     tags=['example'],
-) as dag:
-    test_github_hook()
+    catchup=False,
+)
+
+# [START howto_tag_sensor_github]
+
+tag_sensor = GithubTagSensor(
+    task_id='example_tag_sensor',
+    tag_name='v1.0',
+    repository_name="apache/airflow",
+    timeout=60,
+    poke_interval=10,
+    dag=dag,
+)
+
+# [END howto_tag_sensor_github]
+
+
+# [START howto_operator_list_repos_github]
+
+github_list_repos = GithubOperator(
+    task_id='github_list_repos',
+    github_method="get_user",
+    github_method_args={},
+    result_processor=lambda user: logging.info(list(user.get_repos())),
+    dag=dag,
+)
+
+# [END howto_operator_list_repos_github]
+
+# [START howto_operator_list_tags_github]
+
+list_repo_tags = GithubOperator(
+    task_id='list_repo_tags',
+    github_method="get_repo",
+    github_method_args={'full_name_or_id': 'apache/airflow'},
+    result_processor=lambda repo: logging.info(list(repo.get_tags())),
+    dag=dag,
+)
+
+# [END howto_operator_list_tags_github]

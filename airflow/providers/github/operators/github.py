@@ -30,6 +30,10 @@ class GithubOperator(BaseOperator):
     GithubOperator to interact and perform action on GitHub API.
     This operator is designed to use GitHub Python SDK: https://github.com/PyGithub/PyGithub
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GithubOperator`
+
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :type github_conn_id: str
     :param github_method: method name from GitHub Python SDK to be called
