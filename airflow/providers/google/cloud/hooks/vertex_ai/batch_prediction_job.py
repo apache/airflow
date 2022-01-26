@@ -43,7 +43,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: float, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -70,17 +70,11 @@ class BatchPredictionJobHook(GoogleBaseHook):
         Cancels a BatchPredictionJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param batch_prediction_job: Required. The name of the BatchPredictionJob to cancel.
-        :type batch_prediction_job: str
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_job_service_client(region)
         name = client.batch_prediction_job_path(project_id, region, batch_prediction_job)
@@ -108,17 +102,11 @@ class BatchPredictionJobHook(GoogleBaseHook):
         Creates a BatchPredictionJob. A BatchPredictionJob once created will right away be attempted to start.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param batch_prediction_job:  Required. The BatchPredictionJob to create.
-        :type batch_prediction_job: google.cloud.aiplatform_v1.types.BatchPredictionJob
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_job_service_client(region)
         parent = client.common_location_path(project_id, region)
@@ -148,17 +136,11 @@ class BatchPredictionJobHook(GoogleBaseHook):
         Deletes a BatchPredictionJob. Can only be called on jobs that already finished.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param batch_prediction_job: The name of the BatchPredictionJob resource to be deleted.
-        :type batch_prediction_job: str
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_job_service_client(region)
         name = client.batch_prediction_job_path(project_id, region, batch_prediction_job)
@@ -187,17 +169,11 @@ class BatchPredictionJobHook(GoogleBaseHook):
         Gets a BatchPredictionJob
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param batch_prediction_job: Required. The name of the BatchPredictionJob resource.
-        :type batch_prediction_job: str
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_job_service_client(region)
         name = client.batch_prediction_job_path(project_id, region, batch_prediction_job)
@@ -229,9 +205,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         Lists BatchPredictionJobs in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :type region: str
         :param filter: The standard list filter.
             Supported fields:
                 -  ``display_name`` supports = and !=.
@@ -242,19 +216,12 @@ class BatchPredictionJobHook(GoogleBaseHook):
                 -  ``state="JOB_STATE_RUNNING" OR display_name="my_job"``
                 -  ``NOT display_name="my_job"``
                 -  ``state="JOB_STATE_FAILED"``
-        :type filter: str
         :param page_size: The standard list page size.
-        :type page_size: int
         :param page_token: The standard list page token.
-        :type page_token: str
         :param read_mask: Mask specifying which fields to read.
-        :type read_mask: google.protobuf.field_mask_pb2.FieldMask
         :param retry: Designation of what errors, if any, should be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The timeout for this request.
-        :type timeout: float
         :param metadata: Strings which should be sent along with the request as metadata.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_job_service_client(region)
         parent = client.common_location_path(project_id, region)
