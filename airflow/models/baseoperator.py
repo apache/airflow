@@ -50,6 +50,7 @@ import attr
 import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -75,6 +76,7 @@ from airflow.utils.helpers import render_template_as_native, render_template_to_
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -1799,6 +1801,73 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @property
     def depends_on_past(self) -> bool:
         return self.partial_kwargs.get("depends_on_past") or self.wait_for_downstream
+
+    def expand_mapped_task(self, upstream_ti: "TaskInstance", session: "Session" = NEW_SESSION) -> None:
+        """Create the mapped TaskInstances for mapped task."""
+        # TODO: support having multiuple mapped upstreams?
+        from airflow.models.taskmap import TaskMap
+        from airflow.settings import task_instance_mutation_hook
+
+        task_map_info_length: Optional[int] = (
+            session.query(TaskMap.length)
+            .filter_by(
+                dag_id=upstream_ti.dag_id,
+                task_id=upstream_ti.task_id,
+                run_id=upstream_ti.run_id,
+                map_index=upstream_ti.map_index,
+            )
+            .scalar()
+        )
+        if task_map_info_length is None:
+            # TODO: What would lead to this? How can this be better handled?
+            raise RuntimeError("mapped operator cannot be expanded; upstream not found")
+
+        unmapped_ti: Optional[TaskInstance] = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == upstream_ti.dag_id,
+                TaskInstance.run_id == upstream_ti.run_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.map_index == -1,
+                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+            )
+            .one_or_none()
+        )
+
+        if unmapped_ti:
+            # The unmapped task instance still exists and is unfinished, i.e. we
+            # haven't tried to run it before.
+            if task_map_info_length < 1:
+                # If the upstream maps this to a zero-length value, simply marked the
+                # unmapped task instance as SKIPPED (if needed).
+                self.log.info("Marking %s as SKIPPED since the map has 0 values to expand", unmapped_ti)
+                unmapped_ti.state = TaskInstanceState.SKIPPED
+                session.flush()
+                return
+            # Otherwise convert this into the first mapped index, and create
+            # TaskInstance for other indexes.
+            unmapped_ti.map_index = 0
+            indexes_to_map = range(1, task_map_info_length)
+        else:
+            indexes_to_map = range(task_map_info_length)
+
+        for index in indexes_to_map:
+            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
+            # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
+            ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index)  # type: ignore
+            task_instance_mutation_hook(ti)
+            session.merge(ti)
+
+        # Set to "REMOVED" any (old) TaskInstances with map indices greater
+        # than the current map value
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == upstream_ti.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == upstream_ti.run_id,
+            TaskInstance.map_index >= task_map_info_length,
+        ).update({TaskInstance.state: TaskInstanceState.REMOVED})
+
+        session.flush()
 
 
 # TODO: Deprecate for Airflow 3.0

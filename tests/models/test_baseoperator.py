@@ -36,8 +36,12 @@ from airflow.models.baseoperator import (
     chain,
     cross_downstream,
 )
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -733,8 +737,6 @@ def test_map_unknown_arg_raises():
 
 def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
-    from airflow.models.xcom_arg import XComArg
-
     with DAG("test-dag", start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
@@ -767,3 +769,84 @@ def test_partial_on_class_invalid_ctor_args() -> None:
     """
     with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
         MockOperator.partial(task_id='a', foo='bar', bar=2)
+
+
+@pytest.mark.parametrize(
+    ["num_existing_tis", "expected"],
+    (
+        pytest.param(0, [(0, None), (1, None), (2, None)], id='only-unmapped-ti-exists'),
+        pytest.param(3, [(0, None), (1, None), (2, None)], id='all-tis-exist'),
+        pytest.param(
+            5,
+            [(0, None), (1, None), (2, None), (3, TaskInstanceState.REMOVED), (4, TaskInstanceState.REMOVED)],
+            id="tis-to-be-remove",
+        ),
+    ),
+)
+def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
+    literal = [1, 2, {'a': 'b'}]
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=len(literal),
+            keys=None,
+        )
+    )
+
+    if num_existing_tis:
+        # Remove the map_index=-1 TI when we're creating other TIs
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == dr.run_id,
+        ).delete()
+
+    for index in range(num_existing_tis):
+        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index)  # type: ignore
+        session.add(ti)
+    session.flush()
+
+    mapped.expand_mapped_task(upstream_ti=dr.get_task_instance(task1.task_id), session=session)
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+
+    assert indices == expected
+
+
+def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(dag_id=dr.dag_id, task_id=task1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
+    )
+
+    mapped.expand_mapped_task(upstream_ti=dr.get_task_instance(task1.task_id), session=session)
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+
+    assert indices == [(-1, TaskInstanceState.SKIPPED)]
