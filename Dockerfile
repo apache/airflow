@@ -212,6 +212,9 @@ USER airflow
 RUN if [[ -f /docker-context-files/pip.conf ]]; then \
         mkdir -p ${AIRFLOW_USER_HOME_DIR}/.config/pip; \
         cp /docker-context-files/pip.conf "${AIRFLOW_USER_HOME_DIR}/.config/pip/pip.conf"; \
+    fi; \
+    if [[ -f /docker-context-files/.piprc ]]; then \
+        cp /docker-context-files/.piprc "${AIRFLOW_USER_HOME_DIR}/.piprc"; \
     fi
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
