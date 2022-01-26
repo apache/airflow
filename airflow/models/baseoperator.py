@@ -75,7 +75,7 @@ from airflow.utils.helpers import render_template_as_native, render_template_to_
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -1807,31 +1807,51 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         from airflow.models.taskmap import TaskMap
         from airflow.settings import task_instance_mutation_hook
 
-        task_map_info: TaskMap = (
-            session.query(TaskMap)
+        task_map_info_length: Optional[int] = (
+            session.query(TaskMap.length)
             .filter_by(
                 dag_id=upstream_ti.dag_id,
                 task_id=upstream_ti.task_id,
                 run_id=upstream_ti.run_id,
                 map_index=upstream_ti.map_index,
             )
-            .one()
+            .scalar()
         )
+        if task_map_info_length is None:
+            # TODO: What would lead to this? How can this be better handled?
+            raise RuntimeError("mapped operator cannot be expanded; upstream not found")
+        # TODO: Add db constraint to ensure this is never negative.
 
-        unmapped_ti: Optional[TaskInstance] = upstream_ti.dag_run.get_task_instance(
-            self.task_id, map_index=-1, session=session
+        unmapped_ti: Optional[TaskInstance] = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == upstream_ti.dag_id,
+                TaskInstance.run_id == upstream_ti.run_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.map_index == -1,
+                TaskInstance.state.in_(State.unfinished),
+            )
+            .one_or_none()
         )
-
-        maps = range(task_map_info.length)
 
         if unmapped_ti:
-            # The unmapped TaskInstance still exists -- this means we haven't
-            # tried to run it before.
+            # The unmapped task instance still exists and is unfinished, i.e. we
+            # haven't tried to run it before.
+            if task_map_info_length < 1:
+                # If the upstream maps this to a zero-length value, simply marked the
+                # unmapped task instance as SKIPPED (if needed).
+                unmapped_ti.state = TaskInstanceState.SKIPPED
+                session.merge(unmapped_ti)
+                return
+            # Otherwise convert this into the first mapped index, and create
+            # TaskInstance for other indexes.
             unmapped_ti.map_index = 0
-            maps = range(1, task_map_info.length)
+            indexes_to_map = range(1, task_map_info_length)
+        else:
+            indexes_to_map = range(task_map_info_length)
 
-        for index in maps:
-            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings
+        for index in indexes_to_map:
+            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
             ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index)  # type: ignore
             task_instance_mutation_hook(ti)
@@ -1843,7 +1863,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             TaskInstance.dag_id == upstream_ti.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == upstream_ti.run_id,
-            TaskInstance.map_index >= task_map_info.length,
+            TaskInstance.map_index >= task_map_info_length,
         ).update({TaskInstance.state: TaskInstanceState.REMOVED})
 
         session.flush()
