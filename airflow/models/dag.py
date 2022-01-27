@@ -1344,7 +1344,6 @@ class DAG(LoggingMixin):
                     session=session,
                 ),
             )
-            .join(TaskInstance.dag_run)
             .order_by(DagRun.execution_date)
             .all()
         )
