@@ -85,14 +85,13 @@ def upgrade():
         )
 
     with op.batch_alter_table("__airflow_tmp_xcom") as batch_op:
+        batch_op.alter_column("key", existing_type=StringID(length=512), nullable=False)
         batch_op.alter_column("timestamp", existing_type=TIMESTAMP, nullable=False)
-        if dialect == "mssql":
-            batch_op.alter_column("key", existing_type=StringID(length=512), nullable=False)
-            batch_op.alter_column("task_id", existing_type=StringID(), nullable=False)
-            batch_op.alter_column("dag_id", existing_type=StringID(), nullable=False)
-            batch_op.alter_column("run_id", existing_type=StringID(), nullable=False)
-
-    op.create_primary_key("xcom_pkey", "__airflow_tmp_xcom", ["key", "dag_id", "task_id", "run_id"])
+        batch_op.alter_column("dag_id", existing_type=StringID(), nullable=False)
+        batch_op.alter_column("run_id", existing_type=StringID(), nullable=False)
+        batch_op.alter_column("task_id", existing_type=StringID(), nullable=False)
+        batch_op.create_index("idx_xcom_key", ["key"])
+        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "task_id", "run_id"])
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")

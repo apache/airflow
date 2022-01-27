@@ -24,7 +24,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, LargeBinary, String
+from sqlalchemy import Column, Index, LargeBinary, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 
@@ -53,14 +53,14 @@ class BaseXCom(Base, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    key = Column(String(512, **COLLATION_ARGS), primary_key=True)
+    key = Column(String(512, **COLLATION_ARGS), nullable=False)
     value = Column(LargeBinary)
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Source information.
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
     dag_run = relationship(
         "DagRun",
@@ -72,6 +72,14 @@ class BaseXCom(Base, LoggingMixin):
         passive_deletes="all",
     )
     execution_date = association_proxy("dag_run", "execution_date")
+
+    __table_args__ = (
+        # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
+        # but it goes over MySQL's index length limit. So we instead create indexes
+        # separately, and try to enforce uniqueness at application level.
+        Index("idx_xcom_key", key),
+        Index("idx_xcom_ti_id", dag_id, task_id, run_id),
+    )
 
     @reconstructor
     def init_on_load(self):
