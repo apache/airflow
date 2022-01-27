@@ -333,6 +333,7 @@ Seedlist
 Sendgrid
 SerializedDAG
 SlackHook
+SlackResponse
 SnowflakeHook
 Spark
 SparkPi
