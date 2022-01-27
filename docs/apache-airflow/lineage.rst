@@ -110,7 +110,7 @@ The backend should inherit from ``airflow.lineage.LineageBackend``.
   from airflow.lineage.backend import LineageBackend
 
 
-  class ExampleBackend(LineageBackend):
+  class CustomBackend(LineageBackend):
       def send_lineage(self, operator, inlets=None, outlets=None, context=None):
           ...
           # Send the info to some external service
