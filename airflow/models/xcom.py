@@ -477,6 +477,8 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     def deserialize_value(result: "XCom") -> Any:
         """Deserialize XCom value from str or pickle object"""
+        if result.value is None:
+            return None
         if conf.getboolean('core', 'enable_xcom_pickling'):
             try:
                 return pickle.loads(result.value)
