@@ -88,25 +88,4 @@ For example, if you define a custom XCom backend in the Chart ``values.yaml`` (v
 
 When deploying in K8s your custom XCom backend needs to be reside in a ``config`` directory otherwise it cannot be located during Chart deployment.
 
-An observed problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. If you are fortunate enough to query the container logs at the right time, assuming that the custom backend value used is ``xcom_custom_backend.S3XComBackend``, you may see something similar to the following::
-
-::
-
-    Traceback (most recent call last):
-      File "/home/airflow/.local/bin/airflow", line 8, in <module>
-        sys.exit(main())
-      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/__main__.py", line 48, in main
-        args.func(args)
-      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/cli/cli_parser.py", line 47, in command
-        from airflow.models.xcom import XCOM_RETURN_KEY, XCom
-      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/models/xcom.py", line 379, in <module>
-        XCom = resolve_xcom_backend()
-      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/models/xcom.py", line 369, in resolve_xcom_backend
-        clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
-      File "/home/airflow/.local/lib/python3.9/site-packages/airflow/configuration.py", line 485, in getimport
-        raise AirflowConfigException(
-    airflow.exceptions.AirflowConfigException: The object could not be loaded. Please check "xcom_backend" key in "core" section. Current value: "xcom_custom_backend.S3XComBackend".
-    [2022-01-06 00:02:16,880] {settings.py:331} DEBUG - Disposing DB connection pool (PID 214)
-
-
-As you can see, in this example the path to the custom XCom is incorrect. This in turn prevents the entire Helm chart from deploying successfully.
+An observed problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. The only way you can  determine the root cause is if you are fortunate enough to query and acquire the container logs at the right time. This in turn prevents the entire Helm chart from deploying successfully.
