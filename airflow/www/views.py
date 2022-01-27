@@ -3149,19 +3149,11 @@ class Airflow(AirflowBaseView):
         if included_events:
             included_events = {event.strip() for event in included_events.split(',')}
             query = query.filter(Log.event.in_(included_events))
-        if excluded_events:
+        elif excluded_events:
             excluded_events = {event.strip() for event in excluded_events.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
-
-        overlapping_events = included_events & excluded_events
-        if overlapping_events:
-            flash(Markup(f'There exists overlapping events: <b>{overlapping_events}</b>. Please '
-                         f'check included_events and excluded_events to have unique events in each '
-                         f'config. An event cannot be both. Reach out to system administrator '
-                         f'if any questions remain.'))
-            dag_audit_logs = []
-        else:
-            dag_audit_logs = query.all()
+        
+        dag_audit_logs = query.all()
 
         content = self.render_template(
             'airflow/dag_audit_log.html',
