@@ -24,7 +24,7 @@ from pytest import param
 
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
-from airflow.utils.metastore_cleanup import _build_query, config_dict, run_cleanup
+from airflow.utils.metastore_cleanup import _build_query, _cleanup_table, config_dict, run_cleanup
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -110,54 +110,26 @@ class TestMetastoreCleanup:
             do_delete.assert_called()
 
     @pytest.mark.parametrize(
-        'pendulum_add_kwargs, expected_to_delete',
+        'table_name, date_add_kwargs, expected_to_delete, external_trigger',
         [
-            param(dict(days=0), 0, id='beginning'),
-            param(dict(days=4), 4, id='middle'),
-            param(dict(days=9), 9, id='end_exactly'),
-            param(dict(days=9, microseconds=1), 10, id='beyond_end'),
+            param('task_instance', dict(days=0), 0, False, id='beginning'),
+            param('task_instance', dict(days=4), 4, False, id='middle'),
+            param('task_instance', dict(days=9), 9, False, id='end_exactly'),
+            param('task_instance', dict(days=9, microseconds=1), 10, False, id='beyond_end'),
+            param('dag_run', dict(days=9, microseconds=1), 9, False, id='beyond_end_dr'),
+            param('dag_run', dict(days=9, microseconds=1), 10, True, id='beyond_end_dr_external'),
         ],
     )
-    def test__build_query_non_keep_last(self, pendulum_add_kwargs, expected_to_delete):
+    def test__build_query(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
         """
         Verify that ``_build_query`` produces a query that would delete the right
         task instance records depending on the value of ``clean_before_timestamp``.
-        """
-        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('America/Los_Angeles'))
-        create_tis(
-            base_date=base_date,
-            num_tis=10,
-        )
-        with create_session() as session:
-            tis = session.query(TaskInstance).all()
-            assert len(tis) == 10
-
-        with create_session() as session:
-            clean_before_date = base_date.add(**pendulum_add_kwargs)
-            query = _build_query(
-                **config_dict['task_instance'].__dict__,
-                clean_before_timestamp=clean_before_date,
-                session=session,
-            )
-            assert len(query.all()) == expected_to_delete
-
-    @pytest.mark.parametrize(
-        'pendulum_add_kwargs, expected_to_delete, external_trigger',
-        [
-            param(dict(days=0), 0, False, id='beginning'),
-            param(dict(days=4), 4, False, id='middle'),
-            param(dict(days=9), 9, False, id='end_exactly'),
-            param(dict(days=9, microseconds=1), 9, False, id='beyond_end'),
-            param(dict(days=9, microseconds=1), 10, True, id='beyond_end_external'),
-        ],
-    )
-    def test__build_query_keep_last(self, pendulum_add_kwargs, expected_to_delete, external_trigger):
-        """
-        Verify that ``_build_query`` produces a query that would delete the right
-        dag run records depending on the value of ``clean_before_timestamp``.
 
         DagRun is a special case where we always keep the last dag run even if
-        the ``clean_before_timestamp`` is in the future and we verify this behavior as well.
+        the ``clean_before_timestamp`` is in the future, except for
+        externally-triggered dag runs. That is, only the last non-externally-triggered
+        dag run is kept.
+
         """
         base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('America/Los_Angeles'))
         create_tis(
@@ -166,15 +138,63 @@ class TestMetastoreCleanup:
             external_trigger=external_trigger,
         )
         with create_session() as session:
-            tis = session.query(TaskInstance).all()
-            assert len(tis) == 10
-
-        with create_session() as session:
-            clean_before_date = base_date.add(**pendulum_add_kwargs)
+            clean_before_date = base_date.add(**date_add_kwargs)
             query = _build_query(
-                **config_dict['dag_run'].__dict__, clean_before_timestamp=clean_before_date, session=session
+                **config_dict[table_name].__dict__,
+                clean_before_timestamp=clean_before_date,
+                session=session,
             )
             assert len(query.all()) == expected_to_delete
+
+    @pytest.mark.parametrize(
+        'table_name, date_add_kwargs, expected_to_delete, external_trigger',
+        [
+            param('task_instance', dict(days=0), 0, False, id='beginning'),
+            param('task_instance', dict(days=4), 4, False, id='middle'),
+            param('task_instance', dict(days=9), 9, False, id='end_exactly'),
+            param('task_instance', dict(days=9, microseconds=1), 10, False, id='beyond_end'),
+            param('dag_run', dict(days=9, microseconds=1), 9, False, id='beyond_end_dr'),
+            param('dag_run', dict(days=9, microseconds=1), 10, True, id='beyond_end_dr_external'),
+        ],
+    )
+    def test__cleanup_table(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
+        """
+        Verify that _cleanup_table actually deletes the rows it should.
+
+        TaskInstance represents the "normal" case.  DagRun is the odd case where we want
+        to keep the last non-externally-triggered DagRun record even if if it should be
+        deleted according to the provided timestamp.
+
+        We also verify that the "on delete cascade" behavior is as expected.  Some tables
+        have foreign keys defined so for example if we delete a dag run, all its associated
+        task instances should be purged as well.  But if we delete task instances the
+        associated dag runs should remain.
+
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('America/Los_Angeles'))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+            external_trigger=external_trigger,
+        )
+        with create_session() as session:
+            clean_before_date = base_date.add(**date_add_kwargs)
+            _cleanup_table(
+                **config_dict[table_name].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+            )
+            model = config_dict[table_name].orm_model
+            expected_remaining = num_tis - expected_to_delete
+            assert len(session.query(model).all()) == expected_remaining
+            if model == TaskInstance:
+                assert len(session.query(DagRun).all()) == num_tis
+            elif model == DagRun:
+                assert len(session.query(TaskInstance).all()) == expected_remaining
+            else:
+                raise Exception("unexpected")
 
 
 def create_tis(base_date, num_tis, external_trigger=False):
