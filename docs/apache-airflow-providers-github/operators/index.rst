@@ -63,3 +63,9 @@ An example for tag **v1.0**:
     :start-after: [START howto_tag_sensor_github]
     :end-before: [END howto_tag_sensor_github]
 
+Similar Functionality can be achieved by directly using :class:`~airflow.providers.github.sensors.GithubSensor` ,
+
+.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+    :language: python
+    :start-after: [START howto_sensor_github]
+    :end-before: [END howto_sensor_github]

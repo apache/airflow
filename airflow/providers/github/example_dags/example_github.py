@@ -16,10 +16,14 @@
 # under the License.
 import logging
 from datetime import datetime
+from typing import Any, Optional
 
+from github import GithubException
+
+from airflow import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.github.operators.github import GithubOperator
-from airflow.providers.github.sensors.github import GithubTagSensor
+from airflow.providers.github.sensors.github import GithubTagSensor, GithubSensor
 
 dag = DAG(
     'example_github_operator',
@@ -39,7 +43,36 @@ tag_sensor = GithubTagSensor(
     dag=dag,
 )
 
+
 # [END howto_tag_sensor_github]
+
+# [START howto_sensor_github]
+
+def tag_checker(repo: Any, tag_name: str) -> Optional[bool]:
+    result = None
+    try:
+        if repo is not None and tag_name is not None:
+            all_tags = [x.name for x in repo.get_tags()]
+            result = tag_name in all_tags
+
+    except GithubException as github_error:
+        raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
+    except Exception as e:
+        raise AirflowException(f"Github operator error: {str(e)}")
+    return result
+
+
+github_sensor = GithubSensor(
+    task_id='example_sensor',
+    method_name="get_repo",
+    method_params={'full_name_or_id': "apache/airflow"},
+    result_processor=lambda repo: tag_checker(repo, 'v1.0'),
+    timeout=60,
+    poke_interval=10,
+    dag=dag,
+)
+
+# [END howto_sensor_github]
 
 
 # [START howto_operator_list_repos_github]
