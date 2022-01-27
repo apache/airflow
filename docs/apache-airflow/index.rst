@@ -20,9 +20,9 @@ What is Airflow?
 
 `Apache Airflow <https://github.com/apache/airflow>`_ is an open-source platform for developing, scheduling,
 and monitoring batch-oriented workflows. Airflow's extensible Python framework enables you to build workflows
-connecting with virtually any technology. A web interface helps managing the state of your workflows. Airflow
-is deployable in many ways, varying from a single process on your laptop to a distributed setup to support
-even the biggest workflows.
+connecting with virtually any technology. A web interface helps manage the state of your workflows. Airflow is
+deployable in many ways, varying from a single process on your laptop to a distributed setup to support even
+the biggest workflows.
 
 Airflow was started in October 2014 by Maxime Beauchemin at Airbnb. It was open source from the very first
 commit and hosted under Airbnb's GitHub in June 2015. The project joined the `Apache Software Foundation
@@ -38,7 +38,7 @@ code" serves several purposes:
 
 - **Dynamic**: Airflow pipelines are configured as Python code, allowing for dynamic pipeline generation.
 - **Extensible**: The Airflow framework contains operators to connect with numerous technologies. All Airflow components are extensible to easily adjust to your environment.
-- **Flexible**: Workflow parameterization is built in leveraging the `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
+- **Flexible**: Workflow parameterization is built-in leveraging the `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
 
 Take a look at the following snippet of code:
 
@@ -63,9 +63,9 @@ Take a look at the following snippet of code:
 
 Here you see:
 
-- A DAG named "demo", which is Airflow's representation of a workflow. It start on Jan 1st 2022 and runs once a day.
+- A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
 - Two tasks, a BashOperator running a Bash script and a PythonOperator running a Python script
-- Dependencies between the tasks defining in which order the tasks will be executed
+- ``>>`` between the tasks define dependencies and control in which order the tasks will be executed
 
 Airflow evaluates this script and executes the tasks at the set interval and in the order defined by the
 dependencies. The status of the "demo" DAG is visible in the web interface:
@@ -85,7 +85,7 @@ other views which allow you to deep dive into the state of your workflows.
 
 Why Airflow?
 =========================================
-Airflow is batch workflow orchestration platform. The Airflow framework contains operators to connect with
+Airflow is a batch workflow orchestration platform. The Airflow framework contains operators to connect with
 many technologies and is easily extensible to connect with a new technology. If your workflows have a clear
 start and end, and run at regular intervals, they can be programmed as an Airflow DAG.
 
@@ -99,16 +99,16 @@ means:
 
 Rich scheduling and execution semantics enable you to easily define complex pipelines, running at regular
 intervals. Backfilling allows you to (re-)run pipelines on historical data after making changes to your logic.
-And the ability to rerun partial pipelines after resolving an error helps maximizing efficiency.
+And the ability to rerun partial pipelines after resolving an error helps maximize efficiency.
 
 Airflow's user interface provides both in-depth views of pipelines and individual tasks, and an overview of
-pipelines over time. From the interface you can inspect logs and manage tasks, for example retrying a task in
+pipelines over time. From the interface, you can inspect logs and manage tasks, for example retrying a task in
 case of failure.
 
 The open-source nature of Airflow ensures you work on components developed, tested, and used by many other
-companies around the world. In the active community you can find plenty helpful resources in the form of blogs
-posts, articles, conferences, books, and more. You can connect with other peers via several channels such as
-Slack and a mailing list.
+companies around the world. In the active community you can find plenty of helpful resources in the form of
+blogs posts, articles, conferences, books, and more. You can connect with other peers via several channels
+such as Slack and a mailing list.
 
 Why not Airflow?
 =========================================
