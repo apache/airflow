@@ -255,6 +255,13 @@ def run_cleanup(
     """
     Purges old records in airflow metastore database.
 
+    The last non-externally-triggered dag run will always be kept in order to ensure
+    continuity of scheduled dag runs.
+
+    Where there are foreign key relationships, deletes will cascade, so that for
+    example if you clean up old dag runs, the associated task instances will
+    be deleted.
+
     :param clean_before_timestamp: The timestamp before which data should be purged
     :type clean_before_timestamp: DateTime
     :param table_names: Optional. List of table names to perform maintenance on.  If list not provided, will perform maintenance on all tables.
