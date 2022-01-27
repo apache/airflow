@@ -34,7 +34,6 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
-from sqlalchemy import or_
 from tabulate import tabulate
 
 import airflow.models
@@ -42,17 +41,15 @@ from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DagModel, errors
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
 
 if TYPE_CHECKING:
     import pathlib
@@ -434,8 +431,6 @@ class DagFileProcessorManager(LoggingMixin):
         # How often to print out DAG file processing stats to the log. Default to
         # 30 seconds.
         self.print_stats_interval = conf.getint('scheduler', 'print_stats_interval')
-        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
         # Map from file path to the processor
         self._processors: Dict[str, DagFileProcessorProcess] = {}
@@ -445,13 +440,10 @@ class DagFileProcessorManager(LoggingMixin):
         # Map from file path to stats about the file
         self._file_stats: Dict[str, DagFileStat] = {}
 
-        self._last_zombie_query_time = None
         # Last time that the DAG dir was traversed to look for files
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
         self.last_stat_print_time = 0
-        # TODO: Remove magic number
-        self._zombie_query_interval = 10
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
 
@@ -566,7 +558,6 @@ class DagFileProcessorManager(LoggingMixin):
                 self._processors.pop(processor.file_path)
 
             self._refresh_dag_dir()
-            self._find_zombies()
 
             self._kill_timed_out_processors()
 
@@ -1022,53 +1013,6 @@ class DagFileProcessorManager(LoggingMixin):
                 )
 
         self._file_path_queue.extend(files_paths_to_queue)
-
-    @provide_session
-    def _find_zombies(self, session):
-        """
-        Find zombie task instances, which are tasks haven't heartbeated for too long
-        and update the current zombie list.
-        """
-        now = timezone.utcnow()
-        if (
-            not self._last_zombie_query_time
-            or (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval
-        ):
-            # to avoid circular imports
-            from airflow.jobs.local_task_job import LocalTaskJob as LJ
-
-            self.log.info("Finding 'running' jobs without a recent heartbeat")
-            TI = airflow.models.TaskInstance
-            DM = airflow.models.DagModel
-            limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-
-            zombies = (
-                session.query(TI, DM.fileloc)
-                .join(LJ, TI.job_id == LJ.id)
-                .join(DM, TI.dag_id == DM.dag_id)
-                .filter(TI.state == State.RUNNING)
-                .filter(
-                    or_(
-                        LJ.state != State.RUNNING,
-                        LJ.latest_heartbeat < limit_dttm,
-                    )
-                )
-                .all()
-            )
-
-            if zombies:
-                self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
-
-            self._last_zombie_query_time = timezone.utcnow()
-            for ti, file_loc in zombies:
-                request = TaskCallbackRequest(
-                    full_filepath=file_loc,
-                    simple_task_instance=SimpleTaskInstance(ti),
-                    msg=f"Detected {ti} as zombie",
-                )
-                self.log.error("Detected zombie job: %s", request)
-                self._add_callback_to_queue(request)
-                Stats.incr('zombies_killed')
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""

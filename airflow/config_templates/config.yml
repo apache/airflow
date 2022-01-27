@@ -1850,6 +1850,13 @@
       type: string
       example: ~
       default: "300"
+    - name: zombie_detection_interval
+      description: |
+        How often (in seconds) should the scheduler check for zombie tasks.
+      version_added: 2.3.0
+      type: float
+      example: ~
+      default: "30.0"
     - name: catchup_by_default
       description: |
         Turn off scheduler catchup by setting this to ``False``.
