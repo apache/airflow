@@ -161,11 +161,7 @@ class BaseXCom(Base, LoggingMixin):
                 .one()
             )
         else:
-            dagrun_id = (
-                session.query(DagRun.id)
-                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                .scalar()
-            ) or -1
+            (dagrun_id,) = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).one()
 
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
@@ -438,6 +434,8 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
+        from airflow.models import DagRun
+
         # Given the historic order of this function (execution_date was first argument) to add a new optional
         # param we need to add default values for everything :(
         if dag_id is None:
@@ -448,15 +446,16 @@ class BaseXCom(Base, LoggingMixin):
         if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of run_id or execution_date must be passed")
 
-        query = session.query(cls).filter(cls.dag_id == dag_id, cls.task_id == task_id)
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
-            query = query.filter(cls.execution_date == execution_date)
-        else:
-            query = query.filter(cls.run_id == run_id)
+            run_id = (
+                session.query(DagRun.run_id)
+                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
+                .scalar()
+            )
 
-        return query.delete()
+        return session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id).delete()
 
     @staticmethod
     def serialize_value(value: Any):
