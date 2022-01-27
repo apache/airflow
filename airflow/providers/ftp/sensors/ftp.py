@@ -31,13 +31,10 @@ class FTPSensor(BaseSensorOperator):
     Waits for a file or directory to be present on FTP.
 
     :param path: Remote file or directory path
-    :type path: str
     :param fail_on_transient_errors: Fail on all errors,
         including 4xx transient errors. Default True.
-    :type fail_on_transient_errors: bool
     :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
         reference to run the sensor against.
-    :type ftp_conn_id: str
     """
 
     template_fields: Sequence[str] = ('path',)

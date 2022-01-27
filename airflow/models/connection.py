@@ -71,26 +71,16 @@ class Connection(Base, LoggingMixin):
         For more information on how to use this class, see: :doc:`/howto/connection`
 
     :param conn_id: The connection ID.
-    :type conn_id: str
     :param conn_type: The connection type.
-    :type conn_type: str
     :param description: The connection description.
-    :type description: str
     :param host: The host.
-    :type host: str
     :param login: The login.
-    :type login: str
     :param password: The password.
-    :type password: str
     :param schema: The schema.
-    :type schema: str
     :param port: The port number.
-    :type port: int
     :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
         encoded object.
-    :type extra: str
     :param uri: URI address describing connection parameters.
-    :type uri: str
     """
 
     EXTRA_KEY = '__extra__'

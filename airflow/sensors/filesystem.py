@@ -36,13 +36,10 @@ class FileSensor(BaseSensorOperator):
 
     :param fs_conn_id: reference to the File (path)
         connection id
-    :type fs_conn_id: str
     :param filepath: File or folder name (relative to
         the base path set within the connection), can be a glob.
-    :type filepath: str
     :param recursive: when set to ``True``, enables recursive directory matching behavior of
         ``**`` in glob filepath parameter. Defaults to ``False``.
-    :type recursive: bool
     """
 
     template_fields: Sequence[str] = ('filepath',)
@@ -62,9 +59,8 @@ class FileSensor(BaseSensorOperator):
 
         for path in glob(full_path, recursive=self.recursive):
             if os.path.isfile(path):
-                mod_time = os.path.getmtime(path)
-                mod_time = datetime.datetime.fromtimestamp(mod_time).strftime('%Y%m%d%H%M%S')
-                self.log.info('Found File %s last modified: %s', str(path), str(mod_time))
+                mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime('%Y%m%d%H%M%S')
+                self.log.info('Found File %s last modified: %s', str(path), mod_time)
                 return True
 
             for _, _, files in os.walk(full_path):

@@ -40,20 +40,14 @@ class S3ToRedshiftOperator(BaseOperator):
         :ref:`howto/operator:S3ToRedshiftOperator`
 
     :param schema: reference to a specific schema in redshift database
-    :type schema: str
     :param table: reference to a specific table in redshift database
-    :type table: str
     :param s3_bucket: reference to a specific S3 bucket
-    :type s3_bucket: str
     :param s3_key: reference to a specific S3 key
-    :type s3_key: str
     :param redshift_conn_id: reference to a specific redshift database
-    :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -64,15 +58,10 @@ class S3ToRedshiftOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param column_list: list of column names to load
-    :type column_list: List[str]
     :param copy_options: reference to a list of COPY options
-    :type copy_options: list
     :param method: Action to be performed on execution. Available ``APPEND``, ``UPSERT`` and ``REPLACE``.
-    :type method: str
     :param upsert_keys: List of fields to use as key on upsert action
-    :type upsert_keys: List[str]
     """
 
     template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')

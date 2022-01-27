@@ -21,7 +21,7 @@ from unittest import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.sensors.batch import BatchSensor
 
 TASK_ID = 'batch_job_sensor'
@@ -35,26 +35,26 @@ class TestBatchSensor(unittest.TestCase):
             job_id=JOB_ID,
         )
 
-    @mock.patch.object(AwsBatchClientHook, 'get_job_description')
+    @mock.patch.object(BatchClientHook, 'get_job_description')
     def test_poke_on_success_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {'status': 'SUCCEEDED'}
-        self.assertTrue(self.batch_sensor.poke(None))
+        self.assertTrue(self.batch_sensor.poke({}))
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
-    @mock.patch.object(AwsBatchClientHook, 'get_job_description')
+    @mock.patch.object(BatchClientHook, 'get_job_description')
     def test_poke_on_failure_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {'status': 'FAILED'}
         with self.assertRaises(AirflowException) as e:
-            self.batch_sensor.poke(None)
+            self.batch_sensor.poke({})
 
         self.assertEqual('Batch sensor failed. AWS Batch job status: FAILED', str(e.exception))
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
-    @mock.patch.object(AwsBatchClientHook, 'get_job_description')
+    @mock.patch.object(BatchClientHook, 'get_job_description')
     def test_poke_on_invalid_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {'status': 'INVALID'}
         with self.assertRaises(AirflowException) as e:
-            self.batch_sensor.poke(None)
+            self.batch_sensor.poke({})
 
         self.assertEqual('Batch sensor failed. Unknown AWS Batch job status: INVALID', str(e.exception))
         mock_get_job_description.assert_called_once_with(JOB_ID)
@@ -68,8 +68,8 @@ class TestBatchSensor(unittest.TestCase):
             ('RUNNING',),
         ]
     )
-    @mock.patch.object(AwsBatchClientHook, 'get_job_description')
+    @mock.patch.object(BatchClientHook, 'get_job_description')
     def test_poke_on_intermediate_state(self, job_status, mock_get_job_description):
         mock_get_job_description.return_value = {'status': job_status}
-        self.assertFalse(self.batch_sensor.poke(None))
+        self.assertFalse(self.batch_sensor.poke({}))
         mock_get_job_description.assert_called_once_with(JOB_ID)

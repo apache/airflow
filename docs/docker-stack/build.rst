@@ -68,7 +68,7 @@ In the simplest case building your image consists of those steps:
 
 .. code-block:: shell
 
-   docker build . -f Dockerfile --tag my-image:0.0.1
+   docker build . -f Dockerfile --pull --tag my-image:0.0.1
 
 3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step however,
    requires locally checked out or extracted Airflow sources. If you happen to have the sources you can
@@ -81,8 +81,23 @@ In the simplest case building your image consists of those steps:
 
 4) Once you build the image locally you have usually several options to make them available for your deployment:
 
-* For ``docker-compose`` deployment, that's all you need. The image is stored in Docker engine cache
-  and Docker Compose will use it from there.
+* For ``docker-compose`` deployment, if you've already built your image, and want to continue
+  building the image manually when needed with ``docker build``, you can edit the
+  docker-compose.yaml and replace the "apache/airflow:<version>" image with the
+  image you've just built ``my-image:0.0.1`` - it will be used from your local Docker
+  Engine cache. You can also simply set ``AIRFLOW_IMAGE_NAME`` variable to
+  point to your image and ``docker-compose`` will use it automatically without having
+  to modify the file.
+
+* Also for ``docker-compose`` deployment, you can delegate image building to the docker-compose.
+  To do that - open your ``docker-compose.yaml`` file and search for the phrase "In order to add custom dependencies".
+  Follow these instructions of commenting the "image" line and uncommenting the "build" line.
+  This is a standard docker-compose feature and you can read about it in
+  `Docker Compose build reference <https://docs.docker.com/compose/reference/build/>`_.
+  Run ``docker-compose build`` to build the images. Similarly as in the previous case, the
+  image is stored in Docker engine cache and Docker Compose will use it from there.
+  The ``docker-compose build`` command uses the same ``docker build`` command that
+  you can run manually under-the-hood.
 
 * For some - development targeted - Kubernetes deployments you can load the images directly to
   Kubernetes clusters. Clusters such as ``kind`` or ``minikube`` have dedicated ``load`` method to load the
@@ -223,7 +238,7 @@ You should be aware, about a few things:
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
   ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
-  a command ``docker build . --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
+  a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
 * If your way of extending image requires to create writable directories, you MUST remember about adding
@@ -522,12 +537,20 @@ described below but here is an example of rather complex command to customize th
 based on example in `this comment <https://github.com/apache/airflow/issues/8605#issuecomment-690065621>`_:
 
 In case you need to use your custom PyPI package indexes, you can also customize PYPI sources used during
-image build by adding a ``docker-context-files``/``pip.conf`` file when building the image.
+image build by adding a ``docker-context-files/pip.conf`` file when building the image.
 This ``pip.conf`` will not be committed to the repository (it is added to ``.gitignore``) and it will not be
 present in the final production image. It is added and used only in the build segment of the image.
 Therefore this ``pip.conf`` file can safely contain list of package indexes you want to use,
 usernames and passwords used for authentication. More details about ``pip.conf`` file can be found in the
 `pip configuration <https://pip.pypa.io/en/stable/topics/configuration/>`_.
+
+If you used the ``.piprc`` before (some older versions of ``pip`` used it for customization), you can put it
+in the ``docker-context-files/.piprc`` file and it will be automatically copied to ``HOME`` directory
+of the ``airflow`` user.
+
+Note, that those customizations are only available in the ``build`` segment of the Airflow image and they
+are not present in the ``final`` image. If you wish to extend the final image and add custom ``.piprc`` and
+``pip.conf``, you should add them in your own Dockerfile used to extend the Airflow image.
 
 Such customizations are independent of the way how airflow is installed.
 

@@ -35,7 +35,6 @@ class AzureBatchHook(BaseHook):
 
     :param azure_batch_conn_id: :ref:`Azure Batch connection id<howto/connection:azure_batch>`
         of a service principal which will be used to start the container instance.
-    :type azure_batch_conn_id: str
     """
 
     conn_name_attr = 'azure_batch_conn_id'
@@ -57,7 +56,7 @@ class AzureBatchHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -114,45 +113,33 @@ class AzureBatchHook(BaseHook):
         Configures a pool
 
         :param pool_id: A string that uniquely identifies the Pool within the Account
-        :type pool_id: str
 
         :param vm_size: The size of virtual machines in the Pool.
-        :type vm_size: str
 
         :param display_name: The display name for the Pool
-        :type display_name: str
 
         :param target_dedicated_nodes: The desired number of dedicated Compute Nodes in the Pool.
-        :type target_dedicated_nodes: Optional[int]
 
         :param use_latest_image_and_sku: Whether to use the latest verified vm image and sku
-        :type use_latest_image_and_sku: bool
 
         :param vm_publisher: The publisher of the Azure Virtual Machines Marketplace Image.
             For example, Canonical or MicrosoftWindowsServer.
-        :type vm_publisher: Optional[str]
 
         :param vm_offer: The offer type of the Azure Virtual Machines Marketplace Image.
             For example, UbuntuServer or WindowsServer.
-        :type vm_offer: Optional[str]
 
         :param sku_starts_with: The start name of the sku to search
-        :type sku_starts_with: Optional[str]
 
         :param vm_sku: The name of the virtual machine sku to use
-        :type vm_sku: Optional[str]
 
         :param vm_version: The version of the virtual machine
         :param vm_version: str
 
         :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
-        :type vm_node_agent_sku_id: Optional[str]
 
         :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
-        :type os_family: Optional[str]
 
         :param os_version: The OS family version
-        :type os_version: Optional[str]
 
         """
         if use_latest_image_and_sku:
@@ -211,7 +198,6 @@ class AzureBatchHook(BaseHook):
         Creates a pool if not already existing
 
         :param pool: the pool object to create
-        :type pool: batch_models.PoolAddParameter
 
         """
         try:
@@ -235,12 +221,9 @@ class AzureBatchHook(BaseHook):
 
         :param publisher: The publisher of the Azure Virtual Machines Marketplace Image.
             For example, Canonical or MicrosoftWindowsServer.
-        :type publisher: str
         :param offer: The offer type of the Azure Virtual Machines Marketplace Image.
             For example, UbuntuServer or WindowsServer.
-        :type offer: str
         :param sku_starts_with: The start name of the sku to search
-        :type sku_starts_with: str
         """
         options = batch_models.AccountListSupportedImagesOptions(filter="verificationType eq 'verified'")
         images = self.connection.account.list_supported_images(account_list_supported_images_options=options)
@@ -262,9 +245,7 @@ class AzureBatchHook(BaseHook):
         Wait for all nodes in a pool to reach given states
 
         :param pool_id: A string that identifies the pool
-        :type pool_id: str
         :param node_state: A set of batch_models.ComputeNodeState
-        :type node_state: set
         """
         self.log.info('waiting for all nodes in pool %s to reach one of: %s', pool_id, node_state)
         while True:
@@ -292,11 +273,8 @@ class AzureBatchHook(BaseHook):
         Configures a job for use in the pool
 
         :param job_id: A string that uniquely identifies the job within the account
-        :type job_id: str
         :param pool_id: A string that identifies the pool
-        :type pool_id: str
         :param display_name: The display name for the job
-        :type display_name: str
         """
         job = batch_models.JobAddParameter(
             id=job_id,
@@ -311,7 +289,6 @@ class AzureBatchHook(BaseHook):
         Creates a job in the pool
 
         :param job: The job object to create
-        :type job: batch_models.JobAddParameter
         """
         try:
             self.connection.job.add(job)
@@ -334,16 +311,12 @@ class AzureBatchHook(BaseHook):
         Creates a task
 
         :param task_id: A string that identifies the task to create
-        :type task_id: str
         :param command_line: The command line of the Task.
-        :type command_line: str
         :param display_name: A display name for the Task
-        :type display_name: str
         :param container_settings: The settings for the container under which the Task runs.
             If the Pool that will run this Task has containerConfiguration set,
             this must be set as well. If the Pool that will run this Task doesn't have
             containerConfiguration set, this must not be set.
-        :type container_settings: batch_models.TaskContainerSettings
         """
         task = batch_models.TaskAddParameter(
             id=task_id,
@@ -360,9 +333,7 @@ class AzureBatchHook(BaseHook):
         Add a single task to given job if it doesn't exist
 
         :param job_id: A string that identifies the given job
-        :type job_id: str
         :param task: The task to add
-        :type task: batch_models.TaskAddParameter
         """
         try:
 
@@ -378,9 +349,7 @@ class AzureBatchHook(BaseHook):
         Wait for tasks in a particular job to complete
 
         :param job_id: A string that identifies the job
-        :type job_id: str
         :param timeout: The amount of time to wait before timing out in minutes
-        :type timeout: int
         """
         timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:

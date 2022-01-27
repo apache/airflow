@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# from airflow_breeze.utils import run_command
 from pathlib import Path
 from typing import List
 
-from airflow_breeze.breeze import get_airflow_sources_root
 from airflow_breeze.cache import check_cache_and_write_if_not_cached
 from airflow_breeze.ci.build_params import BuildParams
 from airflow_breeze.console import console
-from airflow_breeze.utils import filter_out_none, run_command
+from airflow_breeze.utils.path_utils import get_airflow_sources_root
+from airflow_breeze.utils.run_utils import filter_out_none, run_command
 
 PARAMS_CI_IMAGE = [
     "python_base_image",
@@ -83,7 +82,7 @@ def construct_docker_command(ci_image: BuildParams) -> List[str]:
 
 
 def build_image(verbose, **kwargs):
-    ci_image_params = BuildParams(filter_out_none(**kwargs))
+    ci_image_params = BuildParams(**filter_out_none(**kwargs))
     is_cached, value = check_cache_and_write_if_not_cached(
         "PYTHON_MAJOR_MINOR_VERSION", ci_image_params.python_version
     )

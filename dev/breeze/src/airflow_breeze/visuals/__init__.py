@@ -15,6 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow_breeze.global_constants import (
+    AIRFLOW_SOURCES,
+    FLOWER_HOST_PORT,
+    MSSQL_HOST_PORT,
+    MYSQL_HOST_PORT,
+    POSTGRES_HOST_PORT,
+    REDIS_HOST_PORT,
+    SSH_PORT,
+    WEBSERVER_HOST_PORT,
+)
+
 ASCIIART = """
 
 
@@ -60,3 +71,33 @@ ASCIIART = """
 """
 
 ASCIIART_STYLE = "white"
+
+
+CHEATSHEET = f"""
+Airflow Breeze CHEATSHEET
+Adding breeze to your path:
+   When you exit the environment, you can add sources of Airflow to the path - you can
+   run breeze or the scripts above from any directory by calling 'breeze' commands directly
+
+   \'{AIRFLOW_SOURCES}\' is exported into PATH
+
+    Port forwarding:
+      Ports are forwarded to the running docker containers for webserver and database
+        * {SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22
+        * {WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080
+        * {FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555
+        * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
+        * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
+        * {MSSQL_HOST_PORT} -> forwarded to MSSQL database  -> mssql:1443
+        * {REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379
+      Here are links to those services that you can use on host:"
+        * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 pw: airflow"
+        * Webserver: http://127.0.0.1:{WEBSERVER_HOST_PORT}"
+        * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}"
+        * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow"
+        * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root"
+        * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0"
+
+"""
+
+CHEATSHEET_STYLE = "white"

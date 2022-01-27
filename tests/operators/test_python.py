@@ -17,6 +17,7 @@
 # under the License.
 import copy
 import logging
+import os
 import sys
 import unittest.mock
 import warnings
@@ -45,6 +46,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -58,6 +60,8 @@ TI_CONTEXT_ENV_VARS = [
     'AIRFLOW_CTX_EXECUTION_DATE',
     'AIRFLOW_CTX_DAG_RUN_ID',
 ]
+
+TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, 'tests', 'config_templates')
 
 
 class Call:
@@ -78,6 +82,17 @@ def build_recording_function(calls_collection):
         calls_collection.append(Call(*args, **kwargs))
 
     return recording_function
+
+
+def assert_calls_equal(first: Call, second: Call) -> None:
+    assert isinstance(first, Call)
+    assert isinstance(second, Call)
+    assert first.args == second.args
+    # eliminate context (conf, dag_run, task_instance, etc.)
+    test_args = ["an_int", "a_date", "a_templated_string"]
+    first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
+    second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
+    assert first.kwargs == second.kwargs
 
 
 class TestPythonBase(unittest.TestCase):
@@ -107,16 +122,6 @@ class TestPythonBase(unittest.TestCase):
 
     def clear_run(self):
         self.run = False
-
-    def _assert_calls_equal(self, first, second):
-        assert isinstance(first, Call)
-        assert isinstance(second, Call)
-        assert first.args == second.args
-        # eliminate context (conf, dag_run, task_instance, etc.)
-        test_args = ["an_int", "a_date", "a_templated_string"]
-        first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
-        second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
-        assert first.kwargs == second.kwargs
 
 
 class TestPythonOperator(TestPythonBase):
@@ -172,7 +177,7 @@ class TestPythonOperator(TestPythonBase):
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         assert 1 == len(recorded_calls)
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 4,
@@ -209,7 +214,7 @@ class TestPythonOperator(TestPythonBase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         assert 1 == len(recorded_calls)
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 an_int=4,
@@ -734,6 +739,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self.dag = DAG(
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            template_searchpath=TEMPLATE_SEARCHPATH,
             schedule_interval=INTERVAL,
         )
         self.dag.create_dagrun(
@@ -760,10 +766,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_add_dill(self):
         def f():
-            pass
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
 
-        task = self._run_as_operator(f, use_dill=True, system_site_packages=False)
-        assert 'dill' in task.requirements
+        self._run_as_operator(f, use_dill=True, system_site_packages=False)
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
@@ -810,25 +816,32 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
+    def test_requirements_file(self):
+        def f():
+            import funcsigs  # noqa: F401
+
+        self._run_as_operator(f, requirements='requirements.txt', system_site_packages=False)
+
+    def test_templated_requirements_file(self):
+        def f():
+            import funcsigs
+
+            assert funcsigs.__version__ == '1.0.2'
+
+        self._run_as_operator(
+            f,
+            requirements='requirements.txt',
+            use_dill=True,
+            params={'environ': 'templated_unit_test'},
+            system_site_packages=False,
+        )
+
     def test_fail(self):
         def f():
             raise Exception
 
         with pytest.raises(CalledProcessError):
             self._run_as_operator(f)
-
-    def test_python_2(self):
-        def f():
-            {}.iteritems()
-
-        self._run_as_operator(f, python_version=2, requirements=['dill'])
-
-    def test_python_2_7(self):
-        def f():
-            {}.iteritems()
-            return True
-
-        self._run_as_operator(f, python_version='2.7', requirements=['dill'])
 
     def test_python_3(self):
         def f():
@@ -843,25 +856,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
-    @staticmethod
-    def _invert_python_major_version():
-        if sys.version_info[0] == 2:
-            return 3
-        else:
-            return 2
-
-    def test_wrong_python_version_with_op_args(self):
-        def f():
-            pass
-
-        version = self._invert_python_major_version()
-
-        with pytest.raises(AirflowException):
-            self._run_as_operator(f, python_version=version, op_args=[1])
-
-        with pytest.raises(AirflowException):
-            self._run_as_operator(f, python_version=version, op_kwargs={"arg": 1})
-
     def test_without_dill(self):
         def f(a):
             return a
@@ -875,7 +869,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
 
-        self._run_as_operator(f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+        self._run_as_operator(f, string_args=[1, 2, 1])
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):

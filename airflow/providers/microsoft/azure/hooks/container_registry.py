@@ -17,7 +17,7 @@
 # under the License.
 """Hook for Azure Container Registry"""
 
-from typing import Dict
+from typing import Any, Dict
 
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
@@ -31,7 +31,6 @@ class AzureContainerRegistryHook(BaseHook):
     :param conn_id: :ref:`Azure Container Registry connection id<howto/connection:acr>`
         of a service principal which will be used to start the container instance
 
-    :type conn_id: str
     """
 
     conn_name_attr = 'azure_container_registry_conn_id'
@@ -40,7 +39,7 @@ class AzureContainerRegistryHook(BaseHook):
     hook_name = 'Azure Container Registry'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'extra'],

@@ -35,20 +35,14 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     :param airbyte_conn_id: Required. The name of the Airflow connection to get connection
         information for Airbyte.
-    :type airbyte_conn_id: str
     :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
-    :type connection_id: str
     :param asynchronous: Optional. Flag to get job_id after submitting the job to the Airbyte API.
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the AirbyteJobSensor.
-    :type asynchronous: bool
     :param api_version: Optional. Airbyte API version.
-    :type api_version: str
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
-    :type wait_seconds: float
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
         Only used when ``asynchronous`` is False.
-    :type timeout: float
     """
 
     template_fields: Sequence[str] = ('connection_id',)

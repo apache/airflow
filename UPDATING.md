@@ -84,6 +84,23 @@ https://developers.google.com/style/inclusive-documentation
 
 Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
 
+### Non-JSON-serializable params deprecated.
+
+It was previously possible to use dag or task param defaults that were not JSON-serializable.
+
+For example this worked previously:
+
+```python
+@dag.task(params={"a": {1, 2, 3}, "b": pendulum.now()})
+def datetime_param(value):
+    print(value)
+
+
+datetime_param("{{ params.a }} | {{ params.b }}")
+```
+
+Note the use of `set` and `datetime` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time.
+
 ### Smart sensors deprecated
 
 Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
@@ -92,7 +109,7 @@ See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-a
 
 ### Task log templates are now read from the metadatabase instead of `airflow.cfg`
 
-Previously, a task’s log is dynamically rendered from the `[core] log_filename_template` and `[core] task_log_prefix_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
+Previously, a task’s log is dynamically rendered from the `[core] log_filename_template`, `[core] task_log_prefix_template`, and `[elasticsearch] log_id_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
 
 A new `log_template` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field `log_template_id` is added to every DAG run to point to the format used by tasks (`NULL` indicates the first ever entry for compatibility).
 

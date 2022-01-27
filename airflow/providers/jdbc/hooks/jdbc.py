@@ -54,7 +54,7 @@ class JdbcHook(DbApiHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['port', 'schema', 'extra'],
@@ -82,9 +82,7 @@ class JdbcHook(DbApiHook):
         Enable or disable autocommit for the given connection.
 
         :param conn: The connection.
-        :type conn: connection object
         :param autocommit: The connection's autocommit setting.
-        :type autocommit: bool
         """
         conn.jconn.setAutoCommit(autocommit)
 
@@ -95,7 +93,6 @@ class JdbcHook(DbApiHook):
         Return False if conn.autocommit is not set or set to False
 
         :param conn: The connection.
-        :type conn: connection object
         :return: connection autocommit setting.
         :rtype: bool
         """

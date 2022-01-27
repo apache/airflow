@@ -15,21 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import NamedTuple, Sequence
-from unittest import mock
+from typing import Sequence
 
 import attr
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
-from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils.context import Context
-
-
-# Namedtuple for testing purposes
-class MockNamedTuple(NamedTuple):
-    var1: str
-    var2: str
 
 
 class MockOperator(BaseOperator):
@@ -54,7 +46,7 @@ class AirflowLink(BaseOperatorLink):
     name = 'airflow'
 
     def get_link(self, operator, dttm):
-        return 'should_be_overridden'
+        return 'https://airflow.apache.org'
 
 
 class Dummy2TestOperator(BaseOperator):
@@ -160,12 +152,6 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         return 'https://github.com/apache/airflow'
-
-
-class MockHiveOperator(HiveOperator):
-    def __init__(self, *args, **kwargs):
-        self.run = mock.MagicMock()
-        super().__init__(*args, **kwargs)
 
 
 class DeprecatedOperator(BaseOperator):

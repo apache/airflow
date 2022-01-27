@@ -80,6 +80,7 @@ Ctrl
 DAGs
 DBs
 Daemonize
+DagCallbackRequest
 DagFileProcessorManager
 DagRun
 DagRunState
@@ -136,6 +137,7 @@ EmrCreateJobFlow
 Enum
 Env
 EnvVar
+EventBufferValueType
 ExaConnection
 Exasol
 Failover
@@ -329,7 +331,9 @@ Sasl
 SecretManagerClient
 Seedlist
 Sendgrid
+SerializedDAG
 SlackHook
+SlackResponse
 SnowflakeHook
 Spark
 SparkPi
@@ -364,6 +368,7 @@ TCP
 TLS
 TTY
 TZ
+TaskDecorator
 TaskFlow
 TaskGroup
 TaskGroups
@@ -1402,12 +1407,15 @@ uid
 umask
 un
 unarchived
+uncommenting
 undead
 ungenerated
 unicode
 unittest
 unittests
 unix
+unmappable
+unmapped
 unpause
 unpausing
 unpredicted

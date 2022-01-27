@@ -144,7 +144,7 @@ HOOKS = [
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
-        "airflow.providers.amazon.aws.hooks.sqs.SQSHook",
+        "airflow.providers.amazon.aws.hooks.sqs.SqsHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
     ),
     (
@@ -416,7 +416,7 @@ HOOKS = [
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook',
+        'airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
@@ -976,7 +976,7 @@ OPERATORS = [
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
+        "airflow.providers.amazon.aws.operators.batch.BatchOperator",
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),
     (
@@ -1000,7 +1000,7 @@ OPERATORS = [
         "airflow.providers.amazon.aws.operators.dms_stop_task.DmsStopTaskOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
+        "airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator",
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
     ),
     (
@@ -1579,7 +1579,7 @@ SENSORS = [
         "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskCompletedSensor",
     ),
     (
-        "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
+        "airflow.providers.amazon.aws.sensors.sqs.SqsSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
     (
@@ -1783,6 +1783,10 @@ SENSORS = [
     (
         "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor",
         "airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor",
+        "airflow.providers.amazon.aws.sensors.redshift.RedshiftClusterSensor",
     ),
 ]
 

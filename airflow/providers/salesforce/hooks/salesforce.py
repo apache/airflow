@@ -50,12 +50,9 @@ class SalesforceHook(BaseHook):
 
     :param conn_id: The name of the connection that has the parameters needed to connect to Salesforce.
         The connection should be of type `Salesforce`.
-    :type conn_id: str
     :param session_id: The access token for a given HTTP request session.
-    :type session_id: str
     :param session: A custom HTTP request session. This enables the use of requests Session features not
         otherwise exposed by `simple_salesforce`.
-    :type session: requests.Session
 
     .. note::
         A connection to Salesforce can be created via several authentication options:
@@ -122,7 +119,7 @@ class SalesforceHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
@@ -171,11 +168,8 @@ class SalesforceHook(BaseHook):
         Make a query to Salesforce.
 
         :param query: The query to make to Salesforce.
-        :type query: str
         :param include_deleted: True if the query should include deleted records.
-        :type include_deleted: bool
         :param query_params: Additional optional arguments
-        :type query_params: dict
         :return: The query result.
         :rtype: dict
         """
@@ -198,7 +192,6 @@ class SalesforceHook(BaseHook):
         some extra metadata that Salesforce stores for each object.
 
         :param obj: The name of the Salesforce object that we are getting a description of.
-        :type obj: str
         :return: the description of the Salesforce object.
         :rtype: dict
         """
@@ -211,7 +204,6 @@ class SalesforceHook(BaseHook):
         Get a list of all available fields for an object.
 
         :param obj: The name of the Salesforce object that we are getting a description of.
-        :type obj: str
         :return: the names of the fields.
         :rtype: list(str)
         """
@@ -228,9 +220,7 @@ class SalesforceHook(BaseHook):
             SELECT <fields> FROM <obj>;
 
         :param obj: The object name to get from Salesforce.
-        :type obj: str
         :param fields: The fields to get from the object.
-        :type fields: iterable
         :return: all instances of the object from Salesforce.
         :rtype: dict
         """
@@ -249,7 +239,6 @@ class SalesforceHook(BaseHook):
         Convert a column of a dataframe to UNIX timestamps if applicable
 
         :param column: A Series object representing a column of a dataframe.
-        :type column: pandas.Series
         :return: a new series that maintains the same index as the original
         :rtype: pandas.Series
         """
@@ -311,18 +300,13 @@ class SalesforceHook(BaseHook):
         and makes it easier to work with in other database environments
 
         :param query_results: the results from a SQL query
-        :type query_results: list of dict
         :param filename: the name of the file where the data should be dumped to
-        :type filename: str
         :param fmt: the format you want the output in. Default:  'csv'
-        :type fmt: str
         :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
             False if you want them to be left in the same format as they were in Salesforce.
             Leaving the value as False will result in datetimes being strings. Default: False
-        :type coerce_to_timestamp: bool
         :param record_time_added: True if you want to add a Unix timestamp field
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
-        :type record_time_added: bool
         :return: the dataframe that gets written to the file.
         :rtype: pandas.Dataframe
         """
@@ -376,14 +360,11 @@ class SalesforceHook(BaseHook):
         and makes it easier to work with in other database environments
 
         :param query_results: the results from a SQL query
-        :type query_results: list of dict
         :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
             False if you want them to be left in the same format as they were in Salesforce.
             Leaving the value as False will result in datetimes being strings. Default: False
-        :type coerce_to_timestamp: bool
         :param record_time_added: True if you want to add a Unix timestamp field
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
-        :type record_time_added: bool
         :return: the dataframe.
         :rtype: pandas.Dataframe
         """

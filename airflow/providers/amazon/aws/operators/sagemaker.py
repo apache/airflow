@@ -17,7 +17,7 @@
 
 import json
 import sys
-from typing import TYPE_CHECKING, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -39,16 +39,14 @@ class SageMakerBaseOperator(BaseOperator):
     """This is the base operator for all SageMaker operators.
 
     :param config: The configuration necessary to start a training job (templated)
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('config',)
     template_ext: Sequence[str] = ()
     template_fields_renderers = {'config': 'json'}
     ui_color = '#ededed'
-    integer_fields = []
+    integer_fields: List[List[Any]] = []
 
     def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
@@ -114,24 +112,17 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     :param config: The configuration necessary to start a processing job (templated).
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_processing_job`
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
         that the operation waits to check the status of the processing job.
-    :type wait_for_completion: bool
     :param print_log: if the operator should print the cloudwatch log during processing
-    :type print_log: bool
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the processing job
-    :type check_interval: int
     :param max_ingestion_time: If wait is set to True, the operation fails if the processing job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
-    :type max_ingestion_time: int
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
-    :type action_if_job_exists: str
     """
 
     def __init__(
@@ -201,9 +192,7 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     :param config: The configuration necessary to create an endpoint config.
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_endpoint_config`
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     """
 
     integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
@@ -253,19 +242,13 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         For details of the configuration parameter of endpoint_configuration see
         :py:meth:`SageMaker.Client.create_endpoint`
 
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     :param wait_for_completion: Whether the operator should wait until the endpoint creation finishes.
-    :type wait_for_completion: bool
     :param check_interval: If wait is set to True, this is the time interval, in seconds, that this operation
         waits before polling the status of the endpoint creation.
-    :type check_interval: int
     :param max_ingestion_time: If wait is set to True, this operation fails if the endpoint creation doesn't
         finish within max_ingestion_time seconds. If you set this parameter to None it never times out.
-    :type max_ingestion_time: int
     :param operation: Whether to create an endpoint or update an endpoint. Must be either 'create or 'update'.
-    :type operation: str
     """
 
     def __init__(
@@ -371,18 +354,13 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         For details of the configuration parameter of model_config, See:
         :py:meth:`SageMaker.Client.create_model`
 
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     :param wait_for_completion: Set to True to wait until the transform job finishes.
-    :type wait_for_completion: bool
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the transform job.
-    :type check_interval: int
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the transform job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
-    :type max_ingestion_time: int
     """
 
     def __init__(
@@ -452,18 +430,13 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
 
         For details of the configuration parameter see
         :py:meth:`SageMaker.Client.create_hyper_parameter_tuning_job`
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     :param wait_for_completion: Set to True to wait until the tuning job finishes.
-    :type wait_for_completion: bool
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the tuning job.
-    :type check_interval: int
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the tuning job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
-    :type max_ingestion_time: int
     """
 
     integer_fields = [
@@ -521,9 +494,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     :param config: The configuration necessary to create a model.
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_model`
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     """
 
     def __init__(self, *, config, **kwargs):
@@ -554,24 +525,17 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param config: The configuration necessary to start a training job (templated).
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_training_job`
-    :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
-    :type aws_conn_id: str
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
         that the operation waits to check the status of the training job.
-    :type wait_for_completion: bool
     :param print_log: if the operator should print the cloudwatch log during training
-    :type print_log: bool
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the training job
-    :type check_interval: int
     :param max_ingestion_time: If wait is set to True, the operation fails if the training job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
-    :type max_ingestion_time: int
     :param check_if_job_exists: If set to true, then the operator will check whether a training job
         already exists for the name in the config.
-    :type check_if_job_exists: bool
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
         This is only relevant if check_if

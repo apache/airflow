@@ -122,11 +122,14 @@ class TestSlackHook(unittest.TestCase):
         with pytest.raises(SlackApiError):
             slack_hook.call(test_method, data=test_api_params)
 
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient.api_call', autospec=True)
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
-    def test_api_call(self, mock_slack_client, mock_slack_api_call):
+    def test_api_call(self, slack_client_class_mock):
+        slack_client_mock = mock.Mock()
+        slack_client_class_mock.return_value = slack_client_mock
+        slack_client_mock.api_call.return_value = {'ok': True}
+
         slack_hook = SlackHook(token='test_token')
         test_api_json = {'channel': 'test_channel'}
 
         slack_hook.call("chat.postMessage", json=test_api_json)
-        mock_slack_api_call.assert_called_once_with(mock_slack_client, "chat.postMessage", json=test_api_json)
+        slack_client_mock.api_call.assert_called_with("chat.postMessage", json=test_api_json)

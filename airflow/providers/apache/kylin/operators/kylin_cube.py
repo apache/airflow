@@ -39,14 +39,10 @@ class KylinCubeOperator(BaseOperator):
     `Apache Kylin <http://kylin.apache.org/>`_
 
     :param kylin_conn_id: The connection id as configured in Airflow administration.
-    :type kylin_conn_id: str
     :param project: kylin project name, this param will overwrite the project in kylin_conn_id:
-    :type project: str
     :param cube: kylin cube name
-    :type cube: str
     :param dsn: (dsn , dsn url of kylin connection ,which will overwrite kylin_conn_id.
         for example: kylin://ADMIN:KYLIN@sandbox/learn_kylin?timeout=60&is_debug=1)
-    :type dsn: str
     :param command: (kylin command include 'build', 'merge', 'refresh', 'delete',
         'build_streaming', 'merge_streaming', 'refresh_streaming', 'disable', 'enable',
         'purge', 'clone', 'drop'.
@@ -64,28 +60,18 @@ class KylinCubeOperator(BaseOperator):
         purge - purge cube
         clone - clone cube,new cube name is {cube_name}_clone
         drop - drop cube)
-    :type command: str
     :param start_time: build segment start time
-    :type start_time: Optional[str]
     :param end_time: build segment end time
-    :type end_time: Optional[str]
     :param offset_start: streaming build segment start time
-    :type offset_start: Optional[str]
     :param offset_end: streaming build segment end time
-    :type offset_end: Optional[str]
     :param segment_name: segment name
-    :type segment_name: str
     :param is_track_job: (whether to track job status. if value is True,will track job until
         job status is in("FINISHED", "ERROR", "DISCARDED", "KILLED", "SUICIDAL",
         "STOPPED") or timeout)
-    :type is_track_job: bool
     :param interval: track job status,default value is 60s
-    :type interval: int
     :param timeout: timeout value,default value is 1 day,60 * 60 * 24 s
-    :type timeout: int
     :param eager_error_status: (jobs error status,if job status in this list ,this task will be error.
         default value is tuple(["ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"]))
-    :type eager_error_status: tuple
     """
 
     template_fields: Sequence[str] = (

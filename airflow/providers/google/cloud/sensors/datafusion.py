@@ -31,29 +31,19 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
     Check the status of the pipeline in the Google Cloud Data Fusion
 
     :param pipeline_name: Your pipeline name.
-    :type pipeline_name: str
     :param pipeline_id: Your pipeline ID.
-    :type pipeline_name: str
     :param expected_statuses: State that is expected
-    :type expected_statuses: set[str]
     :param failure_statuses: State that will terminate the sensor with an exception
-    :type failure_statuses: set[str]
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -62,7 +52,6 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     """
 

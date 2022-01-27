@@ -32,25 +32,18 @@ class RedshiftToS3Operator(BaseOperator):
     Executes an UNLOAD command to s3 as a CSV with headers
 
     :param s3_bucket: reference to a specific S3 bucket
-    :type s3_bucket: str
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
-    :type s3_key: str
     :param schema: reference to a specific schema in redshift database
         Applicable when ``table`` param provided.
-    :type schema: str
     :param table: reference to a specific table in redshift database
         Used when ``select_query`` param not provided.
-    :type table: str
     :param select_query: custom select query to fetch data from redshift database
-    :type select_query: str
     :param redshift_conn_id: reference to a specific redshift database
-    :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -61,19 +54,13 @@ class RedshiftToS3Operator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param unload_options: reference to a list of UNLOAD options
-    :type unload_options: list
     :param autocommit: If set to True it will automatically commit the UNLOAD statement.
         Otherwise it will be committed right before the redshift connection gets closed.
-    :type autocommit: bool
     :param include_header: If set to True the s3 file contains the header columns.
-    :type include_header: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param table_as_file_name: If set to True, the s3 file will be named as the table.
         Applicable when ``table`` param provided.
-    :type table_as_file_name: bool
     """
 
     template_fields: Sequence[str] = (

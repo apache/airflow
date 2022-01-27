@@ -22,7 +22,7 @@ import os
 import sys
 import time
 from tempfile import gettempdir
-from typing import Any, Callable, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Tuple
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
@@ -61,6 +61,10 @@ from airflow.utils import helpers
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
+
 
 log = logging.getLogger(__name__)
 
@@ -705,8 +709,8 @@ def check_and_run_migrations():
                     print(error)
                     print(
                         "You still have unapplied migrations. "
-                        "You may need to {verb} the database by running `airflow db {command_name}`",
-                        f"Make sure the command is run using airflow version {version}.",
+                        f"You may need to {verb} the database by running `airflow db {command_name}`. ",
+                        f"Make sure the command is run using Airflow version {version}.",
                         file=sys.stderr,
                     )
                     sys.exit(1)
@@ -714,8 +718,8 @@ def check_and_run_migrations():
             pass
     elif source_heads != db_heads:
         print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}` ."
-            f"Make sure the command is run using airflow version {version}.",
+            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
+            f"Make sure the command is run using Airflow version {version}.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -730,10 +734,16 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """
     stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
     filename = conf.get("logging", "log_filename_template")
-    prefix = conf.get("logging", "task_log_prefix_template")
-    if stored and stored.filename == filename and stored.task_prefix == prefix:
+    task_prefix = conf.get("logging", "task_log_prefix_template")
+    elasticsearch_id = conf.get("elasticsearch", "log_id_template")
+    if (
+        stored
+        and stored.filename == filename
+        and stored.task_prefix == task_prefix
+        and stored.elasticsearch_id == elasticsearch_id
+    ):
         return
-    session.merge(LogTemplate(filename=filename, task_prefix=prefix))
+    session.merge(LogTemplate(filename=filename, task_prefix=task_prefix, elasticsearch_id=elasticsearch_id))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -793,69 +803,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def _move_dangling_run_data_to_new_table(session: Session, source_table: "Table", target_table_name: str):
-    where_clause = "where dag_id is null or run_id is null or execution_date is null"
-    _move_dangling_table(session, source_table, target_table_name, where_clause)
-
-
-def _move_dangling_table(session, source_table: "Table", target_table_name: str, where_clause: str):
-    dialect_name = session.get_bind().dialect.name
-
-    delete_where = " AND ".join(
-        f"{source_table.name}.{c.name} = d.{c.name}" for c in source_table.primary_key.columns
-    )
-    if dialect_name == "mssql":
-        session.execute(
-            text(f"select source.* into {target_table_name} from {source_table} as source {where_clause}")
-        )
-        session.execute(
-            text(
-                f"delete from {source_table} from {source_table} join {target_table_name} AS d ON "
-                + delete_where
-            )
-        )
-    else:
-        if dialect_name == "mysql":
-            # CREATE TABLE AS SELECT must be broken into two queries for  MySQL as the single query
-            # approach fails when replication is enabled ("Statement violates GTID consistency")```
-            session.execute(text(f"create table {target_table_name} like {source_table}"))
-            session.execute(
-                text(
-                    f"INSERT INTO {target_table_name} select source.* from {source_table} as source "
-                    + where_clause
-                )
-            )
-        # Postgres and SQLite have the same CREATE TABLE a AS SELECT ... syntax
-        else:
-            session.execute(
-                text(
-                    f"create table {target_table_name} as select source.* from {source_table} as source "
-                    + where_clause
-                )
-            )
-
-        # But different join-delete syntax.
-        if dialect_name == "mysql":
-            session.execute(
-                text(
-                    f"delete {source_table} from {source_table} join {target_table_name} as d on "
-                    + delete_where
-                )
-            )
-        elif dialect_name == "sqlite":
-            session.execute(
-                text(
-                    f"delete from {source_table} where ROWID in (select {source_table}.ROWID from "
-                    f"{source_table} as source join {target_table_name} as d on {delete_where})"
-                )
-            )
-        else:
-            session.execute(
-                text(f"delete from {source_table} using {target_table_name} as d where {delete_where}")
-            )
-
-
-def check_run_id_null(session: Session) -> Iterable[str]:
+def check_run_id_null(session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -885,16 +833,74 @@ def check_run_id_null(session: Session) -> Iterable[str]:
                 reason="with a NULL dag_id, run_id, or execution_date",
             )
             return
-        _move_dangling_run_data_to_new_table(session, dagrun_table, dagrun_dangling_table_name)
+        _move_dangling_data_to_new_table(
+            session,
+            dagrun_table,
+            dagrun_table.select(invalid_dagrun_filter),
+            dagrun_dangling_table_name,
+        )
 
 
-def _move_dangling_task_data_to_new_table(session, source_table: "Table", target_table_name: str):
-    where_clause = """
-        left join dag_run as dr
-        on (source.dag_id = dr.dag_id and source.execution_date = dr.execution_date)
-        where dr.id is null
-    """
-    _move_dangling_table(session, source_table, target_table_name, where_clause)
+def _move_dangling_data_to_new_table(
+    session, source_table: "Table", source_query: "Query", target_table_name: str
+):
+    from sqlalchemy import column, select, table
+    from sqlalchemy.sql.selectable import Join
+
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name
+
+    # First: Create moved rows from new table
+    if dialect_name == "mssql":
+        cte = source_query.cte("source")
+        moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
+        ins = moved_data_tbl.insert().from_select(list(cte.columns), select([cte]))
+
+        stmt = ins.compile(bind=session.get_bind())
+        cte_sql = stmt.ctes[cte]
+
+        session.execute(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source")
+    elif dialect_name == "mysql":
+        # MySQL with replication needs this split in to two queries, so just do it for all MySQL
+        # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
+        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table.name}")
+        session.execute(
+            f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
+        )
+    else:
+        # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
+        session.execute(
+            f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
+        )
+
+    # Second: Now delete rows we've moved
+    try:
+        clause = source_query.whereclause
+    except AttributeError:
+        clause = source_query._whereclause
+
+    if dialect_name == "sqlite":
+        subq = source_query.selectable.with_only_columns([text(f'{source_table}.ROWID')])
+        delete = source_table.delete().where(column('ROWID').in_(subq))
+    elif dialect_name in ("mysql", "mssql"):
+        # This is not foolproof! But it works for the limited queries (with no params) that we use here
+        stmt = source_query.selectable
+
+        def _from_name(from_) -> str:
+            if isinstance(from_, Join):
+                return str(from_.compile(bind=bind))
+            return str(from_)
+
+        delete = (
+            f"DELETE {source_table} FROM { ', '.join(_from_name(tbl) for tbl in stmt.froms) }"
+            f" WHERE {clause.compile(bind=bind)}"
+        )
+    else:
+        for frm in source_query.selectable.froms:
+            if hasattr(frm, 'onclause'):  # Table, or JOIN?
+                clause &= frm.onclause
+        delete = source_table.delete(clause)
+    session.execute(delete)
 
 
 def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
@@ -939,12 +945,12 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             source_table.c.dag_id == dagrun_table.c.dag_id,
             source_table.c.execution_date == dagrun_table.c.execution_date,
         )
-        invalid_row_count = (
+        invalid_rows_query = (
             session.query(source_table.c.dag_id, source_table.c.task_id, source_table.c.execution_date)
             .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
             .filter(dagrun_table.c.dag_id.is_(None))
-            .count()
         )
+        invalid_row_count = invalid_rows_query.count()
         if invalid_row_count <= 0:
             continue
 
@@ -958,7 +964,12 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             )
             errored = True
             continue
-        _move_dangling_task_data_to_new_table(session, source_table, dangling_table_name)
+        _move_dangling_data_to_new_table(
+            session,
+            source_table,
+            invalid_rows_query.with_entities(*source_table.columns),
+            dangling_table_name,
+        )
 
     if errored:
         session.rollback()

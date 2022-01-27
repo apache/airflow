@@ -70,7 +70,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         """Placeholder for returning states with are considered failed."""
         raise NotImplementedError('Please implement failed_states() in subclass')
 
-    def get_sagemaker_response(self) -> Optional[dict]:
+    def get_sagemaker_response(self) -> dict:
         """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
@@ -91,7 +91,6 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
 
     :param job_name: job_name of the endpoint instance to check the state of
 
-    :type job_name: str
     """
 
     template_fields: Sequence[str] = ('endpoint_name',)
@@ -128,7 +127,6 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     :param
     job_name: job_name of the transform job instance to check the state of
 
-    :type job_name: str
     """
 
     template_fields: Sequence[str] = ('job_name',)
@@ -200,9 +198,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
 
     :param job_name: name of the SageMaker training job to check the state of
 
-    :type job_name: str
     :param print_log: if the operator should print the cloudwatch log
-    :type print_log: bool
     """
 
     template_fields: Sequence[str] = ('job_name',)

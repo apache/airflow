@@ -71,6 +71,14 @@
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
+    - name: sql_alchemy_engine_args
+      description: |
+        Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
+      version_added: 2.3.0
+      type: string
+      sensitive: true
+      example: '{"arg1": True}'
+      default: ~
     - name: sql_engine_encoding
       description: |
         The encoding for the databases
@@ -445,6 +453,15 @@
       type: string
       example: ~
       default: "128"
+    - name: max_map_length
+      description: |
+        The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
+        length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
+        mapped tasks from clogging the scheduler.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "1024"
 
 - name: logging
   description: ~
@@ -1295,6 +1312,13 @@
       type: string
       example: ~
       default:
+    - name: instance_name_has_markup
+      description: |
+        Whether the custom page title for the DAGs overview page contains any Markup language
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
     - name: auto_refresh_interval
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or tree view
@@ -1364,7 +1388,7 @@
       description: |
         Email address that will be used as sender address.
         It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
@@ -1670,6 +1694,13 @@
       type: string
       example: ~
       default: "False"
+    - name: stuck_queued_task_check_interval
+      description: |
+        How often to check for stuck queued task (in seconds)
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "300"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the

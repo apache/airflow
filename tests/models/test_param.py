@@ -20,6 +20,7 @@ import unittest
 import pytest
 
 from airflow.decorators import task
+from airflow.exceptions import ParamValidationError
 from airflow.models.param import Param, ParamsDict
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -36,7 +37,7 @@ class TestParam(unittest.TestCase):
 
     def test_null_param(self):
         p = Param()
-        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
+        with pytest.raises(ParamValidationError, match='No value passed and Param has no default value'):
             p.resolve()
         assert p.resolve(None) is None
 
@@ -48,7 +49,7 @@ class TestParam(unittest.TestCase):
         p = Param(None, type='null')
         assert p.resolve() is None
         assert p.resolve(None) is None
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p.resolve('test')
 
     def test_string_param(self):
@@ -62,9 +63,9 @@ class TestParam(unittest.TestCase):
         assert p.resolve() == '10.0.0.0'
 
         p = Param(type='string')
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p.resolve(None)
-        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
+        with pytest.raises(ParamValidationError, match='No value passed and Param has no default value'):
             p.resolve()
 
     def test_int_param(self):
@@ -74,7 +75,7 @@ class TestParam(unittest.TestCase):
         p = Param(type='integer', minimum=0, maximum=10)
         assert p.resolve(value=5) == 5
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p.resolve(value=20)
 
     def test_number_param(self):
@@ -84,8 +85,9 @@ class TestParam(unittest.TestCase):
         p = Param(1.0, type='number')
         assert p.resolve() == 1.0
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p = Param('42', type='number')
+            p.resolve()
 
     def test_list_param(self):
         p = Param([1, 2], type='array')
@@ -124,8 +126,9 @@ class TestParam(unittest.TestCase):
         p = S3Param("s3://my_bucket/my_path")
         assert p.resolve() == "s3://my_bucket/my_path"
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p = S3Param("file://not_valid/s3_path")
+            p.resolve()
 
     def test_value_saved(self):
         p = Param("hello", type="string")
@@ -173,7 +176,7 @@ class TestParamsDict:
         pd3.validate()
 
         # Update the ParamsDict
-        with pytest.raises(ValueError, match=r'Invalid input for param key: 1 is not'):
+        with pytest.raises(ParamValidationError, match=r'Invalid input for param key: 1 is not'):
             pd3['key'] = 1
 
         # Should not raise an error as suppress_exception is True
@@ -186,7 +189,7 @@ class TestParamsDict:
         pd.update({'key': 'a'})
         internal_value = pd.get_param('key')
         assert isinstance(internal_value, Param)
-        with pytest.raises(ValueError, match=r'Invalid input for param key: 1 is not'):
+        with pytest.raises(ParamValidationError, match=r'Invalid input for param key: 1 is not'):
             pd.update({'key': 1})
 
 
@@ -270,4 +273,5 @@ class TestDagParamRuntime:
 
     def test_param_non_json_serializable(self):
         with pytest.warns(DeprecationWarning, match='The use of non-json-serializable params is deprecated'):
-            Param(default={0, 1, 2})
+            p = Param(default={0, 1, 2})
+            p.resolve()

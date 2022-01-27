@@ -471,7 +471,7 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
 * Enter the sources folder run the check
 
 ```shell script
@@ -611,9 +611,9 @@ provider packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
-FROM apache/airflow:2.0.0
+FROM apache/airflow:2.2.3
 
-RUN pip install --upgrade --user apache-airflow-providers-google==2.0.0.rc1
+RUN pip install  --user apache-airflow-providers-google==2.2.2.rc1
 
 USER ${AIRFLOW_UID}
 ```

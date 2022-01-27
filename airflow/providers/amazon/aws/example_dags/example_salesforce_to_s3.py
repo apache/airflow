@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Salesforce customer
 data and upload to an S3 bucket.

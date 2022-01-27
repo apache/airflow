@@ -29,7 +29,6 @@ permissions:
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
-  FORCE_PULL_IMAGES: "false"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
@@ -179,8 +178,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
-        ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
       - uses: actions/checkout@v2
@@ -223,8 +220,14 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
-        run: ./scripts/ci/tools/free_space.sh
+        run: airflow-freespace
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
@@ -250,8 +253,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
-        ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       INSTALL_PROVIDERS_FROM_SOURCES: >
         ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
@@ -296,24 +297,24 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
-        run: ./scripts/ci/tools/free_space.sh
+        run: airflow-freespace
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # Pull images built in the previous step
+        # Pull images built in the previous step (so GITHUB_REGISTRY_PULL_IMAGE_TAG needs to be overridden)
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
-          # Here we are using PULL_IMAGE_TAG set in the environment variables above
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: "Build PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-        env:
-          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overridden to latest in order to build PROD image using "latest"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
-        env:
-          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overridden to latest in order to build PROD image using "latest"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
 
   cancel-on-ci-build:
     permissions:

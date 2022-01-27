@@ -61,18 +61,14 @@ class EksClusterStateSensor(BaseSensorOperator):
     Check the state of an Amazon EKS Cluster until it reaches the target state or another terminal state.
 
     :param cluster_name: The name of the Cluster to watch. (templated)
-    :type cluster_name: str
     :param target_state: Target state of the Cluster. (templated)
-    :type target_state: ClusterStates
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ("cluster_name", "target_state", "aws_conn_id", "region")
@@ -121,20 +117,15 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
     Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
 
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)
-    :type cluster_name: str
     :param fargate_profile_name: The name of the Fargate profile to watch. (templated)
-    :type fargate_profile_name: str
     :param target_state: Target state of the Fargate profile. (templated)
-    :type target_state: FargateProfileStates
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = (
@@ -193,20 +184,15 @@ class EksNodegroupStateSensor(BaseSensorOperator):
     Check the state of an EKS managed node group until it reaches the target state or another terminal state.
 
     :param cluster_name: The name of the Cluster which the Nodegroup is attached to. (templated)
-    :type cluster_name: str
     :param nodegroup_name: The name of the Nodegroup to watch. (templated)
-    :type nodegroup_name: str
     :param target_state: Target state of the Nodegroup. (templated)
-    :type target_state: NodegroupStates
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = (

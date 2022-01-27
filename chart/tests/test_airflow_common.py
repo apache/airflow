@@ -249,6 +249,26 @@ class TestAirflowCommon:
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
 
+    def test_have_all_config_mounts_on_init_containers(self):
+        docs = render_chart(
+            values={},
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        assert 4 == len(docs)
+        expected_mount = {
+            "subPath": "airflow.cfg",
+            "name": "config",
+            "readOnly": True,
+            "mountPath": "/opt/airflow/airflow.cfg",
+        }
+        for doc in docs:
+            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
+
     def test_priority_class_name(self):
         docs = render_chart(
             values={

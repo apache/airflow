@@ -16,7 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google Kubernetes Engine Hook."""
+"""
+This module contains a Google Kubernetes Engine Hook.
+
+.. spelling::
+
+    gapic
+    enums
+"""
 
 import time
 import warnings
@@ -90,9 +97,7 @@ class GKEHook(GoogleBaseHook):
         completion or an error occurring
 
         :param operation: The Operation to wait for
-        :type operation: google.cloud.container_V1.gapic.enums.Operation
         :param project_id: Google Cloud project ID
-        :type project_id: str
         :return: A new, updated operation fetched from Google Cloud
         """
         self.log.info("Waiting for OPERATION_NAME %s", operation.name)
@@ -111,9 +116,7 @@ class GKEHook(GoogleBaseHook):
         Fetches the operation from Google Cloud
 
         :param operation_name: Name of operation to fetch
-        :type operation_name: str
         :param project_id: Google Cloud project ID
-        :type project_id: str
         :return: The new, updated operation from Google Cloud
         """
         return self.get_conn().get_operation(
@@ -131,11 +134,8 @@ class GKEHook(GoogleBaseHook):
 
         :param cluster_proto: The proto to append resource_label airflow
             version to
-        :type cluster_proto: google.cloud.container_v1.types.Cluster
         :param key: The key label
-        :type key: str
         :param val:
-        :type val: str
         :return: The cluster proto updated with new label
         """
         val = val.replace('.', '-').replace('+', '-')
@@ -159,16 +159,12 @@ class GKEHook(GoogleBaseHook):
         initial create time.
 
         :param name: The name of the cluster to delete
-        :type name: str
         :param project_id: Google Cloud project ID
-        :type project_id: str
         :param retry: Retry object used to determine when/if to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :return: The full url to the delete operation if successful, else None
         """
         self.log.info("Deleting (project_id=%s, location=%s, cluster_id=%s)", project_id, self.location, name)
@@ -201,17 +197,13 @@ class GKEHook(GoogleBaseHook):
         :param cluster: A Cluster protobuf or dict. If dict is provided, it must
             be of the same form as the protobuf message
             :class:`google.cloud.container_v1.types.Cluster`
-        :type cluster: dict or google.cloud.container_v1.types.Cluster
         :param project_id: Google Cloud project ID
-        :type project_id: str
         :param retry: A retry object (``google.api_core.retry.Retry``) used to
             retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :return: The full url to the new, or existing, cluster
         :raises:
             ParseError: On JSON parsing problems when trying to convert dict
@@ -254,16 +246,12 @@ class GKEHook(GoogleBaseHook):
         Gets details of specified cluster
 
         :param name: The name of the cluster to retrieve
-        :type name: str
         :param project_id: Google Cloud project ID
-        :type project_id: str
         :param retry: A retry object used to retry requests. If None is specified,
             requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :return: google.cloud.container_v1.types.Cluster
         """
         self.log.info(

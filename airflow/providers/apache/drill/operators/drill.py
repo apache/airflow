@@ -34,15 +34,12 @@ class DrillOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DrillOperator`
 
-    :param sql: the SQL code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
+    :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
         Template references are recognized by str ending in '.sql'
     :param drill_conn_id: id of the connection config for the target Drill
         environment
-    :type drill_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     """
 
     template_fields: Sequence[str] = ('sql',)

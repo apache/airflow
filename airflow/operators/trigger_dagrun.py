@@ -59,28 +59,19 @@ class TriggerDagRunOperator(BaseOperator):
     Triggers a DAG run for a specified ``dag_id``
 
     :param trigger_dag_id: The dag_id to trigger (templated).
-    :type trigger_dag_id: str
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
-    :type trigger_run_id: str
-    :param conf: Configuration for the DAG run.
-    :type conf: dict
+    :param conf: Configuration for the DAG run (templated).
     :param execution_date: Execution date for the dag (templated).
-    :type execution_date: str or datetime.datetime
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
-    :type reset_dag_run: bool
     :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
-    :type wait_for_completion: bool
     :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
         (default: 60)
-    :type poke_interval: int
     :param allowed_states: List of allowed states, default is ``['success']``.
-    :type allowed_states: list
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
-    :type failed_states: list
     """
 
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
