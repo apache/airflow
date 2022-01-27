@@ -1343,7 +1343,6 @@ class DAG(LoggingMixin):
                 as_pk_tuple=False,
                 session=session,
             )
-            .join(TaskInstance.dag_run)
             .order_by(DagRun.execution_date)
             .all()
         )
