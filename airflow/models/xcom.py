@@ -24,7 +24,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, Index, LargeBinary, String
+from sqlalchemy import Column, Index, Integer, LargeBinary, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 
@@ -53,14 +53,16 @@ class BaseXCom(Base, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    key = Column(String(512, **COLLATION_ARGS), nullable=False)
-    value = Column(LargeBinary)
-    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    dagrun_id = Column(Integer(), nullable=False, primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
-    # Source information.
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    # Denormalized for easier lookup.
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+
+    value = Column(LargeBinary)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     dag_run = relationship(
         "DagRun",
@@ -76,7 +78,7 @@ class BaseXCom(Base, LoggingMixin):
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
         # but it goes over MySQL's index length limit. So we instead create indexes
-        # separately, and try to enforce uniqueness at application level.
+        # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_ti_id", dag_id, task_id, run_id),
     )
@@ -145,19 +147,25 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
+        from airflow.models.dagrun import DagRun
+
         if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of run_id or execution_date must be passed")
 
         if run_id is None:
-            from airflow.models.dagrun import DagRun
-
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
-            run_id = (
-                session.query(DagRun.run_id)
+            dagrun_id, run_id = (
+                session.query(DagRun.id, DagRun.run_id)
+                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
+                .one()
+            )
+        else:
+            dagrun_id = (
+                session.query(DagRun.id)
                 .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
                 .scalar()
-            )
+            ) or -1
 
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
@@ -167,6 +175,7 @@ class BaseXCom(Base, LoggingMixin):
             cls.dag_id == dag_id,
         ).delete()
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
+            dagrun_id=dagrun_id,
             key=key,
             value=cls.serialize_value(value),
             run_id=run_id,
