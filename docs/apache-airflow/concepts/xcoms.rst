@@ -62,7 +62,7 @@ Firstly, if you can exec into a terminal in the container then you should be abl
 
 .. code-block:: python
 
-    from airflow.models.xcom  import XCom
+    from airflow.models.xcom import XCom
 
     print(XCom.__name__)
 
@@ -107,6 +107,6 @@ An observed problem is that it is very difficult to acquire logs from the contai
         raise AirflowConfigException(
     airflow.exceptions.AirflowConfigException: The object could not be loaded. Please check "xcom_backend" key in "core" section. Current value: "xcom_custom_backend.S3XComBackend".
     [2022-01-06 00:02:16,880] {settings.py:331} DEBUG - Disposing DB connection pool (PID 214)
-    
+
 
 As you can see, in this example the path to the custom XCom is incorrect. This in turn prevents the entire Helm chart from deploying successfully.
