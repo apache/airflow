@@ -288,3 +288,20 @@ class TestSqsSensor(unittest.TestCase):
             mock.call().delete_message_batch(QueueUrl='https://test-queue', Entries=delete_entries)
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @mock.patch.object(SqsHook, "get_conn")
+    def test_poke_do_not_delete_message_on_received(self, mock_conn):
+
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body='hello')
+
+        self.sensor = SqsSensor(
+            task_id='test_task2',
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id='aws_default',
+            # do not delete message upon reception
+            delete_message_on_reception=False,
+        )
+        self.sensor.poke(self.mock_context)
+        assert mock_conn.delete_message_batch.called is False
