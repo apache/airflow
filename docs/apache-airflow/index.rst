@@ -65,10 +65,10 @@ Here you see:
 
 - A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
 - Two tasks, a BashOperator running a Bash script and a PythonOperator running a Python script
-- ``>>`` between the tasks define dependencies and control in which order the tasks will be executed
+- ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
 
-Airflow evaluates this script and executes the tasks at the set interval and in the order defined by the
-dependencies. The status of the "demo" DAG is visible in the web interface:
+Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
+of the "demo" DAG is visible in the web interface:
 
 .. image:: /img/hello_world_graph_view.png
   :alt: Demo DAG in the Graph View, showing the status of one DAG run
