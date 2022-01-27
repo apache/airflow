@@ -112,7 +112,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
 try:
@@ -201,11 +201,11 @@ def clear_task_instances(
         lambda: defaultdict(lambda: defaultdict(set))
     )
     for ti in tis:
-        if ti.state == State.RUNNING:
+        if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
                 # the task is terminated and becomes eligible for retry.
-                ti.state = State.RESTARTING
+                ti.state = TaskInstanceState.RESTARTING
                 job_ids.append(ti.job_id)
         else:
             task_id = ti.task_id
@@ -220,7 +220,7 @@ def clear_task_instances(
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
-            ti.state = State.NONE
+            ti.state = None
             ti.external_executor_id = None
             session.merge(ti)
 
@@ -258,7 +258,7 @@ def clear_task_instances(
         from airflow.jobs.base_job import BaseJob
 
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
-            job.state = State.RESTARTING
+            job.state = TaskInstanceState.RESTARTING
 
     if activate_dag_runs is not None:
         warnings.warn(
@@ -287,10 +287,11 @@ def clear_task_instances(
             )
             .all()
         )
+        dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             dr.state = dag_run_state
             dr.start_date = timezone.utcnow()
-            if dag_run_state == State.QUEUED:
+            if dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
                 dr.start_date = None
 
