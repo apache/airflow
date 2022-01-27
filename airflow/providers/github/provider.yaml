@@ -37,6 +37,11 @@ operators:
     python-modules:
       - airflow.providers.github.operators.github
 
+sensors:
+  - integration-name: Github
+    python-modules:
+      - airflow.providers.github.sensors.github
+
 connection-types:
   - hook-class-name: airflow.providers.github.hooks.github.GithubHook
     connection-type: github

@@ -23,7 +23,7 @@ from github import GithubException
 from airflow import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.github.operators.github import GithubOperator
-from airflow.providers.github.sensors.github import GithubTagSensor, GithubSensor
+from airflow.providers.github.sensors.github import GithubSensor, GithubTagSensor
 
 dag = DAG(
     'example_github_operator',
@@ -47,6 +47,7 @@ tag_sensor = GithubTagSensor(
 # [END howto_tag_sensor_github]
 
 # [START howto_sensor_github]
+
 
 def tag_checker(repo: Any, tag_name: str) -> Optional[bool]:
     result = None
