@@ -346,7 +346,7 @@ class TestGetXComEntries(TestXComEndpoint):
             XCom.set(
                 key=f'invalid-xcom-key-{i}',
                 value="TEST",
-                execution_date=execution_date,
+                run_id="not_this_run_id",
                 task_id="invalid_task",
                 dag_id="invalid_dag",
             )
@@ -363,7 +363,7 @@ class TestGetXComEntries(TestXComEndpoint):
         session.add(dagrun)
         dagrun = DR(
             dag_id="invalid_dag_1",
-            run_id="invalid_run_id",
+            run_id="not_this_run_id",
             execution_date=execution_date,
             start_date=execution_date,
             run_type=DagRunType.MANUAL,
@@ -441,24 +441,24 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             start_date=self.execution_date_parsed,
             run_type=DagRunType.MANUAL,
         )
-        xcom_models = self._create_xcoms(10)
-        session.add_all(xcom_models)
         session.add(dagrun)
         session.commit()
+
+        for i in range(1, 11):
+            xcom = XCom(
+                dagrun_id=dagrun.id,
+                key=f"TEST_XCOM_KEY{i}",
+                value=b"null",
+                run_id=self.dag_run_id,
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+                timestamp=self.execution_date_parsed,
+            )
+            session.add(xcom)
+        session.commit()
+
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 10
         conn_ids = [conn["key"] for conn in response.json["xcom_entries"] if conn]
         assert conn_ids == expected_xcom_ids
-
-    def _create_xcoms(self, count):
-        return [
-            XCom(
-                key=f'TEST_XCOM_KEY{i}',
-                execution_date=self.execution_date_parsed,
-                task_id=self.task_id,
-                dag_id=self.dag_id,
-                timestamp=self.execution_date_parsed,
-            )
-            for i in range(1, count + 1)
-        ]
