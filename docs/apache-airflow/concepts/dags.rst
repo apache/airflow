@@ -713,7 +713,7 @@ Additional difficulty is that one DAG could wait for or trigger several runs of 
 with different data intervals. The **Dag Dependencies** view
 ``Menu -> Browse -> DAG Dependencies`` helps visualize dependencies between DAGs. The dependencies
 are calculated by the scheduler during DAG serialization and the webserver uses them to build
-the dependency graph. Note that if a DAG depdens on another DAG which does not exist (for example a deleted DAG),
+the dependency graph. Note that if a DAG depends on another DAG which does not exist (for example a deleted DAG),
 the webserver will fail to render the dependency graph.
 
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
