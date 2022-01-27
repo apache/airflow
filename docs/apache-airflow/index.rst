@@ -106,9 +106,9 @@ pipelines over time. From the interface, you can inspect logs and manage tasks, 
 case of failure.
 
 The open-source nature of Airflow ensures you work on components developed, tested, and used by many other
-companies around the world. In the active community you can find plenty of helpful resources in the form of
-blogs posts, articles, conferences, books, and more. You can connect with other peers via several channels
-such as Slack and a mailing list.
+companies around the world. In the active `community <https://airflow.apache.org/community>`_ you can find
+plenty of helpful resources in the form of blogs posts, articles, conferences, books, and more. You can
+connect with other peers via several channels such as Slack and a mailing list.
 
 Why not Airflow?
 =========================================
