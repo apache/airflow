@@ -154,6 +154,13 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
+        args:
+          - --line-length=110
+          - --target-version=py36
+          - --target-version=py37
+          - --target-version=py38
+          - --target-version=py39
+          - --skip-string-normalization
         additional_dependencies: [black==21.12b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0

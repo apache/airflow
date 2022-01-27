@@ -325,9 +325,7 @@ You can verify a URI is parsed correctly like so:
 
     >>> from airflow.models.connection import Connection
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.login)
     my-login
     >>> print(c.password)
@@ -349,18 +347,14 @@ For example if your password has a ``/``, this fails:
 
 .. code-block:: pycon
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2")
     ValueError: invalid literal for int() with base 10: 'my-pa'
 
 To fix this, you can encode with :func:`~urllib.parse.quote_plus`:
 
 .. code-block:: pycon
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.password)
     my-pa/ssword
 

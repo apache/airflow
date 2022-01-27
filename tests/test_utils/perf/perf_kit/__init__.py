@@ -75,10 +75,7 @@ Suppose we have the following fragment of the file with tests.
 
     def test_bulk_write_to_db(self):
         clear_db_dags()
-        dags = [
-            DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"])
-            for i in range(0, 4)
-        ]
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
         with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
@@ -101,10 +98,7 @@ queries in it.
     @trace_queries
     def test_bulk_write_to_db(self):
         clear_db_dags()
-        dags = [
-            DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"])
-            for i in range(0, 4)
-        ]
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
         with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)

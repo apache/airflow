@@ -172,12 +172,8 @@ Here is an example of a task with both features:
         tags=["example3"],
     ) as dag:
         executor_config_template = {
-            "pod_template_file": os.path.join(
-                AIRFLOW_HOME, "pod_templates/basic_template.yaml"
-            ),
-            "pod_override": k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(labels={"release": "stable"})
-            ),
+            "pod_template_file": os.path.join(AIRFLOW_HOME, "pod_templates/basic_template.yaml"),
+            "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"release": "stable"})),
         }
 
         @task(executor_config=executor_config_template)

@@ -2933,9 +2933,7 @@ def wait_for_transfer_job(self, job):
 New signature:
 
 ```python
-def wait_for_transfer_job(
-    self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)
-):
+def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)):
     ...
 ```
 
