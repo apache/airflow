@@ -340,7 +340,6 @@ def static_check(
         command_to_execute = ['pre-commit', 'run']
         for single_check in type:
             command_to_execute.append(single_check)
-        # command_to_execute.append(EXTRA_STATIC_CHECK_OPTIONS)
         if all_files:
             command_to_execute.append("--all-files")
         if show_diff_on_failure:
