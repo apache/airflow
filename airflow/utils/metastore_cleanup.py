@@ -146,10 +146,10 @@ def _do_delete(*, query, session):
     print("Finished Performing Delete")
 
 
-def _subquery_keep_last(*, keep_last_filters, keep_last_group_by, session):
+def _subquery_keep_last(*, recency_column, keep_last_filters, keep_last_group_by, session):
     # workaround for MySQL "table specified twice" issue
     # https://github.com/teamclairvoyant/airflow-maintenance-dags/issues/41
-    subquery = session.query(func.max(DagRun.execution_date))
+    subquery = session.query(func.max(recency_column))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
@@ -176,10 +176,12 @@ def _build_query(
     conditions = [recency_column < clean_before_timestamp]
     if keep_last:
         subquery = _subquery_keep_last(
+            recency_column=recency_column,
             keep_last_filters=keep_last_filters,
             keep_last_group_by=keep_last_group_by,
             session=session,
         )
+        print(subquery.all())
         conditions.append(recency_column.notin_(subquery))
     query = query.filter(and_(*conditions))
     return query
@@ -235,7 +237,7 @@ def _confirm_delete(*, date: DateTime, tables: List[str]):
         raise SystemExit("User did not confirm; exiting.")
 
 
-def _print_config(*, configs: List[_TableConfig]):
+def _print_config(*, configs: Dict[str, _TableConfig]):
     data = [x.readable_config for x in configs.values()]
     AirflowConsole().print_as_table(data=data)
 
