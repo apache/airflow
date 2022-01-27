@@ -16,7 +16,6 @@
 # under the License.
 
 from airflow_breeze.global_constants import (
-    AIRFLOW_SOURCES,
     FLOWER_HOST_PORT,
     MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
@@ -25,6 +24,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEBSERVER_HOST_PORT,
 )
+from airflow_breeze.utils.path_utils import get_airflow_sources_root
 
 ASCIIART = """
 
@@ -79,7 +79,7 @@ Adding breeze to your path:
    When you exit the environment, you can add sources of Airflow to the path - you can
    run breeze or the scripts above from any directory by calling 'breeze' commands directly
 
-   \'{AIRFLOW_SOURCES}\' is exported into PATH
+   \'{str(get_airflow_sources_root())}\' is exported into PATH
 
     Port forwarding:
       Ports are forwarded to the running docker containers for webserver and database
