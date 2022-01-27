@@ -87,7 +87,9 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
+      {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:

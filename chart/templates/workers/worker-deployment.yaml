@@ -83,7 +83,9 @@ spec:
         {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:

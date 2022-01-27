@@ -514,7 +514,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
-  priorityClassName: ""
+  priorityClassName: ~
   affinity: {}
   # default worker affinity is:
   #  podAntiAffinity:
@@ -641,7 +641,7 @@ scheduler:
 
   # Set the priority class name
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
-  priorityClassName: ""
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -873,7 +873,7 @@ webserver:
   nodeSelector: {}
   # Set the priority class name
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
-  priorityClassName: ""
+  priorityClassName: ~
   affinity: {}
   # default webserver affinity is:
   #  podAntiAffinity:
@@ -970,7 +970,7 @@ triggerer:
 
   # Set the priority class name
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
-  priorityClassName: ""
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -1063,7 +1063,7 @@ flower:
 
   # Set the priority class name
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
-  priorityClassName: ""
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -1108,7 +1108,7 @@ statsd:
 
   # Set the priority class name
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
-  priorityClassName: ""
+  priorityClassName: ~
 
   # Additional mappings for statsd exporter.
   extraMappings: []
@@ -1218,7 +1218,7 @@ pgbouncer:
 
   # Set the priority class name
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
-  priorityClassName: ""
+  priorityClassName: ~
 
   uid: 65534
 
