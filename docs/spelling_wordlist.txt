@@ -275,6 +275,7 @@ PTransform
 Pagerduty
 Papermill
 Parallelize
+Parameterization
 Parameterized
 Parameterizing
 Paramiko
@@ -675,6 +676,7 @@ deidentify
 del
 delim
 dep
+deployable
 deploymentUrl
 deps
 desc
