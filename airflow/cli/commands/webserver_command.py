@@ -397,6 +397,7 @@ def webserver(args):
 
         if args.opentelemetry:
             run_args = ['opentelemetry-instrument'] + run_args
+            os.environ["AIRFLOW_ENABLE_GUNICORN_OPENTELEMETRY"] = "true"
 
         if args.access_logfile:
             run_args += ['--access-logfile', str(args.access_logfile)]

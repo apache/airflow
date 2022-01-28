@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import setproctitle
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.proto.grpc import JaegerExporter
@@ -50,10 +51,12 @@ def post_fork(server, worker):
 
     See more: https://opentelemetry-python.readthedocs.io/en/latest/examples/fork-process-model/README.html
     """
-    server.log.info("Worker spawned (pid: %s)", worker.pid)
+    if os.environ["AIRFLOW_ENABLE_GUNICORN_OPENTELEMETRY"] == "true":
 
-    resource = Resource.create(attributes={"service.name": "airflow-service"})
+        server.log.info("Worker spawned (pid: %s)", worker.pid)
 
-    trace.set_tracer_provider(TracerProvider(resource=resource))
-    span_processor = BatchSpanProcessor(JaegerExporter())
-    trace.get_tracer_provider().add_span_processor(span_processor)
+        resource = Resource.create(attributes={"service.name": "airflow-service"})
+
+        trace.set_tracer_provider(TracerProvider(resource=resource))
+        span_processor = BatchSpanProcessor(JaegerExporter())
+        trace.get_tracer_provider().add_span_processor(span_processor)
