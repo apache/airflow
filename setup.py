@@ -288,6 +288,9 @@ facebook = [
 flask_appbuilder_authlib = [
     'authlib',
 ]
+github = [
+    'pygithub',
+]
 google = [
     'PyOpenSSL',
     # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
@@ -634,6 +637,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'exasol': exasol,
     'facebook': facebook,
     'ftp': [],
+    'github': github,
     'google': google,
     'grpc': grpc,
     'hashicorp': hashicorp,
