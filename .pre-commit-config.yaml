@@ -195,11 +195,12 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
+  # TODO: Bump to Python 3.7 when support for Python 3.6 is dropped in Airflow 2.3.
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.31.0
     hooks:
       - id: pyupgrade
-        args: ["--py37-plus"]
+        args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
@@ -279,6 +280,7 @@ repos:
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
+          - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
       - id: autoflake
@@ -599,8 +601,8 @@ repos:
         args:
           - --max-length=70
         language: python
-        files: ^\.pre-commit-config\.yaml$
-        additional_dependencies: ['pyyaml']
+        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names.py$
+        additional_dependencies: ['pyyaml', 'jinja2', 'black']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
@@ -733,7 +735,7 @@ repos:
         # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7 false
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7
         language: system
         always_run: true
         pass_filenames: false

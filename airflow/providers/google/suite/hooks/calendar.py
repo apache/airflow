@@ -34,13 +34,10 @@ class GoogleCalendarHook(GoogleBaseHook):
     https://developers.google.com/calendar/api/v3/reference
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param api_version: API Version. For example v3
-    :type api_version: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -49,7 +46,6 @@ class GoogleCalendarHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -106,46 +102,30 @@ class GoogleCalendarHook(GoogleBaseHook):
         https://developers.google.com/calendar/api/v3/reference/events/list
 
         :param calendar_id: The Google Calendar ID to interact with
-        :type calendar_id: str
         :param i_cal_uid: Optional. Specifies event ID in the ``iCalendar`` format in the response.
-        :type i_cal_uid: str
         :param max_attendees: Optional. If there are more than the specified number of attendees,
             only the participant is returned.
-        :type max_attendees: int
         :param max_results: Optional. Maximum number of events returned on one result page.
             Incomplete pages can be detected by a non-empty ``nextPageToken`` field in the response.
             By default the value is 250 events. The page size can never be larger than 2500 events
-        :type max_results: int
         :param order_by: Optional. Acceptable values are ``"startTime"`` or "updated"
-        :type order_by: str
         :param private_extended_property: Optional. Extended properties constraint specified as
             ``propertyName=value``. Matches only private properties. This parameter might be repeated
             multiple times to return events that match all given constraints.
-        :type private_extended_property: str
         :param q: Optional. Free text search.
-        :type q: str
         :param shared_extended_property: Optional. Extended properties constraint specified as
             ``propertyName=value``. Matches only shared properties. This parameter might be repeated
             multiple times to return events that match all given constraints.
-        :type shared_extended_property: str
         :param show_deleted: Optional. False by default
-        :type show_deleted: bool
         :param show_hidden_invitation: Optional. False by default
-        :type show_hidden_invitation: bool
         :param single_events: Optional. False by default
-        :type single_events: bool
         :param sync_token: Optional. Token obtained from the ``nextSyncToken`` field returned
-        :type sync_token: str
         :param time_max: Optional. Upper bound (exclusive) for an event's start time to filter by.
             Default is no filter
-        :type time_max: datetime
         :param time_min: Optional. Lower bound (exclusive) for an event's end time to filter by.
             Default is no filter
-        :type time_min: datetime
         :param time_zone: Optional. Time zone used in response. Default is calendars time zone.
-        :type time_zone: str
         :param updated_min: Optional. Lower bound for an event's last modification time
-        :type updated_min: datetime
         :rtype: List
         """
         service = self.get_conn()
@@ -196,23 +176,14 @@ class GoogleCalendarHook(GoogleBaseHook):
         https://developers.google.com/calendar/api/v3/reference/events/insert
 
         :param calendar_id: The Google Calendar ID to interact with
-        :type calendar_id: str
         :param conference_data_version: Optional. Version number of conference data
             supported by the API client.
-        :type conference_data_version: int
         :param max_attendees: Optional. If there are more than the specified number of attendees,
             only the participant is returned.
-        :type max_attendees: int
         :param send_notifications: Optional. Default is False
-        :type send_notifications: bool
         :param send_updates: Optional. Default is "false". Acceptable values as "all", "none",
             ``"externalOnly"``
-        :type send_updates: str
-        :type supports_attachments: Optional. Default is False
-        :type supports_attachments: bool
-        :type event: Required. Request body of Events resource. Start and End are required
             https://developers.google.com/calendar/api/v3/reference/events#resource
-        :type event: dict
         :rtype: Dict
         """
         if "start" not in event or "end" not in event:

@@ -41,7 +41,6 @@ class AzureDataLakeHook(BaseHook):
     {"tenant": "<TENANT>", "account_name": "ACCOUNT_NAME"}.
 
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
-    :type azure_data_lake_conn_id: str
     """
 
     conn_name_attr = 'azure_data_lake_conn_id'
@@ -66,7 +65,7 @@ class AzureDataLakeHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -108,7 +107,6 @@ class AzureDataLakeHook(BaseHook):
         Check if a file exists on Azure Data Lake.
 
         :param file_path: Path and name of the file.
-        :type file_path: str
         :return: True if the file exists, False otherwise.
         :rtype: bool
         """
@@ -134,25 +132,19 @@ class AzureDataLakeHook(BaseHook):
         :param local_path: local path. Can be single file, directory (in which case,
             upload recursively) or glob pattern. Recursive glob patterns using `**`
             are not supported.
-        :type local_path: str
         :param remote_path: Remote path to upload to; if multiple files, this is the
             directory root to write within.
-        :type remote_path: str
         :param nthreads: Number of threads to use. If None, uses the number of cores.
-        :type nthreads: int
         :param overwrite: Whether to forcibly overwrite existing files/directories.
             If False and remote path is a directory, will quit regardless if any files
             would be overwritten or not. If True, only matching filenames are actually
             overwritten.
-        :type overwrite: bool
         :param buffersize: int [2**22]
             Number of bytes for internal buffer. This block cannot be bigger than
             a chunk and cannot be smaller than a block.
-        :type buffersize: int
         :param blocksize: int [2**22]
             Number of bytes for a block. Within each chunk, we write a smaller
             block for each API call. This block cannot be bigger than a chunk.
-        :type blocksize: int
         """
         multithread.ADLUploader(
             self.get_conn(),
@@ -182,25 +174,19 @@ class AzureDataLakeHook(BaseHook):
             specific file, unless it is an existing directory, in which case a file is
             created within it. If downloading multiple files, this is the root
             directory to write within. Will create directories as required.
-        :type local_path: str
         :param remote_path: remote path/globstring to use to find remote files.
             Recursive glob patterns using `**` are not supported.
-        :type remote_path: str
         :param nthreads: Number of threads to use. If None, uses the number of cores.
-        :type nthreads: int
         :param overwrite: Whether to forcibly overwrite existing files/directories.
             If False and remote path is a directory, will quit regardless if any files
             would be overwritten or not. If True, only matching filenames are actually
             overwritten.
-        :type overwrite: bool
         :param buffersize: int [2**22]
             Number of bytes for internal buffer. This block cannot be bigger than
             a chunk and cannot be smaller than a block.
-        :type buffersize: int
         :param blocksize: int [2**22]
             Number of bytes for a block. Within each chunk, we write a smaller
             block for each API call. This block cannot be bigger than a chunk.
-        :type blocksize: int
         """
         multithread.ADLDownloader(
             self.get_conn(),
@@ -218,7 +204,6 @@ class AzureDataLakeHook(BaseHook):
         List files in Azure Data Lake Storage
 
         :param path: full path/globstring to use to list files in ADLS
-        :type path: str
         """
         if "*" in path:
             return self.get_conn().glob(path)
@@ -230,11 +215,8 @@ class AzureDataLakeHook(BaseHook):
         Remove files in Azure Data Lake Storage
 
         :param path: A directory or file to remove in ADLS
-        :type path: str
         :param recursive: Whether to loop into directories in the location and remove the files
-        :type recursive: bool
         :param ignore_not_found: Whether to raise error if file to delete is not found
-        :type ignore_not_found: bool
         """
         try:
             self.get_conn().remove(path=path, recursive=recursive)

@@ -56,7 +56,6 @@ def beam_options_to_args(options: dict) -> List[str]:
     apache_beam/options/pipeline_options.py#L230-L251
 
     :param options: Dictionary with options
-    :type options: dict
     :return: List of arguments
     :rtype: List[str]
     """
@@ -79,10 +78,8 @@ class BeamCommandRunner(LoggingMixin):
     Class responsible for running pipeline command in subprocess
 
     :param cmd: Parts of the command to be run in subprocess
-    :type cmd: List[str]
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id
-    :type process_line_callback: Optional[Callable[[str], None]]
     """
 
     def __init__(
@@ -158,7 +155,6 @@ class BeamHook(BaseHook):
     keyword arguments rather than positional.
 
     :param runner: Runner type
-    :type runner: str
     """
 
     def __init__(
@@ -199,28 +195,22 @@ class BeamHook(BaseHook):
         Starts Apache Beam python pipeline.
 
         :param variables: Variables passed to the pipeline.
-        :type variables: Dict
         :param py_options: Additional options.
-        :type py_options: List[str]
         :param py_interpreter: Python version of the Apache Beam pipeline.
             If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
-        :type py_interpreter: str
         :param py_requirements: Additional python package(s) to install.
             If a value is passed to this parameter, a new virtual environment has been created with
             additional packages installed.
 
             You could also install the apache-beam package if it is not installed on your system or you want
             to use a different version.
-        :type py_requirements: List[str]
         :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
             See virtualenv documentation for more information.
 
             This option is only relevant if the ``py_requirements`` parameter is not None.
-        :type py_system_site_packages: bool
         :param on_new_job_id_callback: Callback called when the job ID is known.
-        :type on_new_job_id_callback: callable
         """
         if "labels" in variables:
             variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
@@ -273,11 +263,8 @@ class BeamHook(BaseHook):
         Starts Apache Beam Java pipeline.
 
         :param variables: Variables passed to the job.
-        :type variables: dict
         :param jar: Name of the jar for the pipeline
-        :type job_class: str
         :param job_class: Name of the java class for the pipeline.
-        :type job_class: str
         """
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))

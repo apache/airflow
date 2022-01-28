@@ -31,13 +31,9 @@ class JiraSensor(BaseSensorOperator):
     Monitors a jira ticket for any change.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     :param method_name: method name from jira-python-sdk to be execute
-    :type method_name: str
     :param method_params: parameters for the method method_name
-    :type method_params: dict
     :param result_processor: function that return boolean and act as a sensor response
-    :type result_processor: function
     """
 
     def __init__(
@@ -73,15 +69,10 @@ class JiraTicketSensor(JiraSensor):
     Monitors a jira ticket for given change in terms of function.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     :param ticket_id: id of the ticket to be monitored
-    :type ticket_id: str
     :param field: field of the ticket to be monitored
-    :type field: str
     :param expected_value: expected value of the field
-    :type expected_value: str
     :param result_processor: function that return boolean and act as a sensor response
-    :type result_processor: function
     """
 
     template_fields: Sequence[str] = ("ticket_id",)

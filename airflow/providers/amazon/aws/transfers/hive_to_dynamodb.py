@@ -22,7 +22,7 @@ import json
 from typing import TYPE_CHECKING, Callable, Optional, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 
 if TYPE_CHECKING:
@@ -36,26 +36,16 @@ class HiveToDynamoDBOperator(BaseOperator):
     be used for smallish amount of data.
 
     :param sql: SQL query to execute against the hive database. (templated)
-    :type sql: str
     :param table_name: target DynamoDB table
-    :type table_name: str
     :param table_keys: partition key and sort key
-    :type table_keys: list
     :param pre_process: implement pre-processing of source data
-    :type pre_process: function
     :param pre_process_args: list of pre_process function arguments
-    :type pre_process_args: list
     :param pre_process_kwargs: dict of pre_process function arguments
-    :type pre_process_kwargs: dict
     :param region_name: aws region name (example: us-east-1)
-    :type region_name: str
     :param schema: hive database schema
-    :type schema: str
     :param hiveserver2_conn_id: Reference to the
         :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
-    :type hiveserver2_conn_id: str
     :param aws_conn_id: aws connection
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -96,7 +86,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         self.log.info(self.sql)
 
         data = hive.get_pandas_df(self.sql, schema=self.schema)
-        dynamodb = AwsDynamoDBHook(
+        dynamodb = DynamoDBHook(
             aws_conn_id=self.aws_conn_id,
             table_name=self.table_name,
             table_keys=self.table_keys,

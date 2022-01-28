@@ -30,11 +30,8 @@ class PSRPOperator(BaseOperator):
     """PowerShell Remoting Protocol operator.
 
     :param psrp_conn_id: connection id
-    :type psrp_conn_id: str
     :param command: command to execute on remote host. (templated)
-    :type command: str
     :param powershell: powershell to execute on remote host. (templated)
-    :type powershell: str
     """
 
     template_fields: Sequence[str] = (

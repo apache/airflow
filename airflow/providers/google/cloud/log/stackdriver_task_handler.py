@@ -61,24 +61,18 @@ class StackdriverTaskHandler(logging.Handler):
         If omitted, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
-    :type gcp_key_path: str
     :param scopes: OAuth scopes for the credentials,
-    :type scopes: Sequence[str]
     :param name: the name of the custom log in Stackdriver Logging. Defaults
         to 'airflow'. The name of the Python logger will be represented
         in the ``python_logger`` field.
-    :type name: str
     :param transport: Class for creating new transport objects. It should
         extend from the base :class:`google.cloud.logging.handlers.Transport` type and
         implement :meth`google.cloud.logging.handlers.Transport.send`. Defaults to
         :class:`google.cloud.logging.handlers.BackgroundThreadTransport`. The other
         option is :class:`google.cloud.logging.handlers.SyncTransport`.
-    :type transport: :class:`type`
     :param resource: (Optional) Monitored resource of the entry, defaults
                      to the global resource type.
-    :type resource: :class:`~google.cloud.logging.resource.Resource`
     :param labels: (Optional) Mapping of labels for the entry.
-    :type labels: dict
     """
 
     LABEL_TASK_ID = "task_id"
@@ -146,7 +140,6 @@ class StackdriverTaskHandler(logging.Handler):
         """Actually log the specified logging record.
 
         :param record: The record to be logged.
-        :type record: logging.LogRecord
         """
         message = self.format(record)
         labels: Optional[Dict[str, str]]
@@ -167,7 +160,6 @@ class StackdriverTaskHandler(logging.Handler):
         Configures the logger to add information with information about the current task
 
         :param task_instance: Currently executed task
-        :type task_instance:  :class:`airflow.models.TaskInstance`
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
         self.task_instance_hostname = task_instance.hostname
@@ -179,12 +171,9 @@ class StackdriverTaskHandler(logging.Handler):
         Read logs of given task instance from Stackdriver logging.
 
         :param task_instance: task instance object
-        :type task_instance: :class:`airflow.models.TaskInstance`
         :param try_number: task instance try_number to read logs from. If None
            it returns all logs
-        :type try_number: Optional[int]
         :param metadata: log metadata. It is used for steaming log reading and auto-tailing.
-        :type metadata: Dict
         :return: a tuple of (
             list of (one element tuple with two element tuple - hostname and logs)
             and list of metadata)
@@ -257,7 +246,6 @@ class StackdriverTaskHandler(logging.Handler):
         Sends requests to the Stackdriver service and downloads logs.
 
         :param log_filter: Filter specifying the logs to be downloaded.
-        :type log_filter: str
         :param next_page_token: The token of the page from which the log download will start.
             If None is passed, it will start from the first page.
         :param all_pages: If True is passed, all subpages will be downloaded. Otherwise, only the first
@@ -294,10 +282,8 @@ class StackdriverTaskHandler(logging.Handler):
         Sends requests to the Stackdriver service and downloads single pages with logs.
 
         :param log_filter: Filter specifying the logs to be downloaded.
-        :type log_filter: str
         :param page_token: The token of the page to be downloaded. If None is passed, the first page will be
             downloaded.
-        :type page_token: str
         :return: Downloaded logs and next page token
         :rtype: Tuple[str, str]
         """
@@ -347,7 +333,6 @@ class StackdriverTaskHandler(logging.Handler):
         :param task_instance: task instance object
         :type: task_instance: TaskInstance
         :param try_number: task instance try_number to read logs from.
-        :type try_number: Optional[int]
         :return: URL to the external log collection service
         :rtype: str
         """

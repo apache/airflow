@@ -62,97 +62,63 @@ class DockerOperator(BaseOperator):
 
     :param image: Docker image from which to create the container.
         If image tag is omitted, "latest" will be used. (templated)
-    :type image: str
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
-    :type api_version: str
     :param command: Command to be run in the container. (templated)
-    :type command: str or list
     :param container_name: Name of the container. Optional (templated)
-    :type container_name: str or None
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
-    :type cpus: float
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
-    :type docker_url: str
     :param environment: Environment variables to set in the container. (templated)
-    :type environment: dict
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
-    :type private_environment: dict
     :param force_pull: Pull the docker image on every run. Default is False.
-    :type force_pull: bool
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
-    :type mem_limit: float or str
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
-    :type host_tmp_dir: str
     :param network_mode: Network mode for the container.
-    :type network_mode: str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
-    :type tls_ca_cert: str
     :param tls_client_cert: Path to the PEM-encoded certificate
         used to authenticate docker client.
-    :type tls_client_cert: str
     :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
-    :type tls_client_key: str
     :param tls_hostname: Hostname to match against
         the docker server certificate or False to disable the check.
-    :type tls_hostname: str or bool
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
-    :type tls_ssl_version: str
     :param mount_tmp_dir: Specify whether the temporary directory should be bind-mounted
         from the host to the container. Defaults to True
-    :type mount_tmp_dir: bool
     :param tmp_dir: Mount point inside the container to
         a temporary directory created on the host by the operator.
         The path is also made available via the environment variable
         ``AIRFLOW_TMP_DIR`` inside the container.
-    :type tmp_dir: str
     :param user: Default user inside the docker container.
-    :type user: int or str
     :param mounts: List of volumes to mount into the container. Each item should
         be a :py:class:`docker.types.Mount` instance.
-    :type mounts: list[docker.types.Mount]
     :param entrypoint: Overwrite the default ENTRYPOINT of the image
-    :type entrypoint: str or list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
-    :type working_dir: str
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
-    :type xcom_all: bool
     :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
-    :type docker_conn_id: str
     :param dns: Docker custom DNS servers
-    :type dns: list[str]
     :param dns_search: Docker custom DNS search domain
-    :type dns_search: list[str]
     :param auto_remove: Auto-removal of the container on daemon side when the
         container's process exits.
         The default is False.
-    :type auto_remove: bool
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
-    :type shm_size: int
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
-    :type tty: bool
     :param privileged: Give extended privileges to this container.
-    :type privileged: bool
     :param cap_add: Include container capabilities
-    :type cap_add: list[str]
     :param retrieve_output: Should this docker image consistently attempt to pull from and output
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
-    :type retrieve_output: bool
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
-    :type retrieve_output_path: Optional[str]
     """
 
     template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
@@ -407,7 +373,6 @@ class DockerOperator(BaseOperator):
         Retrieve command(s). if command string starts with [, it returns the command list)
 
         :param command: Docker command or entrypoint
-        :type command: str | List[str]
 
         :return: the command (or commands)
         :rtype: str | List[str]

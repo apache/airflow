@@ -42,59 +42,43 @@ class GCSToBigQueryOperator(BaseOperator):
         :ref:`howto/operator:GCSToBigQueryOperator`
 
     :param bucket: The bucket to load from. (templated)
-    :type bucket: str
     :param source_objects: String or List of Google Cloud Storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type source_objects: str, list[str]
     :param destination_project_dataset_table: The dotted
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to load data into.
         If ``<project>`` is not included, project will be the project defined in
         the connection json. (templated)
-    :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         Should not be set when source_format is 'DATASTORE_BACKUP'.
         Parameter must be defined if 'schema_object' is null and autodetect is False.
-    :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
         Parameter must be defined if 'schema_fields' is null and autodetect is False.
-    :type schema_object: str
     :param source_format: File format to export.
-    :type source_format: str
     :param compression: [Optional] The compression type of the data source.
         Possible values include GZIP and NONE.
         The default value is NONE.
         This setting is ignored for Google Cloud Bigtable,
         Google Cloud Datastore backups and Avro formats.
-    :type compression: str
     :param create_disposition: The create disposition if the table doesn't exist.
-    :type create_disposition: str
     :param skip_leading_rows: Number of rows to skip when loading from a CSV.
-    :type skip_leading_rows: int
     :param write_disposition: The write disposition if the table already exists.
-    :type write_disposition: str
     :param field_delimiter: The delimiter to use when loading from a CSV.
-    :type field_delimiter: str
     :param max_bad_records: The maximum number of bad records that BigQuery can
         ignore when running the job.
-    :type max_bad_records: int
     :param quote_character: The value that is used to quote data sections in a CSV file.
-    :type quote_character: str
     :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
         extra values that are not represented in the table schema.
         If true, the extra values are ignored. If false, records with extra columns
         are treated as bad records, and if there are too many bad records, an
         invalid error is returned in the job result.
-    :type ignore_unknown_values: bool
     :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
-    :type allow_quoted_newlines: bool
     :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
         The missing values are treated as nulls. If false, records with missing trailing
         columns are treated as bad records, and if there are too many bad records, an
         invalid error is returned in the job result. Only applicable to CSV, ignored
         for other formats.
-    :type allow_jagged_rows: bool
     :param encoding: The character encoding of the data. See:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).csvOptions.encoding
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
@@ -104,50 +88,38 @@ class GCSToBigQueryOperator(BaseOperator):
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
-    :type max_id_key: str
     :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud and
         interact with the BigQuery service.
-    :type bigquery_conn_id: str
     :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
         and interact with the Google Cloud Storage service.
-    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
-    :type schema_update_options: list
     :param src_fmt_configs: configure optional fields specific to the source format
-    :type src_fmt_configs: dict
     :param external_table: Flag to specify if the destination table should be
         a BigQuery external table. Default Value is False.
-    :type external_table: bool
     :param time_partitioning: configure optional time partitioning fields i.e.
         partition by field, type and  expiration as per API specifications.
         Note that 'field' is not available in concurrency with
         dataset.table$partition.
-    :type time_partitioning: dict
     :param cluster_fields: Request that the result of this load be stored sorted
         by one or more columns. BigQuery supports clustering for both partitioned and
         non-partitioned tables. The order of columns given determines the sort order.
         Not applicable for external tables.
-    :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
         options and schema for CSV and JSON sources. (Default: ``True``).
         Parameter must be set to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
-    :type autodetect: bool
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
 
             encryption_configuration = {
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
-    :type encryption_configuration: dict
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
-    :type location: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -156,11 +128,8 @@ class GCSToBigQueryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param labels: [Optional] Labels for the BiqQuery table.
-    :type labels: dict
     :param description: [Optional] Description for the BigQuery table.
-    :type description: str
     """
 
     template_fields: Sequence[str] = (

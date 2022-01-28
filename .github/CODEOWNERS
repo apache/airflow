@@ -65,7 +65,13 @@ breeze @potiuk
 breeze-complete @potiuk
 Dockerfile @potiuk @ashb @mik-laj
 Dockerfile.ci @potiuk @ashb
-/dev/ @potiuk @ashb @kaxil  @jedcunningham
+/dev/ @potiuk @ashb @jedcunningham
 /provider_packages/ @potiuk @ashb
 /scripts/ @potiuk @ashb @mik-laj
 /docker_tests/ @potiuk @ashb @mik-laj
+
+# Releasing Guides & Project Guidelines
+/dev/README_RELEASE_*.md  @kaxil
+/dev/README.md  @kaxil
+/dev/PROJECT_GUIDELINES.md  @kaxil
+/dev/PROVIDER_PACKAGE_DETAILS.md  @kaxil

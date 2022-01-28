@@ -17,6 +17,7 @@
 # under the License.
 """Hook for SSH connections."""
 import os
+import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
@@ -26,13 +27,18 @@ import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 try:
     from airflow.utils.platform import getuser
 except ImportError:
-    from getpass import getuser
+    from getpass import getuser  # type: ignore[misc]
 
 TIMEOUT_DEFAULT = 10
 
@@ -47,27 +53,18 @@ class SSHHook(BaseHook):
         Connections from where all the required parameters can be fetched like
         username, password or key_file. Thought the priority is given to the
         param passed during init
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect
-    :type remote_host: str
     :param username: username to connect to the remote_host
-    :type username: str
     :param password: password of the username to connect to the remote_host
-    :type password: str
     :param key_file: path to key file to use to connect to the remote_host
-    :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
-    :type port: int
     :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
         The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :type conn_timeout: int
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
-    :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
-    :type keepalive_interval: int
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -91,7 +88,7 @@ class SSHHook(BaseHook):
     hook_name = 'SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],
@@ -123,12 +120,12 @@ class SSHHook(BaseHook):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
+        self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
         self.allow_host_key_change = False
-        self.host_proxy = None
         self.host_key = None
         self.look_for_keys = True
 
@@ -242,13 +239,18 @@ class SSHHook(BaseHook):
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
-                self.host_proxy = paramiko.ProxyCommand(host_info['proxycommand'])
+                self.host_proxy_cmd = host_info['proxycommand']
 
             if not (self.password or self.key_file):
                 if host_info and host_info.get('identityfile'):
                     self.key_file = host_info['identityfile'][0]
 
         self.port = self.port or SSH_PORT
+
+    @cached_property
+    def host_proxy(self) -> Optional[paramiko.ProxyCommand]:
+        cmd = self.host_proxy_cmd
+        return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
         """
@@ -333,11 +335,8 @@ class SSHHook(BaseHook):
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
 
         :param remote_port: The remote port to create a tunnel to
-        :type remote_port: int
         :param remote_host: The remote host to create a tunnel to (default localhost)
-        :type remote_host: str
         :param local_port:  The local port to attach the tunnel to
-        :type local_port: int
 
         :return: sshtunnel.SSHTunnelForwarder object
         """

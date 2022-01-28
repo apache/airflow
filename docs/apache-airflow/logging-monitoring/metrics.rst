@@ -101,13 +101,13 @@ Name                                        Description
                                             section (needed to send tasks to the executor) and found it locked by
                                             another process.
 ``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
-``ti.start.<dagid>.<taskid>``               Number of started task in a given dag. Similar to <job_name>_start but for task
-``ti.finish.<dagid>.<taskid>.<state>``      Number of completed task in a given dag. Similar to <job_name>_end but for task
+``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
+``ti.finish.<dag_id>.<task_id>.<state>``    Number of completed task in a given dag. Similar to <job_name>_end but for task
 ``dag.callback_exceptions``                 Number of exceptions raised from DAG callbacks. When this happens, it
                                             means DAG callback is not working.
 ``celery.task_timeout_error``               Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
-``task_removed_from_dag.<dagid>``           Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
-``task_restored_to_dag.<dagid>``            Number of tasks restored for a given dag (i.e. task instance which was
+``task_removed_from_dag.<dag_id>``          Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
+``task_restored_to_dag.<dag_id>``           Number of tasks restored for a given dag (i.e. task instance which was
                                             previously in REMOVED state in the DB is added to DAG file)
 ``task_instance_created-<operator_name>``   Number of tasks instances created for a given Operator
 ``triggers.blocked_main_thread``            Number of triggers that blocked the main thread (likely due to not being

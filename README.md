@@ -82,14 +82,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)   | Stable version (2.2.3)   |
-| -------------------- | -------------------- | ------------------------ |
-| Python               | 3.6, 3.7, 3.8, 3.9   | 3.6, 3.7, 3.8, 3.9       |
-| Kubernetes           | 1.20, 1.21           | 1.18, 1.19, 1.20         |
-| PostgreSQL           | 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
-| MySQL                | 5.7, 8               | 5.7, 8                   |
-| SQLite               | 3.15.0+              | 3.15.0+                  |
-| MSSQL(Experimental)  | 2017, 2019           |                          |
+|                     | Main version (dev)  | Stable version (2.2.3)   |
+|---------------------|---------------------|--------------------------|
+| Python              | 3.7, 3.8, 3.9       | 3.6, 3.7, 3.8, 3.9       |
+| Kubernetes          | 1.20, 1.21          | 1.18, 1.19, 1.20         |
+| PostgreSQL          | 10, 11, 12, 13      | 9.6, 10, 11, 12, 13      |
+| MySQL               | 5.7, 8              | 5.7, 8                   |
+| SQLite              | 3.15.0+             | 3.15.0+                  |
+| MSSQL(Experimental) | 2017, 2019          |                          |
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).

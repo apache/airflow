@@ -37,15 +37,10 @@ class TelegramOperator(BaseOperator):
         :ref:`howto/operator:TelegramOperator`
 
     :param telegram_conn_id: Telegram connection ID which its password is Telegram API token
-    :type telegram_conn_id: str
     :param token: Telegram API Token
-    :type token: str
     :param chat_id: Telegram chat ID for a chat/channel/group
-    :type chat_id: str
     :param text: Message to be sent on telegram
-    :type text: str
     :param telegram_kwargs: Extra args to be passed to telegram client
-    :type telegram_kwargs: dict
     """
 
     template_fields: Sequence[str] = ('text', 'chat_id')

@@ -29,25 +29,15 @@ class GlueJobHook(AwsBaseHook):
     Interact with AWS Glue - create job, trigger, crawler
 
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :type s3_bucket: Optional[str]
     :param job_name: unique job name per AWS account
-    :type job_name: Optional[str]
     :param desc: job description
-    :type desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
-    :type concurrent_run_limit: int
     :param script_location: path to etl script on s3
-    :type script_location: Optional[str]
     :param retry_limit: Maximum number of times to retry this job if it fails
-    :type retry_limit: int
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
-    :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
-    :type region_name: Optional[str]
     :param iam_role_name: AWS IAM Role for Glue Job Execution
-    :type iam_role_name: Optional[str]
     :param create_job_kwargs: Extra arguments for Glue Job Creation
-    :type create_job_kwargs: Optional[dict]
     """
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
@@ -139,9 +129,7 @@ class GlueJobHook(AwsBaseHook):
         Get state of the Glue job. The job state can be
         running, finished, failed, stopped or timeout.
         :param job_name: unique job name per AWS account
-        :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
-        :type run_id: str
         :return: State of the Glue job
         """
         glue_client = self.get_conn()
@@ -155,9 +143,7 @@ class GlueJobHook(AwsBaseHook):
         fails and return final state if finished.
         Raises AirflowException when the job failed
         :param job_name: unique job name per AWS account
-        :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
-        :type run_id: str
         :return: Dict of JobRunState and JobRunId
         """
         failed_states = ['FAILED', 'TIMEOUT']

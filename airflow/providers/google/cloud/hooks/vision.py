@@ -79,13 +79,9 @@ class NameDeterminer:
 
 
         :param entity: Entity
-        :type entity: any
         :param entity_id: Entity id
-        :type entity_id: str
         :param location: Location
-        :type location: str
         :param project_id: The id of Google Cloud Vision project.
-        :type project_id: str
         :return: The same entity or entity with new name
         :rtype: str
         :raises: AirflowException

@@ -81,7 +81,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         multi_namespace_mode: bool,
         watcher_queue: 'Queue[KubernetesWatchType]',
         resource_version: Optional[str],
-        scheduler_job_id: Optional[int],
+        scheduler_job_id: str,
         kube_config: Configuration,
     ):
         super().__init__()
@@ -120,7 +120,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self,
         kube_client: client.CoreV1Api,
         resource_version: Optional[str],
-        scheduler_job_id: int,
+        scheduler_job_id: str,
         kube_config: Any,
     ) -> Optional[str]:
         self.log.info('Event: and now my watch begins starting at resource_version: %s', resource_version)
@@ -232,7 +232,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         task_queue: 'Queue[KubernetesJobType]',
         result_queue: 'Queue[KubernetesResultsType]',
         kube_client: client.CoreV1Api,
-        scheduler_job_id: int,
+        scheduler_job_id: str,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
@@ -431,7 +431,7 @@ class KubernetesExecutor(BaseExecutor):
         self.result_queue: 'Queue[KubernetesResultsType]' = self._manager.Queue()
         self.kube_scheduler: Optional[AirflowKubernetesScheduler] = None
         self.kube_client: Optional[client.CoreV1Api] = None
-        self.scheduler_job_id: Optional[int] = None
+        self.scheduler_job_id: Optional[str] = None
         self.event_scheduler: Optional[EventScheduler] = None
         self.last_handled: Dict[TaskInstanceKey, float] = {}
         super().__init__(parallelism=self.kube_config.parallelism)
@@ -503,7 +503,7 @@ class KubernetesExecutor(BaseExecutor):
         self.log.info('Start Kubernetes executor')
         if not self.job_id:
             raise AirflowException("Could not get scheduler_job_id")
-        self.scheduler_job_id = self.job_id
+        self.scheduler_job_id = str(self.job_id)
         self.log.debug('Start with scheduler_job_id: %s', self.scheduler_job_id)
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
@@ -627,6 +627,8 @@ class KubernetesExecutor(BaseExecutor):
 
     def _check_worker_pods_pending_timeout(self):
         """Check if any pending worker pods have timed out"""
+        if not self.scheduler_job_id:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         timeout = self.kube_config.worker_pods_pending_timeout
         self.log.debug('Looking for pending worker pods older than %d seconds', timeout)
 
@@ -698,10 +700,10 @@ class KubernetesExecutor(BaseExecutor):
         :param pod: V1Pod spec that we will patch with new label
         :param pod_ids: pod_ids we expect to patch.
         """
+        if not self.scheduler_job_id:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(
-            str(self.scheduler_job_id)
-        )
+        pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(self.scheduler_job_id)
         pod_id = annotations_to_key(pod.metadata.annotations)
         if pod_id not in pod_ids:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", pod_id)
@@ -725,6 +727,8 @@ class KubernetesExecutor(BaseExecutor):
 
         :param kube_client: kubernetes client for speaking to kube API
         """
+        if not self.scheduler_job_id:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         kwargs = {
             'field_selector': "status.phase=Succeeded",
             'label_selector': 'kubernetes_executor=True',
@@ -732,9 +736,7 @@ class KubernetesExecutor(BaseExecutor):
         pod_list = kube_client.list_namespaced_pod(namespace=self.kube_config.kube_namespace, **kwargs)
         for pod in pod_list.items:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(
-                str(self.scheduler_job_id)
-            )
+            pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(self.scheduler_job_id)
             try:
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,

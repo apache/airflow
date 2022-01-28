@@ -493,6 +493,32 @@ class AirflowConfigParser(ConfigParser):
                 f'Current value: "{full_qualified_path}".'
             )
 
+    def getjson(self, section, key, fallback=_UNSET, **kwargs) -> Union[dict, list, str, int, float, None]:
+        """
+        Return a config value parsed from a JSON string.
+
+        ``fallback`` is *not* JSON parsed but used verbatim when no config value is given.
+        """
+        # get always returns the fallback value as a string, so for this if
+        # someone gives us an object we want to keep that
+        default = _UNSET
+        if fallback is not _UNSET:
+            default = fallback
+            fallback = _UNSET
+
+        try:
+            data = self.get(section=section, key=key, fallback=fallback, **kwargs)
+        except (NoSectionError, NoOptionError):
+            return default
+
+        if len(data) == 0:
+            return default if default is not _UNSET else None
+
+        try:
+            return json.loads(data)
+        except JSONDecodeError as e:
+            raise AirflowConfigException(f'Unable to parse [{section}] {key!r} as valid json') from e
+
     def read(self, filenames, encoding=None):
         super().read(filenames=filenames, encoding=encoding)
 
@@ -590,25 +616,19 @@ class AirflowConfigParser(ConfigParser):
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
             'airflow.cfg', 'default', 'env var', or 'cmd'.
-        :type display_source: bool
         :param display_sensitive: If True, the values of options set by env
             vars and bash commands will be displayed. If False, those options
             are shown as '< hidden >'
-        :type display_sensitive: bool
         :param raw: Should the values be output as interpolated values, or the
             "raw" form that can be fed back in to ConfigParser
-        :type raw: bool
         :param include_env: Should the value of configuration from AIRFLOW__
             environment variables be included or not
-        :type include_env: bool
         :param include_cmds: Should the result of calling any *_cmd config be
             set (True, default), or should the _cmd options be left as the
             command to run (False)
-        :type include_cmds: bool
         :param include_secret: Should the result of calling any *_secret config be
             set (True, default), or should the _secret options be left as the
             path to get the secret from (False)
-        :type include_secret: bool
         :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.

@@ -32,17 +32,14 @@ class RedshiftSQLOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:RedshiftSQLOperator`
 
-    :param sql: the sql code to be executed
-    :type sql: Can receive a str representing a sql statement,
-        or an iterable of str (sql statements)
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param redshift_conn_id: reference to
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
-    :type redshift_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     """
 
     template_fields: Sequence[str] = ('sql',)

@@ -18,24 +18,12 @@
 import json
 import logging
 import re
+import sys
 import warnings
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
-
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
-from airflow.settings import pod_mutation_hook
-
-try:
-    import airflow.utils.yaml as yaml
-except ImportError:
-    import yaml
-
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator
@@ -56,8 +44,16 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
+from airflow.settings import pod_mutation_hook
+from airflow.utils import yaml
 from airflow.utils.helpers import validate_key
 from airflow.version import version as airflow_version
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 if TYPE_CHECKING:
     import jinja2
@@ -84,101 +80,63 @@ class KubernetesPodOperator(BaseOperator):
         simplifies the authorization process.
 
     :param namespace: the namespace to run within kubernetes.
-    :type namespace: str
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories. (templated)
-    :type image: str
     :param name: name of the pod in which the task will run, will be used (plus a random
         suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
         containing only [a-z0-9.-]).
-    :type name: str
     :param random_name_suffix: if True, will generate a random suffix.
-    :type random_name_suffix: bool
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provided.
-    :type cmds: list[str]
     :param arguments: arguments of the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
-    :type arguments: list[str]
     :param ports: ports for launched pod.
-    :type ports: list[k8s.V1ContainerPort]
     :param volume_mounts: volumeMounts for launched pod.
-    :type volume_mounts: list[k8s.V1VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
-    :type volumes: list[k8s.V1Volume]
     :param env_vars: Environment variables initialized in the container. (templated)
-    :type env_vars: list[k8s.V1EnvVar]
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
-    :type secrets: list[airflow.kubernetes.secret.Secret]
     :param in_cluster: run kubernetes client with in_cluster configuration.
-    :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
-    :type cluster_context: str
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
-    :type reattach_on_restart: bool
     :param labels: labels to apply to the Pod. (templated)
-    :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
-    :type startup_timeout_seconds: int
     :param get_logs: get the stdout of the container as logs of the tasks.
-    :type get_logs: bool
     :param image_pull_policy: Specify a policy to cache or always pull an image.
-    :type image_pull_policy: str
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :type annotations: dict
     :param resources: A dict containing resources requests and limits.
         Possible keys are request_memory, request_cpu, limit_memory, limit_cpu,
         and limit_gpu, which will be used to generate airflow.kubernetes.pod.Resources.
         See also kubernetes.io/docs/concepts/configuration/manage-compute-resources-container
-    :type resources: k8s.V1ResourceRequirements
     :param affinity: A dict containing a group of affinity scheduling rules.
-    :type affinity: k8s.V1Affinity
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
-    :type config_file: str
     :param node_selector: A dict containing a group of scheduling rules.
-    :type node_selector: dict
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
-    :type image_pull_secrets: List[k8s.V1LocalObjectReference]
     :param service_account_name: Name of the service account
-    :type service_account_name: str
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
-    :type is_delete_operator_pod: bool
     :param hostnetwork: If True enable host networking on the pod.
-    :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations.
-    :type tolerations: List[k8s.V1Toleration]
     :param security_context: security options the pod should run with (PodSecurityContext).
-    :type security_context: dict
     :param dnspolicy: dnspolicy for the pod.
-    :type dnspolicy: str
     :param schedulername: Specify a schedulername for the pod
-    :type schedulername: str
     :param full_pod_spec: The complete podSpec
-    :type full_pod_spec: kubernetes.client.models.V1Pod
     :param init_containers: init container for the launched Pod
-    :type init_containers: list[kubernetes.client.models.V1Container]
     :param log_events_on_failure: Log the pod's events if a failure occurs
-    :type log_events_on_failure: bool
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
-    :type do_xcom_push: bool
     :param pod_template_file: path to pod template file (templated)
-    :type pod_template_file: str
     :param priority_class_name: priority class name for the launched Pod
-    :type priority_class_name: str
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
-    :type termination_grace_period: int
 
     """
 
@@ -238,7 +196,7 @@ class KubernetesPodOperator(BaseOperator):
         do_xcom_push: bool = False,
         pod_template_file: Optional[str] = None,
         priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
+        pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
         **kwargs,
@@ -307,7 +265,7 @@ class KubernetesPodOperator(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Dict,
+        context: 'Context',
         jinja_env: "jinja2.Environment",
         seen_oids: set,
     ) -> None:
@@ -369,6 +327,7 @@ class KubernetesPodOperator(BaseOperator):
             label_selector=label_selector,
         ).items
 
+        pod = None
         num_pods = len(pod_list)
         if num_pods > 1:
             raise AirflowException(f'More than one pod running with labels {label_selector}')
@@ -377,7 +336,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
             self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
             self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
-            return pod
+        return pod
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context):
         if self.reattach_on_restart:

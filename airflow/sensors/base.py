@@ -64,12 +64,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     a criteria is met and fail if and when they time out.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
-    :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
         between each tries
-    :type poke_interval: float
     :param timeout: Time, in seconds before the task times out and fails.
-    :type timeout: float
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
         When set to ``poke`` the sensor is taking up a worker slot for its
@@ -82,10 +79,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         this mode if the time before the criteria is met is expected to be
         quite long. The poke interval should be more than one minute to
         prevent too much load on the scheduler.
-    :type mode: str
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
-    :type exponential_backoff: bool
     """
 
     ui_color = '#e6f1f2'  # type: str
@@ -335,7 +330,6 @@ def poke_mode_only(cls):
     the mode from 'poke'.
 
     :param cls: BaseSensor class to enforce methods only use 'poke' mode.
-    :type cls: type
     """
 
     def decorate(cls_type):

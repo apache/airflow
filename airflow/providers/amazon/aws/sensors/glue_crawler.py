@@ -32,9 +32,7 @@ class GlueCrawlerSensor(BaseSensorOperator):
     'FAILED', 'CANCELLED', 'SUCCEEDED'
 
     :param crawler_name: The AWS Glue crawler unique name
-    :type crawler_name: str
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :type aws_conn_id: str
     """
 
     def __init__(self, *, crawler_name: str, aws_conn_id: str = 'aws_default', **kwargs) -> None:

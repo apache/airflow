@@ -29,11 +29,9 @@ class VerticaOperator(BaseOperator):
     Executes sql code in a specific Vertica database.
 
     :param vertica_conn_id: reference to a specific Vertica database
-    :type vertica_conn_id: str
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     """
 
     template_fields: Sequence[str] = ('sql',)

@@ -38,12 +38,9 @@ class TaskLogReader:
         Reads chunks of Task Instance logs.
 
         :param ti: The taskInstance
-        :type ti: TaskInstance
         :param try_number: If provided, logs for the given try will be returned.
             Otherwise, logs from all attempts are returned.
-        :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
-        :type metadata: dict
         :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
 
         The following is an example of how to use this method to read log:
@@ -66,11 +63,8 @@ class TaskLogReader:
         Used to continuously read log to the end
 
         :param ti: The Task Instance
-        :type ti: TaskInstance
         :param try_number: the task try number
-        :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
-        :type metadata: dict
         :rtype: Iterator[str]
         """
         if try_number is None:
@@ -85,7 +79,7 @@ class TaskLogReader:
             while 'end_of_log' not in metadata or not metadata['end_of_log']:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
-                    yield "\n".join([host, log]) + "\n"
+                    yield "\n".join([host or '', log]) + "\n"
 
     @cached_property
     def log_handler(self):
@@ -120,9 +114,7 @@ class TaskLogReader:
         Renders the log attachment filename
 
         :param ti: The task instance
-        :type ti: TaskInstance
         :param try_number: The task try number
-        :type try_number: Optional[int]
         :rtype: str
         """
         dagrun = ti.get_dagrun(session=session)

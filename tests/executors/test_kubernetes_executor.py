@@ -190,7 +190,7 @@ class TestKubernetesExecutor:
 
     def setup_method(self) -> None:
         self.kubernetes_executor = KubernetesExecutor()
-        self.kubernetes_executor.job_id = "5"
+        self.kubernetes_executor.job_id = 5
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'

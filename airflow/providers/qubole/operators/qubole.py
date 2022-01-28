@@ -71,7 +71,6 @@ class QuboleOperator(BaseOperator):
         :ref:`howto/operator:QuboleOperator`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     kwargs:
         :command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd

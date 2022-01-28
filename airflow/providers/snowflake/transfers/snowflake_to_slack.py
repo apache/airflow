@@ -43,31 +43,20 @@ class SnowflakeToSlackOperator(BaseOperator):
         :ref:`howto/operator:SnowflakeToSlackOperator`
 
     :param sql: The SQL statement to execute on Snowflake (templated)
-    :type sql: str
     :param slack_message: The templated Slack message to send with the data returned from Snowflake.
         You can use the default JINJA variable {{ results_df }} to access the pandas dataframe containing the
         SQL results
-    :type slack_message: str
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param slack_conn_id: The connection id for Slack
-    :type slack_conn_id: str
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
-    :type results_df_name: str
     :param parameters: The parameters to pass to the SQL query
-    :type parameters: Optional[Union[Iterable, Mapping]]
     :param warehouse: The Snowflake virtual warehouse to use to run the SQL query
-    :type warehouse: Optional[str]
     :param database: The Snowflake database to use for the SQL query
-    :type database: Optional[str]
     :param schema: The schema to run the SQL against in Snowflake
-    :type schema: Optional[str]
     :param role: The role to use when connecting to Snowflake
-    :type role: Optional[str]
     :param slack_token: The token to use to authenticate to Slack. If this is not provided, the
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id
-    :type slack_token: Optional[str]
     """
 
     template_fields: Sequence[str] = ('sql', 'slack_message')

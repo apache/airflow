@@ -42,15 +42,11 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         :ref:`howto/operator:GoogleSearchAdsInsertReportOperator`
 
     :param report: Report to be generated
-    :type report: Dict[str, Any]
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -59,7 +55,6 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -119,22 +114,15 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         :ref:`howto/operator:GoogleSearchAdsGetfileReportOperator`
 
     :param report_id: ID of the report.
-    :type report_id: str
     :param bucket_name: The bucket to upload to.
-    :type bucket_name: str
     :param report_name: The report name to set when uploading the local file. If not provided then
         report_id is used.
-    :type report_name: str
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -143,7 +131,6 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

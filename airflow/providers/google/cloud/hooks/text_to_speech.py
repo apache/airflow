@@ -38,11 +38,9 @@ class CloudTextToSpeechHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -51,7 +49,6 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -96,19 +93,14 @@ class CloudTextToSpeechHook(GoogleBaseHook):
 
         :param input_data: text input to be synthesized. See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesisInput
-        :type input_data: dict or google.cloud.texttospeech_v1.types.SynthesisInput
         :param voice: configuration of voice to be used in synthesis. See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.VoiceSelectionParams
-        :type voice: dict or google.cloud.texttospeech_v1.types.VoiceSelectionParams
         :param audio_config: configuration of the synthesized audio. See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.AudioConfig
-        :type audio_config: dict or google.cloud.texttospeech_v1.types.AudioConfig
         :param retry: (Optional) A retry object used to retry requests. If None is specified,
                 requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request to complete.
             Note that if retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :return: SynthesizeSpeechResponse See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesizeSpeechResponse
         :rtype: object

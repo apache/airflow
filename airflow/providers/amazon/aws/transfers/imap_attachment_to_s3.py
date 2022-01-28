@@ -35,22 +35,14 @@ class ImapAttachmentToS3Operator(BaseOperator):
         :ref:`howto/operator:ImapAttachmentToS3Operator`
 
     :param imap_attachment_name: The file name of the mail attachment that you want to transfer.
-    :type imap_attachment_name: str
     :param s3_key: The destination file name in the s3 bucket for the attachment.
-    :type s3_key: str
     :param imap_check_regex: If set checks the `imap_attachment_name` for a regular expression.
-    :type imap_check_regex: bool
     :param imap_mail_folder: The folder on the mail server to look for the attachment.
-    :type imap_mail_folder: str
     :param imap_mail_filter: If set other than 'All' only specific mails will be checked.
         See :py:meth:`imaplib.IMAP4.search` for details.
-    :type imap_mail_filter: str
     :param s3_overwrite: If set overwrites the s3 key if already exists.
-    :type s3_overwrite: bool
     :param imap_conn_id: The reference to the connection details of the mail server.
-    :type imap_conn_id: str
     :param s3_conn_id: The reference to the s3 connection details.
-    :type s3_conn_id: str
     """
 
     template_fields: Sequence[str] = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
@@ -83,7 +75,6 @@ class ImapAttachmentToS3Operator(BaseOperator):
         This function executes the transfer from the email server (via imap) into s3.
 
         :param context: The context while executing.
-        :type context: dict
         """
         self.log.info(
             'Transferring mail attachment %s from mail server via imap to s3 key %s...',

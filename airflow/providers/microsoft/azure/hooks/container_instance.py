@@ -38,7 +38,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     :param conn_id: :ref:`Azure connection id<howto/connection:azure>` of
         a service principal which will be used to start the container instance.
-    :type azure_conn_id: str
     """
 
     conn_name_attr = 'azure_conn_id'
@@ -55,11 +54,8 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Create a new container group
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         :param container_group: the properties of the container group
-        :type container_group: azure.mgmt.containerinstance.models.ContainerGroup
         """
         self.connection.container_groups.create_or_update(resource_group, name, container_group)
 
@@ -68,9 +64,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Get the state and exitcode of a container group
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         :return: A tuple with the state, exitcode, and details.
             If the exitcode is unknown 0 is returned.
         :rtype: tuple(state,exitcode,details)
@@ -89,9 +83,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Get the messages of a container group
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         :return: A list of the event messages
         :rtype: list[str]
         """
@@ -107,9 +99,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Get the state of a container group
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         :return: ContainerGroup
         :rtype: ~azure.mgmt.containerinstance.models.ContainerGroup
         """
@@ -120,11 +110,8 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Get the tail from logs of a container group
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         :param tail: the size of the tail
-        :type tail: int
         :return: A list of log messages
         :rtype: list[str]
         """
@@ -136,9 +123,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Delete a container group
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         """
         self.connection.container_groups.delete(resource_group, name)
 
@@ -147,9 +132,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         Test if a container group exists
 
         :param resource_group: the name of the resource group
-        :type resource_group: str
         :param name: the name of the container group
-        :type name: str
         """
         for container in self.connection.container_groups.list_by_resource_group(resource_group):
             if container.name == name:

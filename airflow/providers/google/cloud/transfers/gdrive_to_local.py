@@ -33,17 +33,12 @@ class GoogleDriveToLocalOperator(BaseOperator):
         :ref:`howto/operator:GoogleDriveToLocalOperator`
 
     :param output_file: Path to downloaded file
-    :type output_file: str
     :param folder_id: The folder id of the folder in which the Google Drive file resides
-    :type folder_id: str
     :param file_name: The name of the file residing in Google Drive
-    :type file_name: str
     :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-    :type drive_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -52,7 +47,6 @@ class GoogleDriveToLocalOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

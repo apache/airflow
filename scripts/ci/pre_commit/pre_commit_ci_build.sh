@@ -16,14 +16,39 @@
 # specific language governing permissions and limitations
 # under the License.
 export PYTHON_MAJOR_MINOR_VERSION="${1}"
-export REMEMBER_LAST_ANSWER="${2}"
 export PRINT_INFO_FROM_SCRIPTS="false"
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-build_images::forget_last_answer
+# PRe-commit version of confirming the ci image that is used in pre-commits
+# it displays additional information - what the user should do in order to bring the local images
+# back to state that pre-commit will be happy with
+function build_images::rebuild_ci_image_if_confirmed_for_pre_commit() {
+    local needs_docker_build="false"
+    export THE_IMAGE_TYPE="CI"
+
+    md5sum::check_if_docker_build_is_needed
+
+    if [[ ${needs_docker_build} == "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is needed!"
+        verbosity::print_info
+    else
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is not needed!"
+        verbosity::print_info
+    fi
+
+    if [[ "${needs_docker_build}" == "true" ]]; then
+        SKIP_REBUILD="false"
+        build_images::confirm_image_rebuild
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            build_images::rebuild_ci_image_if_needed
+        fi
+    fi
+}
 
 build_images::prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed_and_confirmed
+build_images::rebuild_ci_image_if_confirmed_for_pre_commit

@@ -26,65 +26,53 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+import warnings
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AwsBatchOperator(BaseOperator):
+class BatchOperator(BaseOperator):
     """
     Execute a job on AWS Batch
 
     :param job_name: the name for the job that will run on AWS Batch (templated)
-    :type job_name: str
 
     :param job_definition: the job definition name on AWS Batch
-    :type job_definition: str
 
     :param job_queue: the queue name on AWS Batch
-    :type job_queue: str
 
     :param overrides: the `containerOverrides` parameter for boto3 (templated)
-    :type overrides: Optional[dict]
 
     :param array_properties: the `arrayProperties` parameter for boto3
-    :type array_properties: Optional[dict]
 
     :param parameters: the `parameters` for boto3 (templated)
-    :type parameters: Optional[dict]
 
     :param job_id: the job ID, usually unknown (None) until the
         submit_job operation gets the jobId defined by AWS Batch
-    :type job_id: Optional[str]
 
-    :param waiters: an :py:class:`.AwsBatchWaiters` object (see note below);
+    :param waiters: an :py:class:`.BatchWaiters` object (see note below);
         if None, polling is used with max_retries and status_retries.
-    :type waiters: Optional[AwsBatchWaiters]
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
-    :type max_retries: int
 
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
-    :type status_retries: int
 
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used.
-    :type aws_conn_id: str
 
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
-    :type region_name: str
 
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
-    :type tags: dict
 
     .. note::
         Any custom waiters must return a waiter for these calls:
@@ -133,7 +121,7 @@ class AwsBatchOperator(BaseOperator):
         self.parameters = parameters or {}
         self.waiters = waiters
         self.tags = tags or {}
-        self.hook = AwsBatchClientHook(
+        self.hook = BatchClientHook(
             max_retries=max_retries,
             status_retries=status_retries,
             aws_conn_id=aws_conn_id,
@@ -202,3 +190,19 @@ class AwsBatchOperator(BaseOperator):
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)
+
+
+class AwsBatchOperator(BatchOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

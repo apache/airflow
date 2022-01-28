@@ -17,7 +17,7 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Union, cast
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.models import DagRun
     from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dagrun import DagRun
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -147,7 +147,8 @@ class SkipMixin(LoggingMixin):
         task = ti.task
         dag = task.dag
 
-        downstream_tasks = task.downstream_list
+        # At runtime, the downstream list will only be operators
+        downstream_tasks = cast("List[BaseOperator]", task.downstream_list)
 
         if downstream_tasks:
             # For a branching workflow that looks like this, when "branch" does skip_all_except("task1"),
