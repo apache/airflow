@@ -17,14 +17,15 @@
 
 
 import logging
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from pendulum import DateTime
 from sqlalchemy import and_, false, func
+from sqlalchemy.exc import OperationalError
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
 from airflow.models import (
     Base,
@@ -63,6 +64,9 @@ class _TableConfig:
     :type: keep_last_filters: Optional[Any]
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :type: keep_last_group_by: Optional[Any]
+    :param warn_if_missing: If True, then we'll suppress "table missing" exception and log a warning.
+        If False then the exception will go uncaught.
+    :type warn_if_missing: bool
     """
 
     orm_model: Base
@@ -70,6 +74,7 @@ class _TableConfig:
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
+    warn_if_missing: bool = False
 
     def __lt__(self, other):
         return self.orm_model.__tablename__ < self.orm_model.__tablename__
@@ -82,6 +87,7 @@ class _TableConfig:
             keep_last=self.keep_last,
             keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             keep_last_group_by=str(self.keep_last_group_by),
+            warn_if_missing=str(self.warn_if_missing),
         )
 
 
@@ -106,19 +112,17 @@ config_list: List[_TableConfig] = [
     _TableConfig(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
     _TableConfig(orm_model=XCom, recency_column=XCom.timestamp),
 ]
+try:
+    from celery.backends.database.models import Task, TaskSet
 
-if str(conf.get("core", "executor")) == "CeleryExecutor":
-    try:
-        from celery.backends.database.models import Task, TaskSet
-
-        config_list.extend(
-            [
-                _TableConfig(orm_model=Task, recency_column=Task.date_done),
-                _TableConfig(orm_model=TaskSet, recency_column=TaskSet.date_done),
-            ]
-        )
-    except Exception as e:
-        logging.error(e)
+    config_list.extend(
+        [
+            _TableConfig(orm_model=Task, recency_column=Task.date_done, warn_if_missing=True),
+            _TableConfig(orm_model=TaskSet, recency_column=TaskSet.date_done, warn_if_missing=True),
+        ]
+    )
+except ImportError:
+    pass
 
 config_dict: Dict[str, _TableConfig] = {x.orm_model.__tablename__: x for x in sorted(config_list)}
 
@@ -200,6 +204,7 @@ def _cleanup_table(
     dry_run=True,
     verbose=False,
     session=None,
+    **kwargs,
 ):
     print()
     if dry_run:
@@ -239,6 +244,22 @@ def _confirm_delete(*, date: DateTime, tables: List[str]):
 def _print_config(*, configs: Dict[str, _TableConfig]):
     data = [x.readable_config for x in configs.values()]
     AirflowConsole().print_as_table(data=data)
+
+
+class _warn_if_missing(AbstractContextManager):
+    def __init__(self, table, suppress):
+        self.table = table
+        self.suppress = suppress
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exctype, excinst, exctb):
+        caught_error = exctype is not None and issubclass(exctype, OperationalError)
+        if caught_error:
+            logger = logging.getLogger()
+            logger.warning(f"Table {self.table!r} not found.  Skipping.")
+        return caught_error
 
 
 @provide_session
@@ -287,10 +308,11 @@ def run_cleanup(
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
     for table_name, table_config in effective_config_dict.items():
-        _cleanup_table(
-            clean_before_timestamp=clean_before_timestamp,
-            dry_run=dry_run,
-            verbose=verbose,
-            **table_config.__dict__,
-            session=session,
-        )
+        with _warn_if_missing(table_name, table_config.warn_if_missing):
+            _cleanup_table(
+                clean_before_timestamp=clean_before_timestamp,
+                dry_run=dry_run,
+                verbose=verbose,
+                **table_config.__dict__,
+                session=session,
+            )
