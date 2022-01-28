@@ -25,7 +25,6 @@ DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 class TestKubernetesDecorator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
-    # @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.__init__")
     def test_task_creation_with_params(self, execute_mock, dag_maker):
         @task.kubernetes(image='python:3.8-slim-buster', name='k8s_test', namespace='default')
         def k8s_decorator_func():
@@ -43,7 +42,6 @@ class TestKubernetesDecorator:
         assert ti.state == 'success'
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
-    # @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.__init__")
     def test_task_creation_default_params(self, execute_mock, dag_maker):
         @task.kubernetes()
         def k8s_decorator_func():
