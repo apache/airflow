@@ -24,7 +24,7 @@ from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
     user_collection_item_schema,
@@ -53,9 +53,13 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
-    to_replace = {"user_id": "ab_user.id", "id": "ab_user_id"}
+    to_replace = {"user_id": "id"}
+    order = "asc"
+    if order_by.startswith("-"):
+        order = "desc"
+        order_by = order[1:]
+    order_by = to_replace.get(order_by, order_by)
     allowed_filter_attrs = [
-        "user_id",
         'id',
         "first_name",
         "last_name",
@@ -64,9 +68,14 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
         "is_active",
         "role",
     ]
+    if order_by not in allowed_filter_attrs:
+        raise BadRequest(
+            detail=f"Ordering with '{order_by}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
     query = session.query(User)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    users = query.offset(offset).limit(limit).all()
+    users = query.order_by(getattr(getattr(User, order_by), order)()).offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 
