@@ -302,7 +302,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     continue
                 except BaseException as e:
                     # This is potentially bad, so log it.
-                    self.log.error("Trigger %s exited with error %s", details["name"], e)
+                    self.log.exception("Trigger %s exited with error %s", details["name"], e)
                 else:
                     # See if they foolishly returned a TriggerEvent
                     if isinstance(result, TriggerEvent):
