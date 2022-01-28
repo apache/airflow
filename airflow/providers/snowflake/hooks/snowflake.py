@@ -33,8 +33,6 @@ from airflow.utils.strings import to_boolean
 
 
 def _try_to_boolean(value: Any):
-    if value is None:
-        return False
     if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
