@@ -1352,7 +1352,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for worker pods.",
                     "type": [
                         "string",
                         "null"
