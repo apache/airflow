@@ -24,7 +24,8 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set, Type
+import resource
+from typing import Any, Dict, List, Optional, Set, Type, Tuple
 
 from flask import current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
@@ -89,8 +90,8 @@ def _oauth_tokengetter(token=None):
 class AnonymousUser(AnonymousUserMixin):
     """User object used when no active user is logged in."""
 
-    _roles = set()
-    _perms = set()
+    _roles: Set[Tuple[str, str]] = set()
+    _perms: Set[Tuple[str, str]] = set()
 
     @property
     def roles(self):
@@ -1302,13 +1303,16 @@ class BaseSecurityManager:
         return False
 
     def _get_user_permission_resources(
-        self, user: Optional[User], action_name: str, resource_names: List[str]
+        self, user: Optional[User], action_name: str, resource_names: Optional[List[str]] = None
     ) -> Set[str]:
         """
         Return a set of resource names with a certain action name
         that a user has access to. Mainly used to fetch all menu permissions
         on a single db call, will also check public permissions and builtin roles
         """
+        if not resource_names:
+            resource_names = []
+
         db_role_ids = []
         if user is None:
             # include public role
@@ -1332,7 +1336,7 @@ class BaseSecurityManager:
         result.update(role_resource_names)
         return result
 
-    def get_user_menu_access(self, menu_names: List[str] = None) -> Set[str]:
+    def get_user_menu_access(self, menu_names: Optional[List[str]] = None) -> Set[str]:
         if current_user.is_authenticated:
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
