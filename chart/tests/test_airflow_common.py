@@ -295,19 +295,4 @@ class TestAirflowCommon:
             component = doc['metadata']['labels']['component']
             priority = doc['spec']['template']['spec']['priorityClassName']
 
-            if component == "flower":
-                assert priority == "low-priority-flower"
-            elif component == "pgbouncer":
-                assert priority == "low-priority-pgbouncer"
-            elif component == "scheduler":
-                assert priority == "low-priority-scheduler"
-            elif component == "statsd":
-                assert priority == "low-priority-statsd"
-            elif component == "triggerer":
-                assert priority == "low-priority-triggerer"
-            elif component == "webserver":
-                assert priority == "low-priority-webserver"
-            elif component == "worker":
-                assert priority == "low-priority-worker"
-            else:
-                assert False
+            assert priority == f"low-priority-{component}"
