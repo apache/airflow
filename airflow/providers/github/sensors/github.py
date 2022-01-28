@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from github import GithubException
 
 from airflow import AirflowException
 from airflow.providers.github.operators.github import GithubOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GithubSensor(BaseSensorOperator):
@@ -64,7 +66,7 @@ class GithubSensor(BaseSensorOperator):
             result_processor=self.result_processor,
         )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: 'Context') -> bool:
         return self.github_operator.execute(context=context)
 
 
@@ -94,7 +96,7 @@ class BaseGithubRepositorySensor(GithubSensor):
             **kwargs,
         )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: 'Context') -> bool:
         """
         Function that the sensors defined while deriving this class should
         override.
@@ -133,7 +135,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
             **kwargs,
         )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info('Poking for tag: %s in repository: %s', self.tag_name, self.repository_name)
         return GithubSensor.poke(self, context=context)
 

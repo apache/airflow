@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from github import GithubException
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.github.hooks.github import GithubHook
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GithubOperator(BaseOperator):
@@ -62,7 +64,7 @@ class GithubOperator(BaseOperator):
         self.github_method_args = github_method_args
         self.result_processor = result_processor
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: 'Context') -> Any:
         try:
             # Default method execution is on the top level GitHub client
             hook = GithubHook(github_conn_id=self.github_conn_id)
