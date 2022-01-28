@@ -39,12 +39,12 @@ if TYPE_CHECKING:
 
 BASE_LINK = "https://console.cloud.google.com"
 GCS_STORAGE_LINK = BASE_LINK + "/storage/browser/{destination_gcs_uri};tab=objects?project={project_id}"
-METASTORE_BASE_LINK = BASE_LINK + "/dataproc/metastore/services"
-METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/{region}/{service_id}/backups/{backup_id}?project={project_id}"
-METASTORE_BACKUPS_LINK = METASTORE_BASE_LINK + "/{region}/{service_id}/backuprestore?project={project_id}"
-METASTORE_EXPORT_LINK = METASTORE_BASE_LINK + "/{region}/{service_id}/importexport?project={project_id}"
-METASTORE_IMPORT_LINK = METASTORE_BASE_LINK + "/{region}/{service_id}/imports/{import_id}?project={project_id}"
-METASTORE_SERVICE_LINK = METASTORE_BASE_LINK + "/{region}/{service_id}/config?project={project_id}"
+METASTORE_BASE_LINK = BASE_LINK + "/dataproc/metastore/services/{region}/{service_id}"
+METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/backups/{backup_id}?project={project_id}"
+METASTORE_BACKUPS_LINK = METASTORE_BASE_LINK + "/backuprestore?project={project_id}"
+METASTORE_EXPORT_LINK = METASTORE_BASE_LINK + "/importexport?project={project_id}"
+METASTORE_IMPORT_LINK = METASTORE_BASE_LINK + "/imports/{import_id}?project={project_id}"
+METASTORE_SERVICE_LINK = METASTORE_BASE_LINK + "/config?project={project_id}"
 
 
 class DataprocMetastoreBackupLink(BaseOperatorLink):
@@ -144,10 +144,10 @@ class DataprocMetastoreServiceLink(BaseOperatorLink):
         )
 
 
-class DataprocMetastoreStorageLink(BaseOperatorLink):
-    """Helper class for constructing GCS Storage link for Dataproc Metastore Export Metadata"""
+class StorageLink(BaseOperatorLink):
+    """Helper class for constructing GCS Storage link"""
 
-    name = "GCS Storage for Dataproc Metastore Export"
+    name = "GCS Storage"
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
@@ -274,7 +274,12 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         self.xcom_push(
             context,
             key="backup_conf",
-            value={"region": self.region, "service_id": self.service_id, "backup_id": self.backup_id, "project_id": self.project_id},
+            value={
+                "region": self.region,
+                "service_id": self.service_id,
+                "backup_id": self.backup_id,
+                "project_id": self.project_id,
+            },
         )
         return Backup.to_dict(backup)
 
@@ -377,7 +382,12 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         self.xcom_push(
             context,
             key="import_conf",
-            value={"region": self.region, "service_id": self.service_id, "import_id": self.metadata_import_id, "project_id": self.project_id},
+            value={
+                "region": self.region,
+                "service_id": self.service_id,
+                "import_id": self.metadata_import_id,
+                "project_id": self.project_id,
+            },
         )
         return MetadataImport.to_dict(metadata_import)
 
@@ -666,7 +676,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
-    operator_extra_links = (DataprocMetastoreExportLink(), DataprocMetastoreStorageLink())
+    operator_extra_links = (DataprocMetastoreExportLink(), StorageLink())
 
     def __init__(
         self,
