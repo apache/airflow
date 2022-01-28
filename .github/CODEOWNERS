@@ -24,7 +24,7 @@
 # Docs (without Providers)
 /docs/apache-airflow @kaxil @potiuk
 /docs/docker-stack @potiuk
-/docs/helm-chart @kaxil @jedcunningham
+/docs/helm-chart @dstandish @jedcunningham
 /docs/*.py @kaxil @potiuk
 
 # API
@@ -58,6 +58,8 @@
 # Providers
 /airflow/providers/google/ @turbaszek
 /airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
+/airflow/providers/cncf/kubernetes @jedcunningham
+/docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
