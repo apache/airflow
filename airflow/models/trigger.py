@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from sqlalchemy import Column, Integer, String, func
 
@@ -72,7 +72,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: List[int], session=None) -> Dict[int, "Trigger"]:
+    def bulk_fetch(cls, ids: Iterable[int], session=None) -> Dict[int, "Trigger"]:
         """
         Fetches all of the Triggers by ID and returns a dict mapping
         ID -> Trigger instance

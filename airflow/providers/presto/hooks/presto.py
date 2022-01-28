@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -148,9 +148,10 @@ class PrestoHook(DbApiHook):
         hql,
         autocommit: bool = False,
         parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Presto. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters)
+        return super().run(sql=self._strip_sql(hql), parameters=parameters, handler=handler)
 
     def insert_rows(
         self,
@@ -165,16 +166,11 @@ class PrestoHook(DbApiHook):
         A generic way to insert a set of tuples into a table.
 
         :param table: Name of the target table
-        :type table: str
         :param rows: The rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
-        :type commit_every: int
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         """
         if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
             self.log.info(

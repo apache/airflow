@@ -81,8 +81,8 @@ class TestAirflowInfo:
 
     @classmethod
     def teardown_class(cls) -> None:
-        for handler_ref in logging._handlerList[:]:
-            logging._removeHandlerRef(handler_ref)
+        for handler_ref in logging._handlerList[:]:  # type: ignore
+            logging._removeHandlerRef(handler_ref)  # type: ignore
         importlib.reload(airflow_local_settings)
         configure_logging()
 

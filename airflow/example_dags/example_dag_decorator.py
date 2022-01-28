@@ -23,6 +23,7 @@ import httpx
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.email import EmailOperator
+from airflow.utils.context import Context
 
 
 class GetRequestOperator(BaseOperator):
@@ -32,7 +33,7 @@ class GetRequestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.url = url
 
-    def execute(self, context):
+    def execute(self, context: Context):
         return httpx.get(self.url).json()
 
 
@@ -43,7 +44,6 @@ def example_dag_decorator(email: str = 'example@example.com'):
     DAG to send server IP to email.
 
     :param email: Email to send IP to. Defaults to example@example.com.
-    :type email: str
     """
     get_ip = GetRequestOperator(task_id='get_ip', url="http://httpbin.org/get")
 

@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Cloud Bigtable operators."""
 import enum
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
@@ -26,6 +26,9 @@ from google.cloud.bigtable_admin_v2 import enums
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigtableValidationMixin:
@@ -53,42 +56,28 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigtableCreateInstanceOperator`
 
-    :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to create.
-    :type main_cluster_id: str
     :param main_cluster_id: The ID for main cluster for the new instance.
-    :type main_cluster_zone: str
     :param main_cluster_zone: The zone for main cluster
         See https://cloud.google.com/bigtable/docs/locations for more details.
-    :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project.  If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type replica_clusters: List[Dict[str, str]]
     :param replica_clusters: (optional) A list of replica clusters for the new
         instance. Each cluster dictionary contains an id and a zone.
         Example: [{"id": "replica-1", "zone": "us-west1-a"}]
-    :type replica_cluster_id: str
     :param replica_cluster_id: (deprecated) The ID for replica cluster for the new
         instance.
-    :type replica_cluster_zone: str
     :param replica_cluster_zone: (deprecated)  The zone for replica cluster.
-    :type instance_type: enum.IntEnum
     :param instance_type: (optional) The type of the instance.
-    :type instance_display_name: str
     :param instance_display_name: (optional) Human-readable name of the instance. Defaults
         to ``instance_id``.
-    :type instance_labels: dict
     :param instance_labels: (optional) Dictionary of labels to associate
         with the instance.
-    :type cluster_nodes: int
     :param cluster_nodes: (optional) Number of nodes for cluster.
-    :type cluster_storage_type: enum.IntEnum
     :param cluster_storage_type: (optional) The type of storage.
-    :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance creation.
                     If None is not specified, Operator will wait indefinitely.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -97,17 +86,16 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ('instance_id', 'main_cluster_id', 'main_cluster_zone')
-    template_fields: Iterable[str] = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'main_cluster_id',
         'main_cluster_zone',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -147,7 +135,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -193,23 +181,16 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigtableUpdateInstanceOperator`
 
-    :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to update.
-    :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type instance_display_name: str
     :param instance_display_name: (optional) Human-readable name of the instance.
-    :type instance_type: enums.Instance.Type or enum.IntEnum
     :param instance_type: (optional) The type of the instance.
-    :type instance_labels: dict
     :param instance_labels: (optional) Dictionary of labels to associate
         with the instance.
-    :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance update.
                     If None is not specified, Operator will wait indefinitely.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -218,15 +199,14 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ['instance_id']
-    template_fields: Iterable[str] = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'impersonation_chain',
-    ]
+    )
 
     def __init__(
         self,
@@ -252,7 +232,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -286,13 +266,10 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigtableDeleteInstanceOperator`
 
-    :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
     :param project_id: Optional, the ID of the Google Cloud project.  If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -301,15 +278,14 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id',)  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -327,7 +303,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -356,23 +332,17 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigtableCreateTableOperator`
 
-    :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance that will
         hold the new table.
-    :type table_id: str
     :param table_id: The ID of the table to be created.
-    :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type initial_split_keys: list
     :param initial_split_keys: (Optional) list of row keys in bytes that will be used to
         initially split the table into several tablets.
-    :type column_families: dict
     :param column_families: (Optional) A map columns to create.
                             The key is the column_id str and the value is a
                             :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -381,16 +351,15 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -435,7 +404,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
                 return False
         return True
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -471,17 +440,12 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigtableDeleteTableOperator`
 
-    :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
-    :type table_id: str
     :param table_id: The ID of the table to be deleted.
-    :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type app_profile_id: str
     :param app_profile_id: Application profile.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -490,16 +454,15 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'table_id',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -521,7 +484,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -556,16 +519,11 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigtableUpdateClusterOperator`
 
-    :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
-    :type cluster_id: str
     :param cluster_id: The ID of the Cloud Bigtable cluster to update.
-    :type nodes: int
     :param nodes: The desired number of nodes for the Cloud Bigtable cluster.
-    :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -574,17 +532,16 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'cluster_id', 'nodes')  # type: Iterable[str]
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'instance_id',
         'cluster_id',
         'nodes',
         'impersonation_chain',
-    ]  # type: Iterable[str]
+    )
 
     def __init__(
         self,
@@ -606,7 +563,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

@@ -24,10 +24,11 @@ import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple, Type, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -40,7 +41,6 @@ class ImapHook(BaseHook):
 
     :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>`
         that contains the information used to authenticate the client.
-    :type imap_conn_id: str
     """
 
     conn_name_attr = 'imap_conn_id'
@@ -51,7 +51,7 @@ class ImapHook(BaseHook):
     def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.imap_conn_id = imap_conn_id
-        self.mail_client: Optional[imaplib.IMAP4_SSL] = None
+        self.mail_client: Optional[Union[imaplib.IMAP4_SSL, imaplib.IMAP4]] = None
 
     def __enter__(self) -> 'ImapHook':
         return self.get_conn()
@@ -71,10 +71,24 @@ class ImapHook(BaseHook):
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            self.mail_client = imaplib.IMAP4_SSL(conn.host)
+            self.mail_client = self._build_client(conn)
             self.mail_client.login(conn.login, conn.password)
 
         return self
+
+    def _build_client(self, conn: Connection) -> Union[imaplib.IMAP4_SSL, imaplib.IMAP4]:
+        IMAP: Union[Type[imaplib.IMAP4_SSL], Type[imaplib.IMAP4]]
+        if conn.extra_dejson.get('use_ssl', True):
+            IMAP = imaplib.IMAP4_SSL
+        else:
+            IMAP = imaplib.IMAP4
+
+        if conn.port:
+            mail_client = IMAP(conn.host, conn.port)
+        else:
+            mail_client = IMAP(conn.host)
+
+        return mail_client
 
     def has_mail_attachment(
         self, name: str, *, check_regex: bool = False, mail_folder: str = 'INBOX', mail_filter: str = 'All'
@@ -83,14 +97,10 @@ class ImapHook(BaseHook):
         Checks the mail folder for mails containing attachments with the given name.
 
         :param name: The name of the attachment that will be searched for.
-        :type name: str
         :param check_regex: Checks the name for a regular expression.
-        :type check_regex: bool
         :param mail_folder: The mail folder where to look at.
-        :type mail_folder: str
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
-        :type mail_filter: str
         :returns: True if there is an attachment with the given name and False if not.
         :rtype: bool
         """
@@ -113,22 +123,16 @@ class ImapHook(BaseHook):
         Retrieves mail's attachments in the mail folder by its name.
 
         :param name: The name of the attachment that will be downloaded.
-        :type name: str
         :param check_regex: Checks the name for a regular expression.
-        :type check_regex: bool
         :param latest_only: If set to True it will only retrieve the first matched attachment.
-        :type latest_only: bool
         :param mail_folder: The mail folder where to look at.
-        :type mail_folder: str
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
-        :type mail_filter: str
         :param not_found_mode: Specify what should happen if no attachment has been found.
             Supported values are 'raise', 'warn' and 'ignore'.
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
-        :type not_found_mode: str
         :returns: a list of tuple each containing the attachment filename and its payload.
         :rtype: a list of tuple
         """
@@ -156,25 +160,18 @@ class ImapHook(BaseHook):
         Downloads mail's attachments in the mail folder by its name to the local directory.
 
         :param name: The name of the attachment that will be downloaded.
-        :type name: str
         :param local_output_directory: The output directory on the local machine
             where the files will be downloaded to.
-        :type local_output_directory: str
         :param check_regex: Checks the name for a regular expression.
-        :type check_regex: bool
         :param latest_only: If set to True it will only download the first matched attachment.
-        :type latest_only: bool
         :param mail_folder: The mail folder where to look at.
-        :type mail_folder: str
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
-        :type mail_filter: str
         :param not_found_mode: Specify what should happen if no attachment has been found.
             Supported values are 'raise', 'warn' and 'ignore'.
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
-        :type not_found_mode: str
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, mail_folder, mail_filter
@@ -277,7 +274,6 @@ class Mail(LoggingMixin):
     This class simplifies working with mails returned by the imaplib client.
 
     :param mail_body: The mail body of a mail received from imaplib client.
-    :type mail_body: str
     """
 
     def __init__(self, mail_body: str) -> None:
@@ -300,11 +296,8 @@ class Mail(LoggingMixin):
         Gets all attachments by name for the mail.
 
         :param name: The name of the attachment to look for.
-        :type name: str
         :param check_regex: Checks the name for a regular expression.
-        :type check_regex: bool
         :param find_first: If set to True it will only find the first match and then quit.
-        :type find_first: bool
         :returns: a list of tuples each containing name and payload
             where the attachments name matches the given name.
         :rtype: list(tuple)
@@ -336,7 +329,6 @@ class MailPart:
     This class is a wrapper for a Mail object's part and gives it more features.
 
     :param part: The mail part in a Mail object.
-    :type part: any
     """
 
     def __init__(self, part: Any) -> None:
@@ -356,7 +348,6 @@ class MailPart:
         Checks if the given name matches the part's name.
 
         :param name: The name to look for.
-        :type name: str
         :returns: True if it matches the name (including regular expression).
         :rtype: tuple
         """
@@ -367,7 +358,6 @@ class MailPart:
         Checks if the given name is equal to the part's name.
 
         :param name: The name to look for.
-        :type name: str
         :returns: True if it is equal to the given name.
         :rtype: bool
         """

@@ -36,7 +36,7 @@ elif [[ ${file} == *"Dockerfile" ]]; then
     echo "${COLOR_BLUE}Replacing the airflow image version in ${file} with ${latest_airflow_version_released} for testing.${COLOR_RESET}"
     echo
     sed  "s/FROM apache\/airflow:.*$/FROM apache\/airflow:${latest_airflow_version_released}/" <Dockerfile | \
-    docker build . --tag "${job_name}" -f -
+    docker build --pull . --tag "${job_name}" -f -
     res=$?
     docker rmi --force "${job_name}"
 else

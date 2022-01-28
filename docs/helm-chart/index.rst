@@ -33,6 +33,7 @@ Helm Chart for Apache Airflow
     setting-resources-for-containers
     keda
     using-additional-containers
+    customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
 
 .. toctree::
@@ -86,9 +87,8 @@ To install this chart using Helm 3, run the following commands:
 
 .. code-block:: bash
 
-    kubectl create namespace airflow
     helm repo add apache-airflow https://airflow.apache.org
-    helm install airflow apache-airflow/airflow --namespace airflow
+    helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.

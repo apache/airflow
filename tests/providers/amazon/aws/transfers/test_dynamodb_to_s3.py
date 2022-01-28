@@ -34,7 +34,7 @@ class DynamodbToS3Test(unittest.TestCase):
                 self.output_queue.append(json.loads(line))
 
     @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook')
-    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.AwsDynamoDBHook')
+    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook')
     def test_dynamodb_to_s3_success(self, mock_aws_dynamodb_hook, mock_s3_hook):
         responses = [
             {
@@ -63,3 +63,39 @@ class DynamodbToS3Test(unittest.TestCase):
         dynamodb_to_s3_operator.execute(context={})
 
         assert [{'a': 1}, {'b': 2}, {'c': 3}] == self.output_queue
+
+    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook')
+    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook')
+    def test_dynamodb_to_s3_with_different_aws_conn_id(self, mock_aws_dynamodb_hook, mock_s3_hook):
+        responses = [
+            {
+                'Items': [{'a': 1}, {'b': 2}],
+                'LastEvaluatedKey': '123',
+            },
+            {
+                'Items': [{'c': 3}],
+            },
+        ]
+        table = MagicMock()
+        table.return_value.scan.side_effect = responses
+        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+
+        s3_client = MagicMock()
+        s3_client.return_value.upload_file = self.mock_upload_file
+        mock_s3_hook.return_value.get_conn = s3_client
+
+        aws_conn_id = "test-conn-id"
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id='dynamodb_to_s3',
+            dynamodb_table_name='airflow_rocks',
+            s3_bucket_name='airflow-bucket',
+            file_size=4000,
+            aws_conn_id=aws_conn_id,
+        )
+
+        dynamodb_to_s3_operator.execute(context={})
+
+        assert [{'a': 1}, {'b': 2}, {'c': 3}] == self.output_queue
+
+        mock_s3_hook.assert_called_with(aws_conn_id=aws_conn_id)
+        mock_aws_dynamodb_hook.assert_called_with(aws_conn_id=aws_conn_id)

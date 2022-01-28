@@ -20,7 +20,7 @@
 import unittest
 import uuid
 
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 
 try:
     from moto import mock_dynamodb2
@@ -32,14 +32,14 @@ class TestDynamoDBHook(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AwsDynamoDBHook(aws_conn_id='aws_default')
+        hook = DynamoDBHook(aws_conn_id='aws_default')
         assert hook.get_conn() is not None
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_insert_batch_items_dynamodb_table(self):
 
-        hook = AwsDynamoDBHook(
+        hook = DynamoDBHook(
             aws_conn_id='aws_default', table_name='test_airflow', table_keys=['id'], region_name='us-east-1'
         )
 

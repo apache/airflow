@@ -14,12 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.providers.amazon.aws.operators.s3_bucket_tagging import (
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
     S3DeleteBucketTaggingOperator,
     S3GetBucketTaggingOperator,
     S3PutBucketTaggingOperator,

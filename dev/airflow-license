@@ -55,7 +55,7 @@ def parse_license_file(project_name):
     path = f"../licenses/LICENSE-{name}.txt"
     if os.path.exists(path):
         data = " ".join(line.strip() for line in open(path)).lower()
-        data = data.translate(None, string.punctuation)
+        data = data.translate(string.punctuation)
         for k in _licenses:
             matches = 0
             for v in _licenses[k]:

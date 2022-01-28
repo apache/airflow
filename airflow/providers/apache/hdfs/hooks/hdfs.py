@@ -39,11 +39,8 @@ class HDFSHook(BaseHook):
     Interact with HDFS. This class is a wrapper around the snakebite library.
 
     :param hdfs_conn_id: Connection id to fetch connection info
-    :type hdfs_conn_id: str
     :param proxy_user: effective user for HDFS operations
-    :type proxy_user: str
     :param autoconfig: use snakebite's automatically configured client
-    :type autoconfig: bool
     """
 
     conn_name_attr = 'hdfs_conn_id'

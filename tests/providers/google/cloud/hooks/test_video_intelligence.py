@@ -76,7 +76,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             location_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.get_conn")
@@ -99,5 +99,5 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             location_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )

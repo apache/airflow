@@ -40,6 +40,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowTimetableInvalid,
+    ParamValidationError,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -76,20 +77,15 @@ class DagBag(LoggingMixin):
     independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :type dag_folder: unicode
     :param include_examples: whether to include the examples that ship
         with airflow or not
-    :type include_examples: bool
     :param include_smart_sensor: whether to include the smart sensor native
         DAGs that create the smart sensor operators for whole cluster
-    :type include_smart_sensor: bool
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
-    :type read_dags_from_db: bool
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
-    :type load_op_links: bool
     """
 
     DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
@@ -172,7 +168,6 @@ class DagBag(LoggingMixin):
         Gets the DAG out of the dictionary, and refreshes it if expired
 
         :param dag_id: DAG Id
-        :type dag_id: str
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
@@ -218,8 +213,8 @@ class DagBag(LoggingMixin):
         root_dag_id = dag_id
         if dag_id in self.dags:
             dag = self.dags[dag_id]
-            if dag.is_subdag:
-                root_dag_id = dag.parent_dag.dag_id  # type: ignore
+            if dag.parent_dag:
+                root_dag_id = dag.parent_dag.dag_id
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
         orm_dag = DagModel.get_current(root_dag_id, session=session)
@@ -234,7 +229,7 @@ class DagBag(LoggingMixin):
             self.dags = {
                 key: dag
                 for key, dag in self.dags.items()
-                if root_dag_id != key and not (dag.is_subdag and root_dag_id == dag.parent_dag.dag_id)
+                if root_dag_id != key and not (dag.parent_dag and root_dag_id == dag.parent_dag.dag_id)
             }
         if is_missing or is_expired:
             # Reprocess source file.
@@ -397,8 +392,9 @@ class DagBag(LoggingMixin):
         for (dag, mod) in top_level_dags:
             dag.fileloc = mod.__file__
             try:
-                dag.is_subdag = False
                 dag.timetable.validate()
+                # validate dag params
+                dag.params.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
@@ -410,6 +406,7 @@ class DagBag(LoggingMixin):
                 AirflowDagCycleException,
                 AirflowDagDuplicatedIdException,
                 AirflowClusterPolicyViolation,
+                ParamValidationError,
             ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = str(exception)
@@ -451,7 +448,6 @@ class DagBag(LoggingMixin):
                 for subdag in subdags:
                     subdag.fileloc = dag.fileloc
                     subdag.parent_dag = dag
-                    subdag.is_subdag = True
                     self._bag_dag(dag=subdag, root_dag=root_dag, recursive=False)
 
             prev_dag = self.dags.get(dag.dag_id)
@@ -572,7 +568,7 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, session: Optional[Session] = None):
+    def sync_to_db(self, session: Session = None):
         """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
@@ -628,7 +624,7 @@ class DagBag(LoggingMixin):
                 self.import_errors.update(dict(serialize_errors))
 
     @provide_session
-    def _sync_perm_for_dag(self, dag, session: Optional[Session] = None):
+    def _sync_perm_for_dag(self, dag, session: Session = None):
         """Sync DAG specific permissions, if necessary"""
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
         from airflow.www.fab_security.sqla.models import Action, Permission, Resource

@@ -125,8 +125,8 @@ class TestHttpSensor:
         response.status_code = 200
         mock_session_send.return_value = response
 
-        def resp_check(_, execution_date):
-            if execution_date == DEFAULT_DATE:
+        def resp_check(_, logical_date):
+            if logical_date == DEFAULT_DATE:
                 return True
             raise AirflowException('AirflowException raised here!')
 

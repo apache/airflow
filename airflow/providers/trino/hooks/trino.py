@@ -138,12 +138,7 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    def run(
-        self,
-        hql,
-        autocommit: bool = False,
-        parameters: Optional[dict] = None,
-    ) -> None:
+    def run(self, hql, autocommit: bool = False, parameters: Optional[dict] = None, handler=None) -> None:
         """Execute the statement against Trino. Can be used to create views."""
         return super().run(sql=self._strip_sql(hql), parameters=parameters)
 
@@ -160,16 +155,11 @@ class TrinoHook(DbApiHook):
         A generic way to insert a set of tuples into a table.
 
         :param table: Name of the target table
-        :type table: str
         :param rows: The rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
-        :type commit_every: int
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         """
         if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
             self.log.info(

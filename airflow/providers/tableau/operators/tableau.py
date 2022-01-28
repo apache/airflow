@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -23,6 +23,10 @@ from airflow.providers.tableau.hooks.tableau import (
     TableauJobFailedException,
     TableauJobFinishCode,
 )
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 RESOURCES_METHODS = {
     'datasources': ['delete', 'refresh'],
@@ -47,23 +51,15 @@ class TableauOperator(BaseOperator):
         :ref:`howto/operator:TableauOperator`
 
     :param resource: The name of the resource to use.
-    :type resource: str
     :param method: The name of the resource's method to execute.
-    :type method: str
     :param find: The reference of resource that will receive the action.
-    :type find: str
     :param match_with: The resource field name to be matched with find parameter.
-    :type match_with: Optional[str]
     :param site_id: The id of the site where the workbook belongs to.
-    :type site_id: Optional[str]
     :param blocking_refresh: By default will be blocking means it will wait until it has finished.
-    :type blocking_refresh: bool
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
-    :type check_interval: float
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
-    :type tableau_conn_id: str
     """
 
     def __init__(
@@ -89,11 +85,10 @@ class TableauOperator(BaseOperator):
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
 
-    def execute(self, context: dict) -> str:
+    def execute(self, context: 'Context') -> str:
         """
         Executes the Tableau API resource and pushes the job id or downloaded file URI to xcom.
         :param context: The task context during execution.
-        :type context: dict
         :return: the id of the job that executes the extract refresh or downloaded file URI.
         :rtype: str
         """
@@ -116,19 +111,18 @@ class TableauOperator(BaseOperator):
 
             response = method(resource_id)
 
-        if self.method == 'refresh':
-
             job_id = response.id
 
-            if self.blocking_refresh:
-                if not tableau_hook.wait_for_state(
-                    job_id=job_id,
-                    check_interval=self.check_interval,
-                    target_state=TableauJobFinishCode.SUCCESS,
-                ):
-                    raise TableauJobFailedException(f'The Tableau Refresh {self.resource} Job failed!')
+            if self.method == 'refresh':
+                if self.blocking_refresh:
+                    if not tableau_hook.wait_for_state(
+                        job_id=job_id,
+                        check_interval=self.check_interval,
+                        target_state=TableauJobFinishCode.SUCCESS,
+                    ):
+                        raise TableauJobFailedException(f'The Tableau Refresh {self.resource} Job failed!')
 
-            return job_id
+        return job_id
 
     def _get_resource_id(self, tableau_hook: TableauHook) -> str:
 

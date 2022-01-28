@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jira.hooks.jira import JIRAError, JiraHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class JiraOperator(BaseOperator):
@@ -29,19 +32,14 @@ class JiraOperator(BaseOperator):
     This operator is designed to use Jira Python SDK: http://jira.readthedocs.io
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     :param jira_method: method name from Jira Python SDK to be called
-    :type jira_method: str
     :param jira_method_args: required method parameters for the jira_method. (templated)
-    :type jira_method_args: dict
     :param result_processor: function to further process the response from Jira
-    :type result_processor: function
     :param get_jira_resource_method: function or operator to get jira resource
                                     on which the provided jira_method will be executed
-    :type get_jira_resource_method: function
     """
 
-    template_fields = ("jira_method_args",)
+    template_fields: Sequence[str] = ("jira_method_args",)
 
     def __init__(
         self,
@@ -60,7 +58,7 @@ class JiraOperator(BaseOperator):
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
 
-    def execute(self, context: Dict) -> Any:
+    def execute(self, context: 'Context') -> Any:
         try:
             if self.get_jira_resource_method is not None:
                 # if get_jira_resource_method is provided, jira_method will be executed on

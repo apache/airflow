@@ -43,7 +43,6 @@ class AzureCosmosDBHook(BaseHook):
 
     :param azure_cosmos_conn_id: Reference to the
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
-    :type azure_cosmos_conn_id: str
     """
 
     conn_name_attr = 'azure_cosmos_conn_id'
@@ -68,7 +67,7 @@ class AzureCosmosDBHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],

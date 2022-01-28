@@ -55,7 +55,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
-    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.operators.s3.S3Hook')
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
@@ -95,7 +95,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
-    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.operators.s3.S3Hook')
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""

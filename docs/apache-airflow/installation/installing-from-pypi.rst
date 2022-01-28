@@ -81,6 +81,13 @@ You can create the URL to the file substituting the variables in the template be
 
   https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt
 
+You can also use "latest" as version when you install "latest" stable version of Airflow. The "latest"
+constraints always points to the "latest" released Airflow version constraints:
+
+.. code-block::
+
+  https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.7.txt
+
 Installation and upgrade scenarios
 ''''''''''''''''''''''''''''''''''
 
@@ -118,7 +125,7 @@ being installed.
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    pip install --upgrade "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
+    pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 Installation and upgrading of Airflow providers separately
 ==========================================================

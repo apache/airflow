@@ -102,8 +102,8 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
             order_by=None,
             page_size=None,
             retry=DEFAULT,
-            timeout=DEFAULT,
-            metadata=None,
+            timeout=None,
+            metadata=(),
         )
         assert [
             {
@@ -123,7 +123,7 @@ class TestStackdriverEnableAlertPoliciesOperator(unittest.TestCase):
         operator = StackdriverEnableAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
         operator.execute(None)
         mock_hook.return_value.enable_alert_policies.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=DEFAULT, metadata=None
+            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
         )
 
 
@@ -133,7 +133,7 @@ class TestStackdriverDisableAlertPoliciesOperator(unittest.TestCase):
         operator = StackdriverDisableAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
         operator.execute(None)
         mock_hook.return_value.disable_alert_policies.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=DEFAULT, metadata=None
+            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
         )
 
 
@@ -148,8 +148,8 @@ class TestStackdriverUpsertAlertsOperator(unittest.TestCase):
             alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]}),
             project_id=None,
             retry=DEFAULT,
-            timeout=DEFAULT,
-            metadata=None,
+            timeout=None,
+            metadata=(),
         )
 
 
@@ -162,7 +162,7 @@ class TestStackdriverDeleteAlertOperator(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.delete_alert_policy.assert_called_once_with(
-            name='test-alert', retry=DEFAULT, timeout=DEFAULT, metadata=None
+            name='test-alert', retry=DEFAULT, timeout=None, metadata=()
         )
 
 
@@ -182,8 +182,8 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
             order_by=None,
             page_size=None,
             retry=DEFAULT,
-            timeout=DEFAULT,
-            metadata=None,
+            timeout=None,
+            metadata=(),
         )
         # Depending on the version of google-apitools installed we might receive the response either with or
         # without mutation_records.
@@ -220,7 +220,7 @@ class TestStackdriverEnableNotificationChannelsOperator(unittest.TestCase):
         operator = StackdriverEnableNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
         operator.execute(None)
         mock_hook.return_value.enable_notification_channels.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=DEFAULT, metadata=None
+            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
         )
 
 
@@ -230,7 +230,7 @@ class TestStackdriverDisableNotificationChannelsOperator(unittest.TestCase):
         operator = StackdriverDisableNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
         operator.execute(None)
         mock_hook.return_value.disable_notification_channels.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=DEFAULT, metadata=None
+            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
         )
 
 
@@ -246,8 +246,8 @@ class TestStackdriverUpsertChannelOperator(unittest.TestCase):
             channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
             project_id=None,
             retry=DEFAULT,
-            timeout=DEFAULT,
-            metadata=None,
+            timeout=None,
+            metadata=(),
         )
 
 
@@ -260,5 +260,5 @@ class TestStackdriverDeleteNotificationChannelOperator(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.delete_notification_channel.assert_called_once_with(
-            name='test-channel', retry=DEFAULT, timeout=DEFAULT, metadata=None
+            name='test-channel', retry=DEFAULT, timeout=None, metadata=()
         )

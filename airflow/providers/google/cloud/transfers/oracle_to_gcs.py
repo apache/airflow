@@ -37,11 +37,9 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
 
     :param oracle_conn_id: Reference to a specific
         :ref:`Oracle hook <howto/connection:oracle>`.
-    :type oracle_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the Oracle server's
         default timezone.
-    :type ensure_utc: bool
     """
 
     ui_color = '#a0e08c'
@@ -102,9 +100,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
           https://cloud.google.com/bigquery/data-types
 
         :param value: Oracle db column value
-        :type value: Any
         :param schema_type: BigQuery data type
-        :type schema_type: str
         """
         if value is None:
             return value

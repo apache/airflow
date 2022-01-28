@@ -30,7 +30,6 @@ class YandexCloudBaseHook(BaseHook):
     A base hook for Yandex.Cloud related tasks.
 
     :param yandex_conn_id: The connection ID to use when fetching connection info.
-    :type yandex_conn_id: str
     """
 
     conn_name_attr = 'yandex_conn_id'
@@ -80,8 +79,23 @@ class YandexCloudBaseHook(BaseHook):
             ),
         }
 
+    @classmethod
+    def provider_user_agent(cls) -> Optional[str]:
+        """Construct User-Agent from Airflow core & provider package versions"""
+        import airflow
+        from airflow.providers_manager import ProvidersManager
+
+        try:
+            manager = ProvidersManager()
+            provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
+            provider = manager.providers[provider_name]
+            return f'apache-airflow/{airflow.__version__} {provider_name}/{provider.version}'
+        except KeyError:
+            warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
+            return None
+
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -107,7 +121,7 @@ class YandexCloudBaseHook(BaseHook):
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
         credentials = self._get_credentials()
-        self.sdk = yandexcloud.SDK(**credentials)
+        self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **credentials)
         self.default_folder_id = default_folder_id or self._get_field('folder_id', False)
         self.default_public_ssh_key = default_public_ssh_key or self._get_field('public_ssh_key', False)
         self.client = self.sdk.client

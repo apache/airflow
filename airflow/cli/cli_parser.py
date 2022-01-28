@@ -31,6 +31,7 @@ from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -60,16 +61,37 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if action.dest == 'subcommand' and value == 'celery':
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-                message = (
-                    f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
-                )
-                raise ArgumentError(action, message)
+                executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
+                classes = ()
+                try:
+                    from airflow.executors.celery_executor import CeleryExecutor
+
+                    classes += (CeleryExecutor,)
+                except ImportError:
+                    message = (
+                        "The celery subcommand requires that you pip install the celery module. "
+                        "To do it, run: pip install 'apache-airflow[celery]'"
+                    )
+                    raise ArgumentError(action, message)
+                try:
+                    from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+
+                    classes += (CeleryKubernetesExecutor,)
+                except ImportError:
+                    pass
+                if not issubclass(executor_cls, classes):
+                    message = (
+                        f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
+                        f'executors derived from them, your current executor: {executor}, subclassed from: '
+                        f'{", ".join([base_cls.__qualname__ for base_cls in executor_cls.__bases__])}'
+                    )
+                    raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':
             try:
                 import kubernetes.client  # noqa: F401
             except ImportError:
                 message = (
-                    'The kubernetes subcommand requires that you pip install the kubernetes python client.'
+                    "The kubernetes subcommand requires that you pip install the kubernetes python client. "
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
@@ -392,16 +414,16 @@ ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs='?')
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get('kerberos', 'keytab'))
 # run
-# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
-# all dependencies (not just past success), e.g. the ignore_depends_on_past
-# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
-# the "ignore_all_dependencies" command should be called the"force" command
-# instead.
 ARG_INTERACTIVE = Arg(
     ('-N', '--interactive'),
     help='Do not capture standard output and error streams (useful for interactive debugging)',
     action='store_true',
 )
+# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
+# all dependencies (not just past success), e.g. the ignore_depends_on_past
+# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
+# the "ignore_all_dependencies" command should be called the"force" command
+# instead.
 ARG_FORCE = Arg(
     ("-f", "--force"),
     help="Ignore previous task instance state, rerun regardless if task already succeeded/failed",
@@ -435,11 +457,13 @@ ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entir
 ARG_ERROR_FILE = Arg(("--error-file",), help="File to store task failure error")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
+ARG_MAP_INDEX = Arg(('--map-index',), type=int, default=-1, help="Mapped task index")
+
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
     help="timeout to wait for db to migrate ",
     type=int,
-    default=0,
+    default=60,
 )
 
 # webserver
@@ -729,6 +753,16 @@ ARG_NAMESPACE = Arg(
     help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 
+ARG_MIN_PENDING_MINUTES = Arg(
+    ("--min-pending-minutes",),
+    default=30,
+    type=positive_int(allow_zero=False),
+    help=(
+        "Pending pods created before the time interval are to be cleaned up, "
+        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
+    ),
+)
+
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ('--job-type',),
@@ -809,7 +843,6 @@ class GroupCommand(NamedTuple):
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
-
 
 DAGS_COMMANDS = (
     ActionCommand(
@@ -914,6 +947,33 @@ DAGS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
         args=(
             ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_SAVE,
+            ARG_IMGCAT,
+        ),
+    ),
+    ActionCommand(
+        name='show-dependencies',
+        help="Displays DAGs with their dependencies",
+        description=(
+            "The --imgcat option only works in iTerm.\n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+            "\n"
+            "The --save option saves the result to the indicated file.\n"
+            "\n"
+            "The file format is determined by the file extension. "
+            "For more information about supported "
+            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags show-dependencies --save output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags show-dependencies --save output.dot\n"
+        ),
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_dependencies_show'),
+        args=(
             ARG_SUBDIR,
             ARG_SAVE,
             ARG_IMGCAT,
@@ -1027,7 +1087,14 @@ TASKS_COMMANDS = (
         name='state',
         help="Get the status of a task instance",
         func=lazy_load_command('airflow.cli.commands.task_command.task_state'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_SUBDIR,
+            ARG_VERBOSE,
+            ARG_MAP_INDEX,
+        ),
     ),
     ActionCommand(
         name='failed-deps',
@@ -1038,13 +1105,20 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
     ),
     ActionCommand(
         name='render',
         help="Render a task instance's template(s)",
         func=lazy_load_command('airflow.cli.commands.task_command.task_render'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_SUBDIR,
+            ARG_VERBOSE,
+            ARG_MAP_INDEX,
+        ),
     ),
     ActionCommand(
         name='run',
@@ -1070,6 +1144,7 @@ TASKS_COMMANDS = (
             ARG_INTERACTIVE,
             ARG_ERROR_FILE,
             ARG_SHUT_DOWN_LOGGING,
+            ARG_MAP_INDEX,
         ),
     ),
     ActionCommand(
@@ -1089,6 +1164,7 @@ TASKS_COMMANDS = (
             ARG_TASK_PARAMS,
             ARG_POST_MORTEM,
             ARG_ENV_VARS,
+            ARG_MAP_INDEX,
         ),
     ),
     ActionCommand(
@@ -1491,10 +1567,10 @@ KUBERNETES_COMMANDS = (
         help=(
             "Clean up Kubernetes pods "
             "(created by KubernetesExecutor/KubernetesPodOperator) "
-            "in evicted/failed/succeeded states"
+            "in evicted/failed/succeeded/pending states"
         ),
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
-        args=(ARG_NAMESPACE,),
+        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES),
     ),
     ActionCommand(
         name='generate-dag-yaml',

@@ -179,7 +179,10 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-pandas_requirement = 'pandas>=0.17.1, <2.0'
+# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
+# We should remove the limits as soon as Flask App Builder releases version 3.4.4
+# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
+pandas_requirement = 'pandas>=0.17.1, <1.4'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
@@ -227,7 +230,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=5.1,>=5.1.2',
+    'celery>=5.2.3',
     'flower~=1.0.0',
 ]
 cgroups = [
@@ -238,8 +241,7 @@ cloudant = [
 ]
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
-    'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
+    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
@@ -253,17 +255,19 @@ deprecated_api = [
 ]
 doc = [
     'click>=7.1,<9',
-    # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
-    'sphinx>=2.1.2, <3.5.0',
+    'sphinx>=4.4.0, <5.0.0',
+    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
+    # even though Sphinx 4.4.0 has this but with python_version<3.10.
+    'importlib-metadata>=4.4; python_version < "3.8"',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi==1.0.0',
+    'sphinx-autoapi~=1.8.0',
     'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
-    'sphinxcontrib-spelling==7.2.1',
+    'sphinxcontrib-spelling~=7.3',
 ]
 docker = [
     'docker>=5.0.3',
@@ -383,7 +387,7 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0, <12.0.0',
+    'kubernetes>=3.0.0',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
@@ -393,7 +397,8 @@ ldap = [
 leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<3.0.0',
-    'pymongo>=3.6.0',
+    # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
+    'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
     'pymssql~=2.1,>=2.1.5',
@@ -405,6 +410,9 @@ mysql = [
 neo4j = ['neo4j>=4.2.1']
 odbc = [
     'pyodbc',
+]
+opsgenie = [
+    'opsgenie-sdk>=2.1.5',
 ]
 oracle = [
     'cx_Oracle>=5.1.2',
@@ -469,8 +477,13 @@ slack = [
     'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
-    'snowflake-connector-python>=2.4.1',
-    'snowflake-sqlalchemy>=1.1.0',
+    # Snowflake connector 2.7.2 requires pyarrow >=6.0.0 but apache-beam requires < 6.0.0
+    # We should remove the limitation when apache-beam upgrades pyarrow
+    'snowflake-connector-python>=2.4.1,<2.7.2',
+    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
+    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
+    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
+    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
 ]
 spark = [
     'pyspark',
@@ -506,7 +519,7 @@ winrm = [
     'pywinrm~=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.97.0',
+    'yandexcloud>=0.122.0',
 ]
 zendesk = [
     'zdesk',
@@ -519,7 +532,10 @@ zendesk = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     'mypy==0.910',
+    'types-boto',
+    'types-certifi',
     'types-croniter',
+    'types-Deprecated',
     'types-docutils',
     'types-freezegun',
     'types-paramiko',
@@ -532,6 +548,7 @@ mypy_dependencies = [
     'types-setuptools',
     'types-termcolor',
     'types-tabulate',
+    'types-toml',
     'types-Markdown',
     'types-PyMySQL',
     'types-PyYAML',
@@ -578,6 +595,7 @@ devel_only = [
     'pytest-httpx',
     'requests_mock',
     'semver',
+    'twine',
     'wheel',
     'yamllint',
 ]
@@ -633,7 +651,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
-    'opsgenie': http_provider,
+    'opsgenie': opsgenie,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
@@ -861,7 +879,7 @@ EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
 def sort_extras_requirements() -> Dict[str, List[str]]:
     """
-    For Python 3.6+ the dictionary order remains when keys() are retrieved.
+    The dictionary order remains when keys() are retrieved.
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """

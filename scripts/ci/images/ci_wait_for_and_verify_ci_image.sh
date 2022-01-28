@@ -38,4 +38,6 @@ if [[ ${VERIFY_IMAGE=} != "false" ]]; then
     verify_image::verify_ci_image "${image_name_with_tag}"
 fi
 
+md5sum::update_all_md5_with_group
+
 docker_v tag  "${image_name_with_tag}" "${AIRFLOW_CI_IMAGE}"

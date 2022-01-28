@@ -18,13 +18,16 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):
@@ -34,28 +37,18 @@ class OracleToAzureDataLakeOperator(BaseOperator):
 
 
     :param filename: file name to be used by the csv file.
-    :type filename: str
     :param azure_data_lake_conn_id: destination azure data lake connection.
-    :type azure_data_lake_conn_id: str
     :param azure_data_lake_path: destination path in azure data lake to put the file.
-    :type azure_data_lake_path: str
     :param oracle_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
-    :type oracle_conn_id: str
     :param sql: SQL query to execute against the Oracle database. (templated)
-    :type sql: str
     :param sql_params: Parameters to use in sql query. (templated)
-    :type sql_params: Optional[dict]
     :param delimiter: field delimiter in the file.
-    :type delimiter: str
     :param encoding: encoding type for the file.
-    :type encoding: str
     :param quotechar: Character to use in quoting.
-    :type quotechar: str
     :param quoting: Quoting strategy. See unicodecsv quoting for more information.
-    :type quoting: str
     """
 
-    template_fields = ('filename', 'sql', 'sql_params')
+    template_fields: Sequence[str] = ('filename', 'sql', 'sql_params')
     template_fields_renderers = {"sql_params": "py"}
     ui_color = '#e08c8c'
 
@@ -101,7 +94,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 

@@ -28,6 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.0
+.....
+
+Latest change: 2021-12-29
+
+================================================================================================  ===========  ======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================
+`329906495 <https://github.com/apache/airflow/commit/3299064958e5fbcfc8e91e905ababb18d7339421>`_  2021-12-29   ``Use isort on pyi files (#20556)``
+`b5d520cf7 <https://github.com/apache/airflow/commit/b5d520cf73100df714c71ac9898a97bc0df29a31>`_  2021-12-29   ``Reinstate 'region' to 'default_args' for Alibaba example DAGs (#20423)``
+`73ab0edce <https://github.com/apache/airflow/commit/73ab0edce58d996e2854d478f054b25c4bb627c4>`_  2021-12-18   ``Fix MyPy Errors for Alibaba provider. (#20393)``
+`2fb5e1d0e <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`f5ad26dcd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`0fe0b06bb <https://github.com/apache/airflow/commit/0fe0b06bb0bf468f46195946f938f9e6e3d46216>`_  2021-09-03   ``Adding missing init file in example_dags directory (#18019)``
+================================================================================================  ===========  ======================================================================================
+
 1.0.0
 .....
 

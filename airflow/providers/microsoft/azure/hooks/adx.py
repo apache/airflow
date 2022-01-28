@@ -17,7 +17,14 @@
 # under the License.
 #
 
-"""This module contains Azure Data Explorer hook"""
+"""
+This module contains Azure Data Explorer hook.
+
+.. spelling::
+
+    KustoResponseDataSetV
+    kusto
+"""
 from typing import Any, Dict, Optional
 
 from azure.kusto.data.exceptions import KustoServiceError
@@ -60,7 +67,6 @@ class AzureDataExplorerHook(BaseHook):
 
     :param azure_data_explorer_conn_id: Reference to the
         :ref:`Azure Data Explorer connection<howto/connection:adx>`.
-    :type azure_data_explorer_conn_id: str
     """
 
     conn_name_attr = 'azure_data_explorer_conn_id'
@@ -91,7 +97,7 @@ class AzureDataExplorerHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'extra'],
@@ -165,12 +171,9 @@ class AzureDataExplorerHook(BaseHook):
         If query is unsuccessful AirflowException is raised.
 
         :param query: KQL query to run
-        :type query: str
         :param database: Database to run the query on.
-        :type database: str
         :param options: Optional query options. See:
            https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
-        :type options: dict
         :return: dict
         """
         properties = ClientRequestProperties()

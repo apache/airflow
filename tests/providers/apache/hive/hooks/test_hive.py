@@ -36,13 +36,23 @@ from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook, HiveServ
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from tests.providers.apache.hive import (
+    BaseMockConnectionCursor,
+    MockHiveCliHook,
+    MockHiveServer2Hook,
+    MockSubProcess,
+)
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
-from tests.test_utils.mock_hooks import MockHiveCliHook, MockHiveServer2Hook
-from tests.test_utils.mock_process import EmptyMockConnectionCursor, MockSubProcess
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+
+
+class EmptyMockConnectionCursor(BaseMockConnectionCursor):
+    def __init__(self):
+        super().__init__()
+        self.iterable = []
 
 
 @pytest.mark.skipif(

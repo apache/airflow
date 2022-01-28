@@ -19,7 +19,7 @@
 import warnings
 from base64 import b64encode
 from select import select
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from paramiko.client import SSHClient
 
@@ -37,38 +37,29 @@ class SSHOperator(BaseOperator):
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
         Either `ssh_hook` or `ssh_conn_id` needs to be provided.
-    :type ssh_hook: airflow.providers.ssh.hooks.ssh.SSHHook
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if
         `ssh_hook` is provided.
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
         defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
-    :type remote_host: str
     :param command: command to execute on remote host. (templated)
-    :type command: str
     :param conn_timeout: timeout (in seconds) for maintaining the connection. The default is 10 seconds.
         Nullable. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :type conn_timeout: int
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
-    :type cmd_timeout: int
     :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
         Use conn_timeout and cmd_timeout parameters instead.
-    :type timeout: int
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.
-    :type environment: dict
     :param get_pty: request a pseudo-terminal from the server. Set to ``True``
         to have the remote process killed upon task timeout.
         The default is ``False`` but note that `get_pty` is forced to ``True``
         when the `command` starts with ``sudo``.
-    :type get_pty: bool
     """
 
-    template_fields = ('command', 'remote_host')
-    template_ext = ('.sh',)
+    template_fields: Sequence[str] = ('command', 'remote_host')
+    template_ext: Sequence[str] = ('.sh',)
     template_fields_renderers = {"command": "bash"}
 
     def __init__(
@@ -206,7 +197,7 @@ class SSHOperator(BaseOperator):
         return agg_stdout
 
     def execute(self, context=None) -> Union[bytes, str]:
-        result = None
+        result: Union[bytes, str]
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 

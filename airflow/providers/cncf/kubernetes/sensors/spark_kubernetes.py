@@ -15,13 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from kubernetes import client
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SparkKubernetesSensor(BaseSensorOperator):
@@ -33,21 +36,15 @@ class SparkKubernetesSensor(BaseSensorOperator):
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
     :param application_name: spark Application resource name
-    :type application_name:  str
     :param namespace: the kubernetes namespace where the sparkApplication reside in
-    :type namespace: str
     :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster.
-    :type kubernetes_conn_id: str
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
-    :type attach_log: bool
     :param api_group: kubernetes api group of sparkApplication
-    :type api_group: str
     :param api_version: kubernetes api version of sparkApplication
-    :type api_version: str
     """
 
-    template_fields = ("application_name", "namespace")
+    template_fields: Sequence[str] = ("application_name", "namespace")
     FAILURE_STATES = ("FAILED", "UNKNOWN")
     SUCCESS_STATES = ("COMPLETED",)
 
@@ -97,7 +94,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
                 e,
             )
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info("Poking: %s", self.application_name)
         response = self.hook.get_custom_object(
             group=self.api_group,

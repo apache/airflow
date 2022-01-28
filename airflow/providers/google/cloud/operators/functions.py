@@ -18,7 +18,7 @@
 """This module contains Google Cloud Functions operators."""
 
 import re
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 
@@ -30,6 +30,9 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpFieldValidationException,
 )
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 def _validate_available_memory_in_mb(value):
@@ -104,29 +107,22 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param location: Google Cloud region where the function should be created.
-    :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
         Cloud Functions dictionary as described in:
         https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions
         . Different API versions require different variants of the Cloud Functions
         dictionary.
-    :type body: dict or google.cloud.functions.v1.CloudFunction
     :param project_id: (Optional) Google Cloud project ID where the function
         should be created.
-    :type project_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
         Default 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param api_version: (Optional) API version used (for example v1 - default -  or
         v1beta1).
-    :type api_version: str
     :param zip_path: Path to zip file containing source code of the function. If the path
         is set, the sourceUploadUrl should not be specified in the body or it should
         be empty. Then the zip file will be uploaded using the upload URL generated
         via generateUploadUrl from the Cloud Functions API.
-    :type zip_path: str
     :param validate_body: If set to False, body validation is not performed.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -135,11 +131,10 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcf_function_deploy_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'body',
         'project_id',
         'location',
@@ -216,7 +211,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             self.body['labels'] = {}
         self.body['labels'].update({'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -252,12 +247,10 @@ class ZipPathPreprocessor:
     Function API method.
 
     :param body: Body passed to the create/update method calls.
-    :type body: dict
     :param zip_path: (optional) Path to zip file containing source code of the function. If the path
         is set, the sourceUploadUrl should not be specified in the body or it should
         be empty. Then the zip file will be uploaded using the upload URL generated
         via generateUploadUrl from the Cloud Functions API.
-    :type zip_path: str
 
     """
 
@@ -333,11 +326,8 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
-    :type name: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -346,11 +336,10 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcf_function_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'name',
         'gcp_conn_id',
         'api_version',
@@ -382,7 +371,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
             if not pattern.match(self.name):
                 raise AttributeError(f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -410,14 +399,10 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param function_id: ID of the function to be called
-    :type function_id: str
     :param input_data: Input to be passed to the function
-    :type input_data: Dict
     :param location: The location where the function is located.
-    :type location: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -426,12 +411,11 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :return: None
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'function_id',
         'input_data',
         'location',
@@ -460,7 +444,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         hook = CloudFunctionsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,

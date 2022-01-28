@@ -157,7 +157,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'sql_to_gcs'),
         ('cloud', 'bigquery_to_mysql'),
         ('cloud', 'cassandra_to_gcs'),
-        ('cloud', 'mssql_to_gcs'),
         ('suite', 'drive'),
         ('ads', 'ads_to_gcs'),
     }
@@ -215,8 +214,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator',
-        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator',
         'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
     }

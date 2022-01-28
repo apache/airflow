@@ -15,11 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudFirestoreExportDatabaseOperator(BaseOperator):
@@ -32,18 +35,13 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         :ref:`howto/operator:CloudFirestoreExportDatabaseOperator`
 
     :param database_id: The Database ID.
-    :type database_id: str
     :param body: The request body.
         See:
         https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
-    :type body: dict
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -52,10 +50,9 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "body",
         "gcp_conn_id",
         "api_version",
@@ -86,7 +83,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudFirestoreHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

@@ -36,4 +36,4 @@ try:
 except ImportError:
     import re
 
-    RePatternType = type(re.compile('', 0))
+    RePatternType = type(re.compile('', 0))  # type: ignore

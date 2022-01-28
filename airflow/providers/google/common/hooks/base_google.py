@@ -111,6 +111,12 @@ class retry_if_operation_in_progress(tenacity.retry_if_exception):
         super().__init__(is_operation_in_progress_exception)
 
 
+# A fake project_id to use in functions decorated by fallback_to_default_project_id
+# This allows the 'project_id' argument to be of type str instead of Optional[str],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+PROVIDE_PROJECT_ID: str = cast(str, None)
+
 T = TypeVar("T", bound=Callable)
 RT = TypeVar('RT')
 
@@ -140,11 +146,9 @@ class GoogleBaseHook(BaseHook):
     JSON data provided in the UI: Specify 'Keyfile JSON'.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -153,7 +157,6 @@ class GoogleBaseHook(BaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -194,7 +197,7 @@ class GoogleBaseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -509,9 +512,6 @@ class GoogleBaseHook(BaseHook):
                         f"--key-file={os.environ[CREDENTIALS]}",
                     ]
                 )
-            if project_id:
-                # Don't display stdout/stderr for security reason
-                check_output(["gcloud", "config", "set", "core/project", project_id])
             elif os.path.exists(credentials_path):
                 # If we are logged in by `gcloud auth application-default` then we need to log in manually.
                 # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.
@@ -533,6 +533,11 @@ class GoogleBaseHook(BaseHook):
                             creds_content["refresh_token"],
                         ]
                     )
+
+            if project_id:
+                # Don't display stdout/stderr for security reason
+                check_output(["gcloud", "config", "set", "core/project", project_id])
+
             yield
 
     @staticmethod
@@ -543,11 +548,8 @@ class GoogleBaseHook(BaseHook):
 
         :param file_handle: io.Base or file object. The stream in which to write the downloaded
             bytes.
-        :type file_handle: io.Base or file object
         :param request: googleapiclient.http.HttpRequest, the media request to perform in chunks.
-        :type request: Dict
         :param chunk_size: int, File will be downloaded in chunks of this many bytes.
-        :type chunk_size: int
         """
         downloader = MediaIoBaseDownload(file_handle, request, chunksize=chunk_size)
         done = False

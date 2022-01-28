@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 This is an example dag for using `S3ToRedshiftOperator` to copy a S3 key into a Redshift table.
 """
@@ -26,7 +29,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
+from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 
 # [START howto_operator_s3_to_redshift_env_variables]

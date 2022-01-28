@@ -42,7 +42,6 @@ class MongoHook(BaseHook):
 
     :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
         when connecting to MongoDB.
-    :type mongo: str
     """
 
     conn_name_attr = 'conn_id'
@@ -184,14 +183,10 @@ class MongoHook(BaseHook):
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_one
 
         :param mongo_collection: The name of the collection to update.
-        :type mongo_collection: str
         :param filter_doc: A query that matches the documents to update.
-        :type filter_doc: dict
         :param update_doc: The modifications to apply.
-        :type update_doc: dict
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
-        :type mongo_db: str
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
@@ -211,14 +206,10 @@ class MongoHook(BaseHook):
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_many
 
         :param mongo_collection: The name of the collection to update.
-        :type mongo_collection: str
         :param filter_doc: A query that matches the documents to update.
-        :type filter_doc: dict
         :param update_doc: The modifications to apply.
-        :type update_doc: dict
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
-        :type mongo_db: str
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
@@ -242,15 +233,11 @@ class MongoHook(BaseHook):
             document contain the ``_id`` field which is then used as filters.
 
         :param mongo_collection: The name of the collection to update.
-        :type mongo_collection: str
         :param doc: The new document.
-        :type doc: dict
         :param filter_doc: A query that matches the documents to replace.
             Can be omitted; then the _id field from doc will be used.
-        :type filter_doc: dict
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
-        :type mongo_db: str
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -281,22 +268,16 @@ class MongoHook(BaseHook):
             used as filters.
 
         :param mongo_collection: The name of the collection to update.
-        :type mongo_collection: str
         :param docs: The new documents.
-        :type docs: list[dict]
         :param filter_docs: A list of queries that match the documents to replace.
             Can be omitted; then the _id fields from docs will be used.
-        :type filter_docs: list[dict]
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
-        :type mongo_db: str
         :param upsert: If ``True``, perform an insert if no documents
             match the filters for the replace operation.
-        :type upsert: bool
         :param collation: An instance of
             :class:`~pymongo.collation.Collation`. This option is only
             supported on MongoDB 3.4 and above.
-        :type collation: pymongo.collation.Collation
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
@@ -318,12 +299,9 @@ class MongoHook(BaseHook):
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
 
         :param mongo_collection: The name of the collection to delete from.
-        :type mongo_collection: str
         :param filter_doc: A query that matches the document to delete.
-        :type filter_doc: dict
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
-        :type mongo_db: str
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
@@ -338,12 +316,9 @@ class MongoHook(BaseHook):
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
 
         :param mongo_collection: The name of the collection to delete from.
-        :type mongo_collection: str
         :param filter_doc: A query that matches the documents to delete.
-        :type filter_doc: dict
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
-        :type mongo_db: str
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)

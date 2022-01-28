@@ -18,11 +18,14 @@
 """Transfers data from Exasol database into a S3 Bucket."""
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.exasol.hooks.exasol import ExasolHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ExasolToS3Operator(BaseOperator):
@@ -30,34 +33,25 @@ class ExasolToS3Operator(BaseOperator):
     Export data from Exasol database to AWS S3 bucket.
 
     :param query_or_table: the sql statement to be executed or table name to export
-    :type query_or_table: str
     :param key: S3 key that will point to the file
-    :type key: str
     :param bucket_name: Name of the bucket in which to store the file
-    :type bucket_name: str
     :param replace: A flag to decide whether or not to overwrite the key
         if it already exists. If replace is False and the key exists, an
         error will be raised.
-    :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side
         by S3 and will be stored in an encrypted form while at rest in S3.
-    :type encrypt: bool
     :param gzip: If True, the file will be compressed locally
-    :type gzip: bool
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
-    :type acl_policy: str
     :param query_params: Query parameters passed to underlying ``export_to_file``
         method of :class:`~pyexasol.connection.ExaConnection`.
-    :type query_params: dict
     :param export_params: Extra parameters passed to underlying ``export_to_file``
         method of :class:`~pyexasol.connection.ExaConnection`.
-    :type export_params: dict
     """
 
-    template_fields = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
+    template_fields: Sequence[str] = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
     template_fields_renderers = {"query_or_table": "sql", "query_params": "json", "export_params": "json"}
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -89,7 +83,7 @@ class ExasolToS3Operator(BaseOperator):
         self.exasol_conn_id = exasol_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         exasol_hook = ExasolHook(exasol_conn_id=self.exasol_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 

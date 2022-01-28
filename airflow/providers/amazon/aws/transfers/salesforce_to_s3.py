@@ -17,11 +17,14 @@
 
 import os
 import tempfile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SalesforceToS3Operator(BaseOperator):
@@ -33,44 +36,30 @@ class SalesforceToS3Operator(BaseOperator):
         :ref:`howto/operator:SalesforceToS3Operator`
 
     :param salesforce_query: The query to send to Salesforce.
-    :type salesforce_query: str
     :param s3_bucket_name: The bucket name to upload to.
-    :type s3_bucket_name: str
     :param s3_key: The object name to set when uploading the file.
-    :type s3_key: str
     :param salesforce_conn_id: The name of the connection that has the parameters needed
         to connect to Salesforce.
-    :type salesforce_conn_id: str
     :param export_format: Desired format of files to be exported.
-    :type export_format: str
     :param query_params: Additional optional arguments to be passed to the HTTP request querying Salesforce.
-    :type query_params: dict
     :param include_deleted: True if the query should include deleted records.
-    :type include_deleted: bool
     :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
         False if you want them to be left in the same format as they were in Salesforce.
         Leaving the value as False will result in datetimes being strings. Default: False
-    :type coerce_to_timestamp: bool
     :param record_time_added: True if you want to add a Unix timestamp field
         to the resulting data that marks when the data was fetched from Salesforce. Default: False
-    :type record_time_added: bool
     :param aws_conn_id: The name of the connection that has the parameters we need to connect to S3.
-    :type aws_conn_id: str
     :param replace: A flag to decide whether or not to overwrite the S3 key if it already exists. If set to
         False and the key exists an error will be raised.
-    :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side by S3 and will
         be stored in an encrypted form while at rest in S3.
-    :type encrypt: bool
     :param gzip: If True, the file will be compressed locally.
-    :type gzip: bool
     :param acl_policy: String specifying the canned ACL policy for the file being uploaded
         to the S3 bucket.
-    :type acl_policy: str
     """
 
-    template_fields = ("salesforce_query", "s3_bucket_name", "s3_key")
-    template_ext = (".sql",)
+    template_fields: Sequence[str] = ("salesforce_query", "s3_bucket_name", "s3_key")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"salesforce_query": "sql"}
 
     def __init__(
@@ -108,7 +97,7 @@ class SalesforceToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def execute(self, context: Dict) -> str:
+    def execute(self, context: 'Context') -> str:
         salesforce_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce_hook.make_query(
             query=self.salesforce_query,

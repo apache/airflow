@@ -17,7 +17,7 @@
 """Base executor - this is the base class for all the implemented executors."""
 import sys
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -55,7 +55,7 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
-    job_id: Optional[str] = None
+    job_id: Union[None, int, str] = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()

@@ -1,3 +1,59 @@
+
+Airflow Helm Chart 1.4.0, 2022-01-10
+------------------------------------
+
+New Features
+""""""""""""
+
+- Add ``type`` to extra secrets param (#20599)
+- Support elasticsearch connection ``scheme`` (#20564)
+- Allows to disable built-in secret variables individually (#18974)
+- Add support for ``securityContext`` (#18249)
+- Add extra containers, volumes and volume mounts for jobs (#18808)
+- Allow ingress multiple hostnames w/diff secrets (#18542)
+- PgBouncer extra volumes, volume mounts, and sslmode (#19749)
+- Allow specifying kerberos keytab (#19054)
+- Allow disabling the Helm hooks (#18776, #20018)
+- Add ``migration-wait-timeout`` (#20069)
+
+Improvements
+""""""""""""
+
+- Increase default livenessProbe timeout (#20698)
+- Strict schema for k8s objects for values.yaml (#19181)
+- Remove unnecessary ``pod_template_file`` defaults (#19690)
+- Use built-in ``check-migrations`` command for Airflow>=2 (#19676)
+
+Bug Fixes
+"""""""""
+
+- Fix precedence of ``affinity``, ``nodeSelector``, and ``tolerations`` (#20641)
+- Fix chart elasticsearch default port 80 to 9200. (#20616)
+- Fix network policy issue for webserver and flowerui (#20199)
+- Use local definitions for k8s schema validation (#20544)
+- Add custom labels for ingresses/PVCs (#20535)
+- Fix extra secrets/configmaps labels (#20464)
+- Fix flower restarts on update (#20316)
+- Properly quote namespace names (#20266)
+
+Doc only changes
+""""""""""""""""
+
+- Add ``helm dependency update`` step to chart INSTALL (#20702)
+- Reword section covering the envvar secrets (#20566)
+- Add "Customizing Workers" page (#20331)
+- Include Datadog example in production guide (#17996)
+- Update production Helm guide database section to use k8s secret (#19892)
+- Fix ``multiNamespaceMode`` docs to also cover KPO (#19879)
+- Clarify Helm behaviour when it comes to loading default connections (#19708)
+
+Misc
+""""
+
+- Use ``2.2.3`` as default Airflow version (#20450)
+- Add ArtifactHUB annotations for docs and screenshots (#20558)
+- Add kubernetes 1.21 support (#19557)
+
 Airflow Helm Chart 1.3.0, 2021-11-08
 ------------------------------------
 

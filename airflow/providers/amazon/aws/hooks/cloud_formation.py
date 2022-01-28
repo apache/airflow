@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains AWS CloudFormation Hook"""
+import warnings
 from typing import Optional, Union
 
 from boto3 import client, resource
@@ -25,7 +26,7 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSCloudFormationHook(AwsBaseHook):
+class CloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
 
@@ -52,29 +53,41 @@ class AWSCloudFormationHook(AwsBaseHook):
             else:
                 raise e
 
-    def create_stack(self, stack_name: str, params: dict) -> None:
+    def create_stack(self, stack_name: str, cloudformation_parameters: dict) -> None:
         """
         Create stack in CloudFormation.
 
         :param stack_name: stack_name.
-        :type stack_name: str
-        :param params: parameters to be passed to CloudFormation.
-        :type params: dict
+        :param cloudformation_parameters: parameters to be passed to CloudFormation.
         """
-        if 'StackName' not in params:
-            params['StackName'] = stack_name
-        self.get_conn().create_stack(**params)
+        if 'StackName' not in cloudformation_parameters:
+            cloudformation_parameters['StackName'] = stack_name
+        self.get_conn().create_stack(**cloudformation_parameters)
 
-    def delete_stack(self, stack_name: str, params: Optional[dict] = None) -> None:
+    def delete_stack(self, stack_name: str, cloudformation_parameters: Optional[dict] = None) -> None:
         """
         Delete stack in CloudFormation.
 
         :param stack_name: stack_name.
-        :type stack_name: str
-        :param params: parameters to be passed to CloudFormation (optional).
-        :type params: dict
+        :param cloudformation_parameters: parameters to be passed to CloudFormation (optional).
         """
-        params = params or {}
-        if 'StackName' not in params:
-            params['StackName'] = stack_name
-        self.get_conn().delete_stack(**params)
+        cloudformation_parameters = cloudformation_parameters or {}
+        if 'StackName' not in cloudformation_parameters:
+            cloudformation_parameters['StackName'] = stack_name
+        self.get_conn().delete_stack(**cloudformation_parameters)
+
+
+class AWSCloudFormationHook(CloudFormationHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

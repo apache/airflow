@@ -23,7 +23,7 @@
 # by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9 3.6"
+_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
@@ -33,7 +33,7 @@ _breeze_allowed_helm_versions="v3.6.3"
 _breeze_allowed_kind_versions="v0.11.1"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_mssql_versions="2017-latest 2019-latest"
-_breeze_allowed_postgres_versions="9.6 10 11 12 13"
+_breeze_allowed_postgres_versions="10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
 _breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor"
 _breeze_allowed_test_types="All Always Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
@@ -77,6 +77,7 @@ all
 airflow-config-yaml
 airflow-providers-available
 airflow-provider-yaml-files-ok
+autoflake
 base-operator
 bats-tests
 bats-in-container-tests
@@ -85,6 +86,7 @@ blacken-docs
 boring-cyborg
 build
 build-providers-dependencies
+chart-schema-lint
 capitalized-breeze
 changelog-duplicates
 check-apache-license
@@ -122,6 +124,7 @@ mypy
 mypy-helm
 no-providers-in-core-examples
 no-relative-imports
+persist-credentials-disabled
 pre-commit-descriptions
 pre-commit-hook-names
 pretty-format-json
@@ -148,7 +151,9 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+update-supported-versions
 update-versions
+vendor-k8s-json-schema
 verify-db-migrations-documented
 version-sync
 www-lint
@@ -189,7 +194,7 @@ runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-r
 load-default-connections load-example-dags
 use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
 use-airflow-version:
-cleanup-docker-context-files
+cleanup-docker-context-files prepare-buildx-cache
 test-type: preserve-volumes dry-run-docker
 executor:
 "
@@ -198,10 +203,10 @@ _breeze_commands="
 shell
 build-docs
 build-image
+prepare-build-cache
 cleanup-image
 exec
 generate-constraints
-push-image
 initialize-local-virtualenv
 prepare-airflow-packages
 setup-autocomplete

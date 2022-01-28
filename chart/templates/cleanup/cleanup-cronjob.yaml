@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.cleanup) }}
 {{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: batch/v1
 {{- else }}
@@ -70,6 +71,7 @@ spec:
           imagePullSecrets:
             - name: {{ template "registry_secret" . }}
           {{- end }}
+          securityContext: {{ $securityContext | nindent 12 }}
           containers:
             - name: airflow-cleanup-pods
               image: {{ template "airflow_image" . }}
