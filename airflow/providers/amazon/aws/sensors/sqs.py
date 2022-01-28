@@ -54,8 +54,10 @@ class SqsSensor(BaseSensorOperator):
     :param message_filtering_config: Additional configuration to pass to the message filter.
         For example with JSONPath filtering you can pass a JSONPath expression string here,
         such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
-    :param delete_message_on_reception: If set to False, the messages are not going to be deleted
-    from the queue. By default, the messages are deleted from the queue as soon as being consumed.
+    :param delete_message_on_reception: Default to `True`, the messages are deleted from the queue
+        as soon as being consumed. Otherwise, the messages remain in the queue after consumption and
+        should be deleted manually.
+
     """
 
     template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
