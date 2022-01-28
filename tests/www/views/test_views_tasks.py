@@ -474,7 +474,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
         dag_id="example_bash_operator",
         ignore_all_deps="false",
         ignore_ti_state="false",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_DAGRUN,
         origin='/home',
     )
     resp = admin_client.post('run', data=form, follow_redirects=True)
@@ -503,7 +503,7 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
         dag_id="example_bash_operator",
         ignore_all_deps="false",
         ignore_ti_state="false",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_DAGRUN,
         origin='/home',
     )
     resp = admin_client.post('run', data=form, follow_redirects=True)
