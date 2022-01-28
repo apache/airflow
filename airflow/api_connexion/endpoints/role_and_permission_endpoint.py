@@ -24,7 +24,7 @@ from sqlalchemy import func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
     RoleCollection,
@@ -68,11 +68,22 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
-    to_replace = {"role_id": "id", "name": "ab_role_name"}
-    allowed_filter_attrs = ["role_id", "name"]
+    sorts = {
+        "role_id": Role.id.asc,
+        "-role_id": Role.id.desc,
+        "name": Role.name.asc,
+        "-name": Role.name.desc,
+    }
+    try:
+        sort_order = sorts[order_by]
+    except KeyError:
+        raise BadRequest(
+            detail=f"Ordering with '{order_by}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
     query = session.query(Role)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    roles = query.offset(offset).limit(limit).all()
+    roles = query.order_by(sort_order()).offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 

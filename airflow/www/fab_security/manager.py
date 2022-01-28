@@ -24,8 +24,7 @@ import datetime
 import json
 import logging
 import re
-import resource
-from typing import Any, Dict, List, Optional, Set, Type, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
 from flask import current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
