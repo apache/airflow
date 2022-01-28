@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 export PYTHON_MAJOR_MINOR_VERSION="${1}"
-export REMEMBER_LAST_ANSWER="${2}"
 export PRINT_INFO_FROM_SCRIPTS="false"
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
@@ -49,8 +48,6 @@ function build_images::rebuild_ci_image_if_confirmed_for_pre_commit() {
         fi
     fi
 }
-
-build_images::forget_last_answer
 
 build_images::prepare_ci_build
 
