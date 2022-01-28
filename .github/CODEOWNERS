@@ -19,7 +19,7 @@
 /chart/ @dstandish @jedcunningham
 
 # Docs
-/docs/ @mik-laj @vikramkoka
+/docs/ @mik-laj
 
 # Docs (without Providers)
 /docs/apache-airflow @kaxil @potiuk
