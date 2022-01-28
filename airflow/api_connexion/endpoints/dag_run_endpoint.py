@@ -199,7 +199,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
     query = session.query(DagRun)
     if data.get("dag_ids"):
-        dag_ids = set(data["dag_ids"]) & readable_dag_ids
+        dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
         query = query.filter(DagRun.dag_id.in_(dag_ids))
     else:
         query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
