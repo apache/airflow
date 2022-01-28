@@ -326,7 +326,7 @@ class CloudSQLHook(GoogleBaseHook):
         :param instance: Database instance ID. This does not include the
             project ID.
         :param body: The request body, as described in
-            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: None
