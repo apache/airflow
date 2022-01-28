@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from pendulum import DateTime
-from sqlalchemy import and_, func
+from sqlalchemy import and_, false, func
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
@@ -39,12 +39,11 @@ from airflow.models import (
     TaskReschedule,
     XCom,
 )
-from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Query
+    from sqlalchemy.orm import Query, Session
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql.schema import Column
 
@@ -93,7 +92,7 @@ config_list: List[_TableConfig] = [
         orm_model=DagRun,
         recency_column=DagRun.start_date,
         keep_last=True,
-        keep_last_filters=[DagRun.external_trigger.is_(False)],
+        keep_last_filters=[DagRun.external_trigger == false()],
         keep_last_group_by=DagRun.dag_id,
     ),
     _TableConfig(orm_model=ImportError, recency_column=ImportError.timestamp),
@@ -250,7 +249,7 @@ def run_cleanup(
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
-    session: Session = NEW_SESSION,
+    session: 'Session' = NEW_SESSION,
 ):
     """
     Purges old records in airflow metastore database.
