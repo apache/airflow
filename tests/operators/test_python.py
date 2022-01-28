@@ -84,6 +84,17 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
+def assert_calls_equal(first: Call, second: Call) -> None:
+    assert isinstance(first, Call)
+    assert isinstance(second, Call)
+    assert first.args == second.args
+    # eliminate context (conf, dag_run, task_instance, etc.)
+    test_args = ["an_int", "a_date", "a_templated_string"]
+    first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
+    second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
+    assert first.kwargs == second.kwargs
+
+
 class TestPythonBase(unittest.TestCase):
     """Base test class for TestPythonOperator and TestPythonSensor classes"""
 
@@ -111,16 +122,6 @@ class TestPythonBase(unittest.TestCase):
 
     def clear_run(self):
         self.run = False
-
-    def _assert_calls_equal(self, first, second):
-        assert isinstance(first, Call)
-        assert isinstance(second, Call)
-        assert first.args == second.args
-        # eliminate context (conf, dag_run, task_instance, etc.)
-        test_args = ["an_int", "a_date", "a_templated_string"]
-        first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
-        second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
-        assert first.kwargs == second.kwargs
 
 
 class TestPythonOperator(TestPythonBase):
@@ -176,7 +177,7 @@ class TestPythonOperator(TestPythonBase):
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         assert 1 == len(recorded_calls)
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 4,
@@ -213,7 +214,7 @@ class TestPythonOperator(TestPythonBase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         assert 1 == len(recorded_calls)
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 an_int=4,

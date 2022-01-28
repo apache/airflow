@@ -206,3 +206,6 @@ def get_available_packages() -> List[str]:
     docs_path_content = Path(get_airflow_sources_root(), 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
     return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+
+
+EXTRA_STATIC_CHECK_OPTIONS = "--show-diff-on-failure"

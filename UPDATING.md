@@ -84,6 +84,23 @@ https://developers.google.com/style/inclusive-documentation
 
 Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
 
+### Non-JSON-serializable params deprecated.
+
+It was previously possible to use dag or task param defaults that were not JSON-serializable.
+
+For example this worked previously:
+
+```python
+@dag.task(params={"a": {1, 2, 3}, "b": pendulum.now()})
+def datetime_param(value):
+    print(value)
+
+
+datetime_param("{{ params.a }} | {{ params.b }}")
+```
+
+Note the use of `set` and `datetime` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time.
+
 ### Smart sensors deprecated
 
 Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.

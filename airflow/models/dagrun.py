@@ -813,7 +813,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti_mapping(task: "BaseOperator"):
                 created_counts[task.task_type] += 1
-                return TI.insert_mapping(self.run_id, task)
+                return TI.insert_mapping(self.run_id, task, map_index=-1)
 
         else:
 

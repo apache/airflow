@@ -333,6 +333,7 @@ Seedlist
 Sendgrid
 SerializedDAG
 SlackHook
+SlackResponse
 SnowflakeHook
 Spark
 SparkPi
@@ -1406,6 +1407,7 @@ uid
 umask
 un
 unarchived
+uncommenting
 undead
 ungenerated
 unicode

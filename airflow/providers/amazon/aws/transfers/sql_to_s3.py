@@ -54,19 +54,12 @@ class SqlToS3Operator(BaseOperator):
 
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
         ending with .sql extension. (templated)
-    :type query: str
     :param s3_bucket: bucket where the data will be stored. (templated)
-    :type s3_bucket: str
     :param s3_key: desired key for the file. It includes the name of the file. (templated)
-    :type s3_key: str
     :param replace: whether or not to replace the file in S3 if it previously existed
-    :type replace: bool
     :param sql_conn_id: reference to a specific database.
-    :type sql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param aws_conn_id: reference to a specific S3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -76,11 +69,8 @@ class SqlToS3Operator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                 You can specify this argument if you want to use a different
                 CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param file_format: the destination file format, only string 'csv' or 'parquet' is accepted.
-    :type file_format: str
     :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()`` or ``DataFrame.to_csv()``.
-    :type pd_kwargs: dict
     """
 
     template_fields: Sequence[str] = (

@@ -25,6 +25,7 @@ import click_completion
 from click import ClickException
 from click_completion import get_auto_shell
 
+from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
 from airflow_breeze.ci.build_image import build_image
 from airflow_breeze.ci.build_params import BuildParams
 from airflow_breeze.console import console
@@ -35,6 +36,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSION,
     get_available_packages,
 )
+from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.docker_command_utils import check_docker_resources
 from airflow_breeze.utils.path_utils import (
     __AIRFLOW_SOURCES_ROOT,
@@ -42,6 +44,7 @@ from airflow_breeze.utils.path_utils import (
     find_airflow_sources_root,
     get_airflow_sources_root,
 )
+from airflow_breeze.utils.run_utils import check_package_installed, run_command
 from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -268,8 +271,6 @@ def change_config(python, backend, cheatsheet, asciiart):
     """
     Toggles on/off cheatsheet, asciiart
     """
-    from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
-
     if asciiart:
         console.print('[blue] ASCIIART enabled')
         delete_cache('suppress_asciiart')
@@ -310,6 +311,46 @@ def build_docs(verbose: bool, docs_only: bool, spellcheck_only: bool, package_fi
         package_filter=package_filter, docs_only=docs_only, spellcheck_only=spellcheck_only
     )
     build_documentation.build(verbose, mount_all_flag, airflow_sources, ci_image_name, doc_builder)
+
+
+@option_verbose
+@main.command(
+    name="static-check",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@click.option('--all-files', is_flag=True)
+@click.option('--show-diff-on-failure', is_flag=True)
+@click.option('--last-commit', is_flag=True)
+@click.option('-t', '--type', type=click.Choice(PRE_COMMIT_LIST), multiple=True)
+@click.option('--files', is_flag=True)
+@click.argument('precommit_args', nargs=-1, type=click.UNPROCESSED)
+def static_check(
+    verbose: bool,
+    all_files: bool,
+    show_diff_on_failure: bool,
+    last_commit: bool,
+    type: Tuple[str],
+    files: bool,
+    precommit_args: Tuple,
+):
+    if check_package_installed('pre_commit'):
+        command_to_execute = ['pre-commit', 'run']
+        for single_check in type:
+            command_to_execute.append(single_check)
+        if all_files:
+            command_to_execute.append("--all-files")
+        if show_diff_on_failure:
+            command_to_execute.append("--show-diff-on-failure")
+        if last_commit:
+            command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
+        if files:
+            command_to_execute.append("--files")
+        if precommit_args:
+            command_to_execute.extend(precommit_args)
+        run_command(command_to_execute, suppress_raise_exception=True, suppress_console_print=True, text=True)
 
 
 if __name__ == '__main__':

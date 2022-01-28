@@ -354,7 +354,10 @@ jobs:
           path: '.build/.docker_venv'
           key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: "Test examples of PROD image building"
-        run: ./scripts/ci/images/ci_test_examples_of_prod_image_building.sh
+        working-directory: docs/docker-stack/docker-examples
+        run: >
+          python -m pytest ../../../docker_tests/test_examples_of_prod_image_building.py
+          -n auto --color=yes
 
   test-docker-compose-quick-start:
     timeout-minutes: 60

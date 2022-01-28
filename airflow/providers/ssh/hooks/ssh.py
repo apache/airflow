@@ -88,7 +88,7 @@ class SSHHook(BaseHook):
     hook_name = 'SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],

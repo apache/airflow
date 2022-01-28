@@ -39,6 +39,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
+from tests.test_utils.mock_operators import MockOperator
 
 
 class TestDagRun(unittest.TestCase):
@@ -874,3 +875,20 @@ def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expecte
     assert len(tis) == expected_tis
 
     Stats_incr.assert_called_with('task_instance_created-DummyOperator', expected_tis)
+
+
+@pytest.mark.xfail(reason="TODO: Expand mapped literals at verify_integrity time!")
+def test_expand_mapped_task_instance(dag_maker, session):
+    literal = [1, 2, {'a': 'b'}]
+    with dag_maker(session=session):
+        mapped = MockOperator(task_id='task_2').map(arg2=literal)
+
+    dr = dag_maker.create_dagrun()
+    indices = (
+        session.query(TI.map_index)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TI.insert_mapping)
+        .all()
+    )
+
+    assert indices == [0, 1, 2]
