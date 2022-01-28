@@ -53,7 +53,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
-    to_replace = {"user_id": "id"}
+    to_replace = {"user_id": "ab_user.id", "id": "ab_user_id"}
     allowed_filter_attrs = [
         "user_id",
         'id',
