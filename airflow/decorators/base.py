@@ -38,6 +38,7 @@ from typing import (
 )
 
 import attr
+import typing_extensions
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -196,13 +197,13 @@ class DecoratedOperator(BaseOperator):
         return args, kwargs
 
 
-T = TypeVar("T", bound=Callable)
+Function = TypeVar("Function", bound=Callable)
 
 OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define(slots=False)
-class _TaskDecorator(Generic[T, OperatorSubclass]):
+class _TaskDecorator(Generic[Function, OperatorSubclass]):
     """
     Helper class for providing dynamic task mapping to decorated functions.
 
@@ -211,7 +212,7 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     :meta private:
     """
 
-    function: T = attr.ib(validator=attr.validators.is_callable())
+    function: Function = attr.ib(validator=attr.validators.is_callable())
     operator_class: Type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
@@ -233,19 +234,21 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
-        return_type = self.function_signature.return_annotation
+        try:
+            return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
+        except Exception:  # Can't evaluate retrurn type.
+            return False
 
-        # If the return type annotation is already the builtins ``dict`` type, use it for the inference.
-        if return_type == dict:
-            ttype = return_type
-        # Checking if Python 3.6, ``__origin__`` attribute does not exist until 3.7; need to use ``__extra__``
-        # TODO: Remove check when support for Python 3.6 is dropped in Airflow 2.3.
-        elif sys.version_info < (3, 7):
-            ttype = getattr(return_type, "__extra__", None)
+        # Get the non-subscripted type. The ``__origin__`` attribute is not
+        # stable until 3.7, but we need to use ``__extra__`` instead.
+        # TODO: Remove the ``__extra__`` branch when support for Python 3.6 is
+        # dropped in Airflow 2.3.
+        if sys.version_info < (3, 7):
+            ttype = getattr(return_type, "__extra__", return_type)
         else:
-            ttype = getattr(return_type, "__origin__", None)
+            ttype = getattr(return_type, "__origin__", return_type)
 
-        return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
+        return ttype == dict or ttype == Dict
 
     def __attrs_post_init__(self):
         self.kwargs.setdefault('task_id', self.function.__name__)
@@ -296,7 +299,7 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
 
     def partial(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "_TaskDecorator[T, OperatorSubclass]":
+    ) -> "_TaskDecorator[Function, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs, {'task_id'})
         partial_kwargs = self.kwargs.copy()
         partial_kwargs.update(kwargs)
@@ -307,11 +310,11 @@ class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
 
     @overload
-    def __call__(self, python_callable: T) -> T:
+    def __call__(self, python_callable: Function) -> Function:
         """For the "bare decorator" ``@task`` case."""
 
     @overload
-    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> "TaskDecorator":
+    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> Callable[[Function], Function]:
         """For the decorator factory ``@task()`` case."""
 
 

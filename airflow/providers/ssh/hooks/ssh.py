@@ -38,7 +38,7 @@ from airflow.hooks.base import BaseHook
 try:
     from airflow.utils.platform import getuser
 except ImportError:
-    from getpass import getuser
+    from getpass import getuser  # type: ignore[misc]
 
 TIMEOUT_DEFAULT = 10
 
@@ -88,7 +88,7 @@ class SSHHook(BaseHook):
     hook_name = 'SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],

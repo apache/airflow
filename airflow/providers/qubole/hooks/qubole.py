@@ -22,7 +22,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -119,7 +119,7 @@ class QuboleHook(BaseHook):
     hook_name = 'Qubole'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['login', 'schema', 'port', 'extra'],

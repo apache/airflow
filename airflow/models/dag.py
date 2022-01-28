@@ -88,7 +88,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
-    from airflow.decorators import TaskDecoratorFactory
+    from airflow.decorators import TaskDecoratorCollection
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -1344,7 +1344,6 @@ class DAG(LoggingMixin):
                     session=session,
                 ),
             )
-            .join(TaskInstance.dag_run)
             .order_by(DagRun.execution_date)
             .all()
         )
@@ -2112,10 +2111,10 @@ class DAG(LoggingMixin):
             get_downstream(t)
 
     @property
-    def task(self) -> "TaskDecoratorFactory":
+    def task(self) -> "TaskDecoratorCollection":
         from airflow.decorators import task
 
-        return cast("TaskDecoratorFactory", functools.partial(task, dag=self))
+        return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
     def add_task(self, task):
         """
@@ -2909,7 +2908,12 @@ class DagModel(Base):
             self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
 
-        log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
+        log.info(
+            "Setting next_dagrun for %s to %s, run_after=%s",
+            dag.dag_id,
+            self.next_dagrun,
+            self.next_dagrun_create_after,
+        )
 
 
 def dag(*dag_args, **dag_kwargs):

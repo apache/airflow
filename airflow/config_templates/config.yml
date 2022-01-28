@@ -453,6 +453,15 @@
       type: string
       example: ~
       default: "128"
+    - name: max_map_length
+      description: |
+        The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
+        length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
+        mapped tasks from clogging the scheduler.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "1024"
 
 - name: logging
   description: ~
@@ -1379,7 +1388,7 @@
       description: |
         Email address that will be used as sender address.
         It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~

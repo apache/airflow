@@ -261,7 +261,7 @@ def generate_issue_content(
                     pr = repo.get_issue(pr_number)  # (same fields as PR)
                 except UnknownObjectException:
                     console.print(f"[red]The PR #{pr_number} could not be found[/]")
-                continue
+                    continue
 
             # Ignore doc-only and skipped PRs
             label_names = [label.name for label in pr.labels]

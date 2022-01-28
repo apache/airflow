@@ -277,7 +277,7 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: float, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)

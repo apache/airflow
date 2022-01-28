@@ -474,6 +474,8 @@ function build_images::build_ci_image() {
         exit 1
     fi
     if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # we need to login to docker registry so that we can push cache there
+        build_images::login_to_docker_registry
         docker_ci_cache_directive+=(
             "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache"
             "--load"
@@ -628,6 +630,8 @@ function build_images::build_prod_images() {
         exit 1
     fi
     if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # we need to login to docker registry so that we can push cache there
+        build_images::login_to_docker_registry
         # Cache for prod image contains also build stage for buildx when mode=max specified!
         docker_cache_prod_directive+=(
             "--cache-to=type=registry,ref=${AIRFLOW_PROD_IMAGE}:cache,mode=max"
@@ -677,6 +681,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        --build-arg AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/${COMMIT_SHA}/docs/docker-stack/README.md" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
         "${docker_cache_prod_directive[@]}" \

@@ -511,8 +511,12 @@ class DagRun(Base, LoggingMixin):
             finished_tasks = info.finished_tasks
             unfinished_tasks = info.unfinished_tasks
 
-            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tasks)
+            none_depends_on_past = all(
+                not t.task.depends_on_past for t in unfinished_tasks  # type: ignore[has-type]
+            )
+            none_task_concurrency = all(
+                t.task.max_active_tis_per_dag is None for t in unfinished_tasks  # type: ignore[has-type]
+            )
             none_deferred = all(t.state != State.DEFERRED for t in unfinished_tasks)
 
             if unfinished_tasks and none_depends_on_past and none_task_concurrency and none_deferred:
@@ -809,7 +813,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti_mapping(task: "BaseOperator"):
                 created_counts[task.task_type] += 1
-                return TI.insert_mapping(self.run_id, task)
+                return TI.insert_mapping(self.run_id, task, map_index=-1)
 
         else:
 
@@ -830,9 +834,13 @@ class DagRun(Base, LoggingMixin):
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)
             session.flush()
-        except IntegrityError as err:
-            self.log.info(str(err))
-            self.log.info('Hit IntegrityError while creating the TIs for %s- %s', dag.dag_id, self.run_id)
+        except IntegrityError:
+            self.log.info(
+                'Hit IntegrityError while creating the TIs for %s- %s',
+                dag.dag_id,
+                self.run_id,
+                exc_info=True,
+            )
             self.log.info('Doing session rollback.')
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
@@ -916,37 +924,34 @@ class DagRun(Base, LoggingMixin):
         count = 0
 
         if schedulable_ti_ids:
-
-            count += with_row_locks(
-                session.query(TI).filter(
+            count += (
+                session.query(TI)
+                .filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(schedulable_ti_ids),
-                ),
-                of=TI,
-                session=session,
-                **skip_locked(session=session),
-            ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
+                )
+                .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+            )
 
         # Tasks using DummyOperator should not be executed, mark them as success
         if dummy_ti_ids:
-            count += with_row_locks(
-                session.query(TI).filter(
+            count += (
+                session.query(TI)
+                .filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(dummy_ti_ids),
-                ),
-                of=TI,
-                session=session,
-                **skip_locked(session=session),
-            ).update(
-                {
-                    TI.state: State.SUCCESS,
-                    TI.start_date: timezone.utcnow(),
-                    TI.end_date: timezone.utcnow(),
-                    TI.duration: 0,
-                },
-                synchronize_session=False,
+                )
+                .update(
+                    {
+                        TI.state: State.SUCCESS,
+                        TI.start_date: timezone.utcnow(),
+                        TI.end_date: timezone.utcnow(),
+                        TI.duration: 0,
+                    },
+                    synchronize_session=False,
+                )
             )
 
         return count
