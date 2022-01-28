@@ -1352,9 +1352,12 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "description": "Specify priority for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for worker pods.",
@@ -1667,8 +1670,11 @@
                 },
                 "priorityClassName": {
                     "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for scheduler pods.",
@@ -1942,8 +1948,11 @@
                 },
                 "priorityClassName": {
                     "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for triggerer pods.",
@@ -2649,8 +2658,11 @@
                 },
                 "priorityClassName": {
                     "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for webserver pods.",
@@ -2937,8 +2949,11 @@
                 },
                 "priorityClassName": {
                     "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for Flower pods.",
@@ -3073,8 +3088,11 @@
                 },
                 "priorityClassName": {
                     "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for StatsD pods.",
@@ -3379,8 +3397,11 @@
                 },
                 "priorityClassName": {
                     "description": "Set priority value from the priority class name",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for PgBouncer pods.",

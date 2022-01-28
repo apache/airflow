@@ -67,7 +67,9 @@ spec:
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
       serviceAccountName: {{ include "flower.serviceAccountName" . }}
+      {{- if .Values.flower.priorityClassName }}
       priorityClassName: {{ .Values.flower.priorityClassName }}
+      {{- end }}
       restartPolicy: Always
       securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
