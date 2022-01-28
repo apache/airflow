@@ -96,7 +96,6 @@ PIP package                             Version required
 ``google-api-python-client``            ``>=1.6.0,<2.0.0``
 ``google-auth-httplib2``                ``>=0.0.1``
 ``google-auth``                         ``>=1.0.0,<3.0.0``
-``google-cloud-aiplatform``             ``>=1.7.1,<2.0.0``
 ``google-cloud-automl``                 ``>=2.1.0,<3.0.0``
 ``google-cloud-bigquery-datatransfer``  ``>=3.0.0,<4.0.0``
 ``google-cloud-bigtable``               ``>=1.0.0,<2.0.0``
