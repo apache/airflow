@@ -3140,19 +3140,15 @@ class Airflow(AirflowBaseView):
 
         included_events = conf.get('webserver', 'included_events')
         excluded_events = conf.get('webserver', 'excluded_events')
-        query_start_dttm = timezone.utcnow() - timedelta(days=query_days)
 
-        query = session.query(Log).filter(
-            Log.dag_id == dag_id,
-            Log.dttm >= query_start_dttm,
-        )
+        query = session.query(Log).filter(Log.dag_id == dag_id)
         if included_events:
             included_events = {event.strip() for event in included_events.split(',')}
             query = query.filter(Log.event.in_(included_events))
         elif excluded_events:
             excluded_events = {event.strip() for event in excluded_events.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
-        
+
         dag_audit_logs = query.all()
 
         content = self.render_template(
