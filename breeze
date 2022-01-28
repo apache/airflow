@@ -3605,8 +3605,6 @@ breeze::parse_arguments "${@}"
 
 breeze::print_header_line
 
-build_images::forget_last_answer
-
 breeze::check_and_save_all_params
 
 build_images::determine_docker_cache_strategy

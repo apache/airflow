@@ -87,36 +87,6 @@ function build_images::get_airflow_version_from_production_image() {
     docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }
 
-# Removes the "Forced answer" (yes/no/quit) given previously, unless you specifically want to remember it.
-#
-# This is the default behaviour of all rebuild scripts to ask independently whether you want to
-# rebuild the image or not. Sometimes however we want to remember answer previously given. For
-# example if you answered "no" to rebuild the image, the assumption is that you do not
-# want to rebuild image also for other rebuilds in the same pre-commit execution.
-#
-# All the pre-commit checks therefore have `export REMEMBER_LAST_ANSWER="true"` set
-# So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
-# recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
-# "no" answer given previously. This happens until you run any of the breeze commands or run all
-# pre-commits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
-# be asked again.
-function build_images::forget_last_answer() {
-    if [[ ${REMEMBER_LAST_ANSWER:="false"} != "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Forgetting last answer from ${LAST_FORCE_ANSWER_FILE}:"
-        verbosity::print_info
-        rm -f "${LAST_FORCE_ANSWER_FILE}"
-    else
-        if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
-            verbosity::print_info
-            verbosity::print_info "Still remember last answer from ${LAST_FORCE_ANSWER_FILE}:"
-            verbosity::print_info "$(cat "${LAST_FORCE_ANSWER_FILE}")"
-            verbosity::print_info
-        fi
-    fi
-}
-
-
 function build_images::reconfirm_rebuilding_if_not_rebased() {
     local latest_main_commit_sha
     latest_main_commit_sha=$(curl -s -H "Accept: application/vnd.github.VERSION.sha" \
@@ -178,12 +148,6 @@ function build_images::confirm_rebuilding_on_modified_files() {
 # So that the script works also from within pre-commit run via git hooks - where stdin is not
 # available - it tries to find usable terminal and ask the user via this terminal.
 function build_images::confirm_image_rebuild() {
-    if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
-        # set variable from last answered response given in the same pre-commit run - so that it can be
-        # answered in the first pre-commit check (build) and then used in another (mypy/flake8 etc).
-        # shellcheck disable=SC1090
-        source "${LAST_FORCE_ANSWER_FILE}"
-    fi
     set +e
     local RES
     if [[ ${CI:="false"} == "true" ]]; then
@@ -235,7 +199,6 @@ function build_images::confirm_image_rebuild() {
         # Force "no" also to subsequent questions so that if you answer it once, you are not asked
         # For all other pre-commits and you will continue using the images you already have
         export FORCE_ANSWER_TO_QUESTIONS="no"
-        echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' >"${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
