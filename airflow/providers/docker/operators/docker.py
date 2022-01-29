@@ -283,7 +283,7 @@ class DockerOperator(BaseOperator):
             for log_chunk in logstream:
                 if hasattr(log_chunk, 'decode'):
                     # Note that lines returned can also be byte sequences so we have to handle decode here
-                    log_chunk = log_chunk.decode('utf-8')
+                    log_chunk = log_chunk.decode('utf-8', errors='surrogateescape')
                 log_chunk = log_chunk.strip()
                 log_lines.append(log_chunk)
                 self.log.info("%s", log_chunk)
