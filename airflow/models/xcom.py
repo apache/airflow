@@ -164,6 +164,8 @@ class BaseXCom(Base, LoggingMixin):
                 )
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            dagrun_id = -1
         else:
             dagrun_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
             if dagrun_id is None:
