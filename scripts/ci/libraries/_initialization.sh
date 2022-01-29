@@ -294,11 +294,6 @@ function initialization::initialize_force_variables() {
     # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
-    # File to keep the last forced answer. This is useful for pre-commits where you need to
-    # only answer once if the image should be rebuilt or not and your answer is used for
-    # All the subsequent questions
-    export LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
-
     # Can be set to "yes/no/quit" in order to force specified answer to all questions asked to the user.
     export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:=""}
 

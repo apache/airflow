@@ -51,6 +51,7 @@ body:
         - exasol
         - facebook
         - ftp
+        - github
         - google
         - grpc
         - hashicorp

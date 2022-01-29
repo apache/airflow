@@ -49,7 +49,7 @@ helm command or in the ``values.yaml``.
    helm install airflow apache-airflow/airflow \
        --namespace airflow \
        --set executor=CeleryExecutor \
-       --set workers.keda.enabled=true \
+       --set workers.keda.enabled=true
 
 A ``ScaledObject`` and an ``hpa`` will be created in the airflow namespace.
 

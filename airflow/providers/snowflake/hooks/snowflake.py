@@ -32,6 +32,12 @@ from airflow.hooks.dbapi import DbApiHook
 from airflow.utils.strings import to_boolean
 
 
+def _try_to_boolean(value: Any):
+    if isinstance(value, (str, type(None))):
+        return to_boolean(value)
+    return value
+
+
 class SnowflakeHook(DbApiHook):
     """
     A client to interact with Snowflake.
@@ -157,7 +163,7 @@ class SnowflakeHook(DbApiHook):
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')
-        insecure_mode = to_boolean(
+        insecure_mode = _try_to_boolean(
             conn.extra_dejson.get(
                 'extra__snowflake__insecure_mode', conn.extra_dejson.get('insecure_mode', None)
             )

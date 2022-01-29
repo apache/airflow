@@ -54,6 +54,10 @@ class SqsSensor(BaseSensorOperator):
     :param message_filtering_config: Additional configuration to pass to the message filter.
         For example with JSONPath filtering you can pass a JSONPath expression string here,
         such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
+    :param delete_message_on_reception: Default to `True`, the messages are deleted from the queue
+        as soon as being consumed. Otherwise, the messages remain in the queue after consumption and
+        should be deleted manually.
+
     """
 
     template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
@@ -69,6 +73,7 @@ class SqsSensor(BaseSensorOperator):
         message_filtering: Optional[Literal["literal", "jsonpath"]] = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
+        delete_message_on_reception: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -79,6 +84,8 @@ class SqsSensor(BaseSensorOperator):
         self.visibility_timeout = visibility_timeout
 
         self.message_filtering = message_filtering
+
+        self.delete_message_on_reception = delete_message_on_reception
 
         if message_filtering_match_values is not None:
             if not isinstance(message_filtering_match_values, set):
@@ -128,6 +135,10 @@ class SqsSensor(BaseSensorOperator):
             messages = self.filter_messages(messages)
             num_messages = len(messages)
             self.log.info("There are %d messages left after filtering", num_messages)
+
+        if not self.delete_message_on_reception:
+            context['ti'].xcom_push(key='messages', value=messages)
+            return True
 
         if not num_messages:
             return False
