@@ -972,7 +972,6 @@ class SchedulerJob(BaseJob):
                 total_active_runs,
                 dag.max_active_runs,
             )
-            dag_model.next_dagrun_create_after = None
             return False
         return True
 

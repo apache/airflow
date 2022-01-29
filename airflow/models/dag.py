@@ -2438,9 +2438,7 @@ class DAG(LoggingMixin):
                 data_interval = None
             else:
                 data_interval = dag.get_run_data_interval(run)
-            if num_active_runs.get(dag.dag_id, 0) >= orm_dag.max_active_runs:
-                orm_dag.next_dagrun_create_after = None
-            else:
+            if num_active_runs.get(dag.dag_id, 0) < orm_dag.max_active_runs:
                 orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
             for orm_tag in list(orm_dag.tags):
