@@ -22,8 +22,10 @@ Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
 Create Date: 2022-01-19 03:20:35.329037
 """
+from typing import Sequence
+
 from alembic import op
-from sqlalchemy import Column, Index, Integer, LargeBinary
+from sqlalchemy import Column, Index, Integer, LargeBinary, MetaData, Table, select
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
@@ -32,6 +34,41 @@ revision = "c306b5b5ae4a"
 down_revision = "a3bcd0914482"
 branch_labels = None
 depends_on = None
+
+
+metadata = MetaData()
+
+dagrun = Table(
+    "dag_run",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("dag_id", StringID(), nullable=False),
+    Column("run_id", StringID(), nullable=False),
+    Column("execution_date", TIMESTAMP, nullable=False),
+)
+
+
+def _get_new_xcom_columns() -> Sequence[Column]:
+    return [
+        Column("dagrun_id", Integer(), nullable=False, primary_key=True),
+        Column("task_id", StringID(), nullable=False, primary_key=True),
+        Column("key", StringID(length=512), nullable=False, primary_key=True),
+        Column("value", LargeBinary),
+        Column("timestamp", TIMESTAMP, nullable=False),
+        Column("dag_id", StringID(), nullable=False),
+        Column("run_id", StringID(), nullable=False),
+    ]
+
+
+def _get_old_xcom_columns() -> Sequence[Column]:
+    return [
+        Column("key", StringID(length=512), nullable=False, primary_key=True),
+        Column("value", LargeBinary),
+        Column("timestamp", TIMESTAMP, nullable=False, primary_key=True),
+        Column("task_id", StringID(), nullable=False, primary_key=True),
+        Column("dag_id", StringID(), nullable=False, primary_key=True),
+        Column("execution_date", StringID(), nullable=False, primary_key=True),
+    ]
 
 
 def upgrade():
@@ -43,26 +80,31 @@ def upgrade():
     """
     op.create_table(
         "__airflow_tmp_xcom",
-        Column("dagrun_id", Integer(), nullable=False, primary_key=True),
-        Column("task_id", StringID(), nullable=False, primary_key=True),
-        Column("key", StringID(length=512), nullable=False, primary_key=True),
-        Column("value", LargeBinary),
-        Column("timestamp", TIMESTAMP, nullable=False),
-        Column("dag_id", StringID(), nullable=False),
-        Column("run_id", StringID(), nullable=False),
+        *_get_new_xcom_columns(),
         Index("idx_xcom_key", "key"),
         Index("idx_xcom_ti_id", "dag_id", "task_id", "run_id"),
     )
-    op.execute(
-        """
-        INSERT INTO __airflow_tmp_xcom
-        SELECT r.id, x.task_id, x.key, x.value, x.timestamp, x.dag_id, r.run_id
-        FROM xcom AS x
-        INNER JOIN dag_run AS r
-        ON r.dag_id = x.dag_id
-        AND r.execution_date = x.execution_date
-        """,
+
+    xcom = Table("xcom", metadata, *_get_old_xcom_columns())
+    query = select(
+        [
+            dagrun.c.id,
+            xcom.c.task_id,
+            xcom.c.key,
+            xcom.c.value,
+            xcom.c.timestamp,
+            xcom.c.dag_id,
+            dagrun.c.run_id,
+        ],
+    ).select_from(
+        xcom.join(
+            dagrun,
+            xcom.c.dag_id == dagrun.c.dag_id,
+            xcom.c.execution_date == dagrun.c.execution_date,
+        ),
     )
+    op.execute(f"INSERT INTO __airflow_tmp_xcom {query.selectable.compile(op.get_bind())}")
+
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
 
@@ -72,24 +114,26 @@ def downgrade():
 
     Basically an inverse operation.
     """
-    op.create_table(
-        "__airflow_tmp_xcom",
-        Column("key", StringID(length=512), nullable=False, primary_key=True),
-        Column("value", LargeBinary),
-        Column("timestamp", TIMESTAMP, nullable=False, primary_key=True),
-        Column("task_id", StringID(), nullable=False, primary_key=True),
-        Column("dag_id", StringID(), nullable=False, primary_key=True),
-        Column("execution_date", StringID(), nullable=False, primary_key=True),
+    op.create_table("__airflow_tmp_xcom", *_get_old_xcom_columns())
+
+    xcom = Table("xcom", metadata, *_get_new_xcom_columns())
+    query = select(
+        [
+            xcom.c.key,
+            xcom.c.value,
+            xcom.c.timestamp,
+            xcom.c.task_id,
+            xcom.c.dag_id,
+            dagrun.c.execution_date,
+        ],
+    ).select_from(
+        xcom.join(
+            dagrun,
+            xcom.c.dag_id == dagrun.c.dag_id,
+            xcom.c.run_id == dagrun.c.run_id,
+        ),
     )
-    op.execute(
-        """
-        INSERT INTO __airflow_tmp_xcom
-        SELECT x.key, x.value, x.timestamp, x.task_id, x.dag_id, r.execution_date
-        FROM xcom AS x
-        INNER JOIN dag_run AS r
-        ON r.dag_id = x.dag_id
-        AND r.run_id = x.run_id
-        """,
-    )
+    op.execute(f"INSERT INTO __airflow_tmp_xcom {query.selectable.compile(op.get_bind())}")
+
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
