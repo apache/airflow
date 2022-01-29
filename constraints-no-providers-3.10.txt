@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-01-23T21:35:44Z
+# This constraints file was automatically generated on 2022-01-26T19:32:39Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -43,7 +43,7 @@ attrs==20.3.0
 bcrypt==3.2.0
 billiard==3.6.4.0
 blinker==1.4
-cachetools==4.2.4
+cachetools==5.0.0
 cattrs==1.10.0
 celery==5.2.3
 certifi==2020.12.5
@@ -80,7 +80,7 @@ gevent==21.12.0
 google-ads==14.0.0
 google-api-core==2.4.0
 google-auth-oauthlib==0.4.6
-google-auth==2.3.3
+google-auth==2.5.0
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
@@ -89,7 +89,7 @@ gssapi==1.7.2
 gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.14.5
-httpx==0.21.3
+httpx==0.22.0
 humanize==3.13.1
 idna==3.3
 importlib-metadata==4.10.1
@@ -122,7 +122,7 @@ platformdirs==2.4.1
 pluggy==1.0.0
 plyvel==1.4.0
 prison==0.2.1
-prometheus-client==0.12.0
+prometheus-client==0.13.0
 prompt-toolkit==3.0.24
 proto-plus==1.18.1
 protobuf==3.19.3
@@ -150,7 +150,7 @@ requests==2.27.1
 rfc3986==1.5.0
 rich==11.0.0
 rsa==4.8
-sentry-sdk==1.5.3
+sentry-sdk==1.5.4
 setproctitle==1.2.2
 six==1.16.0
 sniffio==1.2.0
