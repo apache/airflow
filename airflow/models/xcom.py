@@ -72,6 +72,7 @@ class BaseXCom(Base, LoggingMixin):
             BaseXCom.run_id == foreign(DagRun.run_id),
         )""",
         uselist=False,
+        lazy="joined",
         passive_deletes="all",
     )
     execution_date = association_proxy("dag_run", "execution_date")

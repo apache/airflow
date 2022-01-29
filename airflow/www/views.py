@@ -3555,19 +3555,14 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    label_columns = {
-        'execution_date': 'Logical Date',
-    }
-
-    search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    base_order = ('execution_date', 'desc')
+    search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    base_order = ('dagrun_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
         'task_id': wwwutils.task_instance_link,
-        'execution_date': wwwutils.datetime_f('execution_date'),
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
