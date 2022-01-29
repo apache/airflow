@@ -96,7 +96,7 @@ has outlets defined (e.g. by using ``add_outlets(..)`` or has out of the box sup
 Lineage Backend
 ---------------
 
-It's possible to push the lineage metrics to a custom backend by providing an instance of a LinageBackend in the config:
+It's possible to push the lineage metrics to a custom backend by providing an instance of a LineageBackend in the config:
 
 .. code-block:: ini
 
