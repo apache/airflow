@@ -53,12 +53,10 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
+    direction = "desc" if order_by.startswith("-") else "asc"
     to_replace = {"user_id": "id"}
-    order = "asc"
-    if order_by.startswith("-"):
-        order = "desc"
-        order_by = order[1:]
-    order_by = to_replace.get(order_by, order_by)
+    order_param = order_by.strip("-")
+    order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
         'id',
         "first_name",
@@ -75,7 +73,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
         )
 
     query = session.query(User)
-    users = query.order_by(getattr(getattr(User, order_by), order)()).offset(offset).limit(limit).all()
+    users = query.order_by(getattr(getattr(User, order_param), direction)()).offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 

@@ -68,22 +68,19 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
-    sorts = {
-        "role_id": Role.id.asc,
-        "-role_id": Role.id.desc,
-        "name": Role.name.asc,
-        "-name": Role.name.desc,
-    }
-    try:
-        sort_order = sorts[order_by]
-    except KeyError:
+    direction = "desc" if order_by.startswith("-") else "asc"
+    to_replace = {"role_id": "id"}
+    order_param = order_by.strip("-")
+    order_param = to_replace.get(order_param, order_param)
+    allowed_filter_attrs = ["role_id", "name"]
+    if order_by not in allowed_filter_attrs:
         raise BadRequest(
             detail=f"Ordering with '{order_by}' is disallowed or "
             f"the attribute does not exist on the model"
         )
 
     query = session.query(Role)
-    roles = query.order_by(sort_order()).offset(offset).limit(limit).all()
+    roles = query.order_by(getattr(getattr(Role, order_param), direction)()).offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
