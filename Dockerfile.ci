@@ -98,15 +98,13 @@ RUN apt-get update \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
-# We run chmod +x to fix permission issue in Azure DevOps when running the scripts
-# However when AUFS Docker backend is used, this might cause "text file busy" error
-# when script is executed right after it's executable flag has been changed, so
-# we run additional sync afterwards. See https://github.com/moby/moby/issues/13594
-RUN chmod a+x /scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh \
-    && sync  \
-    && /scripts/docker/install_mysql.sh prod  \
-    && /scripts/docker/install_mysql.sh dev  \
-    && /scripts/docker/install_mssql.sh \
+# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
+# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
+# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
+# That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
+RUN bash /scripts/docker/install_mysql.sh prod  \
+    && bash /scripts/docker/install_mysql.sh dev  \
+    && bash /scripts/docker/install_mssql.sh \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
               --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
@@ -292,10 +290,10 @@ COPY scripts/docker/install_pip_version.sh scripts/docker/install_airflow_depend
 # account for removed dependencies (we do not install them in the first place)
 RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not valid but we can't disable them :(\e[0m\n"; \
     echo -e "\n\e[34mSee https://github.com/pypa/pip/issues/10556 for details.\e[0m\n" ; \
-    /scripts/docker/install_pip_version.sh; \
+    bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
+        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 # Copy package.json and yarn.lock to install node modules
@@ -305,7 +303,7 @@ COPY airflow/www/package.json airflow/www/yarn.lock ${AIRFLOW_SOURCES}/airflow/w
 COPY scripts/docker/prepare_node_modules.sh /scripts/docker/
 
 # Package JS/css for production
-RUN /scripts/docker/prepare_node_modules.sh
+RUN bash /scripts/docker/prepare_node_modules.sh
 
 # Copy all the needed www/ for assets compilation. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/
@@ -315,7 +313,7 @@ COPY scripts/docker/compile_www_assets.sh /scripts/docker/
 
 # Build artifacts without removing temporary artifacts (we will need them for incremental changes)
 # in build  mode
-RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" /scripts/docker/compile_www_assets.sh
+RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" bash /scripts/docker/compile_www_assets.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
@@ -334,7 +332,7 @@ COPY scripts/docker/install_airflow.sh /scripts/docker/
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        /scripts/docker/install_airflow.sh; \
+        bash /scripts/docker/install_airflow.sh; \
     fi
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
@@ -347,9 +345,9 @@ COPY scripts/docker/install_pip_version.sh scripts/docker/install_additional_dep
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-RUN /scripts/docker/install_pip_version.sh; \
+RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        /scripts/docker/install_additional_dependencies.sh; \
+        bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 # Install autocomplete for airflow

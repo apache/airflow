@@ -198,7 +198,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 # scripts which are needed much later will not invalidate the docker layer here
 COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
 
-RUN /scripts/docker/install_mysql.sh dev && /scripts/docker/install_mssql.sh
+RUN bash /scripts/docker/install_mysql.sh dev && bash /scripts/docker/install_mssql.sh
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
@@ -257,10 +257,10 @@ COPY --chown=airflow:0 scripts/docker/common.sh scripts/docker/install_pip_versi
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
 # Upgrade to specific PIP version
-RUN /scripts/docker/install_pip_version.sh; \
+RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
+        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 COPY --chown=airflow:0 scripts/docker/compile_www_assets.sh scripts/docker/prepare_node_modules.sh /scripts/docker/
@@ -271,7 +271,7 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # only prepare node modules and compile assets if the prod image is build from sources
         # otherwise they are already compiled-in. We should do it in one step with removing artifacts \
         # as we want to keep the final image small
-        /scripts/docker/prepare_node_modules.sh; \
+        bash /scripts/docker/prepare_node_modules.sh; \
         REMOVE_ARTIFACTS="true" BUILD_TYPE="prod" /scripts/docker/compile_www_assets.sh; \
         # Copy generated dist folder (otherwise it will be overridden by the COPY step below)
         mv -f /opt/airflow/airflow/www/static/dist /tmp/dist; \
@@ -313,12 +313,12 @@ COPY --chown=airflow:0 scripts/docker/install_from_docker_context_files.sh scrip
 
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        /scripts/docker/install_from_docker_context_files.sh; \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        /scripts/docker/install_airflow.sh; \
+        bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        /scripts/docker/install_additional_dependencies.sh; \
+        bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find "${AIRFLOW_USER_HOME_DIR}/.local/" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
     find "${AIRFLOW_USER_HOME_DIR}/.local/" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ; \
@@ -442,14 +442,12 @@ RUN apt-get update \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
-# We run chmod +x to fix permission issue in Azure DevOps when running the scripts
-# However when AUFS Docker backend is used, this might cause "text file busy" error
-# when script is executed right after it's executable flag has been changed, so
-# we run additional sync afterwards. See https://github.com/moby/moby/issues/13594
-RUN chmod a+x /scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh \
-    && sync \
-    && /scripts/docker/install_mysql.sh prod \
-    && /scripts/docker/install_mssql.sh \
+# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
+# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
+# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
+# That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
+RUN bash /scripts/docker/install_mysql.sh prod \
+    && bash /scripts/docker/install_mssql.sh \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
