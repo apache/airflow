@@ -286,7 +286,7 @@ class DockerOperator(BaseOperator):
                     log_chunk = log_chunk.decode('utf-8')
                 log_chunk = log_chunk.strip()
                 log_lines.append(log_chunk)
-                self.log.info(log_chunk)
+                self.log.info("%s", log_chunk)
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
