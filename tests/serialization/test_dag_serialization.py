@@ -827,7 +827,7 @@ class TestStringifiedDAGs:
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_simple_task.params.dump()
 
-    def test_extra_serialized_field_and_operator_links(self):
+    def test_extra_serialized_field_and_operator_links(self, dag_maker):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -840,8 +840,9 @@ class TestStringifiedDAGs:
         extra link.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
+
+        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
+            CustomOperator(task_id='simple_task', bash_command="true")
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
@@ -861,6 +862,7 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
+        dag_maker.create_dagrun(execution_date=test_date)
         XCom.set(
             key='search_query',
             value="dummy_value_1",
@@ -912,7 +914,7 @@ class TestStringifiedDAGs:
         )
         assert expected_err_msg in caplog.text
 
-    def test_extra_serialized_field_and_multiple_operator_links(self):
+    def test_extra_serialized_field_and_multiple_operator_links(self, dag_maker):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -925,8 +927,8 @@ class TestStringifiedDAGs:
         extra link.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
+        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
+            CustomOperator(task_id='simple_task', bash_command=["echo", "true"])
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
@@ -953,6 +955,7 @@ class TestStringifiedDAGs:
             'google',
         }
 
+        dag_maker.create_dagrun(execution_date=test_date)
         XCom.set(
             key='search_query',
             value=["dummy_value_1", "dummy_value_2"],
