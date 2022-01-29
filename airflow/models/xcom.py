@@ -27,6 +27,7 @@ import pendulum
 from sqlalchemy import Column, Index, Integer, LargeBinary, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
+from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -155,13 +156,18 @@ class BaseXCom(Base, LoggingMixin):
         if run_id is None:
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
-            dagrun_id, run_id = (
-                session.query(DagRun.id, DagRun.run_id)
-                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                .one()
-            )
+            try:
+                dagrun_id, run_id = (
+                    session.query(DagRun.id, DagRun.run_id)
+                    .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
+                    .one()
+                )
+            except NoResultFound:
+                raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
         else:
-            (dagrun_id,) = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).one()
+            dagrun_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+            if dagrun_id is None:
+                raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
