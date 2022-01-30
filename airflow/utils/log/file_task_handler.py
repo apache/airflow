@@ -18,8 +18,9 @@
 """File logging handler for tasks."""
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
 import httpx
 from itsdangerous import TimedJSONWebSignatureSerializer
@@ -83,9 +84,25 @@ class FileTaskHandler(logging.Handler):
             context["try_number"] = try_number
             return render_template_to_string(self.filename_jinja_template, context)
         elif self.filename_template:
+            dag_run = ti.get_dagrun()
+            try:
+                data_interval: Tuple[datetime, datetime] = ti.task.dag.get_run_data_interval(dag_run)
+            except AttributeError:  # ti.task is not always set.
+                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            if data_interval[0]:
+                data_interval_start = data_interval[0].isoformat()
+            else:
+                data_interval_start = ""
+            if data_interval[1]:
+                data_interval_end = data_interval[1].isoformat()
+            else:
+                data_interval_end = ""
             return self.filename_template.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
+                run_id=ti.run_id,
+                data_interval_start=data_interval_start,
+                data_interval_end=data_interval_end,
                 execution_date=ti.get_dagrun().logical_date.isoformat(),
                 try_number=try_number,
             )
