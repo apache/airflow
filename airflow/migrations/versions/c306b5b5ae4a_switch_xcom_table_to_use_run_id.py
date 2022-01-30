@@ -25,7 +25,7 @@ Create Date: 2022-01-19 03:20:35.329037
 from typing import Sequence
 
 from alembic import op
-from sqlalchemy import Column, Index, Integer, LargeBinary, MetaData, Table, select
+from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, select
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
@@ -50,9 +50,9 @@ dagrun = Table(
 
 def _get_new_xcom_columns() -> Sequence[Column]:
     return [
-        Column("dagrun_id", Integer(), nullable=False, primary_key=True),
-        Column("task_id", StringID(), nullable=False, primary_key=True),
-        Column("key", StringID(length=512), nullable=False, primary_key=True),
+        Column("dagrun_id", Integer(), nullable=False),
+        Column("task_id", StringID(), nullable=False),
+        Column("key", StringID(length=512), nullable=False),
         Column("value", LargeBinary),
         Column("timestamp", TIMESTAMP, nullable=False),
         Column("dag_id", StringID(), nullable=False),
@@ -62,12 +62,12 @@ def _get_new_xcom_columns() -> Sequence[Column]:
 
 def _get_old_xcom_columns() -> Sequence[Column]:
     return [
-        Column("key", StringID(length=512), nullable=False, primary_key=True),
+        Column("key", StringID(length=512), nullable=False),
         Column("value", LargeBinary),
-        Column("timestamp", TIMESTAMP, nullable=False, primary_key=True),
-        Column("task_id", StringID(), nullable=False, primary_key=True),
-        Column("dag_id", StringID(), nullable=False, primary_key=True),
-        Column("execution_date", StringID(), nullable=False, primary_key=True),
+        Column("timestamp", TIMESTAMP, nullable=False),
+        Column("task_id", StringID(), nullable=False),
+        Column("dag_id", StringID(), nullable=False),
+        Column("execution_date", StringID(), nullable=False),
     ]
 
 
@@ -78,12 +78,7 @@ def upgrade():
     data pre-populated, adding back constraints we need, and renaming it to
     replace the existing XCom table.
     """
-    op.create_table(
-        "__airflow_tmp_xcom",
-        *_get_new_xcom_columns(),
-        Index("idx_xcom_key", "key"),
-        Index("idx_xcom_ti_id", "dag_id", "task_id", "run_id"),
-    )
+    op.create_table("__airflow_tmp_xcom", *_get_new_xcom_columns())
 
     xcom = Table("xcom", metadata, *_get_old_xcom_columns())
     query = select(
@@ -107,6 +102,11 @@ def upgrade():
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
+
+    with op.batch_alter_table("xcom") as batch_op:
+        batch_op.create_primary_key("xcom_pkey", ["dagrun_id", "task_id", "key"])
+        batch_op.create_index("idx_xcom_key", ["key"])
+        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "task_id", "run_id"])
 
 
 def downgrade():
@@ -137,3 +137,4 @@ def downgrade():
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
+    op.create_primary_key("xcom_pkey", "xcom", ["dag_id", "task_id", "execution_date", "key"])
