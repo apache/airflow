@@ -15,30 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-export INSTALL_FROM_PYPI="false"
-export INSTALL_PROVIDERS_FROM_SOURCES="false"
-export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
-export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-export DOCKER_CACHE="pulled"
-export VERBOSE="true"
-
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# Builds or waits for the PROD image in the CI environment
-function build_prod_images_on_ci() {
-    build_images::prepare_prod_build
-
-    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-        local image_name_with_tag="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        push_pull_remove_images::wait_for_image "${image_name_with_tag}"
-        docker_v tag  "${image_name_with_tag}" "${AIRFLOW_PROD_IMAGE}"
-    else
-        build_images::build_prod_images_from_locally_built_airflow_packages
-    fi
-    unset FORCE_BUILD
+# Pulls CI image that has already been built
+function pull_ci_image_on_ci() {
+    build_images::prepare_ci_build
+    start_end::group_start "Pull CI image ${AIRFLOW_CI_IMAGE}"
+    build_images::clean_build_cache
+    md5sum::calculate_md5sum_for_all_files
+    local image_name_with_tag="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    push_pull_remove_images::wait_for_image "${image_name_with_tag}"
+    docker_v tag  "${image_name_with_tag}" "${AIRFLOW_CI_IMAGE}"
+    md5sum::update_all_md5_with_group
+    start_end::group_end
 }
 
-build_prod_images_on_ci
+pull_ci_image_on_ci

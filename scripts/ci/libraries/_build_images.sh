@@ -204,7 +204,7 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the images by running:
+   Make sure you build the image by running:
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
 
@@ -294,7 +294,7 @@ function build_images::check_if_buildx_plugin_available() {
     buildx_version=$(docker buildx version 2>/dev/null || true)
     if [[ ${buildx_version} != "" ]]; then
         if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
-            BUILD_COMMAND+=("buildx" "build" "--builder" "airflow_cache" "--progress=tty")
+            BUILD_COMMAND+=("buildx" "build" "--builder" "airflow_cache" "--progress=tty" "--push")
             docker_v buildx inspect airflow_cache || docker_v buildx create --name airflow_cache
         else
             BUILD_COMMAND+=("buildx" "build" "--builder" "default" "--progress=tty")
@@ -359,12 +359,20 @@ function build_images::prepare_ci_build() {
     permissions::fix_group_permissions
 }
 
+function build_images::clean_build_cache() {
+    mkdir -pv "${BUILD_CACHE_DIR}"
+    rm -rf "${BUILD_CACHE_DIR}"
+    rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+}
+
 # Only rebuilds CI image if needed. It checks if the docker image build is needed
 # because any of the important source files (from scripts/ci/libraries/_initialization.sh) has
 # changed or in any of the edge cases (docker image removed, .build cache removed etc.
 # In case rebuild is needed, it determines (by comparing layers in local and remote image)
 # Whether pull is needed before rebuild.
 function build_images::rebuild_ci_image_if_needed() {
+    local needs_docker_build="false"
+    local force_build="false"
     if [[ -f "${BUILT_CI_IMAGE_FLAG_FILE}" ]]; then
         verbosity::print_info
         verbosity::print_info "CI image already built locally."
@@ -373,13 +381,12 @@ function build_images::rebuild_ci_image_if_needed() {
         verbosity::print_info
         verbosity::print_info "CI image not built locally: force pulling and building"
         verbosity::print_info
-        export FORCE_BUILD="true"
+        force_build="true"
     fi
-    local needs_docker_build="false"
     md5sum::check_if_docker_build_is_needed
     if [[ ${needs_docker_build} == "true" ]]; then
         SKIP_REBUILD="false"
-        if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
+        if [[ ${CI:=} != "true" && "${force_build:=}" != "true" ]]; then
             build_images::confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
