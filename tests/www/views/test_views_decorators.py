@@ -115,7 +115,7 @@ def _check_last_log(session, dag_id, event, execution_date):
 
 def test_action_logging_get(session, admin_client):
     url = (
-        f'graph?dag_id=example_bash_operator&'
+        f'dags/example_bash_operator/graph?'
         f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
     )
     resp = admin_client.get(url, follow_redirects=True)
@@ -127,6 +127,24 @@ def test_action_logging_get(session, admin_client):
         session,
         dag_id="example_bash_operator",
         event="graph",
+        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+    )
+
+
+def test_action_logging_get_legacy_view(session, admin_client):
+    url = (
+        f'graph?dag_id=example_bash_operator&'
+        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+    )
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response('runme_1', resp)
+
+    # In mysql backend, this commit() is needed to write down the logs
+    session.commit()
+    _check_last_log(
+        session,
+        dag_id="example_bash_operator",
+        event="legacy_graph",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
 

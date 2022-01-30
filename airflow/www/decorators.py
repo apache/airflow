@@ -34,6 +34,15 @@ T = TypeVar("T", bound=Callable)
 logger = logging.getLogger(__name__)
 
 
+def _get_dag_id() -> str:
+    dag_id = request.args.get('dag_id') 
+    if dag_id:
+        return dag_id
+    path_parts = request.path.split('/')
+    if len(path_parts) >= 3 and path_parts[1] == 'dags':
+        return path_parts[2]
+
+
 def action_logging(f: T) -> T:
     """Decorator to log user actions"""
 
@@ -48,13 +57,18 @@ def action_logging(f: T) -> T:
                 user = g.user.username
 
             fields_skip_logging = {'csrf_token', '_csrf_token'}
+            log_fields = {k: v for k, v in request.values.items() if k not in fields_skip_logging}
+            dag_id = _get_dag_id()
+            if dag_id:
+                log_fields['dag_id'] = dag_id
+
             log = Log(
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging]),
-                task_id=request.values.get('task_id'),
-                dag_id=request.values.get('dag_id'),
+                extra=str([(k, log_fields[k]) for k in log_fields]),
+                task_id=log_fields.get('task_id'),
+                dag_id=log_fields.get('dag_id'),
             )
 
             if 'execution_date' in request.values:

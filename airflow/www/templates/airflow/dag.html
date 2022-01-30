@@ -110,33 +110,33 @@
     <div class="row">
       <div class="col-md-10">
         <ul class="nav nav-pills">
-          <li><a href="{{ url_for('Airflow.dag_grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
+          <li><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">grid_on</span>
             Grid
           </a></li>
-          <li><a href="{{ url_for('Airflow.dag_graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
             Graph</a></li>
-          <li><a href="{{ url_for('Airflow.dag_calendar', dag_id=dag.dag_id) }}">
+          <li><a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}">
             <span class="material-icons" aria-hidden="true">event</span>
             Calendar
           </a></li>
-          <li><a href="{{ url_for('Airflow.dag_duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+          <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
             Task Duration</a></li>
-          <li><a href="{{ url_for('Airflow.dag_tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+          <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">repeat</span>
             Task Tries</a></li>
-          <li><a href="{{ url_for('Airflow.dag_landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+          <li><a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">flight_land</span>
             Landing Times</a></li>
-          <li><a href="{{ url_for('Airflow.dag_gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">vertical_distribute</span>
             Gantt</a></li>
           <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
             <span class="material-icons" aria-hidden="true">details</span>
             Details</a></li>
-          <li><a href="{{ url_for('Airflow.dag_code', dag_id=dag.dag_id, root=root) }}">
+          <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
         </ul>
@@ -182,7 +182,7 @@
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view) }}">
+            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.legacy_' + dag.default_view) }}">
               Zoom into Sub DAG
             </a>
             <hr>
@@ -402,7 +402,7 @@
               </form>
             </span>
             <span class="col-md-4 text-right">
-              <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph') }}" role="button">
+              <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" role="button">
                 <span class="material-icons" aria-hidden="true">account_tree</span>
                 Graph
               </a>
