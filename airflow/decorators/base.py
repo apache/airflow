@@ -280,30 +280,70 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in unknown_args)
             raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
 
-    def map(
-        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> XComArg:
+    def map(self, *args, **kwargs) -> XComArg:
         self._validate_arg_names("map", kwargs)
-        dag = dag or DagContext.get_current_dag()
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-        task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
 
-        operator = MappedOperator.from_decorator(
-            decorator=self,
+        partial_kwargs: Dict[str, Any] = {
+            **self.kwargs,
+            "python_callable": self.function,
+            "multiple_outputs": self.multiple_outputs,
+        }
+
+        dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
+        task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
+        task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+
+        operator = MappedOperator(
+            operator_class=self.operator_class,
+            partial_kwargs=partial_kwargs,
+            mapped_kwargs={},
+            task_id=task_id,
             dag=dag,
             task_group=task_group,
-            task_id=task_id,
-            mapped_kwargs=kwargs,
+            deps=MappedOperator._deps(self.operator_class.deps),
         )
+        operator.mapped_kwargs["op_args"] = list(args)
+        operator.mapped_kwargs["op_kwargs"] = kwargs
+
+        for arg in itertools.chain(args, kwargs.values()):
+            XComArg.apply_upstream_relationship(operator, arg)
         return XComArg(operator=operator)
 
-    def partial(
-        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "_TaskDecorator[Function, OperatorSubclass]":
-        self._validate_arg_names("partial", kwargs, {'task_id'})
-        partial_kwargs = self.kwargs.copy()
-        partial_kwargs.update(kwargs)
-        return attr.evolve(self, kwargs=partial_kwargs)
+    def partial(self, *args, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+        self._validate_arg_names("partial", kwargs)
+
+        op_args = self.kwargs.get("op_args", [])
+        op_args.extend(args)
+
+        op_kwargs = self.kwargs.get("op_kwargs", {})
+        duplicated_keys = set(op_kwargs).intersection(kwargs)
+        if len(duplicated_keys) == 1:
+            raise TypeError(f"duplicated partial argument: {duplicated_keys.pop()}")
+        elif duplicated_keys:
+            duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+            raise TypeError(f"duplicated partial arguments: {duplicated_keys_display}")
+        op_kwargs.update(kwargs)
+
+        return attr.evolve(self, kwargs={**self.kwargs, "op_args": op_args, "op_kwargs": op_kwargs})
+
+
+class Task(Generic[Function]):
+    """Declaration of a @task-decorated callable for type-checking.
+
+    An instance of this type inherits the call signature of the decorated
+    function wrapped in it (not *exactly* since it actually returns an XComArg,
+    but there's no way to express that right now), and provides two additional
+    methods for task-mapping.
+
+    This type is implemented by ``_TaskDecorator`` at runtime.
+    """
+
+    __call__: Function
+
+    function: Function
+
+    map: Callable[..., XComArg]
+    partial: Callable[..., "Task[Function]"]
 
 
 class Task(Generic[Function]):

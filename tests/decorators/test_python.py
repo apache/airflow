@@ -490,7 +490,7 @@ def test_mapped_decorator() -> None:
     assert isinstance(doubled_0, XComArg)
     assert isinstance(doubled_0.operator, MappedOperator)
     assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_kwargs == {"number": literal}
+    assert doubled_0.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
 
     assert doubled_1.operator.task_id == "double__1"
 
@@ -514,25 +514,37 @@ def test_partial_mapped_decorator() -> None:
     def product(number: int, multiple: int):
         return number * multiple
 
+    literal = [1, 2, 3]
+
     with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        literal = [1, 2, 3]
-        quadrupled = product.partial(task_id='times_4', multiple=3).map(number=literal)
+        quadrupled = product.partial(multiple=3).map(number=literal)
         doubled = product.partial(multiple=2).map(number=literal)
         trippled = product.partial(multiple=3).map(number=literal)
 
-        product.partial(multiple=2)
+        product.partial(multiple=2)  # No operator is actually created.
+
+    assert dag.task_dict == {
+        "product": quadrupled.operator,
+        "product__1": doubled.operator,
+        "product__2": trippled.operator,
+    }
 
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, MappedOperator)
-    assert doubled.operator.task_id == "product"
-    assert doubled.operator.mapped_kwargs == {"number": literal}
-    assert doubled.operator.partial_kwargs == {"task_id": "product", "multiple": 2}
+    assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
+    assert doubled.operator.partial_kwargs == {
+        "python_callable": product.function,
+        "multiple_outputs": False,
+        "op_args": [],
+        "op_kwargs": {"multiple": 2},
+    }
 
-    assert trippled.operator.task_id == "product__1"
-    assert trippled.operator.partial_kwargs == {"task_id": "product", "multiple": 3}
-
-    assert quadrupled.operator.task_id == "times_4"
+    assert isinstance(trippled.operator, MappedOperator)  # For type-checking on partial_kwargs.
+    assert trippled.operator.partial_kwargs == {
+        "python_callable": product.function,
+        "multiple_outputs": False,
+        "op_args": [],
+        "op_kwargs": {"multiple": 3},
+    }
 
     assert doubled.operator is not trippled.operator
-
-    assert [quadrupled.operator, doubled.operator, trippled.operator] == dag.tasks
