@@ -128,7 +128,7 @@ def black_mode():
     config = parse_pyproject_toml(Path(get_breeze_pyproject_toml_dir(), "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),
+        target_version_option_callback(None, None, config.get('target_version', ())),
     )
 
     return Mode(
