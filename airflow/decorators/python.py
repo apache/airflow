@@ -35,7 +35,7 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     """
 
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
-    template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
+    template_fields_renderers = {"op_args": "json", "op_kwargs": "json"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).

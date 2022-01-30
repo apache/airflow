@@ -1291,11 +1291,7 @@ class Airflow(AirflowBaseView):
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
-                if isinstance(content, (dict, list)):
-                    json_content = json.dumps(content, sort_keys=True, indent=4)
-                    html_dict[template_field] = renderers[renderer](json_content)
-                else:
-                    html_dict[template_field] = renderers[renderer](content)
+                html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
 
