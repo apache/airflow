@@ -288,8 +288,7 @@ class SSHHook(BaseHook):
         connect_kwargs: Dict[str, Any] = dict(
             hostname=self.remote_host,
             username=self.username,
-            # timeout=self.conn_timeout,
-            timeout=0.1,
+            timeout=self.conn_timeout,
             compress=self.compress,
             port=self.port,
             sock=self.host_proxy,
@@ -306,9 +305,13 @@ class SSHHook(BaseHook):
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
 
-        log_before_retry = lambda retry_state : self.log.info("Failed to connect. Retry attempt %d", retry_state.attempt_number)
+        log_before_sleep = lambda retry_state: self.log.info(
+            "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+        )
 
-        for attempt in Retrying(wait=wait_fixed(3) + wait_random(0, 5), stop=stop_after_attempt(5), before=log_before_retry):
+        for attempt in Retrying(
+            wait=wait_fixed(3) + wait_random(0, 5), stop=stop_after_attempt(5), before_sleep=log_before_sleep
+        ):
             with attempt:
                 client.connect(**connect_kwargs)
 
