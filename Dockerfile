@@ -35,7 +35,6 @@
 #
 # Use the same builder frontend version for everyone
 # syntax=docker/dockerfile:1.3
-ARG AIRFLOW_VERSION="2.2.2"
 ARG AIRFLOW_EXTRAS="amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -43,6 +42,9 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
+
+# latest released version here
+ARG AIRFLOW_VERSION="2.2.3"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
 
@@ -354,10 +356,8 @@ LABEL org.apache.airflow.distro="debian" \
 
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_VERSION
 
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
-    AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     # Make sure noninteractive debian install is used and language variables set
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
@@ -394,13 +394,6 @@ ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
-ARG AIRFLOW_USER_HOME_DIR
-ARG AIRFLOW_HOME
-# Having the variable in final image allows to disable providers manager warnings when
-# production image is prepared from sources rather than from package
-ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
-ARG AIRFLOW_IMAGE_REPOSITORY
-ARG AIRFLOW_IMAGE_README_URL
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -408,16 +401,8 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
-    AIRFLOW_UID=${AIRFLOW_UID} \
-    AIRFLOW__CORE__LOAD_EXAMPLES="false" \
-    AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
-    AIRFLOW_HOME=${AIRFLOW_HOME} \
-    PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
-    AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
-    AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION} \
-    # By default PIP installs everything to ~/.local
-    PIP_USER="true"
+    AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
@@ -438,6 +423,20 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/log/*
+
+# Having the variable in final image allows to disable providers manager warnings when
+# production image is prepared from sources rather than from package
+ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
+ARG AIRFLOW_IMAGE_REPOSITORY
+ARG AIRFLOW_IMAGE_README_URL
+ARG AIRFLOW_USER_HOME_DIR
+ARG AIRFLOW_HOME
+
+# By default PIP installs everything to ~/.local
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
+    AIRFLOW_UID=${AIRFLOW_UID} \
+    AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
+    AIRFLOW_HOME=${AIRFLOW_HOME}
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
@@ -478,6 +477,8 @@ RUN chmod a+x /entrypoint /clean-logs \
 # including plain sudo, sudo with --interactive flag
 RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sudoers
 
+ARG AIRFLOW_VERSION
+
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
 # Also set airflow as nice PROMPT message.
@@ -490,7 +491,10 @@ RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sud
 # This overhead is not happening for binaries that already link dynamically libstdc++
 ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
-    LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+    LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6" \
+    AIRFLOW_VERSION=${AIRFLOW_VERSION} \
+    AIRFLOW__CORE__LOAD_EXAMPLES="false" \
+    PIP_USER="true"
 
 WORKDIR ${AIRFLOW_HOME}
 

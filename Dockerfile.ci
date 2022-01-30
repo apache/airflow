@@ -23,22 +23,20 @@ FROM ${PYTHON_BASE_IMAGE} as main
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
-ARG AIRFLOW_VERSION="2.2.0.dev0"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="6"
 
 # Make sure noninteractive debian install is used and language variables set
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} AIRFLOW_VERSION=${AIRFLOW_VERSION} \
+ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MSSQL_CLIENT="true"
 
-# Print versions
-RUN echo "Base image: ${PYTHON_BASE_IMAGE}, Airflow version: ${AIRFLOW_VERSION}"
+RUN echo "Base image version: ${PYTHON_BASE_IMAGE}"
 
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
@@ -234,6 +232,8 @@ ARG CASS_DRIVER_NO_CYTHON="1"
 # Build cassandra driver on multiple CPUs
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
+ARG AIRFLOW_VERSION="2.3.0.dev"
+
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
     AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS} \
@@ -246,6 +246,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
     INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI} \
+    AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # In the CI image we always:
 # * install MySQL, MsSQL
@@ -262,6 +263,8 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
     CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY} \
     CASS_DRIVER_NO_CYTHON=${CASS_DRIVER_NO_CYTHON}
+
+RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
