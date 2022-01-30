@@ -172,7 +172,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: the created engine.
         """
         connection = self.get_connection(self.gcp_conn_id)
-        credentials_path = json.loads(connection.extra).get("extra__google_cloud_platform__key_path")
+        extras = connection.extra_dejson
+        credentials_path = extras.get("extra__google_cloud_platform__key_path", None)
         if credentials_path is None:
             raise AirflowException("For now, we only support instantiating SQLAlchemy engine by using extra__google_cloud_platform__key_path")
         return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
