@@ -17,12 +17,7 @@
 # under the License.
 """Hook for SSH connections."""
 import os
-<<<<<<< HEAD
-import random
-import time
-=======
 import sys
->>>>>>> cdd9ea66208e3d70d1cf2a34530ba69bc3c58a50
 import warnings
 from base64 import decodebytes
 from io import StringIO
@@ -31,6 +26,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
+from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -264,23 +260,36 @@ class SSHHook(BaseHook):
         :rtype: paramiko.client.SSHClient
         """
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
+        client = paramiko.SSHClient()
 
+        if not self.allow_host_key_change:
+            self.log.warning(
+                "Remote Identification Change is not verified. "
+                "This won't protect against Man-In-The-Middle attacks"
+            )
+            client.load_system_host_keys()
 
-        try:
-            client = paramiko.SSHClient()
-
-            if not self.allow_host_key_change:
-                self.log.warning(
-                    "Remote Identification Change is not verified. "
-                    "This won't protect against Man-In-The-Middle attacks"
-                )
+        if self.no_host_key_check:
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            # Default is RejectPolicy
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
-            pass  # will fallback to system host keys if none explicitly specified in conn extra
+            if self.host_key is not None:
+                client_host_keys = client.get_host_keys()
+                if self.port == SSH_PORT:
+                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                else:
+                    client_host_keys.add(
+                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                    )
+            else:
+                pass  # will fallback to system host keys if none explicitly specified in conn extra
 
         connect_kwargs: Dict[str, Any] = dict(
             hostname=self.remote_host,
             username=self.username,
-            timeout=self.conn_timeout,
+            # timeout=self.conn_timeout,
+            timeout=0.1,
             compress=self.compress,
             port=self.port,
             sock=self.host_proxy,
@@ -297,7 +306,11 @@ class SSHHook(BaseHook):
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
 
-        client.connect(**connect_kwargs)
+        log_before_retry = lambda retry_state : self.log.info("Failed to connect. Retry attempt %d", retry_state.attempt_number)
+
+        for attempt in Retrying(wait=wait_fixed(3) + wait_random(0, 5), stop=stop_after_attempt(5), before=log_before_retry):
+            with attempt:
+                client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
@@ -405,23 +418,3 @@ class SSHHook(BaseHook):
             'Ensure key provided is valid for one of the following'
             'key formats: RSA, DSS, ECDSA, or Ed25519'
         )
-
-    def _exponential_sleep_generator(self, initial, maximum, multiplier=2.0):
-        """
-        Generates sleep intervals based on the exponential back-off algorithm.
-
-        :param initial: The minimum amount of time to delay. This must be greater than 0.
-        :type initial: float
-        :param maximum: The maximum amount of time to delay.
-        :type maximum: float
-        :param multiplier: The multiplier applied to the delay.
-        :type multiplier: float
-
-        :return: successive sleep intervals.
-        """
-        delay = initial
-        while True:
-            # Introduce jitter by yielding a delay that is uniformly distributed
-            # to average out to the delay time.
-            yield min(random.uniform(0.0, delay * 2.0), maximum)
-            delay = delay * multiplier
