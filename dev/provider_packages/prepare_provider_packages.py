@@ -1334,9 +1334,14 @@ def get_all_changes_for_package(
                         )
                         # Returns 66 in case of doc-only changes
                         sys.exit(66)
+                    if len(changes) > len(changes_since_last_doc_only_check):
+                        # if doc-only was released after previous release - use it as starting point
+                        # but if before - stay with the releases from last tag.
+                        changes = changes_since_last_doc_only_check
                 except subprocess.CalledProcessError:
                     # ignore when the commit mentioned as last doc-only change is obsolete
                     pass
+
             console.print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             console.print()
             console.print(
@@ -1697,16 +1702,16 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),
+        target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
     )
 
     return Mode(
         target_versions=target_versions,
         line_length=config.get('line_length', Mode.line_length),
-        is_pyi=config.get('is_pyi', Mode.is_pyi),
-        string_normalization=not config.get('skip_string_normalization', not Mode.string_normalization),
-        experimental_string_processing=config.get(
-            'experimental_string_processing', Mode.experimental_string_processing
+        is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
+        string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
+        experimental_string_processing=bool(
+            config.get('experimental_string_processing', Mode.experimental_string_processing)
         ),
     )
 
@@ -2180,6 +2185,14 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker`.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.emr`.',
+    'This module is deprecated. Please use `airflow.providers.opsgenie.hooks.opsgenie`.',
+    'This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie`.',
+    'This module is deprecated. Please use `airflow.hooks.redshift_sql` '
+    'or `airflow.hooks.redshift_cluster` as appropriate.',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` or '
+    '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
+    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
 }
 
 
