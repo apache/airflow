@@ -132,3 +132,39 @@ class ElasticsearchSecretTest(unittest.TestCase):
         )
 
         assert f"{scheme}://username:password@elastichostname:9200" == connection
+        
+    def test_url_generated_when_user_is_empty(self):
+        connection = self._get_connection(
+            {
+                "elasticsearch": {
+                    "enabled": True,
+                    "connection": {"pass": "password", "host": "elastichostname", "port": 8080},
+                }
+            }
+        )
+
+        assert "http://elastichostname:8080" == connection
+
+    def test_url_generated_when_password_is_empty(self):
+        connection = self._get_connection(
+            {
+                "elasticsearch": {
+                    "enabled": True,
+                    "connection": {"user": "admin", "host": "elastichostname", "port": 8080},
+                }
+            }
+        )
+
+        assert "http://elastichostname:8080" == connection
+
+    def test_url_generated_with_valid_user_password(self):
+        connection = self._get_connection(
+            {
+                "elasticsearch": {
+                    "enabled": True,
+                    "connection": {"user": "admin", "pass": "pass", "host": "elastichostname", "port": 8080},
+                }
+            }
+        )
+
+        assert "http://admin:pass@elastichostname:8080" == connection
