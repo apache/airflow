@@ -132,7 +132,7 @@ class ElasticsearchSecretTest(unittest.TestCase):
         )
 
         assert f"{scheme}://username:password@elastichostname:9200" == connection
-        
+
     def test_url_generated_when_user_is_empty(self):
         connection = self._get_connection(
             {
