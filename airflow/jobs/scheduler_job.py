@@ -44,6 +44,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.pool import Pool
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
@@ -650,6 +651,7 @@ class SchedulerJob(BaseJob):
 
         processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
+        self._update_pools()
         self.processor_agent = DagFileProcessorAgent(
             dag_directory=self.subdir,
             max_runs=self.num_times_parse_dags,
@@ -1133,6 +1135,29 @@ class SchedulerJob(BaseJob):
         self.processor_agent.send_sla_callback_request_to_execute(
             full_filepath=dag.fileloc, dag_id=dag.dag_id
         )
+
+    @provide_session
+    def _update_pools(self, session: Session = None) -> None:
+        """Load pools configuration section and save to database"""
+        pool_config_dict = conf.as_dict(display_sensitive=True).get('pool')
+        if pool_config_dict:
+            for pool_name, pool_value in pool_config_dict.items():
+                if not self._check_pool_exists(session, pool_name):
+                    pool = Pool(
+                        pool=pool_name,
+                        slots=pool_value,
+                        description=f"Provisioned by AIRFLOW__POOL__{pool_name.upper()} environment variable"
+                    )
+                    session.add(pool)
+                    session.commit()
+
+    @provide_session
+    def _check_pool_exists(self, session: Session, pool_name) -> bool:
+        """Check if a given pool exists in the database."""
+        obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
+        if obj is None:
+            return False
+        return True
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:

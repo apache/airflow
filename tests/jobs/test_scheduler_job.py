@@ -88,6 +88,13 @@ def disable_load_example():
             yield
 
 
+@pytest.fixture(scope="class")
+def pool_env_var():
+    with conf_vars({('pool', 'testpool'): '2'}):
+        with env_vars({'AIRFLOW__POOL__TESTPOOL': '2'}):
+            yield
+
+
 @pytest.fixture(scope="module")
 def dagbag():
     from airflow.models.dagbag import DagBag
@@ -3813,3 +3820,18 @@ class TestSchedulerJobQueriesCount:
             .filter(DagRun.execution_date != DEFAULT_DATE)  # exclude the first run
             .scalar()
         ) > (timezone.utcnow() - timedelta(days=2))
+
+    def test_update_pools_from_conf(self, pool_env_var):
+        pool_name = 'testpool'
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
+        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+        session = settings.Session()
+        self.scheduler_job._update_pools(session=session)
+
+        pool = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
+
+        assert pool.pool == 'testpool'
+        assert pool.slots == 2
+        assert pool.description == 'Provisioned by AIRFLOW__POOL__TESTPOOL environment variable'
