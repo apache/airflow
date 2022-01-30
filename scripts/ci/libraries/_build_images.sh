@@ -294,7 +294,7 @@ function build_images::check_if_buildx_plugin_available() {
     buildx_version=$(docker buildx version 2>/dev/null || true)
     if [[ ${buildx_version} != "" ]]; then
         if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
-            BUILD_COMMAND+=("buildx" "build" "--builder" "airflow_cache" "--progress=tty" "--push")
+            BUILD_COMMAND+=("buildx" "build" "--builder" "airflow_cache" "--progress=tty")
             docker_v buildx inspect airflow_cache || docker_v buildx create --name airflow_cache
         else
             BUILD_COMMAND+=("buildx" "build" "--builder" "default" "--progress=tty")
@@ -509,6 +509,10 @@ function build_images::build_ci_image() {
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
         . -f Dockerfile.ci
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # Push the image as "latest" so that it can be used in Breeze
+        docker_v push "${AIRFLOW_CI_IMAGE}"
+    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
@@ -658,6 +662,10 @@ function build_images::build_prod_images() {
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
         . -f Dockerfile
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # Push the image as "latest" so that it can be used in Breeze
+        docker_v push "${AIRFLOW_PROD_IMAGE}"
+    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
