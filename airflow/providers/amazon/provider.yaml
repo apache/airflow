@@ -106,6 +106,8 @@ integrations:
   - integration-name: Amazon RDS
     external-doc-url: https://aws.amazon.com/rds/
     logo: /integration-logos/aws/Amazon-RDS_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/rds.rst
     tags: [aws]
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
@@ -272,6 +274,9 @@ operators:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
       - airflow.providers.amazon.aws.operators.step_function
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.operators.rds
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
