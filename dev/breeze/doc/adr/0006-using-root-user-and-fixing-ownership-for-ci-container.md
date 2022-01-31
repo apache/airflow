@@ -60,7 +60,7 @@ automatically remap the user - all the files created inside the containers are
 automatically remapped to have the "host" user ownership and there is no
 need to fix the ownership for those cases.
 
-On Linux any file we create in container will keep the same user is and group
+On Linux any file we create in container will keep the same user id and group
 id in the host. But those user/group ids might not exist in the Host. - if we
 create a user 50001 in the container, the id will remain like that on the host,
 when we exit from the container. This is very problematic because when we map
