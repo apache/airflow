@@ -1375,6 +1375,7 @@ tagValue
 task_group
 taskflow
 taskinstance
+taskmeta
 taskmixin
 tasksetmeta
 tblproperties
