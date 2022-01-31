@@ -174,6 +174,7 @@ def _build_query(
     keep_last_group_by,
     clean_before_timestamp,
     session,
+    **kwargs,
 ):
     query = session.query(orm_model)
     conditions = [recency_column < clean_before_timestamp]
