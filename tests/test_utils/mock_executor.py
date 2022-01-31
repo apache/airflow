@@ -59,7 +59,7 @@ class MockExecutor(BaseExecutor):
             # for tests!
             def sort_by(item):
                 key, val = item
-                (dag_id, task_id, date, try_number) = key
+                (dag_id, task_id, date, try_number, map_index) = key
                 (_, prio, _, _) = val
                 # Sort by priority (DESC), then date,task, try
                 return -prio, date, dag_id, task_id, try_number
@@ -69,8 +69,8 @@ class MockExecutor(BaseExecutor):
             for index in range(min((open_slots, len(sorted_queue)))):
                 (key, (_, _, _, ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
+                state = self.mock_task_results[(key, ti.try_number)]
                 ti._try_number += 1
-                state = self.mock_task_results[key]
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
 
@@ -86,13 +86,24 @@ class MockExecutor(BaseExecutor):
         # a list of all events for testing
         self.sorted_tasks.append((key, (state, info)))
 
+    def mock_task_retry(self, dag_id, task_id, run_id: str, try_number=1):
+        """
+        Set the mock outcome of running this particular task instances to
+        UP_FOR_RETRY.
+
+        If the task identified by the tuple ``(TaskInstanceKey(dag_id, task_id, run_id),try_number)``
+        is run by this executor it's state will be UP_FOR_RETRY.
+        """
+        assert isinstance(run_id, str)
+        self.mock_task_results[(TaskInstanceKey(dag_id, task_id, run_id), try_number)] = State.UP_FOR_RETRY
+
     def mock_task_fail(self, dag_id, task_id, run_id: str, try_number=1):
         """
         Set the mock outcome of running this particular task instances to
         FAILED.
 
-        If the task identified by the tuple ``(dag_id, task_id, date,
-        try_number)`` is run by this executor it's state will be FAILED.
+        If the task identified by the tuple ``(TaskInstanceKey(dag_id, task_id, run_id),try_number)``
+        is run by this executor it's state will be FAILED.
         """
         assert isinstance(run_id, str)
-        self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED
+        self.mock_task_results[(TaskInstanceKey(dag_id, task_id, run_id), try_number)] = State.FAILED

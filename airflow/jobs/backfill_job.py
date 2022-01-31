@@ -184,27 +184,25 @@ class BackfillJob(BaseJob):
             refreshed_tis = session.query(TI).filter(filter_for_tis).all()
 
         for ti in refreshed_tis:
-            # Here we remake the key by subtracting 1 to match in memory information
-            reduced_key = ti.key.reduced
             if ti.state == TaskInstanceState.SUCCESS:
-                ti_status.succeeded.add(reduced_key)
+                ti_status.succeeded.add(ti.key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti.key)
                 continue
             if ti.state == TaskInstanceState.SKIPPED:
-                ti_status.skipped.add(reduced_key)
+                ti_status.skipped.add(ti.key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti.key)
                 continue
             if ti.state == TaskInstanceState.FAILED:
                 self.log.error("Task instance %s failed", ti)
-                ti_status.failed.add(reduced_key)
-                ti_status.running.pop(reduced_key)
+                ti_status.failed.add(ti.key)
+                ti_status.running.pop(ti.key)
                 continue
             # special case: if the task needs to run again put it back
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti.key)
                 ti_status.to_run[ti.key] = ti
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
@@ -225,7 +223,7 @@ class BackfillJob(BaseJob):
                     ti,
                 )
                 tis_to_be_scheduled.append(ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti.key)
                 ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances

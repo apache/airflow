@@ -534,7 +534,7 @@ class SchedulerJob(BaseJob):
         """Respond to executor events."""
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str], int] = {}
+        ti_primary_key_to_try_number_map: Dict[TaskInstanceKey, int] = {}
         event_buffer = self.executor.get_event_buffer()
         tis_with_right_state: List[TaskInstanceKey] = []
 
@@ -542,8 +542,8 @@ class SchedulerJob(BaseJob):
         for ti_key, value in event_buffer.items():
             state: str
             state, _ = value
-            # We create map (dag_id, task_id, execution_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
+            # We create map (dag_id, task_id, run_id, map_index) -> in-memory try_number
+            ti_primary_key_to_try_number_map[ti_key] = ti_key.try_number
 
             self.log.info(
                 "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
@@ -572,8 +572,8 @@ class SchedulerJob(BaseJob):
             **skip_locked(session=session),
         )
         for ti in tis:
-            try_number = ti_primary_key_to_try_number_map[ti.key.primary]
-            buffer_key = ti.key.with_try_number(try_number)
+            buffer_key = ti.key
+            try_number = ti_primary_key_to_try_number_map[buffer_key]
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?

@@ -38,7 +38,6 @@ from airflow.exceptions import (
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -190,7 +189,7 @@ class TestBackfillJob:
             ("run_this_last", end_date),
         ]
         assert [
-            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', 1), (State.SUCCESS, None))
+            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', -1), (State.SUCCESS, None))
             for (task_id, when) in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -267,7 +266,7 @@ class TestBackfillJob:
 
         job.run()
         assert [
-            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', 1), (State.SUCCESS, None))
+            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', -1), (State.SUCCESS, None))
             for task_id in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -679,15 +678,12 @@ class TestBackfillJob:
             },
         ) as dag:
             task1 = DummyOperator(task_id="task1")
-        dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun(run_id=DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE))
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
-        ] = State.UP_FOR_RETRY
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
-        ] = State.UP_FOR_RETRY
+        executor.mock_task_retry(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
+        executor.mock_task_retry(dag.dag_id, task1.task_id, dr.run_id, try_number=2)
+
         job = BackfillJob(
             dag=dag,
             executor=executor,
@@ -706,13 +702,12 @@ class TestBackfillJob:
             },
         ) as dag:
             task1 = DummyOperator(task_id="task1")
-        dr = dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun(run_id=DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE))
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
-        ] = State.UP_FOR_RETRY
+        executor.mock_task_retry(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
         executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=2)
+
         job = BackfillJob(
             dag=dag,
             executor=executor,

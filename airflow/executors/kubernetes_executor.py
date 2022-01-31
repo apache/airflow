@@ -296,7 +296,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.info('Kubernetes job is %s', str(next_job).replace("\n", " "))
         key, command, kube_executor_config, pod_template_file = next_job
-        dag_id, task_id, run_id, try_number = key
+        dag_id, task_id, run_id, try_number, map_index = key
 
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')

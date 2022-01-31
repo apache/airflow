@@ -29,6 +29,7 @@ from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
 from airflow import AirflowException
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -244,7 +245,7 @@ class TestKubernetesExecutor:
             kubernetes_executor.start()
             # Execute a task while the Api Throws errors
             try_number = 1
-            task_instance_key = ('dag', 'task', 'run_id', try_number)
+            task_instance_key = ('dag', 'task', 'run_id', try_number, -1)
             kubernetes_executor.execute_async(
                 key=task_instance_key,
                 queue=None,
@@ -326,7 +327,7 @@ class TestKubernetesExecutor:
             assert executor.task_queue.empty()
 
             executor.execute_async(
-                key=('dag', 'task', 'run_id', 1),
+                key=TaskInstanceKey('dag', 'task', 'run_id'),
                 queue=None,
                 command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
                 executor_config={
@@ -462,12 +463,7 @@ class TestKubernetesExecutor:
         executor = self.kubernetes_executor
         executor.scheduler_job_id = "10"
         ti_key = annotations_to_key(
-            {
-                'dag_id': 'dag',
-                'run_id': 'run_id',
-                'task_id': 'task',
-                'try_number': '1',
-            }
+            {'dag_id': 'dag', 'run_id': 'run_id', 'task_id': 'task', 'try_number': '1'}
         )
         mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))

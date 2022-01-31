@@ -128,7 +128,6 @@ TR = TaskReschedule
 _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
 
-
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel, DagRun
@@ -303,20 +302,7 @@ class TaskInstanceKey(NamedTuple):
     task_id: str
     run_id: str
     try_number: int = 1
-
-    @property
-    def primary(self) -> Tuple[str, str, str]:
-        """Return task instance primary key part of the key"""
-        return self.dag_id, self.task_id, self.run_id
-
-    @property
-    def reduced(self) -> 'TaskInstanceKey':
-        """Remake the key by subtracting 1 from try number to match in memory information"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1))
-
-    def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
-        """Returns TaskInstanceKey with provided ``try_number``"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number)
+    map_index: int = -1
 
     @property
     def key(self) -> "TaskInstanceKey":
@@ -325,6 +311,12 @@ class TaskInstanceKey(NamedTuple):
         Returns self
         """
         return self
+
+    def __eq__(self, o) -> "bool":
+        return o.__eq__((self.dag_id, self.task_id, self.run_id, self.map_index))
+
+    def __hash__(self):
+        return (self.dag_id, self.task_id, self.run_id, self.map_index).__hash__()
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -834,7 +826,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @provide_session
     def set_state(self, state: Optional[str], session=NEW_SESSION):
@@ -2275,7 +2267,7 @@ class TaskInstance(Base, LoggingMixin):
             )
         else:
             return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id).in_(
-                [ti.key.primary for ti in tis]
+                [ti.key for ti in tis]
             )
 
 

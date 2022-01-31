@@ -1509,7 +1509,7 @@ class DAG(LoggingMixin):
                 visited_external_tis = set()
 
             for ti in query.filter(TI.operator == ExternalTaskMarker.__name__):
-                ti_key = ti.key.primary
+                ti_key = ti.key
                 if ti_key in visited_external_tis:
                     continue
 
