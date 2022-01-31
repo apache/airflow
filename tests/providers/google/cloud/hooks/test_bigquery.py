@@ -22,15 +22,12 @@ import unittest
 from unittest import mock
 
 import pytest
-import sqlalchemy
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.exceptions import NotFound
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.models import crypto
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryCursor,
     BigQueryHook,
