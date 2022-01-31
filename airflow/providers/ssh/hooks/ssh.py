@@ -310,7 +310,10 @@ class SSHHook(BaseHook):
         )
 
         for attempt in Retrying(
-            wait=wait_fixed(3) + wait_random(0, 2), stop=stop_after_attempt(3), before_sleep=log_before_sleep
+            reraise=True,
+            wait=wait_fixed(3) + wait_random(0, 2),
+            stop=stop_after_attempt(3),
+            before_sleep=log_before_sleep,
         ):
             with attempt:
                 client.connect(**connect_kwargs)
