@@ -40,7 +40,7 @@ class PostgresOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_fields_renderers = {'sql': 'postgresql'}
     template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
