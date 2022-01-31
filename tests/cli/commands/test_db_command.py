@@ -153,7 +153,7 @@ class TestCLIDBClean:
         timestamp = '2021-01-01 00:00:00'
         with patch('airflow.utils.timezone.TIMEZONE', pendulum.timezone(timezone)):
             args = self.parser.parse_args(
-                ['maintenance', 'cleanup-tables', f"--clean-before-timestamp", f"{timestamp}", '-y']
+                ['maintenance', 'cleanup-tables', "--clean-before-timestamp", f"{timestamp}", '-y']
             )
             db_command.cleanup_tables(args)
         run_cleanup_mock.assert_called_once_with(
@@ -173,7 +173,7 @@ class TestCLIDBClean:
         timestamp = '2021-01-01 00:00:00+03:00'
         with patch('airflow.utils.timezone.TIMEZONE', pendulum.timezone(timezone)):
             args = self.parser.parse_args(
-                ['maintenance', 'cleanup-tables', f"--clean-before-timestamp", f"{timestamp}", '-y']
+                ['maintenance', 'cleanup-tables', "--clean-before-timestamp", f"{timestamp}", '-y']
             )
             db_command.cleanup_tables(args)
 
@@ -195,7 +195,7 @@ class TestCLIDBClean:
             [
                 'maintenance',
                 'cleanup-tables',
-                f"--clean-before-timestamp",
+                "--clean-before-timestamp",
                 "2021-01-01",
                 *confirm_arg,
             ]
@@ -220,7 +220,7 @@ class TestCLIDBClean:
             [
                 'maintenance',
                 'cleanup-tables',
-                f"--clean-before-timestamp",
+                "--clean-before-timestamp",
                 "2021-01-01",
                 *dry_run_arg,
             ]
@@ -247,7 +247,7 @@ class TestCLIDBClean:
             [
                 'maintenance',
                 'cleanup-tables',
-                f"--clean-before-timestamp",
+                "--clean-before-timestamp",
                 "2021-01-01",
                 *extra_args,
             ]
@@ -272,7 +272,7 @@ class TestCLIDBClean:
             [
                 'maintenance',
                 'cleanup-tables',
-                f"--clean-before-timestamp",
+                "--clean-before-timestamp",
                 "2021-01-01",
                 *extra_args,
             ]

@@ -232,7 +232,8 @@ def _confirm_delete(*, date: DateTime, tables: List[str]):
     question = '\n'.join(
         [
             f"You have requested that we purge all data prior to {date}{for_tables}.",
-            "This is irreversible.  Consider backing up the tables first and / or doing a dry run with option --dry-run.",
+            "This is irreversible.  Consider backing up the tables first and / or doing a dry run"
+            " with option --dry-run.",
             "Enter 'delete rows' to proceed.",
         ]
     )
@@ -285,7 +286,8 @@ def run_cleanup(
 
     :param clean_before_timestamp: The timestamp before which data should be purged
     :type clean_before_timestamp: DateTime
-    :param table_names: Optional. List of table names to perform maintenance on.  If list not provided, will perform maintenance on all tables.
+    :param table_names: Optional. List of table names to perform maintenance on.  If list not provided,
+        will perform maintenance on all tables.
     :type table_names: Optional[List[str]]
     :param dry_run: If true, print rows meeting deletion criteria
     :type dry_run: bool
