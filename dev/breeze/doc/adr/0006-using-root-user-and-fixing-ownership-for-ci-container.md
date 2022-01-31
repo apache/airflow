@@ -134,7 +134,7 @@ easily deleted - either manually or when you change branches.
 ## Alternatives
 
 The problem could potentially be mitigated by
-[user remapping]( https://docs.docker.com/engine/security/userns-remapi/)
+[user remapping]( https://docs.docker.com/engine/security/userns-remap/)
 The problem is that it  can only be configured at the "docker daemon" level, and
 this is something we should not require an average user should do, also the
 problem with user remapping is that it is "global" setting. It will remap your
