@@ -20,7 +20,8 @@ import functools
 import gzip
 import logging
 from io import BytesIO as IO
-from typing import Callable, TypeVar, cast
+from itertools import chain
+from typing import Callable, Optional, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, g, request
@@ -32,15 +33,6 @@ from airflow.utils.session import create_session
 T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
-
-
-def _get_dag_id() -> str:
-    dag_id = request.args.get('dag_id') 
-    if dag_id:
-        return dag_id
-    path_parts = request.path.split('/')
-    if len(path_parts) >= 3 and path_parts[1] == 'dags':
-        return path_parts[2]
 
 
 def action_logging(f: T) -> T:
@@ -57,10 +49,10 @@ def action_logging(f: T) -> T:
                 user = g.user.username
 
             fields_skip_logging = {'csrf_token', '_csrf_token'}
-            log_fields = {k: v for k, v in request.values.items() if k not in fields_skip_logging}
-            dag_id = _get_dag_id()
-            if dag_id:
-                log_fields['dag_id'] = dag_id
+            log_fields = {k: v for k, v in chain(
+                request.values.items(), 
+                request.view_args.items()                                
+                ) if k not in fields_skip_logging}
 
             log = Log(
                 event=f.__name__,
