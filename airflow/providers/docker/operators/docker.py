@@ -290,8 +290,8 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                log_lines = "\n".join(log_lines)
-                raise AirflowException(f'Docker container failed: {repr(result)} lines {log_lines}')
+                joined_log_lines = "\n".join(log_lines)
+                raise AirflowException(f'Docker container failed: {repr(result)} lines {joined_log_lines}')
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
