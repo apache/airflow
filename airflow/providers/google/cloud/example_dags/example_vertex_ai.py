@@ -33,6 +33,8 @@ import os
 from datetime import datetime
 from uuid import uuid4
 
+from google.protobuf.struct_pb2 import Value
+
 from airflow import models
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
@@ -79,27 +81,27 @@ CUSTOM_JOB_ID = "test-custom-job-id"
 IMAGE_DATASET = {
     "display_name": str(uuid4()),
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/image_1.0.0.yaml",
-    "metadata": "test-image-dataset",
+    "metadata": Value(string_value="test-image-dataset"),
 }
 TABULAR_DATASET = {
     "display_name": str(uuid4()),
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/tabular_1.0.0.yaml",
-    "metadata": "test-tabular-dataset",
+    "metadata": Value(string_value="test-tabular-dataset"),
 }
 TEXT_DATASET = {
     "display_name": str(uuid4()),
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/text_1.0.0.yaml",
-    "metadata": "test-text-dataset",
+    "metadata": Value(string_value="test-text-dataset"),
 }
 VIDEO_DATASET = {
     "display_name": str(uuid4()),
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/video_1.0.0.yaml",
-    "metadata": "test-video-dataset",
+    "metadata": Value(string_value="test-video-dataset"),
 }
 TIME_SERIES_DATASET = {
     "display_name": str(uuid4()),
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/time_series_1.0.0.yaml",
-    "metadata": "test-video-dataset",
+    "metadata": Value(string_value="test-video-dataset"),
 }
 DATASET_ID = os.environ.get("DATASET_ID", "test-dataset-id")
 TEST_EXPORT_CONFIG = {"gcs_destination": {"output_uri_prefix": "gs://test-vertex-ai-bucket/exports"}}

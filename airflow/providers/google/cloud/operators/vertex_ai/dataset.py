@@ -18,7 +18,7 @@
 #
 """This module contains Google Vertex AI operators."""
 
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
@@ -108,10 +108,10 @@ class CreateDatasetOperator(BaseOperator):
         *,
         region: str,
         project_id: str,
-        dataset: Dataset,
+        dataset: Union[Dataset, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -144,7 +144,7 @@ class CreateDatasetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = hook.wait_for_operation(self.timeout, operation)
+        result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
 
         dataset = Dataset.to_dict(result)
         dataset_id = hook.extract_dataset_id(dataset)
@@ -199,12 +199,12 @@ class GetDatasetOperator(BaseOperator):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ) -> Dataset:
+    ) -> None:
         super().__init__(**kwargs)
         self.region = region
         self.project_id = project_id
@@ -284,7 +284,7 @@ class DeleteDatasetOperator(BaseOperator):
         dataset_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -357,10 +357,10 @@ class ExportDataOperator(BaseOperator):
         region: str,
         project_id: str,
         dataset_id: str,
-        export_config: ExportDataConfig,
+        export_config: Union[ExportDataConfig, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -433,10 +433,10 @@ class ImportDataOperator(BaseOperator):
         region: str,
         project_id: str,
         dataset_id: str,
-        import_configs: Sequence[ImportDataConfig],
+        import_configs: Union[Sequence[ImportDataConfig], List],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -519,7 +519,7 @@ class ListDatasetsOperator(BaseOperator):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -600,11 +600,11 @@ class UpdateDatasetOperator(BaseOperator):
         project_id: str,
         region: str,
         dataset_id: str,
-        dataset: Dataset,
-        update_mask: FieldMask,
+        dataset: Union[Dataset, Dict],
+        update_mask: Union[FieldMask, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,

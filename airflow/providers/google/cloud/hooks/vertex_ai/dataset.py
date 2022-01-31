@@ -18,7 +18,7 @@
 #
 """This module contains a Google Cloud Vertex AI hook."""
 
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
@@ -48,7 +48,7 @@ class DatasetHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: float, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -66,10 +66,10 @@ class DatasetHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        dataset: Dataset,
+        dataset: Union[Dataset, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Creates a Dataset.
@@ -103,7 +103,7 @@ class DatasetHook(GoogleBaseHook):
         dataset: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a Dataset.
@@ -134,10 +134,10 @@ class DatasetHook(GoogleBaseHook):
         project_id: str,
         region: str,
         dataset: str,
-        export_config: ExportDataConfig,
+        export_config: Union[ExportDataConfig, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Exports data from a Dataset.
@@ -174,7 +174,7 @@ class DatasetHook(GoogleBaseHook):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnnotationSpec:
         """
         Gets an AnnotationSpec.
@@ -211,7 +211,7 @@ class DatasetHook(GoogleBaseHook):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Dataset:
         """
         Gets a Dataset.
@@ -247,7 +247,7 @@ class DatasetHook(GoogleBaseHook):
         import_configs: Sequence[ImportDataConfig],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Imports data into a Dataset.
@@ -289,7 +289,7 @@ class DatasetHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListAnnotationsPager:
         """
         Lists Annotations belongs to a data item
@@ -339,7 +339,7 @@ class DatasetHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListDataItemsPager:
         """
         Lists DataItems in a Dataset.
@@ -387,7 +387,7 @@ class DatasetHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListDatasetsPager:
         """
         Lists Datasets in a Location.
@@ -427,11 +427,11 @@ class DatasetHook(GoogleBaseHook):
         project_id: str,
         region: str,
         dataset_id: str,
-        dataset: Dataset,
-        update_mask: FieldMask,
+        dataset: Union[Dataset, Dict],
+        update_mask: Union[FieldMask, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Dataset:
         """
         Updates a Dataset.
