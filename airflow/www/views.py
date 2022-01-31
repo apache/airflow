@@ -3138,8 +3138,8 @@ class Airflow(AirflowBaseView):
     def audit_log(self, session=None):
         dag_id = request.args.get('dag_id')
 
-        included_events = conf.get('webserver', 'included_events')
-        excluded_events = conf.get('webserver', 'excluded_events')
+        included_events = conf.get('webserver', 'audit_view_included_events')
+        excluded_events = conf.get('webserver', 'audit_view_excluded_events')
 
         query = session.query(Log).filter(Log.dag_id == dag_id)
         if included_events:
