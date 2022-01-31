@@ -40,7 +40,6 @@ from google.cloud.bigquery import (
     QueryJob,
     SchemaField,
 )
-from sqlalchemy import create_engine
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
@@ -52,6 +51,7 @@ from pandas_gbq.gbq import (
     _check_google_client_version as gbq_check_google_client_version,
     _test_google_api_imports as gbq_test_google_api_imports,
 )
+from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
@@ -177,7 +177,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         credentials_path = extras.get("extra__google_cloud_platform__key_path", None)
         if credentials_path is None:
             raise AirflowException(
-                "For now, we only support instantiating SQLAlchemy engine by using extra__google_cloud_platform__key_path")
+                "For now, we only support instantiating SQLAlchemy engine by"
+                "usingextra__google_cloud_platform__key_path"
+            )
         return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
 
     @staticmethod

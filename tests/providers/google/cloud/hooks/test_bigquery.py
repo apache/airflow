@@ -939,7 +939,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_sqlalchemy_engine(self):
         with pytest.raises(
             AirflowException,
-            match="For now, we only support instantiating SQLAlchemy engine by using extra__google_cloud_platform__key_path"):
+            match="For now, we only support instantiating SQLAlchemy engine by using"
+            " extra__google_cloud_platform__key_path",
+        ):
             self.hook.get_sqlalchemy_engine()
 
 
