@@ -274,7 +274,7 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # otherwise they are already compiled-in. We should do it in one step with removing artifacts \
         # as we want to keep the final image small
         bash /scripts/docker/prepare_node_modules.sh; \
-        REMOVE_ARTIFACTS="true" BUILD_TYPE="prod" /scripts/docker/compile_www_assets.sh; \
+        REMOVE_ARTIFACTS="true" BUILD_TYPE="prod" bash /scripts/docker/compile_www_assets.sh; \
         # Copy generated dist folder (otherwise it will be overridden by the COPY step below)
         mv -f /opt/airflow/airflow/www/static/dist /tmp/dist; \
     fi;
