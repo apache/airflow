@@ -27,7 +27,7 @@ import kubernetes.client.models as k8s
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     DeprecationWarning,
-    stacklevel=3,
+    stacklevel=2,
 )
 
 
