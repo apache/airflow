@@ -64,7 +64,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 parent=mock_client.return_value.common_location_path.return_value,
                 dataset=TEST_DATASET,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -82,7 +82,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.dataset_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -104,7 +104,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
                 export_config=TEST_EXPORT_CONFIG,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -126,7 +126,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.annotation_spec_path.return_value,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -147,7 +147,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -169,7 +169,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
                 import_configs=TEST_IMPORT_CONFIGS,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -195,7 +195,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -220,7 +220,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -244,7 +244,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -265,7 +265,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 dataset=TEST_DATASET,
                 update_mask=TEST_UPDATE_MASK,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -294,7 +294,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 parent=mock_client.return_value.common_location_path.return_value,
                 dataset=TEST_DATASET,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -312,7 +312,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.dataset_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -334,7 +334,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
                 export_config=TEST_EXPORT_CONFIG,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -356,7 +356,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.annotation_spec_path.return_value,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -377,7 +377,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -399,7 +399,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
                 import_configs=TEST_IMPORT_CONFIGS,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -425,7 +425,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -450,7 +450,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -474,7 +474,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -495,7 +495,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 dataset=TEST_DATASET,
                 update_mask=TEST_UPDATE_MASK,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

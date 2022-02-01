@@ -27,6 +27,7 @@ from google.cloud.aiplatform import (
     CustomPythonPackageTrainingJob,
     CustomTrainingJob,
     datasets,
+    models,
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
@@ -34,7 +35,7 @@ from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
     ListPipelineJobsPager,
     ListTrainingPipelinesPager,
 )
-from google.cloud.aiplatform_v1.types import CustomJob, Model, PipelineJob, TrainingPipeline
+from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
 from airflow import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -54,7 +55,13 @@ class CustomJobHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._job = None
+        self._job: Optional[
+            Union[
+                CustomContainerTrainingJob,
+                CustomPythonPackageTrainingJob,
+                CustomTrainingJob,
+            ]
+        ] = None
 
     def get_pipeline_service_client(
         self,
@@ -288,7 +295,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: Optional[str] = None,
         tensorboard: Optional[str] = None,
         sync=True,
-    ) -> Model:
+    ) -> models.Model:
         """Run Job for training pipeline"""
         model = job.run(
             dataset=dataset,
@@ -318,8 +325,11 @@ class CustomJobHook(GoogleBaseHook):
             tensorboard=tensorboard,
             sync=sync,
         )
-        model.wait()
-        return model
+        if model:
+            model.wait()
+            return model
+        else:
+            raise AirflowException("Training did not produce a Managed Model returning None.")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_pipeline_job(
@@ -329,7 +339,7 @@ class CustomJobHook(GoogleBaseHook):
         pipeline_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Cancels a PipelineJob. Starts asynchronous cancellation on the PipelineJob. The server makes a best
@@ -368,7 +378,7 @@ class CustomJobHook(GoogleBaseHook):
         training_pipeline: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Cancels a TrainingPipeline. Starts asynchronous cancellation on the TrainingPipeline. The server makes
@@ -407,7 +417,7 @@ class CustomJobHook(GoogleBaseHook):
         custom_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
         """
         Cancels a CustomJob. Starts asynchronous cancellation on the CustomJob. The server makes a best effort
@@ -447,7 +457,7 @@ class CustomJobHook(GoogleBaseHook):
         pipeline_job_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> PipelineJob:
         """
         Creates a PipelineJob. A PipelineJob will run immediately when created.
@@ -486,7 +496,7 @@ class CustomJobHook(GoogleBaseHook):
         training_pipeline: TrainingPipeline,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
         Creates a TrainingPipeline. A created TrainingPipeline right away will be attempted to be run.
@@ -520,7 +530,7 @@ class CustomJobHook(GoogleBaseHook):
         custom_job: CustomJob,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> CustomJob:
         """
         Creates a CustomJob. A created CustomJob right away will be attempted to be run.
@@ -604,7 +614,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: Optional[str] = None,
         tensorboard: Optional[str] = None,
         sync=True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create Custom Container Training Job
 
@@ -873,6 +883,9 @@ class CustomJobHook(GoogleBaseHook):
             staging_bucket=staging_bucket,
         )
 
+        if not self._job:
+            raise AirflowException("CustomJob was not created")
+
         model = self._run_job(
             job=self._job,
             dataset=dataset,
@@ -963,7 +976,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: Optional[str] = None,
         tensorboard: Optional[str] = None,
         sync=True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create Custom Python Package Training Job
 
@@ -1232,6 +1245,9 @@ class CustomJobHook(GoogleBaseHook):
             staging_bucket=staging_bucket,
         )
 
+        if not self._job:
+            raise AirflowException("CustomJob was not created")
+
         model = self._run_job(
             job=self._job,
             dataset=dataset,
@@ -1322,7 +1338,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: Optional[str] = None,
         tensorboard: Optional[str] = None,
         sync=True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create Custom Training Job
 
@@ -1591,6 +1607,9 @@ class CustomJobHook(GoogleBaseHook):
             staging_bucket=staging_bucket,
         )
 
+        if not self._job:
+            raise AirflowException("CustomJob was not created")
+
         model = self._run_job(
             job=self._job,
             dataset=dataset,
@@ -1631,7 +1650,7 @@ class CustomJobHook(GoogleBaseHook):
         pipeline_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a PipelineJob.
@@ -1664,7 +1683,7 @@ class CustomJobHook(GoogleBaseHook):
         training_pipeline: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a TrainingPipeline.
@@ -1697,7 +1716,7 @@ class CustomJobHook(GoogleBaseHook):
         custom_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a CustomJob.
@@ -1730,7 +1749,7 @@ class CustomJobHook(GoogleBaseHook):
         pipeline_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> PipelineJob:
         """
         Gets a PipelineJob.
@@ -1763,7 +1782,7 @@ class CustomJobHook(GoogleBaseHook):
         training_pipeline: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
         Gets a TrainingPipeline.
@@ -1796,7 +1815,7 @@ class CustomJobHook(GoogleBaseHook):
         custom_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> CustomJob:
         """
         Gets a CustomJob.
@@ -1832,7 +1851,7 @@ class CustomJobHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListPipelineJobsPager:
         """
         Lists PipelineJobs in a Location.
@@ -1920,7 +1939,7 @@ class CustomJobHook(GoogleBaseHook):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
         Lists TrainingPipelines in a Location.
@@ -1981,7 +2000,7 @@ class CustomJobHook(GoogleBaseHook):
         read_mask: Optional[str],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListCustomJobsPager:
         """
         Lists CustomJobs in a Location.

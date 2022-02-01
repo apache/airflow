@@ -56,7 +56,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -76,7 +76,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -99,7 +99,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 pipeline_job=TEST_PIPELINE_JOB,
                 pipeline_job_id=TEST_PIPELINE_JOB_ID,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -118,7 +118,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 parent=mock_client.return_value.common_location_path.return_value,
                 training_pipeline=TEST_TRAINING_PIPELINE,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -136,7 +136,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -156,7 +156,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -176,7 +176,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -196,7 +196,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -219,7 +219,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 filter=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -240,7 +240,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 filter=None,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -266,7 +266,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -286,7 +286,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -309,7 +309,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 pipeline_job=TEST_PIPELINE_JOB,
                 pipeline_job_id=TEST_PIPELINE_JOB_ID,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -328,7 +328,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 parent=mock_client.return_value.common_location_path.return_value,
                 training_pipeline=TEST_TRAINING_PIPELINE,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -346,7 +346,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -366,7 +366,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -386,7 +386,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -406,7 +406,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -429,7 +429,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 filter=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -450,7 +450,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 filter=None,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

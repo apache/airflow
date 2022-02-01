@@ -186,22 +186,6 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[CustomJobHook] = None
-
-    def execute(self, context: 'Context'):
-        self.hook = CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-    def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
-        if self.hook:
-            self.hook.cancel_job()
 
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
@@ -480,7 +464,11 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.command = command
 
     def execute(self, context: 'Context'):
-        super().execute(context)
+        self.hook = CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -543,6 +531,14 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             },
         )
         return result
+
+    def on_kill(self) -> None:
+        """
+        Callback called when the operator is killed.
+        Cancel any running job.
+        """
+        if self.hook:
+            self.hook.cancel_job()
 
 
 class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
@@ -822,7 +818,11 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         self.python_module_name = python_module_name
 
     def execute(self, context: 'Context'):
-        super().execute(context)
+        self.hook = CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -886,6 +886,14 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             },
         )
         return result
+
+    def on_kill(self) -> None:
+        """
+        Callback called when the operator is killed.
+        Cancel any running job.
+        """
+        if self.hook:
+            self.hook.cancel_job()
 
 
 class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
@@ -1167,7 +1175,11 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.script_path = script_path
 
     def execute(self, context: 'Context'):
-        super().execute(context)
+        self.hook = CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -1232,6 +1244,14 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         )
         return result
 
+    def on_kill(self) -> None:
+        """
+        Callback called when the operator is killed.
+        Cancel any running job.
+        """
+        if self.hook:
+            self.hook.cancel_job()
+
 
 class DeleteCustomTrainingJobOperator(BaseOperator):
     """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
@@ -1268,7 +1288,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -1386,7 +1406,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
