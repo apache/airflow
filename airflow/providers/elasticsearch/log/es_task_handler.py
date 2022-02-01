@@ -187,15 +187,24 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         metadata['end_of_log'] = False if not logs else len(loading_hosts) == 0
 
         cur_ts = pendulum.now()
-        # Assume end of log after not receiving new log for 5 min,
-        # as executor heartbeat is 1 min and there might be some
-        # delay before Elasticsearch makes the log available.
         if 'last_log_timestamp' in metadata:
             last_log_ts = timezone.parse(metadata['last_log_timestamp'])
-            if (
+
+            # if we are not getting any logs at all after more than N seconds of trying,
+            # assume logs do not exist
+            if int(next_offset) == 0 and cur_ts.diff(last_log_ts).in_seconds() > 5:
+                metadata['end_of_log'] = True
+                message = (
+                    f"*** Log {log_id} not found in elasticsearch. "
+                    f"If your task started recently, please wait a moment and reload this page. "
+                    f"Otherwise, the logs for this task instance may have been removed."
+                )
+                return [('', message)], metadata
+            elif (
+                # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
-                or 'max_offset' in metadata
-                and int(offset) >= int(metadata['max_offset'])
+                # if max_offset specified, respect it
+                or ('max_offset' in metadata and int(offset) >= int(metadata['max_offset']))
             ):
                 metadata['end_of_log'] = True
 
