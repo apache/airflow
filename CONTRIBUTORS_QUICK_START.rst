@@ -747,14 +747,6 @@ All Tests are inside ./tests directory.
    target="_blank">Local and Remote Debugging in IDE</a>
 
 
-  - |BASH Unit Testing (BATS)|
-
-  .. |BASH Unit Testing (BATS)| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#bash-unit-testing-bats" target="_blank">
-   BASH Unit Testing (BATS)</a>
-
-
 Pre-commit
 ~~~~~~~~~~
 
@@ -1562,14 +1554,6 @@ All Tests are inside ./tests directory.
 
    <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
-
-
-  - |BASH Unit Testing (BATS)|
-
-  .. |BASH Unit Testing (BATS)| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#bash-unit-testing-bats" target="_blank">
-   BASH Unit Testing (BATS)</a>
 
 
 Pre-commit
