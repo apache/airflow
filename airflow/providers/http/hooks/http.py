@@ -212,7 +212,7 @@ class HttpHook(BaseHook):
 
         return self._retry_obj(self.run, *args, **kwargs)
 
-    def url_from_endpoint(self, endpoint: str) -> str:
+    def url_from_endpoint(self, endpoint: Optional[str]) -> str:
         """Combine base url with endpoint"""
         if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
             return self.base_url + '/' + endpoint
