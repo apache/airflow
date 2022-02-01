@@ -21,7 +21,7 @@ import gzip
 import logging
 from io import BytesIO as IO
 from itertools import chain
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, g, request
@@ -49,10 +49,11 @@ def action_logging(f: T) -> T:
                 user = g.user.username
 
             fields_skip_logging = {'csrf_token', '_csrf_token'}
-            log_fields = {k: v for k, v in chain(
-                request.values.items(), 
-                request.view_args.items()                                
-                ) if k not in fields_skip_logging}
+            log_fields = {
+                k: v
+                for k, v in chain(request.values.items(), request.view_args.items())
+                if k not in fields_skip_logging
+            }
 
             log = Log(
                 event=f.__name__,
