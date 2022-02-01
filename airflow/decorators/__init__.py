@@ -22,7 +22,6 @@ from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
-from airflow.providers.cncf.kubernetes.decorators.kubernetes import kubernetes_task
 from airflow.providers_manager import ProvidersManager
 
 # Please keep this in sync with the .pyi's __all__.
@@ -34,7 +33,6 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
-    "kubernetes_task",
 ]
 
 
@@ -43,7 +41,6 @@ class TaskDecoratorCollection:
 
     python: Any = staticmethod(python_task)
     virtualenv = staticmethod(virtualenv_task)
-    kubernetes = staticmethod(kubernetes_task)
 
     __call__ = python  # Alias '@task' to '@task.python'.
 

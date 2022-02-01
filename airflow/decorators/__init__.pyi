@@ -127,9 +127,8 @@ class TaskDecoratorCollection:
         """
     @overload
     def virtualenv(self, python_callable: F) -> F: ...
-    @overload
     def kubernetes(
-        python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
     ) -> TaskDecorator:
         """Wraps a function to be executed on a k8s pod using KubernetesPodOperator
 
@@ -143,8 +142,6 @@ class TaskDecoratorCollection:
             Defaults to False.
         :type multiple_outputs: bool
         """
-    @overload
-    def kubernetes(self, python_callable: F) -> F: ...
     # [START decorator_signature]
     def docker(
         self,

@@ -87,13 +87,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         if 'namespace' not in kwargs:
             kwargs['namespace'] = 'default'
 
-        kwargs_to_upstream = {
-            "python_callable": kwargs["python_callable"],
-            "op_args": kwargs["op_args"],
-            "op_kwargs": kwargs["op_kwargs"],
-        }
-
-        super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
 
