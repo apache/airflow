@@ -1887,6 +1887,24 @@ class TestDag(unittest.TestCase):
             conf={"param1": "hello"},
         )
 
+    def test_dag_clear_use_none_dag_run_state(self):
+        dag = DAG(dag_id='test_dag_clear_use_none_dag_run_state', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        dag.create_dagrun(run_id="test_dag_clear_use_none_state_run_id", state=State.RUNNING)
+        dag.clear(dag_run_state=State.NONE)
+
+    def test_dag_run_set_state_none(self):
+        dag = DAG(dag_id='test_dagrun_if_state_is_none', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        dr = dag.create_dagrun(
+            run_id="test_dagrun_if_state_is_none_run_id",
+            state=State.NONE,
+        )
+
+        dr.state = State.NONE
+
 
 class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):

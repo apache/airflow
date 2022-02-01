@@ -287,7 +287,9 @@ def clear_task_instances(
             )
             .all()
         )
-        dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
+
+        if dag_run_state:
+            dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             dr.state = dag_run_state
             dr.start_date = timezone.utcnow()
