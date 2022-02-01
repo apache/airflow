@@ -156,7 +156,7 @@ class TestElasticsearchTaskHandler:
         logs, metadatas = self.es_task_handler.read(ti, 1, {'offset': 0, 'last_log_timestamp': str(ts)})
 
         assert 1 == len(logs)
-        assert re.match(r'.*Log .* not found in elasticsearch.*', logs[0][0][1]) is not None
+        assert re.match(r'^\*\*\* Log .* not found in elasticsearch.*', logs[0][0][1]) is not None
         assert len(logs) == len(metadatas)
         assert len(logs[0]) == 1
         assert metadatas[0]['end_of_log'] is True
