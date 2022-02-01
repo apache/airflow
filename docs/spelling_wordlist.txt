@@ -762,6 +762,7 @@ exts
 faas
 facebook
 failover
+falsy
 faq
 fargate
 fbee
@@ -1396,6 +1397,7 @@ triggerer
 triggerers
 trino
 trojan
+truthy
 tsv
 ttl
 tunables
