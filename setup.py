@@ -179,7 +179,10 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-pandas_requirement = 'pandas>=0.17.1, <2.0'
+# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
+# We should remove the limits as soon as Flask App Builder releases version 3.4.4
+# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
+pandas_requirement = 'pandas>=0.17.1, <1.4'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
@@ -252,7 +255,10 @@ deprecated_api = [
 ]
 doc = [
     'click>=7.1,<9',
-    'sphinx>=4.0.0, <5.0.0',
+    'sphinx>=4.4.0, <5.0.0',
+    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
+    # even though Sphinx 4.4.0 has this but with python_version<3.10.
+    'importlib-metadata>=4.4; python_version < "3.8"',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi~=1.8.0',
@@ -281,6 +287,9 @@ facebook = [
 ]
 flask_appbuilder_authlib = [
     'authlib',
+]
+github = [
+    'pygithub',
 ]
 google = [
     'PyOpenSSL',
@@ -441,7 +450,7 @@ presto = [
     pandas_requirement,
 ]
 psrp = [
-    'pypsrp~=0.5',
+    'pypsrp~=0.8',
 ]
 qubole = [
     'qds-sdk>=1.10.4',
@@ -627,6 +636,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'exasol': exasol,
     'facebook': facebook,
     'ftp': [],
+    'github': github,
     'google': google,
     'grpc': grpc,
     'hashicorp': hashicorp,

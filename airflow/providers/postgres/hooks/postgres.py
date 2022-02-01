@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 from contextlib import closing
 from copy import deepcopy
@@ -57,7 +56,6 @@ class PostgresHook(DbApiHook):
 
     :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
-    :type postgres_conn_id: str
     """
 
     conn_name_attr = 'postgres_conn_id'
@@ -140,7 +138,7 @@ class PostgresHook(DbApiHook):
 
     def get_uri(self) -> str:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
-        uri = super().get_uri()
+        uri = super().get_uri().replace("postgres://", "postgresql://")
         if conn.extra_dejson.get('client_encoding', False):
             charset = conn.extra_dejson["client_encoding"]
             return f"{uri}?client_encoding={charset}"
@@ -164,9 +162,7 @@ class PostgresHook(DbApiHook):
         more information.
 
         :param cell: The cell to insert into the table
-        :type cell: object
         :param conn: The database connection
-        :type conn: connection object
         :return: The cell
         :rtype: object
         """
@@ -216,9 +212,7 @@ class PostgresHook(DbApiHook):
         Helper method that returns the table primary key
 
         :param table: Name of the target table
-        :type table: str
         :param schema: Name of the target schema, public by default
-        :type table: str
         :return: Primary key columns list
         :rtype: List[str]
         """
@@ -245,16 +239,11 @@ class PostgresHook(DbApiHook):
         The REPLACE variant is specific to PostgreSQL syntax.
 
         :param table: Name of the target table
-        :type table: str
         :param values: The row to insert into the table
-        :type values: tuple of cell values
         :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         :param replace_index: the column or list of column names to act as
             index for the ON CONFLICT clause
-        :type replace_index: str or list
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """

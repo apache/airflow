@@ -40,34 +40,23 @@ class BigQueryToGCSOperator(BaseOperator):
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to use as the
         source data. If ``<project>`` is not included, project will be the project
         defined in the connection json. (templated)
-    :type source_project_dataset_table: str
     :param destination_cloud_storage_uris: The destination Google Cloud
         Storage URI (e.g. gs://some-bucket/some-file.txt). (templated) Follows
         convention defined here:
         https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
-    :type destination_cloud_storage_uris: List[str]
     :param compression: Type of compression to use.
-    :type compression: str
     :param export_format: File format to export.
-    :type export_format: str
     :param field_delimiter: The delimiter to use when extracting to a CSV.
-    :type field_delimiter: str
     :param print_header: Whether to print a header for a CSV file extract.
-    :type print_header: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
-    :type labels: dict
     :param location: The location used for the operation.
-    :type location: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -76,7 +65,6 @@ class BigQueryToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

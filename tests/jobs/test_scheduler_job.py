@@ -169,7 +169,6 @@ class TestSchedulerJob:
         dags_folder.
 
         :param dags_folder: the directory to traverse
-        :type dags_folder: str
         """
         self.scheduler_job = SchedulerJob(
             executor=self.null_exec, num_times_parse_dags=1, subdir=os.path.join(dags_folder)
@@ -644,6 +643,34 @@ class TestSchedulerJob:
 
         session.rollback()
         session.close()
+
+    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
+        """Check that task instances of missing DAGs are failed"""
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag'
+        task_id_1 = 'dummy'
+        task_id_2 = 'dummydummy'
+
+        with dag_maker(dag_id=dag_id, session=session, default_args={"max_active_tis_per_dag": 1}):
+            DummyOperator(task_id=task_id_1)
+            DummyOperator(task_id=task_id_2)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.dagbag = mock.MagicMock()
+        self.scheduler_job.dagbag.get_dag.return_value = None
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        tis = dr.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+        assert 0 == len(res)
+        tis = dr.get_task_instances(session=session)
+        assert len(tis) == 2
+        assert all(ti.state == State.FAILED for ti in tis)
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
@@ -2334,6 +2361,7 @@ class TestSchedulerJob:
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
+            'test_invalid_param.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
@@ -2591,49 +2619,6 @@ class TestSchedulerJob:
             self.scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_called_once_with(
                 full_filepath=dag.fileloc, dag_id=dag_id
             )
-
-    def test_sla_sent_to_processor_when_dagrun_completes(self, dag_maker, session):
-        """Test that SLA is sent to the processor when the dagrun completes"""
-        with dag_maker() as dag:
-            DummyOperator(task_id='task', sla=timedelta(hours=1))
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor(do_update=False)
-        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
-        mock_sla_callback = mock.MagicMock()
-        self.scheduler_job._send_sla_callbacks_to_processor = mock_sla_callback
-        assert session.query(DagRun).count() == 0
-        dag_models = DagModel.dags_needing_dagruns(session).all()
-        self.scheduler_job._create_dag_runs(dag_models, session)
-        dr = session.query(DagRun).one()
-        dr.state = DagRunState.SUCCESS
-        ti = dr.get_task_instance('task', session)
-        ti.state = TaskInstanceState.SUCCESS
-        session.merge(ti)
-        session.merge(dr)
-        session.flush()
-        self.scheduler_job._schedule_dag_run(dr, session)
-        dag = self.scheduler_job.dagbag.get_dag(dag.dag_id)
-        self.scheduler_job._send_sla_callbacks_to_processor.assert_called_once_with(dag)
-
-    def test_sla_sent_to_processor_when_dagrun_timeout(self, dag_maker, session):
-        """Test that SLA is sent to the processor when the dagrun timeout"""
-        with dag_maker(dagrun_timeout=datetime.timedelta(seconds=60)) as dag:
-            DummyOperator(task_id='task', sla=timedelta(hours=1))
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor(do_update=False)
-        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
-        mock_sla_callback = mock.MagicMock()
-        self.scheduler_job._send_sla_callbacks_to_processor = mock_sla_callback
-        assert session.query(DagRun).count() == 0
-        dag_models = DagModel.dags_needing_dagruns(session).all()
-        self.scheduler_job._create_dag_runs(dag_models, session)
-        dr = session.query(DagRun).one()
-        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
-        session.merge(dr)
-        session.flush()
-        self.scheduler_job._schedule_dag_run(dr, session)
-        dag = self.scheduler_job.dagbag.get_dag(dag.dag_id)
-        self.scheduler_job._send_sla_callbacks_to_processor.assert_called_once_with(dag)
 
     def test_create_dag_runs(self, dag_maker):
         """

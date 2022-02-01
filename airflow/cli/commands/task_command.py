@@ -106,11 +106,17 @@ def _get_dag_run(
 def _get_ti(
     task: BaseOperator,
     exec_date_or_run_id: str,
+    map_index: int,
     *,
     create_if_necessary: bool = False,
     session: Session = NEW_SESSION,
 ) -> TaskInstance:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
+    if task.is_mapped:
+        if map_index == -1:
+            raise RuntimeError("No map_index passed to mapped task")
+    elif map_index != -1:
+        raise RuntimeError("map_index passed to non-mapped task")
     dag_run = _get_dag_run(
         dag=task.dag,
         exec_date_or_run_id=exec_date_or_run_id,
@@ -118,14 +124,15 @@ def _get_ti(
         session=session,
     )
 
-    ti_or_none = dag_run.get_task_instance(task.task_id)
+    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(
-                f"TaskInstance for {task.dag.dag_id}, {task.task_id} with "
+                f"TaskInstance for {task.dag.dag_id}, {task.task_id}, map={map_index} with "
                 f"run_id or execution_date of {exec_date_or_run_id!r} not found"
             )
-        ti = TaskInstance(task, run_id=dag_run.run_id)
+        # TODO: Validate map_index is in range?
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
@@ -325,7 +332,7 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id)
+    ti = _get_ti(task, args.execution_date_or_run_id, args.map_index)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -353,7 +360,7 @@ def task_failed_deps(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id)
+    ti = _get_ti(task, args.execution_date_or_run_id, args.map_index)
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -376,7 +383,7 @@ def task_state(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id)
+    ti = _get_ti(task, args.execution_date_or_run_id, args.map_index)
     print(ti.current_state())
 
 
@@ -495,7 +502,7 @@ def task_test(args, dag=None):
     if task.params:
         task.params.validate()
 
-    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necessary=True)
+    ti = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary=True)
 
     try:
         if args.dry_run:
@@ -521,7 +528,7 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necessary=True)
+    ti = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary=True)
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

@@ -14,6 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+.. spelling::
+
+    ImportSshPublicKeyResponse
+    oslogin
+"""
+
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
@@ -68,19 +75,13 @@ class OSLoginHook(GoogleBaseHook):
         login profile.
 
         :param user: The unique ID for the user
-        :type user: str
         :param ssh_public_key: The SSH public key and expiration time.
-        :type ssh_public_key: dict
         :param project_id: The project ID of the Google Cloud project.
-        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will
             be retried using a default configuration.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that
             if ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         :return: A :class:`~google.cloud.oslogin_v1.ImportSshPublicKeyResponse` instance.
         """
         conn = self.get_conn()

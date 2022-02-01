@@ -88,9 +88,7 @@ class AmazonSystemTest(SystemTest):
         Create aws connection with region
 
         :param aws_conn_id: id of the aws connection to create
-        :type aws_conn_id: str
         :param region: aws region name to use in extra field of the aws connection
-        :type region: str
         """
         db.merge_conn(
             Connection(
@@ -141,9 +139,7 @@ class AmazonSystemTest(SystemTest):
         If specified cluster exists, it doesn't change and new cluster will not be created.
 
         :param aws_conn_id: id of the aws connection to use when creating boto3 client/resource
-        :type aws_conn_id: str
         :param cluster_name: name of the cluster to create in aws ecs
-        :type cluster_name: str
         """
         hook = AwsBaseHook(
             aws_conn_id=aws_conn_id,
@@ -175,9 +171,7 @@ class AmazonSystemTest(SystemTest):
         Delete ecs cluster with given short name or full Amazon Resource Name (ARN)
 
         :param aws_conn_id: id of the aws connection to use when creating boto3 client/resource
-        :type aws_conn_id: str
         :param cluster_name: name of the cluster to delete in aws ecs
-        :type cluster_name: str
         """
         hook = AwsBaseHook(
             aws_conn_id=aws_conn_id,
@@ -202,23 +196,15 @@ class AmazonSystemTest(SystemTest):
         Create ecs task definition with given name
 
         :param aws_conn_id: id of the aws connection to use when creating boto3 client/resource
-        :type aws_conn_id: str
         :param task_definition: family name for task definition to create in aws ecs
-        :type task_definition: str
         :param container: name of the container
-        :type container: str
         :param image: image used to start a container,
             format: `registry_id`.dkr.ecr.`region`.amazonaws.com/`repository_name`:`tag`
-        :type image: str
         :param execution_role_arn: task execution role that the Amazon ECS container agent can assume,
             format: arn:aws:iam::`registry_id`:role/`role_name`
-        :type execution_role_arn: str
         :param awslogs_group: awslogs group option in log configuration
-        :type awslogs_group: str
         :param awslogs_region: awslogs region option in log configuration
-        :type awslogs_region: str
         :param awslogs_stream_prefix: awslogs stream prefix option in log configuration
-        :type awslogs_stream_prefix: str
         """
         hook = AwsBaseHook(
             aws_conn_id=aws_conn_id,
@@ -258,9 +244,7 @@ class AmazonSystemTest(SystemTest):
         Delete all revisions of given ecs task definition
 
         :param aws_conn_id: id of the aws connection to use when creating boto3 client/resource
-        :type aws_conn_id: str
         :param task_definition: family prefix for task definition to delete in aws ecs
-        :type task_definition: str
         """
         hook = AwsBaseHook(
             aws_conn_id=aws_conn_id,
@@ -284,9 +268,7 @@ class AmazonSystemTest(SystemTest):
         Check whether given task definition exits in ecs
 
         :param aws_conn_id: id of the aws connection to use when creating boto3 client/resource
-        :type aws_conn_id: str
         :param task_definition: family prefix for task definition to check in aws ecs
-        :type task_definition: str
         """
         hook = AwsBaseHook(
             aws_conn_id=aws_conn_id,

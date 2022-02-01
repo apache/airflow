@@ -64,12 +64,10 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :type week_day: iterable or airflow.utils.weekday.WeekDay
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
-    :type use_task_execution_day: bool
     """
 
     def __init__(self, *, week_day, use_task_execution_day=False, **kwargs):

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck shell=bash
 set -euo pipefail
 declare -a packages
 
@@ -44,7 +44,7 @@ install_mysql_client() {
         exit 1
     fi
 
-    local key="A4A9406876FCBD3C456770C88C718D3B5072E1F5"
+    local key="467B942D3A79BD29"
     readonly key
 
     GNUPGHOME="$(mktemp -d)"

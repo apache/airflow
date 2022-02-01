@@ -34,11 +34,9 @@ class SambaHook(BaseHook):
     set up a session and disconnect open connections upon exit.
 
     :param samba_conn_id: The connection id reference.
-    :type samba_conn_id: str
     :param share:
         An optional share name. If this is unset then the "schema" field of
         the connection is used in its place.
-    :type share: str
     """
 
     conn_name_attr = 'samba_conn_id'

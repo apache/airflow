@@ -32,13 +32,9 @@ class SalesforceApexRestOperator(BaseOperator):
         :ref:`howto/operator:SalesforceApexRestOperator`
 
     :param endpoint: The REST endpoint for the request.
-    :type endpoint: str
     :param method: HTTP method for the request (default GET)
-    :type method: str
     :param payload: A dict of parameters to send in a POST / PUT request
-    :type payload: str
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
-    :type salesforce_conn_id: str
     """
 
     def __init__(
@@ -60,7 +56,6 @@ class SalesforceApexRestOperator(BaseOperator):
         """
         Makes an HTTP request to an APEX REST endpoint and pushes results to xcom.
         :param context: The task context during execution.
-        :type context: dict
         :return: Apex response
         :rtype: dict
         """

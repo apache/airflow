@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.models import DagRun
     from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dagrun import DagRun
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"

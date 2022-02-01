@@ -28,9 +28,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
     Waits for a Redshift cluster to reach a specific status.
 
     :param cluster_identifier: The identifier for the cluster being pinged.
-    :type cluster_identifier: str
     :param target_status: The cluster status desired.
-    :type target_status: str
     """
 
     template_fields: Sequence[str] = ('cluster_identifier', 'target_status')

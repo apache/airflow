@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Needs to be declared outside of function for MacOS
+
+BUILD_COMMAND=()
+
 # For remote installation of airflow (from GitHub or PyPI) when building the image, you need to
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
@@ -83,56 +87,59 @@ function build_images::get_airflow_version_from_production_image() {
     docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }
 
-# Removes the "Forced answer" (yes/no/quit) given previously, unless you specifically want to remember it.
-#
-# This is the default behaviour of all rebuild scripts to ask independently whether you want to
-# rebuild the image or not. Sometimes however we want to remember answer previously given. For
-# example if you answered "no" to rebuild the image, the assumption is that you do not
-# want to rebuild image also for other rebuilds in the same pre-commit execution.
-#
-# All the pre-commit checks therefore have `export REMEMBER_LAST_ANSWER="true"` set
-# So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
-# recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
-# "no" answer given previously. This happens until you run any of the breeze commands or run all
-# pre-commits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
-# be asked again.
-function build_images::forget_last_answer() {
-    if [[ ${REMEMBER_LAST_ANSWER:="false"} != "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Forgetting last answer from ${LAST_FORCE_ANSWER_FILE}:"
-        verbosity::print_info
-        rm -f "${LAST_FORCE_ANSWER_FILE}"
-    else
-        if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
-            verbosity::print_info
-            verbosity::print_info "Still remember last answer from ${LAST_FORCE_ANSWER_FILE}:"
-            verbosity::print_info "$(cat "${LAST_FORCE_ANSWER_FILE}")"
-            verbosity::print_info
-        fi
+function build_images::reconfirm_rebuilding_if_not_rebased() {
+    local latest_main_commit_sha
+    latest_main_commit_sha=$(curl -s -H "Accept: application/vnd.github.VERSION.sha" \
+        "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${DEFAULT_BRANCH}")
+    if [[ "$(git log --format=format:%H | grep -c "${latest_main_commit_sha}")" == "0" ]]; then
+         echo
+         echo "${COLOR_YELLOW}WARNING!!!!:You are not rebased on top of the latest ${DEFAULT_BRANCH} branch of the airflow repo.${COLOR_RESET}"
+         echo "${COLOR_YELLOW}The rebuild might take a lot of time and you might need to do it again${COLOR_RESET}"
+         echo
+         echo "${COLOR_YELLOW}It is STRONGLY RECOMMENDED that you rebase your code first!${COLOR_RESET}"
+         echo
+         "${AIRFLOW_SOURCES}/confirm" "You are really sure you want to rebuild ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
+         RES=$?
     fi
 }
 
-function build_images::confirm_via_terminal() {
-    echo >"${DETECTED_TERMINAL}"
-    echo >"${DETECTED_TERMINAL}"
+function build_images::print_modified_files() {
+    echo "${MODIFIED_FILES[@]}" | xargs -n 1 echo " * "
+}
+
+function build_images::encourage_rebuilding_on_modified_files() {
+    echo
     set +u
     if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}" >"${DETECTED_TERMINAL}"
-        echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+        echo
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_MAJOR_MINOR_VERSION} might be outdated${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Please run this command at earliest convenience: ${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}./breeze build-image --python ${PYTHON_MAJOR_MINOR_VERSION}${COLOR_RESET}"
+        echo
     fi
-    if [[ ${ACTION} == "pull and rebuild" ]]; then
-        echo "${COLOR_YELLOW}This build involves pull and it might take some time and network to pull the base image first!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+}
+
+function build_images::confirm_rebuilding_on_modified_files() {
+    echo
+    set +u
+    if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
+        echo "${COLOR_BLUE}The CI image for Python ${PYTHON_MAJOR_MINOR_VERSION} image likely needs to be rebuild${COLOR_RESET}"
+        echo "${COLOR_BLUE}The files were modified since last build:${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}$(build_images::print_modified_files)${COLOR_RESET}"
+        echo
     fi
     set -u
-    echo >"${DETECTED_TERMINAL}"
-    echo "${COLOR_YELLOW}WARNING!!!!:Make sure that you rebased to latest upstream before rebuilding or the rebuild might take a lot of time!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
-    echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
     # shellcheck disable=SC2094
-    "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-        <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
+    "${AIRFLOW_SOURCES}/confirm" "PULL & BUILD the image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
     RES=$?
+    if [[ ${RES} == "0" ]]; then
+        build_images::reconfirm_rebuilding_if_not_rebased
+    fi
 }
 
 # Confirms if the image should be rebuilt and interactively checks it with the user.
@@ -141,21 +148,11 @@ function build_images::confirm_via_terminal() {
 # So that the script works also from within pre-commit run via git hooks - where stdin is not
 # available - it tries to find usable terminal and ask the user via this terminal.
 function build_images::confirm_image_rebuild() {
-    ACTION="rebuild"
-    if [[ ${FORCE_PULL_IMAGES:=} == "true" ]]; then
-        ACTION="pull and rebuild"
-    fi
-    if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
-        # set variable from last answered response given in the same pre-commit run - so that it can be
-        # answered in the first pre-commit check (build) and then used in another (mypy/flake8 etc).
-        # shellcheck disable=SC1090
-        source "${LAST_FORCE_ANSWER_FILE}"
-    fi
     set +e
     local RES
     if [[ ${CI:="false"} == "true" ]]; then
         verbosity::print_info
-        verbosity::print_info "CI environment - forcing rebuild for image ${THE_IMAGE_TYPE}."
+        verbosity::print_info "CI environment - forcing pull and rebuild for image ${THE_IMAGE_TYPE}."
         verbosity::print_info
         RES="0"
     elif [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
@@ -175,24 +172,17 @@ function build_images::confirm_image_rebuild() {
         esac
     elif [[ -t 0 ]]; then
         # Check if this script is run interactively with stdin open and terminal attached
-        echo
-        set +u
-        if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
-            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuilt${COLOR_RESET}"
-            echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}"
-        fi
-        echo
-        echo "${COLOR_YELLOW}WARNING!!!!:Make sure that you rebased to latest upstream before rebuilding or the rebuild might take a lot of time!${COLOR_RESET}"
-        echo
-        set -u
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
-        RES=$?
+         build_images::confirm_rebuilding_on_modified_files
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
         export DETECTED_TERMINAL
-        build_images::confirm_via_terminal
+        # shellcheck disable=SC2094
+        build_images::encourage_rebuilding_on_modified_files >"${DETECTED_TERMINAL}" <"${DETECTED_TERMINAL}"
+        RES=1
     elif [[ -c /dev/tty ]]; then
         export DETECTED_TERMINAL=/dev/tty
-        build_images::confirm_via_terminal
+        # shellcheck disable=SC2094
+        build_images::encourage_rebuilding_on_modified_files >"${DETECTED_TERMINAL}" <"${DETECTED_TERMINAL}"
+        RES=1
     else
         verbosity::print_info
         verbosity::print_info "No terminal, no stdin - quitting"
@@ -209,13 +199,12 @@ function build_images::confirm_image_rebuild() {
         # Force "no" also to subsequent questions so that if you answer it once, you are not asked
         # For all other pre-commits and you will continue using the images you already have
         export FORCE_ANSWER_TO_QUESTIONS="no"
-        echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' >"${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the images by running:
+   Make sure you build the image by running:
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
 
@@ -254,128 +243,6 @@ function build_images::check_for_docker_context_files() {
     fi
 }
 
-# Builds local image manifest. It contains only one random file generated during Docker.ci build
-function build_images::build_ci_image_manifest() {
-    docker_v build \
-        --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
-        -f- . <<EOF
-FROM scratch
-COPY "manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}" /build-cache-hash
-LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
-CMD ""
-EOF
-}
-
-#
-# Retrieves information about build cache hash random file from the local image
-# The random file is generated during the build and is best indicator whether your local CI image
-# has been built using the same pulled image as the remote one
-#
-function build_images::get_local_build_cache_hash() {
-    set +e
-    local local_image_build_cache_file
-    local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
-    # Remove the container just in case
-    docker_v rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
-    if ! docker_v inspect "${AIRFLOW_CI_IMAGE_WITH_TAG}" 2>/dev/null >/dev/null; then
-        verbosity::print_info
-        verbosity::print_info "Local airflow CI image not available"
-        verbosity::print_info
-        LOCAL_MANIFEST_IMAGE_UNAVAILABLE="true"
-        export LOCAL_MANIFEST_IMAGE_UNAVAILABLE
-        touch "${local_image_build_cache_file}"
-        set -e
-        return
-
-    fi
-    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE_WITH_TAG}" 2>/dev/null >/dev/null
-    docker_v cp "local-airflow-ci-container:/build-cache-hash" \
-        "${local_image_build_cache_file}" 2>/dev/null ||
-        touch "${local_image_build_cache_file}"
-    set -e
-    verbosity::print_info
-    verbosity::print_info "Local build cache hash: '$(cat "${local_image_build_cache_file}")'"
-    verbosity::print_info
-}
-
-# Retrieves information about the build cache hash random file from the remote image.
-# We use manifest image for that, which is a really, really small image to pull!
-# The image is a specially prepared manifest image which is built together with the main image and
-# pushed with it. This special manifest image is prepared during building of the CI image and contains
-# single file which is generated with random content during the docker
-# build in the right step of the image build (right after installing all dependencies of Apache Airflow
-# for the first time).
-# When this random file gets regenerated it means that either base image has changed before that step
-# or some of the earlier layers was modified - which means that it is usually faster to pull
-# that image first and then rebuild it.
-function build_images::get_remote_image_build_cache_hash() {
-    set +e
-    local remote_image_container_id_file
-    remote_image_container_id_file="$(mktemp)"
-    local remote_image_build_cache_file
-    remote_image_build_cache_file=$(mktemp)
-    local target_remote_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
-    # Pull remote manifest image
-    if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
-        verbosity::print_info
-        verbosity::print_info "Remote docker registry unreachable"
-        verbosity::print_info
-        REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
-        export REMOTE_DOCKER_REGISTRY_UNREACHABLE
-        touch "${remote_image_build_cache_file}"
-        set -e
-        return
-    fi
-    set -e
-    rm -f "${remote_image_container_id_file}"
-    # Create container dump out of the manifest image without actually running it
-    docker_v create --cidfile "${remote_image_container_id_file}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
-    # Extract manifest and store it in local file
-    docker_v cp "$(cat "${remote_image_container_id_file}"):/build-cache-hash" \
-        "${remote_image_build_cache_file}"
-    # The `mv` is an atomic operation so even if we run it in parallel (for example in flake) it will
-    # never be empty (happened in the past)
-    mv "${remote_image_build_cache_file}" "${target_remote_cache_file}"
-    docker_v rm --force "$(cat "${remote_image_container_id_file}")"
-    rm -f "${remote_image_container_id_file}"
-    verbosity::print_info
-    verbosity::print_info "Remote build cache hash: '$(cat "${target_remote_cache_file}")'"
-    verbosity::print_info
-}
-
-# Compares layers from both remote and local image and set FORCE_PULL_IMAGES to true in case
-# The random has in remote image is different than that in the local image
-# indicating that it is likely faster to pull the image from cache rather than let the
-# image rebuild fully locally
-function build_images::compare_local_and_remote_build_cache_hash() {
-    set +e
-    local local_image_build_cache_file
-    local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
-    local remote_image_build_cache_file
-    remote_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
-    local remote_hash
-    remote_hash=$(cat "${remote_image_build_cache_file}")
-    local local_hash
-    local_hash=$(cat "${local_image_build_cache_file}")
-
-    if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]]; then
-        echo
-        echo
-        echo "Your image and the dockerhub have different or missing build cache hashes."
-        echo "Local hash: '${local_hash}'. Remote hash: '${remote_hash}'."
-        echo
-        echo "Forcing pulling the images. It will be faster than rebuilding usually."
-        echo "You can avoid it by setting SKIP_CHECK_REMOTE_IMAGE to true"
-        echo
-        export FORCE_PULL_IMAGES="true"
-    else
-        echo
-        echo "No need to pull the image. Yours and remote cache hashes are the same!"
-        echo
-    fi
-    set -e
-}
-
 # Prints summary of the build parameters
 function build_images::print_build_info() {
     verbosity::print_info
@@ -402,10 +269,6 @@ function build_images::get_docker_cache_image_names() {
     image_name="ghcr.io/$(build_images::get_github_container_registry_image_prefix)"
 
     # Example:
-    #  ghcr.io/apache/airflow/main/python:3.8-slim-buster
-    export AIRFLOW_PYTHON_BASE_IMAGE="${image_name}/${BRANCH_NAME}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
-
-    # Example:
     #  ghcr.io/apache/airflow/main/ci/python3.8
     export AIRFLOW_CI_IMAGE="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}"
 
@@ -414,14 +277,6 @@ function build_images::get_docker_cache_image_names() {
     #  ghcr.io/apache/airflow/main/ci/python3.8:<COMMIT_SHA>
     export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 
-    # Example:
-    #  local-airflow-ci-manifest/main/python3.8
-    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local-airflow-ci-manifest/${BRANCH_NAME}/python${PYTHON_MAJOR_MINOR_VERSION}"
-
-    # Example:
-    #  ghcr.io/apache/airflow/main/ci-manifest/python3.8
-    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${image_name}/${BRANCH_NAME}/ci-manifest/python${PYTHON_MAJOR_MINOR_VERSION}"
-
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
@@ -429,16 +284,31 @@ function build_images::get_docker_cache_image_names() {
     #  ghcr.io/apache/airflow/main/prod/python3.8
     export AIRFLOW_PROD_IMAGE="${image_name}/${BRANCH_NAME}/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # Example:
-    #   ghcr.io/apache/airflow/main/prod-build/python3.8
-    export AIRFLOW_PROD_BUILD_IMAGE="${image_name}/${BRANCH_NAME}/prod-build/python${PYTHON_MAJOR_MINOR_VERSION}"
-
     # Kubernetes image to build
     #  ghcr.io/apache/airflow/main/kubernetes/python3.8
     export AIRFLOW_IMAGE_KUBERNETES="${image_name}/${BRANCH_NAME}/kubernetes/python${PYTHON_MAJOR_MINOR_VERSION}"
+}
 
-
-
+function build_images::check_if_buildx_plugin_available() {
+    local buildx_version
+    buildx_version=$(docker buildx version 2>/dev/null || true)
+    if [[ ${buildx_version} != "" ]]; then
+        if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+            BUILD_COMMAND+=("buildx" "build" "--builder" "airflow_cache" "--progress=tty")
+            docker_v buildx inspect airflow_cache || docker_v buildx create --name airflow_cache
+        else
+            BUILD_COMMAND+=("buildx" "build" "--builder" "default" "--progress=tty")
+        fi
+    else
+        if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+            echo
+            echo "${COLOR_RED}Buildx cli plugin is not available and you need it to prepare buildx cache.${COLOR_RESET}"
+            echo "${COLOR_RED}Please install it following https://docs.docker.com/buildx/working-with-buildx/${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        BUILD_COMMAND+=("build")
+    fi
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
@@ -489,41 +359,34 @@ function build_images::prepare_ci_build() {
     permissions::fix_group_permissions
 }
 
+function build_images::clean_build_cache() {
+    mkdir -pv "${BUILD_CACHE_DIR}"
+    rm -rf "${BUILD_CACHE_DIR}"
+    rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+}
+
 # Only rebuilds CI image if needed. It checks if the docker image build is needed
 # because any of the important source files (from scripts/ci/libraries/_initialization.sh) has
 # changed or in any of the edge cases (docker image removed, .build cache removed etc.
 # In case rebuild is needed, it determines (by comparing layers in local and remote image)
 # Whether pull is needed before rebuild.
 function build_images::rebuild_ci_image_if_needed() {
-    verbosity::print_info
-    verbosity::print_info "Checking if pull or just build for ${THE_IMAGE_TYPE} is needed."
-    verbosity::print_info
+    local needs_docker_build="false"
+    local force_build="false"
     if [[ -f "${BUILT_CI_IMAGE_FLAG_FILE}" ]]; then
         verbosity::print_info
-        verbosity::print_info "${THE_IMAGE_TYPE} image already built locally."
+        verbosity::print_info "CI image already built locally."
         verbosity::print_info
     else
         verbosity::print_info
-        verbosity::print_info "${THE_IMAGE_TYPE} image not built locally: pulling and building"
+        verbosity::print_info "CI image not built locally: force pulling and building"
         verbosity::print_info
-        export FORCE_PULL_IMAGES="true"
-        export FORCE_BUILD_IMAGES="true"
+        force_build="true"
     fi
-
-    if [[ ${CHECK_IMAGE_FOR_REBUILD} == "false" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Skip checking for rebuilds of the CI image but checking if it needs to be pulled"
-        verbosity::print_info
-        push_pull_remove_images::pull_ci_images_if_needed
-        return
-    fi
-    local needs_docker_build="false"
     md5sum::check_if_docker_build_is_needed
-    build_images::get_local_build_cache_hash
     if [[ ${needs_docker_build} == "true" ]]; then
-        md5sum::check_if_pull_is_needed
         SKIP_REBUILD="false"
-        if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
+        if [[ ${CI:=} != "true" && "${force_build:=}" != "true" ]]; then
             build_images::confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
@@ -540,9 +403,7 @@ function build_images::rebuild_ci_image_if_needed() {
             verbosity::print_info "Build start: ${THE_IMAGE_TYPE} image."
             verbosity::print_info
             build_images::build_ci_image
-            build_images::get_local_build_cache_hash
             md5sum::update_all_md5
-            build_images::build_ci_image_manifest
             verbosity::print_info
             verbosity::print_info "Build completed: ${THE_IMAGE_TYPE} image."
             verbosity::print_info
@@ -560,60 +421,21 @@ function build_images::rebuild_ci_image_if_needed_with_group() {
     start_end::group_end
 }
 
-
-# Interactive version of confirming the ci image that is used in pre-commits
-# it displays additional information - what the user should do in order to bring the local images
-# back to state that pre-commit will be happy with
-function build_images::rebuild_ci_image_if_needed_and_confirmed() {
-    local needs_docker_build="false"
-    THE_IMAGE_TYPE="CI"
-
-    md5sum::check_if_docker_build_is_needed
-
-    if [[ ${needs_docker_build} == "true" ]]; then
-        md5sum::check_if_pull_is_needed
-        verbosity::print_info
-        verbosity::print_info "Docker image build is needed!"
-        verbosity::print_info
-    else
-        verbosity::print_info
-        verbosity::print_info "Docker image build is not needed!"
-        verbosity::print_info
-    fi
-
-    if [[ "${needs_docker_build}" == "true" ]]; then
-        SKIP_REBUILD="false"
-        build_images::confirm_image_rebuild
-
-        if [[ ${SKIP_REBUILD} != "true" ]]; then
-            build_images::rebuild_ci_image_if_needed
-        fi
-    fi
-}
-
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
-# passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
+# passes the necessary docker build flags via docker_ci_cache_directive array
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
 function build_images::build_ci_image() {
-    local spin_pid
+    build_images::check_if_buildx_plugin_available
     build_images::print_build_info
-    if [[ -n ${DETECTED_TERMINAL=} ]]; then
-        echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
-        " >"${DETECTED_TERMINAL}"
-        spinner::spin "${OUTPUT_LOG}" &
-        spin_pid=$!
-        # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${spin_pid}' || true)' EXIT HUP INT TERM
-    fi
-    push_pull_remove_images::pull_ci_images_if_needed
+    local docker_ci_cache_directive
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
-        export DOCKER_CACHE_CI_DIRECTIVE=("--no-cache")
+        docker_ci_cache_directive=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
-        export DOCKER_CACHE_CI_DIRECTIVE=()
+        docker_ci_cache_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
-        export DOCKER_CACHE_CI_DIRECTIVE=(
-            "--cache-from" "${AIRFLOW_CI_IMAGE}"
+        docker_ci_cache_directive=(
+            "--cache-from=${AIRFLOW_CI_IMAGE}:cache"
         )
     else
         echo
@@ -621,36 +443,24 @@ function build_images::build_ci_image() {
         echo
         exit 1
     fi
-    EXTRA_DOCKER_CI_BUILD_FLAGS=(
-    )
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # we need to login to docker registry so that we can push cache there
+        build_images::login_to_docker_registry
+        docker_ci_cache_directive+=(
+            "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache"
+            "--load"
+        )
+    fi
+    local extra_docker_ci_flags=()
     if [[ ${CI} == "true" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "PIP_PROGRESS_BAR=off"
         )
     fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
-        EXTRA_DOCKER_CI_BUILD_FLAGS+=(
+        extra_docker_ci_flags+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
         )
-    fi
-
-    if [[ -n ${spin_pid=} ]]; then
-        kill -HUP "${spin_pid}" || true
-        wait "${spin_pid}" || true
-        echo >"${DETECTED_TERMINAL}"
-    fi
-    if [[ -n ${DETECTED_TERMINAL=} ]]; then
-        echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
-        " >"${DETECTED_TERMINAL}"
-        spinner::spin "${OUTPUT_LOG}" &
-        spin_pid=$!
-        # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${spin_pid}' || true)' EXIT HUP INT TERM
-    fi
-    if [[ -n ${DETECTED_TERMINAL=} ]]; then
-        echo -n "
-Docker building ${AIRFLOW_CI_IMAGE}.
-" >"${DETECTED_TERMINAL}"
     fi
     set +u
 
@@ -669,9 +479,10 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    docker_v build \
-        "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
-        --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
+    docker_v "${BUILD_COMMAND[@]}" \
+        "${extra_docker_ci_flags[@]}" \
+        --pull \
+        --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -694,19 +505,18 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
-        "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
+        "${docker_ci_cache_directive[@]}" \
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
         . -f Dockerfile.ci
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # Push the image as "latest" so that it can be used in Breeze
+        docker_v push "${AIRFLOW_CI_IMAGE}"
+    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
-    fi
-    if [[ -n ${spin_pid=} ]]; then
-        kill -HUP "${spin_pid}" || true
-        wait "${spin_pid}" || true
-        echo >"${DETECTED_TERMINAL}"
     fi
 }
 
@@ -763,10 +573,11 @@ function build_images::prepare_prod_build() {
 
 # Builds PROD image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_PROD_DIRECTIVE and
-# DOCKER_CACHE_PROD_BUILD_DIRECTIVE (separate caching options are needed for "build" segment of the image)
+# docker_cache_prod_build_directive (separate caching options are needed for "build" segment of the image)
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
 function build_images::build_prod_images() {
+    build_images::check_if_buildx_plugin_available
     build_images::print_build_info
 
     if [[ ${SKIP_BUILDING_PROD_IMAGE} == "true" ]]; then
@@ -776,22 +587,14 @@ function build_images::build_prod_images() {
         echo
         return
     fi
-
-    push_pull_remove_images::pull_prod_images_if_needed
-
+    local docker_cache_prod_directive
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
-        export DOCKER_CACHE_PROD_DIRECTIVE=("--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}")
-        export DOCKER_CACHE_PROD_BUILD_DIRECTIVE=("--no-cache")
+        docker_cache_prod_directive=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
-        export DOCKER_CACHE_PROD_DIRECTIVE=()
-        export DOCKER_CACHE_PROD_BUILD_DIRECTIVE=()
+        docker_cache_prod_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
-        export DOCKER_CACHE_PROD_DIRECTIVE=(
-            "--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}"
-            "--cache-from" "${AIRFLOW_PROD_IMAGE}"
-        )
-        export DOCKER_CACHE_PROD_BUILD_DIRECTIVE=(
-            "--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        docker_cache_prod_directive=(
+            "--cache-from=${AIRFLOW_PROD_IMAGE}:cache"
         )
     else
         echo
@@ -799,6 +602,15 @@ function build_images::build_prod_images() {
         echo
         echo
         exit 1
+    fi
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # we need to login to docker registry so that we can push cache there
+        build_images::login_to_docker_registry
+        # Cache for prod image contains also build stage for buildx when mode=max specified!
+        docker_cache_prod_directive+=(
+            "--cache-to=type=registry,ref=${AIRFLOW_PROD_IMAGE}:cache,mode=max"
+            "--load"
+        )
     fi
     set +u
     local additional_dev_args=()
@@ -808,35 +620,6 @@ function build_images::build_prod_images() {
     if [[ -n "${DEV_APT_COMMAND}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
-    docker_v build \
-        "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
-        --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
-        --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
-        --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
-        --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-        --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
-        --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
-        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
-        "${additional_dev_args[@]}" \
-        --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \
-        --build-arg ADDITIONAL_DEV_APT_COMMAND="${ADDITIONAL_DEV_APT_COMMAND}" \
-        --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
-        --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
-        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
-        --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
-        --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
-        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg BUILD_ID="${CI_BUILD_ID}" \
-        --build-arg COMMIT_SHA="${COMMIT_SHA}" \
-        --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
-        --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
-        --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
-        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
-        -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
-        --target "airflow-build-image" \
-        . -f Dockerfile
     local additional_runtime_args=()
     if [[ -n "${RUNTIME_APT_DEPS}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_DEPS=\"${RUNTIME_APT_DEPS}\"")
@@ -844,9 +627,10 @@ function build_images::build_prod_images() {
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    docker_v build \
+    docker_v "${BUILD_COMMAND[@]}" \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
-        --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
+        --pull \
+        --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
@@ -871,12 +655,17 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        --build-arg AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/${COMMIT_SHA}/docs/docker-stack/README.md" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
-        "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
+        "${docker_cache_prod_directive[@]}" \
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
         . -f Dockerfile
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # Push the image as "latest" so that it can be used in Breeze
+        docker_v push "${AIRFLOW_PROD_IMAGE}"
+    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
@@ -903,11 +692,7 @@ function build_images::tag_image() {
 # and local to speed up iteration on kerberos tests
 function build_images::determine_docker_cache_strategy() {
     if [[ -z "${DOCKER_CACHE=}" ]]; then
-        if [[ "${PRODUCTION_IMAGE}" == "true" ]]; then
-            export DOCKER_CACHE="local"
-        else
-            export DOCKER_CACHE="pulled"
-        fi
+        export DOCKER_CACHE="pulled"
     fi
     verbosity::print_info
     verbosity::print_info "Using ${DOCKER_CACHE} cache strategy for the build."
@@ -937,6 +722,35 @@ function build_images::cleanup_docker_context_files() {
     mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
     rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
 }
+
+# PRe-commit version of confirming the ci image that is used in pre-commits
+# it displays additional information - what the user should do in order to bring the local images
+# back to state that pre-commit will be happy with
+function build_images::rebuild_ci_image_if_confirmed_for_pre_commit() {
+    local needs_docker_build="false"
+    export THE_IMAGE_TYPE="CI"
+
+    md5sum::check_if_docker_build_is_needed
+
+    if [[ ${needs_docker_build} == "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is needed!"
+        verbosity::print_info
+    else
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is not needed!"
+        verbosity::print_info
+    fi
+
+    if [[ "${needs_docker_build}" == "true" ]]; then
+        SKIP_REBUILD="false"
+        build_images::confirm_image_rebuild
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            build_images::rebuild_ci_image_if_needed
+        fi
+    fi
+}
+
 
 function build_images::build_prod_images_from_locally_built_airflow_packages() {
     # We do not install from PyPI

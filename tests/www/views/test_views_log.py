@@ -265,7 +265,13 @@ def test_get_logs_for_changed_filename_format_config(log_admin_client):
 def dag_run_with_log_filename():
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
-        log_template = session.merge(LogTemplate(filename=DIFFERENT_LOG_FILENAME, task_prefix="irrelevant"))
+        log_template = session.merge(
+            LogTemplate(
+                filename=DIFFERENT_LOG_FILENAME,
+                task_prefix="irrelevant",
+                elasticsearch_id="irrelevant",
+            ),
+        )
         session.flush()  # To populate 'log_template.id'.
         run_query = session.query(DagRun).filter(*run_filters)
         run_query.update({"log_template_id": log_template.id})

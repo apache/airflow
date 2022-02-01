@@ -33,13 +33,9 @@ class ADLSDeleteOperator(BaseOperator):
             :ref:`howto/operator:ADLSDeleteOperator`
 
     :param path: A directory or file to remove
-    :type path: str
     :param recursive: Whether to loop into directories in the location and remove the files
-    :type recursive: bool
     :param ignore_not_found: Whether to raise error if file to delete is not found
-    :type ignore_not_found: bool
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
-    :type azure_data_lake_conn_id: str
     """
 
     template_fields: Sequence[str] = ('path',)
@@ -74,9 +70,7 @@ class ADLSListOperator(BaseOperator):
 
     :param path: The Azure Data Lake path to find the objects. Supports glob
         strings (templated)
-    :type path: str
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
-    :type azure_data_lake_conn_id: str
 
     **Example**:
         The following Operator would list all the Parquet files from ``folder/output/``

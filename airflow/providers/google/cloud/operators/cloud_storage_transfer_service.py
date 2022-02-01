@@ -195,14 +195,10 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         * credentials to Amazon Web Service should be stored in the connection and indicated by the
           aws_conn_id parameter
 
-    :type body: dict
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
-    :type aws_conn_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -211,7 +207,6 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_job_create_template_fields]
@@ -263,7 +258,6 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         :ref:`howto/operator:CloudDataTransferServiceUpdateJobOperator`
 
     :param job_name: (Required) Name of the job to be updated
-    :type job_name: str
     :param body: (Required) The request body, as described in
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/patch#request-body
         With three additional improvements:
@@ -273,14 +267,10 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         * credentials to Amazon Web Service should be stored in the connection and indicated by the
           aws_conn_id parameter
 
-    :type body: dict
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
-    :type aws_conn_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -289,7 +279,6 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_job_update_template_fields]
@@ -349,15 +338,11 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
         :ref:`howto/operator:CloudDataTransferServiceDeleteJobOperator`
 
     :param job_name: (Required) Name of the TRANSFER operation
-    :type job_name: str
     :param project_id: (Optional) the ID of the project that owns the Transfer
         Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -366,7 +351,6 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_job_delete_template_fields]
@@ -421,12 +405,9 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
         :ref:`howto/operator:CloudDataTransferServiceGetOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
-    :type operation_name: str
     :param gcp_conn_id: The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -435,7 +416,6 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_operation_get_template_fields]
@@ -487,12 +467,9 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
 
     :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
-    :type request_filter: dict
     :param gcp_conn_id: The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -501,7 +478,6 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_operations_list_template_fields]
@@ -560,11 +536,8 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
         :ref:`howto/operator:CloudDataTransferServicePauseOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
-    :type operation_name: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version:  API version used (e.g. v1).
-    :type api_version: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -573,7 +546,6 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_operation_pause_template_fields]
@@ -623,11 +595,8 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
         :ref:`howto/operator:CloudDataTransferServiceResumeOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
-    :type operation_name: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
-    :type gcp_conn_id: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -636,7 +605,6 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_operation_resume_template_fields]
@@ -686,12 +654,9 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
         :ref:`howto/operator:CloudDataTransferServiceCancelOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
-    :type operation_name: str
     :param api_version: API version used (e.g. v1).
-    :type api_version: str
     :param gcp_conn_id: The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -700,7 +665,6 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_operation_cancel_template_fields]
@@ -764,27 +728,19 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
        )
 
     :param s3_bucket: The S3 bucket where to find the objects. (templated)
-    :type s3_bucket: str
     :param gcs_bucket: The destination Google Cloud Storage bucket
         where you want to store the files. (templated)
-    :type gcs_bucket: str
     :param s3_path: Optional root path where the source objects are. (templated)
-    :type s3_path: str
     :param gcs_path: Optional root path for transferred objects. (templated)
-    :type gcs_path: str
     :param project_id: Optional ID of the Google Cloud Console project that
         owns the job
-    :type project_id: str
     :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: str
     :param gcp_conn_id: The destination connection ID to use
         when connecting to Google Cloud Storage.
-    :type gcp_conn_id: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :param description: Optional transfer service job description
-    :type description: str
     :param schedule: Optional transfer service schedule;
         If not set, run transfer job once as soon as the operator runs
         The format is described
@@ -794,18 +750,13 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         * dates they can be passed as :class:`datetime.date`
         * times they can be passed as :class:`datetime.time`
 
-    :type schedule: dict
     :param object_conditions: Optional transfer service object conditions; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
-    :type object_conditions: dict
     :param transfer_options: Optional transfer service transfer options; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
-    :type transfer_options: dict
     :param wait: Wait for transfer to finish. It must be set to True, if
         'delete_job_after_completion' is set to True.
-    :type wait: bool
     :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
-    :type timeout: Optional[Union[float, timedelta]]
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -814,10 +765,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     :param delete_job_after_completion: If True, delete the job after complete.
         If set to True, 'wait' must be set to True.
-    :type delete_job_after_completion: bool
     """
 
     template_fields: Sequence[str] = (
@@ -952,25 +901,18 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
-    :type source_bucket: str
     :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
-    :type destination_bucket: str
     :param source_path: Optional root path where the source objects are. (templated)
-    :type source_path: str
     :param destination_path: Optional root path for transferred objects. (templated)
-    :type destination_path: str
     :param project_id: The ID of the Google Cloud Console project that
         owns the job
-    :type project_id: str
     :param gcp_conn_id: Optional connection ID to use when connecting to Google Cloud
         Storage.
-    :type gcp_conn_id: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :param description: Optional transfer service job description
-    :type description: str
     :param schedule: Optional transfer service schedule;
         If not set, run transfer job once as soon as the operator runs
         See:
@@ -980,18 +922,13 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         * dates they can be passed as :class:`datetime.date`
         * times they can be passed as :class:`datetime.time`
 
-    :type schedule: dict
     :param object_conditions: Optional transfer service object conditions; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#ObjectConditions
-    :type object_conditions: dict
     :param transfer_options: Optional transfer service transfer options; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#TransferOptions
-    :type transfer_options: dict
     :param wait: Wait for transfer to finish. It must be set to True, if
         'delete_job_after_completion' is set to True.
-    :type wait: bool
     :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
-    :type timeout: Optional[Union[float, timedelta]]
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1000,10 +937,8 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     :param delete_job_after_completion: If True, delete the job after complete.
         If set to True, 'wait' must be set to True.
-    :type delete_job_after_completion: bool
     """
 
     template_fields: Sequence[str] = (

@@ -50,28 +50,20 @@ class SnowflakeOperator(BaseOperator):
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param autocommit: if True, each command is automatically committed.
         (default value: True)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
-    :type warehouse: str
     :param database: name of database (will overwrite database defined
         in connection)
-    :type database: str
     :param schema: name of schema (will overwrite schema defined in
         connection)
-    :type schema: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
-    :type role: str
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -79,10 +71,8 @@ class SnowflakeOperator(BaseOperator):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
-    :type authenticator: str
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :type session_parameters: dict
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -161,30 +151,22 @@ class SnowflakeCheckOperator(SQLCheckOperator):
     publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: True)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
-    :type warehouse: str
     :param database: name of database (will overwrite database defined
         in connection)
-    :type database: str
     :param schema: name of schema (will overwrite schema defined in
         connection)
-    :type schema: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
-    :type role: str
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -192,10 +174,8 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
-    :type authenticator: str
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :type session_parameters: dict
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -242,32 +222,22 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
     certain level of tolerance.
 
     :param sql: the sql to be executed
-    :type sql: str
     :param pass_value: the value to check against
-    :type pass_value: Any
     :param tolerance: (optional) the tolerance allowed to accept the query as
         passing
-    :type tolerance: Any
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: True)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
-    :type warehouse: str
     :param database: name of database (will overwrite database defined
         in connection)
-    :type database: str
     :param schema: name of schema (will overwrite schema defined in
         connection)
-    :type schema: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
-    :type role: str
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -275,10 +245,8 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
-    :type authenticator: str
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :type session_parameters: dict
     """
 
     def __init__(
@@ -328,34 +296,24 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         WHERE {date_filter_column}=<date>
 
     :param table: the table name
-    :type table: str
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
-    :type days_back: int
     :param metrics_thresholds: a dictionary of ratios indexed by metrics, for
         example 'COUNT(*)': 1.5 would require a 50 percent or less difference
         between the current day, and the prior days_back.
-    :type metrics_thresholds: dict
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: True)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
-    :type warehouse: str
     :param database: name of database (will overwrite database defined
         in connection)
-    :type database: str
     :param schema: name of schema (will overwrite schema defined in
         connection)
-    :type schema: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
-    :type role: str
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -363,10 +321,8 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
-    :type authenticator: str
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :type session_parameters: dict
     """
 
     def __init__(

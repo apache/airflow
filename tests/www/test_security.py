@@ -742,9 +742,7 @@ def test_get_all_permissions(security_manager):
 
     assert isinstance(perms, set)
     for perm in perms:
-        assert isinstance(perm, tuple)
         assert len(perm) == 2
-
     assert ('can_read', 'Connections') in perms
 
 

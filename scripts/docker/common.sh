@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck shell=bash
 set -euo pipefail
 
 function common::get_colors() {
@@ -50,7 +50,7 @@ function common::override_pip_version_if_needed() {
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
-        if  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+        if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
             AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
         else
             AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}

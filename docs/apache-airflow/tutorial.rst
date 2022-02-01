@@ -176,7 +176,7 @@ to use ``{{ foo }}`` in your templates. Moreover, specifying
 passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
 you to use ``{{ 'world' | hello }}`` in your templates. For more information
 regarding custom filters have a look at the
-`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_.
+`Jinja Documentation <https://jinja.palletsprojects.com/en/latest/api/#custom-filters>`_.
 
 For more information on the variables and macros that can be referenced
 in templates, make sure to read through the :ref:`templates-ref`.

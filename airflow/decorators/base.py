@@ -26,6 +26,7 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterator,
     Mapping,
     Optional,
     Sequence,
@@ -33,20 +34,23 @@ from typing import (
     Type,
     TypeVar,
     cast,
+    overload,
 )
 
 import attr
+import typing_extensions
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
+from airflow.typing_compat import Protocol
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
-def validate_python_callable(python_callable):
+def validate_python_callable(python_callable: Any) -> None:
     """
     Validate that python callable can be wrapped by operator.
     Raises exception if invalid.
@@ -61,7 +65,9 @@ def validate_python_callable(python_callable):
 
 
 def get_unique_task_id(
-    task_id: str, dag: Optional[DAG] = None, task_group: Optional[TaskGroup] = None
+    task_id: str,
+    dag: Optional[DAG] = None,
+    task_group: Optional[TaskGroup] = None,
 ) -> str:
     """
     Generate unique task id given a DAG (or if run in a DAG context)
@@ -86,15 +92,18 @@ def get_unique_task_id(
 
     if tg_task_id not in dag.task_ids:
         return task_id
-    core = re.split(r'__\d+$', task_id)[0]
-    suffixes = sorted(
-        int(re.split(r'^.+__', task_id)[1])
-        for task_id in dag.task_ids
-        if re.match(rf'^{core}__\d+$', task_id)
-    )
-    if not suffixes:
-        return f'{core}__1'
-    return f'{core}__{suffixes[-1] + 1}'
+
+    def _find_id_suffixes(dag: DAG) -> Iterator[int]:
+        prefix = re.split(r"__\d+$", tg_task_id)[0]
+        for task_id in dag.task_ids:
+            match = re.match(rf"^{prefix}__(\d+)$", task_id)
+            if match is None:
+                continue
+            yield int(match.group(1))
+        yield 0  # Default if there's no matching task ID.
+
+    core = re.split(r"__\d+$", task_id)[0]
+    return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
 class DecoratedOperator(BaseOperator):
@@ -102,20 +111,15 @@ class DecoratedOperator(BaseOperator):
     Wraps a Python callable and captures args/kwargs when called for execution.
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
-    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
-    :type op_args: list
     :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    :type multiple_outputs: bool
     :param kwargs_to_upstream: For certain operators, we might need to upstream certain arguments
         that would otherwise be absorbed by the DecoratedOperator (for example python_callable for the
         PythonOperator). This gives a user the option to upstream kwargs as needed.
-    :type kwargs_to_upstream: dict
     """
 
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
@@ -136,7 +140,7 @@ class DecoratedOperator(BaseOperator):
         kwargs_to_upstream: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
-        kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
+        task_id = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
         op_args = op_args or []
@@ -147,7 +151,7 @@ class DecoratedOperator(BaseOperator):
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
-        super().__init__(**kwargs_to_upstream, **kwargs)
+        super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
     def execute(self, context: Context):
         return_value = super().execute(context)
@@ -193,13 +197,13 @@ class DecoratedOperator(BaseOperator):
         return args, kwargs
 
 
-T = TypeVar("T", bound=Callable)
+Function = TypeVar("Function", bound=Callable)
 
 OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define(slots=False)
-class _TaskDecorator(Generic[T, OperatorSubclass]):
+class _TaskDecorator(Generic[Function, OperatorSubclass]):
     """
     Helper class for providing dynamic task mapping to decorated functions.
 
@@ -208,7 +212,7 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     :meta private:
     """
 
-    function: T = attr.ib(validator=attr.validators.is_callable())
+    function: Function = attr.ib(validator=attr.validators.is_callable())
     operator_class: Type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
@@ -230,19 +234,21 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
-        return_type = self.function_signature.return_annotation
+        try:
+            return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
+        except Exception:  # Can't evaluate retrurn type.
+            return False
 
-        # If the return type annotation is already the builtins ``dict`` type, use it for the inference.
-        if return_type == dict:
-            ttype = return_type
-        # Checking if Python 3.6, ``__origin__`` attribute does not exist until 3.7; need to use ``__extra__``
-        # TODO: Remove check when support for Python 3.6 is dropped in Airflow 2.3.
-        elif sys.version_info < (3, 7):
-            ttype = getattr(return_type, "__extra__", None)
+        # Get the non-subscripted type. The ``__origin__`` attribute is not
+        # stable until 3.7, but we need to use ``__extra__`` instead.
+        # TODO: Remove the ``__extra__`` branch when support for Python 3.6 is
+        # dropped in Airflow 2.3.
+        if sys.version_info < (3, 7):
+            ttype = getattr(return_type, "__extra__", return_type)
         else:
-            ttype = getattr(return_type, "__origin__", None)
+            ttype = getattr(return_type, "__origin__", return_type)
 
-        return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
+        return ttype == dict or ttype == Dict
 
     def __attrs_post_init__(self):
         self.kwargs.setdefault('task_id', self.function.__name__)
@@ -277,33 +283,39 @@ class _TaskDecorator(Generic[T, OperatorSubclass]):
     def map(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
     ) -> XComArg:
-
+        self._validate_arg_names("map", kwargs)
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
 
-        self._validate_arg_names("map", kwargs)
-
-        operator = MappedOperator(
-            operator_class=self.operator_class,
-            task_id=task_id,
+        operator = MappedOperator.from_decorator(
+            decorator=self,
             dag=dag,
             task_group=task_group,
-            partial_kwargs=self.kwargs,
-            # Set them to empty to bypass the validation, as for decorated stuff we validate ourselves
-            mapped_kwargs={},
+            task_id=task_id,
+            mapped_kwargs=kwargs,
         )
-        operator.mapped_kwargs.update(kwargs)
-
         return XComArg(operator=operator)
 
     def partial(
         self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "_TaskDecorator[T, OperatorSubclass]":
+    ) -> "_TaskDecorator[Function, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs, {'task_id'})
         partial_kwargs = self.kwargs.copy()
         partial_kwargs.update(kwargs)
         return attr.evolve(self, kwargs=partial_kwargs)
+
+
+class TaskDecorator(Protocol):
+    """Type declaration for ``task_decorator_factory`` return type."""
+
+    @overload
+    def __call__(self, python_callable: Function) -> Function:
+        """For the "bare decorator" ``@task`` case."""
+
+    @overload
+    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> Callable[[Function], Function]:
+        """For the decorator factory ``@task()`` case."""
 
 
 def task_decorator_factory(
@@ -312,38 +324,34 @@ def task_decorator_factory(
     multiple_outputs: Optional[bool] = None,
     decorated_operator_class: Type[BaseOperator],
     **kwargs,
-) -> Callable[[T], T]:
+) -> TaskDecorator:
     """
     A factory that generates a wrapper that raps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate
-    :type python_callable: Optional[Callable]
     :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    :type multiple_outputs: bool
     :param decorated_operator_class: The operator that executes the logic needed to run the python function in
         the correct environment
-    :type decorated_operator_class: BaseOperator
 
     """
     if multiple_outputs is None:
         multiple_outputs = cast(bool, attr.NOTHING)
     if python_callable:
-        return _TaskDecorator(  # type: ignore
+        decorator = _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
             kwargs=kwargs,
         )
+        return cast(TaskDecorator, decorator)
     elif python_callable is not None:
         raise TypeError('No args allowed while using @task, use kwargs instead')
-    return cast(
-        "Callable[[T], T]",
-        functools.partial(
-            _TaskDecorator,
-            multiple_outputs=multiple_outputs,
-            operator_class=decorated_operator_class,
-            kwargs=kwargs,
-        ),
+    decorator_factory = functools.partial(
+        _TaskDecorator,
+        multiple_outputs=multiple_outputs,
+        operator_class=decorated_operator_class,
+        kwargs=kwargs,
     )
+    return cast(TaskDecorator, decorator_factory)

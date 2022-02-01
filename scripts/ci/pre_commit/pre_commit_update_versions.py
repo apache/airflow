@@ -30,7 +30,7 @@ from setup import version  # isort:skip
 
 
 def update_version(pattern: re.Pattern, v: str, file_path: str):
-    print(f"Replacing {pattern} to {version} in {file_path}")
+    print(f"Checking {pattern} in {file_path}")
     with open(file_path, "r+") as f:
         file_content = f.read()
         if not pattern.search(file_content):
@@ -38,6 +38,7 @@ def update_version(pattern: re.Pattern, v: str, file_path: str):
         new_content = pattern.sub(fr'\g<1>{v}\g<2>', file_content)
         if file_content == new_content:
             return
+        print("    Updated.")
         f.seek(0)
         f.truncate()
         f.write(new_content)
@@ -46,7 +47,11 @@ def update_version(pattern: re.Pattern, v: str, file_path: str):
 REPLACEMENTS = {
     r'^(FROM apache\/airflow:).*($)': "docs/docker-stack/docker-examples/extending/*/Dockerfile",
     r'(apache\/airflow:)[^-]*(\-)': "docs/docker-stack/entrypoint.rst",
+    r'(`apache/airflow:)[0-9].*?((?:-pythonX.Y)?`)': "docs/docker-stack/README.md",
+    r'(\(Assuming Airflow version `).*(`\))': "docs/docker-stack/README.md",
 }
+
+print(f"Current version: {version}")
 
 if __name__ == '__main__':
     for regexp, p in REPLACEMENTS.items():

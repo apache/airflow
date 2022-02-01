@@ -79,22 +79,16 @@ class SchedulerJob(BaseJob):
 
     :param subdir: directory containing Python files with Airflow DAG
         definitions, or a specific path to a file
-    :type subdir: str
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
-    :type num_runs: int
     :param num_times_parse_dags: The number of times to try to parse each DAG file.
         -1 for unlimited times.
-    :type num_times_parse_dags: int
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :type scheduler_idle_sleep_time: int
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
-    :type do_pickle: bool
     :param log: override the default Logger
-    :type log: logging.Logger
     """
 
     __mapper_args__ = {'polymorphic_identity': 'SchedulerJob'}
@@ -217,7 +211,6 @@ class SchedulerJob(BaseJob):
         Get the concurrency maps.
 
         :param states: List of states to query for
-        :type states: list[airflow.utils.state.State]
         :return: A map from (dag_id, task_id) to # of task instances and
          a map from (dag_id, task_id) to # of task instances in the given state list
         :rtype: tuple[dict[str, int], dict[tuple[str, str], int]]
@@ -242,7 +235,6 @@ class SchedulerJob(BaseJob):
         dag max_active_tasks, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
-        :type max_tis: int
         :return: list[airflow.models.TaskInstance]
         """
         from airflow.utils.db import DBLocks
@@ -403,6 +395,17 @@ class SchedulerJob(BaseJob):
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
                     serialized_dag = self.dagbag.get_dag(dag_id, session=session)
+                    # If the dag is missing, fail the task and continue to the next task.
+                    if not serialized_dag:
+                        self.log.error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            dag_id,
+                            task_instance,
+                        )
+                        session.query(TI).filter(TI.dag_id == dag_id, TI.state == State.SCHEDULED).update(
+                            {TI.state: State.FAILED}, synchronize_session='fetch'
+                        )
+                        continue
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
@@ -475,9 +478,7 @@ class SchedulerJob(BaseJob):
         with the executor.
 
         :param task_instances: TaskInstances to enqueue
-        :type task_instances: list[TaskInstance]
         :param session: The session object
-        :type session: Session
         """
         # actually enqueue them
         for ti in task_instances:
@@ -517,7 +518,6 @@ class SchedulerJob(BaseJob):
         MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuing.
 
         :param session:
-        :type session: sqlalchemy.orm.Session
         :return: Number of task instance with state changed.
         """
         if self.max_tis_per_query == 0:
@@ -1072,7 +1072,6 @@ class SchedulerJob(BaseJob):
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
             self._send_dag_callbacks_to_processor(dag, callback_to_execute)
-            self._send_sla_callbacks_to_processor(dag)
             # Because we send the callback here, we need to return None
             return callback
 
@@ -1088,8 +1087,6 @@ class SchedulerJob(BaseJob):
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-            # Send SLA Callbacks to be executed
-            self._send_sla_callbacks_to_processor(dag)
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
@@ -1117,7 +1114,7 @@ class SchedulerJob(BaseJob):
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-
+        self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.processor_agent.send_callback_to_execute(callback)
 

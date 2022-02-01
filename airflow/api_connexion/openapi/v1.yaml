@@ -2173,8 +2173,6 @@ components:
 
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
-      required:
-        - dag_id
 
     UpdateDagRunState:
       type: object
@@ -3073,9 +3071,16 @@ components:
           type: string
 
         execution_date:
-          description: The execution date.
+          description: The execution date. Either set this or dag_run_id but not both.
           type: string
           format: datetime
+
+        dag_run_id:
+          description: |
+            The task instance's DAG run ID. Either set this or execution_date but not both.
+
+            *New in version 2.3.0*
+          type: string
 
         include_upstream:
           description: If set to true, upstream tasks are also affected.

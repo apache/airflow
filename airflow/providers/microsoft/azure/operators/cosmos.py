@@ -30,14 +30,10 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
     It will create both the database and collection if they do not already exist
 
     :param database_name: The name of the database. (templated)
-    :type database_name: str
     :param collection_name: The name of the collection. (templated)
-    :type collection_name: str
     :param document: The document to insert
-    :type document: dict
     :param azure_cosmos_conn_id: Reference to the
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
-    :type azure_cosmos_conn_id: str
     """
 
     template_fields: Sequence[str] = ('database_name', 'collection_name')

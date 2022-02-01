@@ -31,9 +31,7 @@ class BatchSensor(BaseSensorOperator):
     If the job fails, the task will fail.
 
     :param job_id: Batch job_id to check the state for
-    :type job_id: str
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('job_id',)

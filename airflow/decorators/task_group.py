@@ -29,7 +29,7 @@ import attr
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.dag import DAG
 
 F = TypeVar("F", bound=Callable[..., Any])
 T = TypeVar("T", bound=Callable)

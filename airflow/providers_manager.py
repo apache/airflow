@@ -18,7 +18,6 @@
 """Manages all providers."""
 import fnmatch
 import functools
-import importlib
 import json
 import logging
 import os
@@ -27,11 +26,26 @@ import warnings
 from collections import OrderedDict
 from functools import wraps
 from time import perf_counter
-from typing import Any, Callable, Dict, List, MutableMapping, NamedTuple, Optional, Set, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    MutableMapping,
+    NamedTuple,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import jsonschema
 from packaging import version as packaging_version
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.hooks.base import BaseHook
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -124,7 +138,7 @@ def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bo
     return True
 
 
-def _sanity_check(provider_package: str, class_name: str) -> bool:
+def _sanity_check(provider_package: str, class_name: str) -> Optional[Type[BaseHook]]:
     """
     Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
@@ -134,31 +148,42 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
     :param provider_package: name of the provider package
     :param class_name: name of the class to import
 
-    :return True if the class is OK, False otherwise.
+    :return the class if the class is OK, None otherwise.
     """
     if not _check_builtin_provider_prefix(provider_package, class_name):
-        return False
+        return None
     try:
-        import_string(class_name)
+        imported_class = import_string(class_name)
+    except AirflowOptionalProviderFeatureException as e:
+        # When the provider class raises AirflowOptionalProviderFeatureException
+        # this is an expected case when only some classes in provider are
+        # available. We just log debug level here
+        log.debug(
+            "Optional feature disabled on exception when importing '%s' from '%s' package",
+            class_name,
+            provider_package,
+            exc_info=e,
+        )
+        return None
     except ImportError as e:
         # When there is an ImportError we turn it into debug warnings as this is
         # an expected case when only some providers are installed
-        log.debug(
-            "Exception when importing '%s' from '%s' package: %s",
+        log.warning(
+            "Exception when importing '%s' from '%s' package",
             class_name,
             provider_package,
-            e,
+            exc_info=e,
         )
-        return False
+        return None
     except Exception as e:
         log.warning(
-            "Exception when importing '%s' from '%s' package: %s",
+            "Exception when importing '%s' from '%s' package",
             class_name,
             provider_package,
-            e,
+            exc_info=e,
         )
-        return False
-    return True
+        return None
+    return imported_class
 
 
 class ProviderInfo(NamedTuple):
@@ -631,11 +656,11 @@ class ProvidersManager(LoggingMixin):
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        if not _sanity_check(package_name, hook_class_name):
+        hook_class = _sanity_check(package_name, hook_class_name)
+        if hook_class is None:
             return None
         try:
             module, class_name = hook_class_name.rsplit('.', maxsplit=1)
-            hook_class = getattr(importlib.import_module(module), class_name)
             # Do not use attr here. We want to check only direct class fields not those
             # inherited from parent hook. This way we add form fields only once for the whole
             # hierarchy and we add it only from the parent hook that provides those!

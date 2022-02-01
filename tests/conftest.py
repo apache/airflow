@@ -242,7 +242,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
-    config.addinivalue_line("markers", "airflow_2: mark tests that works only on Airflow 2.0 / master")
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -342,12 +341,6 @@ def skip_if_credential_file_missing(item):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
 
-def skip_if_airflow_2_test(item):
-    for _ in item.iter_markers(name="airflow_2"):
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            pytest.skip("The test works only with Airflow 2.0 / main branch")
-
-
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.getoption("--integration")
     selected_systems_list = item.config.getoption("--system")
@@ -373,7 +366,6 @@ def pytest_runtest_setup(item):
     if not include_quarantined:
         skip_quarantined_test(item)
     skip_if_credential_file_missing(item)
-    skip_if_airflow_2_test(item)
 
 
 @pytest.fixture
@@ -534,7 +526,7 @@ def dag_maker(request):
 
             if "run_type" not in kwargs:
                 kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
-            if "execution_date" not in kwargs:
+            if kwargs.get("execution_date") is None:
                 if kwargs["run_type"] == DagRunType.MANUAL:
                     kwargs["execution_date"] = self.start_date
                 else:
@@ -597,6 +589,7 @@ def dag_maker(request):
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             for attempt in run_with_db_retries(logger=self.log):
@@ -611,16 +604,19 @@ def dag_maker(request):
                         SerializedDagModel.dag_id.in_(dag_ids)
                     ).delete(synchronize_session=False)
                     self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
+                    )
+                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False,
                     )
                     self.session.commit()
                     if self._own_session:

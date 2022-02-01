@@ -390,11 +390,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (e.g can_read, can_write) on the given resource.
 
         :param action_name: action_name on resource (e.g can_read, can_edit).
-        :type action_name: str
         :param resource_name: name of view-menu or resource.
-        :type resource_name: str
         :param user: user name
-        :type user: str
         :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
@@ -419,11 +416,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         Wraps the FAB built-in view access method. Won't work for AllDag access.
 
         :param user: user object
-        :type user: User
         :param action_name: action_name on resource (e.g can_read, can_edit).
-        :type action_name: str
         :param resource_name: name of resource.
-        :type resource_name: str
         :return: a bool whether user could perform certain action on the resource.
         :rtype bool
         """
@@ -489,9 +483,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         It will add the related entry to ab_permission and ab_resource two meta tables as well.
 
         :param action_name: Name of the action
-        :type action_name: str
         :param resource_name: Name of the resource
-        :type resource_name: str
         :return:
         """
         action = self.get_action(action_name)
@@ -636,11 +628,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or DagBag will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of action names (e.g.,
             {'can_read'}
-        :type access_control: dict
         :return:
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
@@ -655,10 +645,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of action names (e.g. {'can_read'})
-        :type access_control: dict
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
