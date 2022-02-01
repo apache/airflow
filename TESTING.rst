@@ -1308,9 +1308,7 @@ It will run a backfill job:
 .. code-block:: python
 
   if __name__ == "__main__":
-      from airflow.utils.state import State
-
-      dag.clear(dag_run_state=State.NONE)
+      dag.clear()
       dag.run()
 
 
