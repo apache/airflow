@@ -217,7 +217,7 @@ def client_ti_without_dag_edit(app):
             id='landing-times-url-param',
         ),
         pytest.param(
-            'dags/example_bash_operator/landing_times?days=30',
+            'dags/example_bash_operator/landing-times?days=30',
             ['example_bash_operator'],
             id='landing-times',
         ),

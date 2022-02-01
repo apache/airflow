@@ -2899,7 +2899,7 @@ class Airflow(AirflowBaseView):
         """Redirect from url param."""
         return redirect(url_for('Airflow.landing_times', **request.args))
 
-    @expose('/dags/<string:dag_id>/landing_times')
+    @expose('/dags/<string:dag_id>/landing-times')
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
