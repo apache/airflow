@@ -245,9 +245,11 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             await self.cleanup_finished_triggers()
             # Sleep for a bit
             await asyncio.sleep(1)
-            # Every minute, log status
+            # Every minute, log status if at least one trigger is running.
             if time.time() - last_status >= 60:
-                self.log.info("%i triggers currently running", len(self.triggers))
+                count = len(self.triggers)
+                if count > 0:
+                    self.log.info("%i triggers currently running", count)
                 last_status = time.time()
         # Wait for watchdog to complete
         await watchdog
