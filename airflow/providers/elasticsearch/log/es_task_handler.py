@@ -44,10 +44,10 @@ EsLogMsgType = List[Tuple[str, str]]
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
-    reads logs from Elasticsearch. Note logs are not directly
-    indexed into Elasticsearch. Instead, it flushes logs
+    reads logs from Elasticsearch. Note that Airflow does not handle the indexing
+    of logs into Elasticsearch. Instead, Airflow flushes logs
     into local files. Additional software setup is required
-    to index the log into Elasticsearch, such as using
+    to index the logs into Elasticsearch, such as using
     Filebeat and Logstash.
     To efficiently query and sort Elasticsearch results, we assume each
     log message has a field `log_id` consists of ti primary keys:
