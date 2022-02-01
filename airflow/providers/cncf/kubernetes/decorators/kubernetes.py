@@ -78,13 +78,13 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         self.pickling_library = pickle
 
         # Image, name and namespace are all required.
-        if not 'image' in kwargs:
+        if 'image' not in kwargs:
             kwargs['image'] = 'python:3.8-slim-buster'
 
-        if not 'name' in kwargs:
+        if 'name' not in kwargs:
             kwargs['name'] = f'k8s_airflow_pod_{uuid.uuid4().hex}'
 
-        if not 'namespace' in kwargs:
+        if 'namespace' not in kwargs:
             kwargs['namespace'] = 'default'
 
         kwargs_to_upstream = {
@@ -93,7 +93,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             "op_kwargs": kwargs["op_kwargs"],
         }
 
-        super().__init__(**kwargs)
+        super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
 
     def execute(self, context: 'Context'):
 

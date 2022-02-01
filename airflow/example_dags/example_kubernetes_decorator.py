@@ -22,7 +22,7 @@ This is an example dag for using the KubernetesPodOperator.
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import dag, task
+from airflow.decorators import task
 
 with DAG(
     dag_id='example_kubernetes_decorator',
