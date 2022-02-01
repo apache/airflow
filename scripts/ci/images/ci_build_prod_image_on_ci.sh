@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,23 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck shell=bash disable=SC2086
-# shellcheck source=scripts/docker/common.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
+export INSTALL_FROM_PYPI="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
+export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+export DOCKER_CACHE="pulled"
+export VERBOSE="true"
 
-function install_pip_version() {
-    echo
-    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
-    echo
-    pip install --disable-pip-version-check --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" &&
-        mkdir -p ${HOME}/.local/bin
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+# Builds or waits for the PROD image in the CI environment
+function build_prod_images_on_ci() {
+    build_images::prepare_prod_build
+    start_end::group_start "Build PROD image ${AIRFLOW_CI_IMAGE}"
+    build_images::clean_build_cache
+    build_images::build_prod_images_from_locally_built_airflow_packages
+    start_end::group_end
 }
 
-common::get_colors
-common::get_airflow_version_specification
-common::override_pip_version_if_needed
-common::show_pip_version_and_location
-
-install_pip_version
+build_prod_images_on_ci

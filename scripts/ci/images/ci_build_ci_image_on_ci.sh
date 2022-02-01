@@ -18,28 +18,12 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# Builds or waits for the CI image in the CI environment
-# Depending on "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
+# Builds CI image in the CI environment
 function build_ci_image_on_ci() {
     build_images::prepare_ci_build
-    start_end::group_start "Prepare CI image ${AIRFLOW_CI_IMAGE}"
-
-    rm -rf "${BUILD_CACHE_DIR}"
-    mkdir -pv "${BUILD_CACHE_DIR}"
-
-    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-        # Pretend that the image was build. We already have image with the right sources baked in!
-        # so all the checksums are assumed to be correct
-        md5sum::calculate_md5sum_for_all_files
-        local image_name_with_tag="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        push_pull_remove_images::wait_for_image "${image_name_with_tag}"
-        docker_v tag  "${image_name_with_tag}" "${AIRFLOW_CI_IMAGE}"
-        md5sum::update_all_md5_with_group
-    else
-        build_images::rebuild_ci_image_if_needed
-    fi
-    # Skip the image check entirely for the rest of the script
-    export CHECK_IMAGE_FOR_REBUILD="false"
+    start_end::group_start "Build CI image ${AIRFLOW_CI_IMAGE}"
+    build_images::clean_build_cache
+    build_images::rebuild_ci_image_if_needed
     start_end::group_end
 }
 
