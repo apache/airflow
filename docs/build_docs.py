@@ -52,6 +52,7 @@ Invitation link: https://s.apache.org/airflow-slack\
 
 ERRORS_ELIGIBLE_TO_REBUILD = [
     'failed to reach any of the inventories with the following issues',
+    'toctree contains reference to nonexisting document',
     'undefined label:',
     'unknown document:',
     'Error loading airflow.providers',
