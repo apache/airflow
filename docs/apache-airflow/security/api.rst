@@ -80,7 +80,7 @@ principal exists in the keytab file.
 Basic authentication
 ''''''''''''''''''''
 
-`Basic username password authentication <https://en.wikipedia.org/wiki/Basic_access_authentication>` is currently
+`Basic username password authentication <https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the API. This works for users created through LDAP login or
 within Airflow Metadata DB using password.
 
