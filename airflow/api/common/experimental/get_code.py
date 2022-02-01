@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.dagcode import DagCode
 
 
-@deprecated(reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.3")
+@deprecated(reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.4")
 def get_code(dag_id: str) -> str:
     """Return python code of a given dag_id.
 
