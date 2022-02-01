@@ -69,15 +69,9 @@ class MockPowerShell(MagicMock):
         )
 
         if self.had_errors:
-            # There seems to be cases where an error record does not have a
-            # message type; in this case, we match on the class name as a
-            # workaround.
-            class ErrorRecord(Mock):
-                pass
-
             self.streams.error.append(
-                ErrorRecord(
-                    MESSAGE_TYPE=None,
+                Mock(
+                    MESSAGE_TYPE=MessageType.ERROR_RECORD,
                     command_name="command",
                     message="error",
                     reason="reason",

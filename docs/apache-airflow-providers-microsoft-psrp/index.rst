@@ -78,8 +78,8 @@ PIP requirements
 =============  ==================
 PIP package    Version required
 =============  ==================
-``pypsrp``     ``>=0.5.0``
-``pypsrp``     ``~=0.5``
+``pypsrp``     ``>=0.8.0``
+``pypsrp``     ``~=0.8``
 =============  ==================
 
 .. include:: ../../airflow/providers/microsoft/psrp/CHANGELOG.rst

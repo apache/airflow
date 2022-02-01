@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
@@ -229,15 +228,7 @@ class PsrpHook(BaseHook):
         return ps
 
     def _log_record(self, log, record):
-        message_type = getattr(record, "MESSAGE_TYPE", None)
-
-        # There seems to be a problem with some record types; we'll assume
-        # that the class name matches a message type.
-        if message_type is None:
-            message_type = getattr(
-                MessageType, re.sub('(?!^)([A-Z]+)', r'_\1', type(record).__name__).upper()
-            )
-
+        message_type = record.MESSAGE_TYPE
         if message_type == MessageType.ERROR_RECORD:
             log(INFO, "%s: %s", record.reason, record)
             if record.script_stacktrace:
