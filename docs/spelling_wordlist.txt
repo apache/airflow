@@ -575,6 +575,7 @@ cloudwatch
 cls
 cmake
 cmd
+cmdlet
 cmdline
 cmds
 cname
@@ -1195,6 +1196,7 @@ reidentify
 reinit
 reinitialization
 relativedelta
+remoting
 renewer
 replicaSet
 repo
@@ -1223,6 +1225,7 @@ rtype
 ru
 runAsUser
 runnable
+runspace
 runtime
 sagemaker
 salesforce
@@ -1243,6 +1246,7 @@ sdk
 secretRef
 secretRefs
 securable
+securestring
 securityManager
 seealso
 seedlist

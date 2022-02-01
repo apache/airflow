@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/microsoft/psrp/index>
@@ -72,8 +78,8 @@ PIP requirements
 =============  ==================
 PIP package    Version required
 =============  ==================
-``pypsrp``     ``>=0.5.0``
-``pypsrp``     ``~=0.5``
+``pypsrp``     ``>=0.8.0``
+``pypsrp``     ``~=0.8``
 =============  ==================
 
 .. include:: ../../airflow/providers/microsoft/psrp/CHANGELOG.rst
