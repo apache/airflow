@@ -1619,8 +1619,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
 
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
-        dag: Optional["DAG"] = getattr(operator, '_dag', None)
-        tg: Optional["TaskGroup"] = getattr(operator, 'task_group', None)
+        dag = operator.get_dag()
         if dag:
             # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
             # are mapped, we want to _remove_ that task from the dag
@@ -1630,7 +1629,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         return MappedOperator(
             operator_class=type(operator),
             task_id=operator.task_id,
-            task_group=tg,
+            task_group=operator.task_group,
             dag=dag,
             upstream_task_ids=operator.upstream_task_ids,
             downstream_task_ids=operator.downstream_task_ids,

@@ -109,6 +109,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     """
 
     dag: Optional["DAG"] = None
+    task_group: Optional["TaskGroup"] = None
+    """The task_group that contains this node"""
 
     @property
     @abstractmethod
@@ -117,14 +119,11 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def label(self) -> Optional[str]:
-        tg: Optional["TaskGroup"] = getattr(self, 'task_group', None)
+        tg = self.task_group
         if tg and tg.node_id and tg.prefix_group_id:
             # "task_group_id.task_id" -> "task_id"
             return self.node_id[len(tg.node_id) + 1 :]
         return self.node_id
-
-    task_group: Optional["TaskGroup"]
-    """The task_group that contains this node"""
 
     start_date: Optional[pendulum.DateTime]
     end_date: Optional[pendulum.DateTime]
