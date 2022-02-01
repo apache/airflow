@@ -19,7 +19,7 @@
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Iterator, Optional
 from weakref import WeakKeyDictionary
 
 from pypsrp.messages import MessageType
@@ -84,7 +84,7 @@ class PsrpHook(BaseHook):
         self,
         psrp_conn_id: str,
         logging_level: int = DEBUG,
-        operation_timeout: Optional[float] = None,
+        operation_timeout: Optional[int] = None,
         runspace_options: Optional[Dict[str, Any]] = None,
         wsman_options: Optional[Dict[str, Any]] = None,
         on_output_callback: Optional[OutputCallback] = None,
@@ -156,7 +156,7 @@ class PsrpHook(BaseHook):
         return pool
 
     @contextmanager
-    def invoke(self) -> PowerShell:
+    def invoke(self) -> Iterator[PowerShell]:
         """
         Context manager that yields a PowerShell object to which commands can be
         added. Upon exit, the commands will be invoked.
@@ -167,6 +167,7 @@ class PsrpHook(BaseHook):
         if local_context:
             self.__enter__()
         try:
+            assert self._conn is not None
             ps = PowerShell(self._conn)
             yield ps
             ps.begin_invoke()
