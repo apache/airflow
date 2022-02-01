@@ -32,7 +32,6 @@ from google.api_core.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCom
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
@@ -84,8 +83,9 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         return f'BigQuery Console #{self.index + 1}'
 
     def get_link(self, operator: BaseOperator, dttm: datetime):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        job_ids = XCom.get_one(
+            key='job_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         if not job_ids:
             return None
         if len(job_ids) < self.index:
