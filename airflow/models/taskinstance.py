@@ -1422,12 +1422,16 @@ class TaskInstance(Base, LoggingMixin):
 
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-            self.log.info(
-                "Exporting the following env vars:\n%s",
-                '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
-            )
-
             os.environ.update(airflow_context_vars)
+
+            # Log context only for the default execution method, the assumption
+            # being that otherwise we're resuming a deferred task (in which
+            # case there's no need to log these again).
+            if not self.next_method:
+                self.log.info(
+                    "Exporting the following env vars:\n%s",
+                    '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+                )
 
             # Run pre_execute callback
             self.task.pre_execute(context=context)
