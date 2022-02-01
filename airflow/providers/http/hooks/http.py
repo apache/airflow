@@ -113,10 +113,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
-            url = self.base_url + '/' + endpoint
-        else:
-            url = (self.base_url or '') + (endpoint or '')
+        url = self.url_from_endpoint(endpoint)
 
         if self.method == 'GET':
             # GET uses params
@@ -214,6 +211,12 @@ class HttpHook(BaseHook):
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         return self._retry_obj(self.run, *args, **kwargs)
+
+    def url_from_endpoint(self, endpoint: str) -> str:
+        """Combine base url with endpoint"""
+        if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
+            return self.base_url + '/' + endpoint
+        return (self.base_url or '') + (endpoint or '')
 
     def test_connection(self):
         """Test HTTP Connection"""
