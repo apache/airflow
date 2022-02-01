@@ -54,11 +54,12 @@ Content
 Package apache-airflow-providers-microsoft-psrp
 ------------------------------------------------------
 
+This package provides remote execution capabilities via the
 `PowerShell Remoting Protocol (PSRP)
-<https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__
+<https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
