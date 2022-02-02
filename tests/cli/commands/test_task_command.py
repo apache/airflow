@@ -119,6 +119,44 @@ class TestCliTasks(unittest.TestCase):
                 ]
             )
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    def test_test_filters_secrets(self):
+        """
+        Test that the `airflow test` command does not print out secret values to stdout.  Should be
+        filtered by SecretsMasker with new changes.
+
+        """
+        password = "somepassword1234!"
+
+        def print_password(*args, **kwargs):
+            print(password)
+
+        logger = logging.getLogger('airflow.task')
+        logger.filters[0].add_mask(password)
+        args = self.parser.parse_args(
+            ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
+        )
+
+        # assert that when mocking the run fn to print a password like a task_test run would, if that password
+        # should be redacted then it doesn't appear in the stdout
+        with mock.patch("airflow.models.TaskInstance.run", new=print_password), redirect_stdout(
+            io.StringIO()
+        ) as stdout:
+            task_command.task_test(args)
+        stdout = stdout.getvalue()
+        assert password not in stdout
+
+        # just as a confirmation, with the same mock but a different "password" that isn't supposed to be
+        # filtered, assert that this password does get printed.  This confirms to us that the redact
+        # functionality of task_test is working
+        password = "somepassword2345!"
+        with mock.patch("airflow.models.TaskInstance.run", new=print_password), redirect_stdout(
+            io.StringIO()
+        ) as stdout:
+            task_command.task_test(args)
+        stdout = stdout.getvalue()
+        assert password in stdout
+
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
         """

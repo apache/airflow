@@ -16,8 +16,10 @@
 # under the License.
 """Mask sensitive information from logs"""
 import collections
+import contextlib
 import logging
 import re
+import sys
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from airflow.compat.functools import cache, cached_property
@@ -100,7 +102,6 @@ def redact(value: "RedactableItem", name: Optional[str] = None) -> "RedactableIt
 
 @cache
 def _secrets_masker() -> "SecretsMasker":
-
     for flt in logging.getLogger('airflow.task').filters:
         if isinstance(flt, SecretsMasker):
             return flt
@@ -252,3 +253,44 @@ class SecretsMasker(logging.Filter):
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)
+
+
+class StdoutRedactContext:
+    """
+    This class redirects all stdout within the context through the logger specified in the init.
+    Print statements get turned into log lines through the logger member.
+
+    """
+
+    def __init__(self):
+        self.stdout_lines = []
+        self._redirector = contextlib.redirect_stdout(self)
+
+    def write(self, stdout_line):
+        """Write stdout to the internal buffer when stdout is written to."""
+        self.stdout_lines.append(redact(stdout_line))
+
+    def flush(self):
+        """
+        No flush functionality needed here, but this method is needed to make this class a "file-like" which
+        can be called by the context lib in self._redirector.
+
+        """
+
+    def __enter__(self):
+        """
+        At the beginning of the context, enter the "redirect mode" which is initiated by entering the context
+        of `contextlib.redirect_stdout`.
+
+        """
+        self._redirector.__enter__()
+
+    def __exit__(self, *args):
+        """
+        On exit from the context, close the `contextlib.redirect_stdout` context to stop capturing lines
+        from stdout, then route all lines one by one through self.redirect_to.
+
+        """
+        self._redirector.__exit__(*args)
+        for log in self.stdout_lines:
+            sys.stdout.write(log)

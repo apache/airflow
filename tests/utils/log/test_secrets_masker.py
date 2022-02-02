@@ -22,7 +22,7 @@ import textwrap
 
 import pytest
 
-from airflow.utils.log.secrets_masker import SecretsMasker, should_hide_value_for_key
+from airflow.utils.log.secrets_masker import SecretsMasker, StdoutRedactContext, should_hide_value_for_key
 from tests.test_utils.config import conf_vars
 
 p = "password"
@@ -338,3 +338,84 @@ class ShortExcFormatter(logging.Formatter):
 def lineno():
     """Returns the current line number in our program."""
     return inspect.currentframe().f_back.f_lineno
+
+
+@pytest.fixture()
+def context():
+    logger = logging.getLogger('airflow.task')
+    logger.filters[0].add_mask(p)
+    return StdoutRedactContext()
+
+
+class TestStdoutRedactContext:
+    def test_redacts_from_print(self, context, capfd):
+        """
+        Test that when printing within the context that the password is spit back out to us but the passwords
+        are redacted from the output that the context manager sends on exit.
+
+        """
+        # first assert that the password isn't redacted with a regular print
+        print(p)
+        stdout, err = capfd.readouterr()
+        assert p in stdout
+
+        # assert that the password is redacted when printing within the
+        # context manager that we're testing in this class
+        with context:
+            print(p)
+        stdout, err = capfd.readouterr()
+        assert p not in stdout
+        assert '*' in stdout
+
+    def test_all_lines_captured(self, context):
+        """
+        Check that all stdout is captured inside of the context. We expect that there are two lines per print
+        statement because of the new lines that are added for every print statement.
+
+        """
+        with context:
+            print("a")
+            print("b")
+            print("c")
+
+            # each line will add a newline character to the end of it when using print
+            assert len(context.stdout_lines) / 2 == 3
+
+    def test_write(self, context):
+        """
+        Test that the write function actually redacts the input
+
+        """
+        with context:
+            context.write(p)
+            should_be_redacted_line = context.stdout_lines[0]
+            assert '*' in should_be_redacted_line
+            assert p not in should_be_redacted_line
+
+    def test___enter__(self, context, capfd):
+        """
+        assert that no stdout comes through within the context
+
+        """
+        with context:
+            print("a")
+            print("b")
+            print("c")
+            stdout, err = capfd.readouterr()
+            assert stdout == ''
+
+    def test___exit__(self, context, capfd):
+        """
+        Assert that stdout functionality comes back after the context exits, and that all of the lines
+        are printed from within the context once it exits
+
+        """
+        with context:
+            print("a")
+            print("b")
+            print("c")
+        stdout, err = capfd.readouterr()
+        assert stdout.replace("\n", "") == "abc"
+        print("d")
+        stdout, err = capfd.readouterr()
+        assert stdout.rstrip() == "d"
