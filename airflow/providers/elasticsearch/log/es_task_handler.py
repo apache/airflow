@@ -194,12 +194,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             # assume logs do not exist
             if int(next_offset) == 0 and cur_ts.diff(last_log_ts).in_seconds() > 5:
                 metadata['end_of_log'] = True
-                message = (
-                    f"*** Log {log_id} not found in elasticsearch. "
-                    "If your task started recently, please wait a moment and reload this page. "
-                    "Otherwise, the logs for this task instance may have been removed."
-                )
-                return [('', message)], metadata
+                return [
+                    (
+                        '',
+                        (
+                            f"*** Log {log_id} not found in elasticsearch. "
+                            "If your task started recently, please wait a moment and reload this page. "
+                            "Otherwise, the logs for this task instance may have been removed."
+                        ),
+                    )
+                ], metadata
 
             if (
                 # Assume end of log after not receiving new log for N min,
