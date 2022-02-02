@@ -32,13 +32,13 @@ from airflow import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
+from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 BASE_LINK = "https://console.cloud.google.com"
-GCS_STORAGE_LINK = BASE_LINK + "/storage/browser/{destination_gcs_uri};tab=objects?project={project_id}"
 METASTORE_BASE_LINK = BASE_LINK + "/dataproc/metastore/services/{region}/{service_id}"
 METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/backups/{backup_id}?project={project_id}"
 METASTORE_BACKUPS_LINK = METASTORE_BASE_LINK + "/backuprestore?project={project_id}"
@@ -140,24 +140,6 @@ class DataprocMetastoreServiceLink(BaseOperatorLink):
                 project_id=service_conf["project_id"],
             )
             if service_conf
-            else ""
-        )
-
-
-class StorageLink(BaseOperatorLink):
-    """Helper class for constructing GCS Storage link"""
-
-    name = "GCS Storage"
-
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        storage_conf = ti.xcom_pull(task_ids=operator.task_id, key="storage_conf")
-        return (
-            GCS_STORAGE_LINK.format(
-                destination_gcs_uri=storage_conf["destination_gcs_uri"],
-                project_id=storage_conf["project_id"],
-            )
-            if storage_conf
             else ""
         )
 
@@ -736,7 +718,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         self.xcom_push(
             context,
             key="storage_conf",
-            value={"destination_gcs_uri": uri, "project_id": self.project_id},
+            value={"uri": uri, "project_id": self.project_id},
         )
         return MetadataExport.to_dict(metadata_export)
 
