@@ -249,6 +249,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 password='password',
@@ -268,6 +269,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 key_filename='fake.file',
@@ -455,6 +457,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 pkey=TEST_PKEY,
@@ -477,6 +480,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 pkey=TEST_PKEY,
@@ -530,6 +534,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 password='password',
@@ -555,6 +560,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 password='password',
@@ -578,6 +584,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=20,
@@ -601,6 +608,7 @@ class TestSSHHook(unittest.TestCase):
         # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=15,
@@ -624,6 +632,7 @@ class TestSSHHook(unittest.TestCase):
         # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=15,
@@ -679,6 +688,7 @@ class TestSSHHook(unittest.TestCase):
         # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=expected_value,
