@@ -77,7 +77,7 @@ configuration::
 
     conf.get("core", "xcom_backend")
 
-If using env vars check  with ``env|grep  AIRFLOW__CORE__XCOM``.
+If using env vars, check with ``env|grep  AIRFLOW__CORE__XCOM``.
 
 Working with Custom Backends in K8s via Helm
 --------------------------------------------
