@@ -1495,6 +1495,11 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     def map(self, **kwargs) -> "MappedOperator":
         return MappedOperator.from_operator(self, kwargs)
 
+    def unmap(self) -> "BaseOperator":
+        """:meta private:"""
+        # Exists to make typing easier
+        raise TypeError("Internal code error: Do not call unmap on BaseOperator!")
+
 
 def _validate_kwarg_names_for_mapping(
     cls: Union[str, Type[BaseOperator]],
@@ -1620,6 +1625,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @classmethod
     def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
         dag = operator.get_dag()
+        task_group = operator.task_group
         if dag:
             # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
             # are mapped, we want to _remove_ that task from the dag
@@ -1629,7 +1635,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         return MappedOperator(
             operator_class=type(operator),
             task_id=operator.task_id,
-            task_group=operator.task_group,
+            task_group=task_group,
             dag=dag,
             upstream_task_ids=operator.upstream_task_ids,
             downstream_task_ids=operator.downstream_task_ids,

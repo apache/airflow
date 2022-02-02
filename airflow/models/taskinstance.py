@@ -1727,6 +1727,8 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db(session)
 
         task = self.task
+        if task.is_mapped:
+            task = task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)

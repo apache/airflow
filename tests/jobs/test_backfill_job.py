@@ -41,10 +41,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
@@ -1509,3 +1511,13 @@ class TestBackfillJob:
         )
         job.run()
         assert executor.job_id is not None
+
+    def test_mapped_dag(self, dag_maker):
+        """End-to-end test of a simple mapped dag"""
+
+        self.dagbag.process_file(str(TEST_DAGS_FOLDER / 'test_mapped_classic.py'))
+        dag = self.dagbag.get_dag('test_mapped_classic')
+
+        # This needs a real executor to run, so that the `make_list` task can write out the TaskMap
+        job = BackfillJob(dag=dag, start_date=days_ago(1), end_date=days_ago(1), donot_pickle=True)
+        job.run()

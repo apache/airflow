@@ -718,6 +718,7 @@ def test_task_mapping_with_dag():
 
     assert task1.downstream_list == [mapped]
     assert mapped in dag.tasks
+    assert mapped.task_group == dag.task_group
     # At parse time there should only be three tasks!
     assert len(dag.tasks) == 3
 

@@ -290,10 +290,10 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
                 if isinstance(child, TaskGroup):
                     yield from _walk_group(child)
 
-        dag = self.dag
-        if not dag:
+        tg = self.task_group
+        if not tg:
             raise RuntimeError("Cannot check for mapped_dependants when not attached to a DAG")
-        for key, child in _walk_group(dag.task_group):
+        for key, child in _walk_group(tg):
             if key == self.node_id:
                 continue
             if not isinstance(child, (MappedOperator, MappedTaskGroup)):
