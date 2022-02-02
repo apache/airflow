@@ -27,18 +27,15 @@ export VERBOSE="true"
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# Builds or waits for the PROD image in the CI environment
-function build_prod_images_on_ci() {
+# Pulls prepared  PROD image in the CI environment
+function pull_prod_images_on_ci() {
     build_images::prepare_prod_build
-
-    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-        local image_name_with_tag="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        push_pull_remove_images::wait_for_image "${image_name_with_tag}"
-        docker_v tag  "${image_name_with_tag}" "${AIRFLOW_PROD_IMAGE}"
-    else
-        build_images::build_prod_images_from_locally_built_airflow_packages
-    fi
-    unset FORCE_BUILD
+    start_end::group_start "Pull PROD image ${AIRFLOW_PROD_IMAGE}"
+    build_images::clean_build_cache
+    local image_name_with_tag="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    push_pull_remove_images::wait_for_image "${image_name_with_tag}"
+    docker_v tag  "${image_name_with_tag}" "${AIRFLOW_PROD_IMAGE}"
+    start_end::group_end
 }
 
-build_prod_images_on_ci
+pull_prod_images_on_ci

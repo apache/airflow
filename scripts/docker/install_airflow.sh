@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -25,7 +24,7 @@
 # UPGRADE_TO_NEWER_DEPENDENCIES - determines whether eager-upgrade should be performed with the
 #                                 dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
 #
-# shellcheck disable=SC2086
+# shellcheck shell=bash disable=SC2086
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 

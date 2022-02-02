@@ -15,27 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+export INSTALL_FROM_PYPI="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
+export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+export DOCKER_CACHE="pulled"
+export VERBOSE="true"
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function run_in_container_bats_tests() {
-    if [[ "${#@}" == "0" ]]; then
-        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/opt/bats/bin/bats"  \
-        "-v" "$(pwd):/airflow" \
-        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        --tap  "tests/bats/in_container/"
-    else
-        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/opt/bats/bin/bats"  \
-        "-v" "$(pwd):/airflow" \
-        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        --tap "${@}"
-    fi
+# Builds or waits for the PROD image in the CI environment
+function build_prod_images_on_ci() {
+    build_images::prepare_prod_build
+    start_end::group_start "Build PROD image ${AIRFLOW_CI_IMAGE}"
+    build_images::clean_build_cache
+    build_images::build_prod_images_from_locally_built_airflow_packages
+    start_end::group_end
 }
 
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed
-
-run_in_container_bats_tests "$@"
+build_prod_images_on_ci

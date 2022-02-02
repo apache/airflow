@@ -26,6 +26,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
+from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -65,6 +66,7 @@ class SSHHook(BaseHook):
         Use conn_timeout instead.
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
+    :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -108,6 +110,7 @@ class SSHHook(BaseHook):
         timeout: Optional[int] = None,
         conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
+        banner_timeout: float = 30.0,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -120,6 +123,7 @@ class SSHHook(BaseHook):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
+        self.banner_timeout = banner_timeout
         self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
@@ -292,6 +296,7 @@ class SSHHook(BaseHook):
             port=self.port,
             sock=self.host_proxy,
             look_for_keys=self.look_for_keys,
+            banner_timeout=self.banner_timeout,
         )
 
         if self.password:
@@ -304,7 +309,18 @@ class SSHHook(BaseHook):
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
 
-        client.connect(**connect_kwargs)
+        log_before_sleep = lambda retry_state: self.log.info(
+            "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+        )
+
+        for attempt in Retrying(
+            reraise=True,
+            wait=wait_fixed(3) + wait_random(0, 2),
+            stop=stop_after_attempt(3),
+            before_sleep=log_before_sleep,
+        ):
+            with attempt:
+                client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns

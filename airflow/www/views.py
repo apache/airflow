@@ -1377,7 +1377,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+        dttm = timezone.parse(execution_date) if execution_date else None
         form = DateTimeForm(data={'execution_date': dttm})
         dag_model = DagModel.get_dagmodel(dag_id)
 
