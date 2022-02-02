@@ -101,8 +101,8 @@ def upgrade():
 
 def downgrade():
     engine = settings.engine
-    if engine.dialect.has_table(engine, 'task_instance'):
-        connection = op.get_bind()
+    connection = op.get_bind()
+    if engine.dialect.has_table(connection, 'task_instance'):
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
         dagbag = DagBag(settings.DAGS_FOLDER)
