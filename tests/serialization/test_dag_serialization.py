@@ -488,6 +488,9 @@ class TestStringifiedDAGs:
         assert not isinstance(task, SerializedBaseOperator)
         assert isinstance(task, BaseOperator)
 
+        # Every task should have a task_group property -- even if it's the DAG's root task group
+        assert serialized_task.task_group
+
         fields_to_check = task.get_serialized_fields() - {
             # Checked separately
             '_task_type',

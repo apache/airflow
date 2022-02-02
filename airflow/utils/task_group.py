@@ -122,13 +122,14 @@ class TaskGroup(DAGNode):
         self._group_id = group_id
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
+        self.children: Dict[str, DAGNode] = {}
+        if parent_group:
+            parent_group.add(self)
+
         self.used_group_ids.add(self.group_id)
         if self.group_id:
             self.used_group_ids.add(self.downstream_join_id)
             self.used_group_ids.add(self.upstream_join_id)
-        self.children: Dict[str, DAGNode] = {}
-        if parent_group:
-            parent_group.add(self)
 
         self.tooltip = tooltip
         self.ui_color = ui_color
@@ -187,6 +188,8 @@ class TaskGroup(DAGNode):
 
     def add(self, task: DAGNode) -> None:
         """Add a task to this TaskGroup."""
+        # Set the TG first, as setting it might change the return value of node_id!
+        task.task_group = weakref.proxy(self)
         key = task.node_id
 
         if key in self.children:
@@ -204,7 +207,6 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
-        task.task_group = weakref.proxy(self)
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id

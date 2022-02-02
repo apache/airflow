@@ -19,6 +19,7 @@
 import datetime
 import enum
 import logging
+import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type, Union
@@ -1086,8 +1087,15 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
+
+        ref = weakref.proxy(group)
+
+        def set_ref(task: BaseOperator) -> BaseOperator:
+            task.task_group = ref
+            return task
+
         group.children = {
-            label: task_dict[val]  # type: ignore
+            label: set_ref(task_dict[val])  # type: ignore
             if _type == DAT.OP  # type: ignore
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
             for label, (_type, val) in encoded_group["children"].items()

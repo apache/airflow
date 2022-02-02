@@ -1514,10 +1514,19 @@ class TestBackfillJob:
 
     def test_mapped_dag(self, dag_maker):
         """End-to-end test of a simple mapped dag"""
+        # Use SequentialExecutor for more predictable test behaviour
+        from airflow.executors.sequential_executor import SequentialExecutor
 
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / 'test_mapped_classic.py'))
         dag = self.dagbag.get_dag('test_mapped_classic')
 
         # This needs a real executor to run, so that the `make_list` task can write out the TaskMap
-        job = BackfillJob(dag=dag, start_date=days_ago(1), end_date=days_ago(1), donot_pickle=True)
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=days_ago(1),
+            end_date=days_ago(1),
+            donot_pickle=True,
+            executor=SequentialExecutor(),
+        )
         job.run()
