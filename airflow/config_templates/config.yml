@@ -1856,7 +1856,7 @@
       version_added: 2.3.0
       type: float
       example: ~
-      default: "30.0"
+      default: "10.0"
     - name: catchup_by_default
       description: |
         Turn off scheduler catchup by setting this to ``False``.

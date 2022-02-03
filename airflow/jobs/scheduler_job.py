@@ -743,7 +743,7 @@ class SchedulerJob(BaseJob):
         )
 
         timers.call_regular_interval(
-            conf.getfloat('scheduler', 'zombie_detection_interval', fallback=30.0),
+            conf.getfloat('scheduler', 'zombie_detection_interval', fallback=10.0),
             self._find_zombies,
         )
 
@@ -1274,7 +1274,7 @@ class SchedulerJob(BaseJob):
         Find zombie task instances, which are tasks haven't heartbeated for too long
         and update the current zombie list.
         """
-        self.log.info("Finding 'running' jobs without a recent heartbeat")
+        self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 
         zombies = (
