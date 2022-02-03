@@ -17,7 +17,6 @@
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
 import warnings
-from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -165,9 +164,7 @@ class GCSToS3Operator(BaseOperator):
         if files:
 
             for file in files:
-                with NamedTemporaryFile() as local_tmp_file:
-                    hook.download(object_name=file, bucket_name=self.bucket, filename=local_tmp_file.name)
-
+                with hook.provide_file(object_name=file, bucket_name=self.bucket) as local_tmp_file:
                     dest_key = self.dest_s3_key + file
                     self.log.info("Saving file to %s", dest_key)
 
