@@ -31,7 +31,7 @@ PyYAML==5.4.1
 Pygments==2.11.2
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.2
-SQLAlchemy==1.4.31
+SQLAlchemy==1.4.9
 WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.7.6
