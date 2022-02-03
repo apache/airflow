@@ -24,7 +24,14 @@ import pytest
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
-from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
+from airflow.www.views import (
+    _sign_origin_url,
+    _unsign_origin_url,
+    get_key_paths,
+    get_safe_url,
+    get_value_from_path,
+    truncate_task_duration,
+)
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -152,6 +159,46 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     # We aren't checking the logic of the dag_id filter itself (that is built
     # in to FAB) but simply that dag_id filter was run
     check_content_in_response(content, resp)
+
+
+@pytest.mark.parametrize(
+    "test_url, expected_signed_url",
+    [
+        (
+            "/home",
+            "/home.R3u0aqaICV200I1lFDjdbNyWdlY",
+        ),
+        (
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2.Ebj2nBjN56ZQqXX6YWjUoddIzJQ",
+        ),
+    ]
+)
+def test_sign_origin_url(app, test_url, expected_signed_url):
+    with app.app_context():
+        app.secret_key = "something known and constant"
+        assert _sign_origin_url(test_url) == expected_signed_url
+
+
+@pytest.mark.parametrize(
+    "test_signed_url, expected_url",
+    [
+        (
+            "/home.R3u0aqaICV200I1lFDjdbNyWdlY",
+            "/home",
+        ),
+        (
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2.Ebj2nBjN56ZQqXX6YWjUoddIzJQ",
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
+        ),
+    ],
+)
+@mock.patch("airflow.www.views.url_for")
+def test_unsign_origin_url(mock_url_for, app, test_signed_url, expected_url):
+    mock_url_for.return_value = "/home"
+    with app.app_context():
+        app.secret_key = "something known and constant"
+        assert _unsign_origin_url(test_signed_url) == expected_url
 
 
 @pytest.mark.parametrize(
