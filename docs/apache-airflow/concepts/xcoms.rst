@@ -68,8 +68,7 @@ Firstly, if you can exec into a terminal in the container then you should be abl
 
 which will print the actual class that is being used.
 
-Depending on how you've configured the backend, you can also examine airflow
-configuration::
+You can also examine Airflow's configuration:
 
 .. code-block:: python
 
