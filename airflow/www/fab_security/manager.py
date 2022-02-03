@@ -107,7 +107,7 @@ class BaseSecurityManager:
     """ Flask-OAuth """
     oauth_remotes: Dict[str, Any]
     """ OAuth email whitelists """
-    oauth_whitelists: Dict[str, List]
+    oauth_whitelists: Dict[str, List] = {}
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     @staticmethod
