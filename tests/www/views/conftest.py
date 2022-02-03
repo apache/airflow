@@ -44,6 +44,35 @@ def examples_dag_bag(session):
     yield dag_bag
 
 
+@pytest.fixture
+def mock_unsign_origin_url(monkeypatch):
+    """
+    Bypasses the _unsign_origin_url function, which verifies the signature on
+    URLs that are (usually) passed via GET parameters or via a form value.
+
+    Use this instead of patching current_app.secret_key when you need to avoid
+    creating an app context, to avoid having to fixup tests when the salt
+    changes, and tests where you need to check the result of a rendered origin
+    URL and you don't want to care about URL signatures.
+    """
+    monkeypatch.setattr("airflow.www.views._unsign_origin_url", lambda url: url)
+
+
+@pytest.fixture
+def mock_sign_origin_url(monkeypatch):
+    """
+    Bypasses the _sign_origin_url function, which signs URLs so they can be
+    rendered to users (where they can be modified) into form values in
+    templates that use those values to compose redirects or re-render them
+    again.
+
+    Use this instead of patching current_app.secret and modifying expected URL
+    values when making assertions on template data, or when it is unnecessary
+    to calculate URL signatures.
+    """
+    monkeypatch.setattr("airflow.www.views._sign_origin_url", lambda url: url)
+
+
 @pytest.fixture(scope="module")
 def app(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
