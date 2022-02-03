@@ -515,8 +515,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Returns all permissions as a set of tuples with the action and resource names"""
         return set(
             self.get_session.query(self.permission_model)
-            .join(self.action_model)
-            .join(self.resource_model)
+            .join(self.permission_model.action)
+            .join(self.permission_model.resource)
             .with_entities(self.action_model.name, self.resource_model.name)
             .all()
         )
