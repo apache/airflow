@@ -16,7 +16,6 @@
 # under the License.
 
 import datetime
-from functools import cached_property
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -229,7 +228,7 @@ class User(Model):
     def is_anonymous(self):
         return False
 
-    @cached_property
+    @property
     def perms(self):
         perms = set()
         for role in self.roles:
