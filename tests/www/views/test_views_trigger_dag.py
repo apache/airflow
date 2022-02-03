@@ -55,7 +55,7 @@ def test_trigger_dag_button(admin_client):
     assert run.run_type == DagRunType.MANUAL
 
 
-def test_trigger_dag_conf(admin_client):
+def test_trigger_dag_conf(mock_unsign_origin_url, admin_client):
     test_dag_id = "example_bash_operator"
     conf_dict = {'string': 'Hello, World!'}
 
@@ -69,7 +69,7 @@ def test_trigger_dag_conf(admin_client):
     assert run.conf == conf_dict
 
 
-def test_trigger_dag_conf_malformed(admin_client):
+def test_trigger_dag_conf_malformed(mock_unsign_origin_url, admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'conf': '{"a": "b"'})
@@ -80,7 +80,7 @@ def test_trigger_dag_conf_malformed(admin_client):
     assert run is None
 
 
-def test_trigger_dag_conf_not_dict(admin_client):
+def test_trigger_dag_conf_not_dict(mock_unsign_origin_url, admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'conf': 'string and not a dict'})
@@ -91,7 +91,7 @@ def test_trigger_dag_conf_not_dict(admin_client):
     assert run is None
 
 
-def test_trigger_dag_wrong_execution_date(admin_client):
+def test_trigger_dag_wrong_execution_date(mock_unsign_origin_url, admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'execution_date': "not_a_date"})
@@ -102,7 +102,7 @@ def test_trigger_dag_wrong_execution_date(admin_client):
     assert run is None
 
 
-def test_trigger_dag_execution_date_data_interval(admin_client):
+def test_trigger_dag_execution_date_data_interval(mock_unsign_origin_url, admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
@@ -122,7 +122,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     assert run.data_interval_end == today_midnight
 
 
-def test_trigger_dag_form(admin_client):
+def test_trigger_dag_form(mock_unsign_origin_url, admin_client):
     test_dag_id = "example_bash_operator"
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}')
     check_content_in_response(f'Trigger DAG: {test_dag_id}', resp)
@@ -142,10 +142,12 @@ def test_trigger_dag_form(admin_client):
         ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
     ],
 )
-def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin):
+def test_trigger_dag_form_origin_url(
+    mock_unsign_origin_url, mock_sign_origin_url, admin_client, test_origin, expected_origin
+):
     test_dag_id = "example_bash_operator"
 
-    resp = admin_client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
+    resp = admin_client.get(f'trigger?dag_id={test_dag_id}&previous={test_origin}')
     check_content_in_response(
         '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
             expected_origin
@@ -161,7 +163,7 @@ def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin)
         ({"other": "test_data", "key": 12}, {"other": "test_data", "key": 12}),
     ],
 )
-def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
+def test_trigger_dag_params_conf(mock_unsign_origin_url, admin_client, request_conf, expected_conf):
     """
     Test that textarea in Trigger DAG UI is pre-populated
     with json config when the conf URL parameter is passed,
@@ -187,7 +189,7 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     )
 
 
-def test_trigger_endpoint_uses_existing_dagbag(admin_client):
+def test_trigger_endpoint_uses_existing_dagbag(mock_unsign_origin_url, admin_client):
     """
     Test that Trigger Endpoint uses the DagBag already created in views.py
     instead of creating a new one.

@@ -131,7 +131,7 @@ def test_action_logging_get(session, admin_client):
     )
 
 
-def test_action_logging_post(session, admin_client):
+def test_action_logging_post(mock_unsign_origin_url, session, admin_client):
     form = dict(
         task_id="runme_1",
         dag_id="example_bash_operator",
@@ -141,6 +141,7 @@ def test_action_logging_post(session, admin_client):
         future="false",
         past="false",
         only_failed="false",
+        origin="/dag?dag_id=8",
     )
     resp = admin_client.post("clear", data=form)
     check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)

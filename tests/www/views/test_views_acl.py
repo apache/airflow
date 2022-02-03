@@ -709,7 +709,7 @@ def client_all_dags_edit_tis(acl_app, user_all_dags_edit_tis):
     )
 
 
-def test_failed_success(client_all_dags_edit_tis):
+def test_failed_success(mock_unsign_origin_url, client_all_dags_edit_tis):
     form = dict(
         task_id="run_this_last",
         dag_id="example_bash_operator",
@@ -718,6 +718,7 @@ def test_failed_success(client_all_dags_edit_tis):
         downstream="false",
         future="false",
         past="false",
+        origin="/home",
     )
     resp = client_all_dags_edit_tis.post('failed', data=form, follow_redirects=True)
     check_content_in_response('Marked failed on 1 task instances', resp)

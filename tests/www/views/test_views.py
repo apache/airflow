@@ -69,11 +69,14 @@ def test_redoc_should_render_template(capture_templates, admin_client):
 
     assert len(templates) == 1
     assert templates[0].name == 'airflow/redoc.html'
-    assert templates[0].local_context == {
-        'openapi_spec_url': '/api/v1/openapi.yaml',
-        'rest_api_enabled': True,
-        'get_docs_url': get_docs_url,
-    }
+    assert (
+        templates[0].local_context.items()
+        >= {
+            'openapi_spec_url': '/api/v1/openapi.yaml',
+            'rest_api_enabled': True,
+            'get_docs_url': get_docs_url,
+        }.items()
+    )
 
 
 def test_plugin_should_list_on_page_with_details(admin_client):
@@ -170,9 +173,9 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
         ),
         (
             "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
-            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2.Ebj2nBjN56ZQqXX6YWjUoddIzJQ",
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2.Ebj2nBjN56ZQqXX6YWjUoddIzJQ",  # noqa: E501
         ),
-    ]
+    ],
 )
 def test_sign_origin_url(app, test_url, expected_signed_url):
     with app.app_context():
@@ -188,7 +191,7 @@ def test_sign_origin_url(app, test_url, expected_signed_url):
             "/home",
         ),
         (
-            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2.Ebj2nBjN56ZQqXX6YWjUoddIzJQ",
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2.Ebj2nBjN56ZQqXX6YWjUoddIzJQ",  # noqa: E501
             "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
         ),
     ],

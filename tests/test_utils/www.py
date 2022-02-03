@@ -34,7 +34,7 @@ def check_content_in_response(text, resp, resp_code=200):
         for line in text:
             assert line in resp_html
     else:
-        assert text in resp_html
+        assert text in resp_html, f"'{text}' did not appear in '{resp_html}'"
 
 
 def check_content_not_in_response(text, resp, resp_code=200):
