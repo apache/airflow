@@ -23,6 +23,7 @@ implementation for BigQuery.
 import hashlib
 import json
 import logging
+import os
 import time
 import warnings
 from copy import deepcopy
@@ -123,6 +124,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = None  # type: Optional[str]
         self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
         self.labels = labels
+        self.credentials_path = "bigquery_hook_credentials.json"
 
     def get_conn(self) -> "BigQueryConnection":
         """Returns a BigQuery PEP 249 connection object."""
@@ -163,7 +165,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
-        return "bigquery://"
+        return f"bigquery://{self.project_id}"
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
@@ -173,14 +175,26 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: the created engine.
         """
         connection = self.get_connection(self.gcp_conn_id)
-        extras = connection.extra_dejson
-        credentials_path = extras.get("extra__google_cloud_platform__key_path", None)
-        if credentials_path is None:
-            raise AirflowException(
-                "For now, we only support instantiating SQLAlchemy engine by"
-                " using extra__google_cloud_platform__key_path"
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") is not None:
+            return create_engine(self.get_uri(), **engine_kwargs)
+        elif connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
+            credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
+            return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
+        elif connection.extra_dejson.get("extra__google_cloud_platform__keyfile_dict"):
+            credential_file_content = json.loads(
+                connection.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
             )
-        return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
+            self.log.info("Saving credentials to %s", self.credentials_path)
+            with open(self.credentials_path, "w") as file:
+                json.dump(credential_file_content, file)
+            return create_engine(self.get_uri(), credentials_path=self.credentials_path, **engine_kwargs)
+
+        raise AirflowException(
+            "For now, we only support instantiating SQLAlchemy engine by"
+            " export GOOGLE_APPLICATION_CREDENTIALS"
+            " using extra__google_cloud_platform__key_path"
+            " and extra__google_cloud_platform__keyfile_dict"
+        )
 
     @staticmethod
     def _resolve_table_reference(
@@ -1396,7 +1410,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_table_schema(
         self,
-        schema_fields_updates: List[Dict[str, Any]],
+        schema_fields_updates: Dict[Any, Dict[str, Any]],
         include_policy_tags: bool,
         dataset_id: str,
         table_id: str,
@@ -1431,13 +1445,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 ]},
             ]
 
-        :type schema_fields_updates: List[dict]
+        :type schema_fields_updates: Dict[Any, Dict[str, Any]]
         :param project_id: The name of the project where we want to update the table.
         :type project_id: str
         """
 
         def _build_new_schema(
-            current_schema: List[Dict[str, Any]], schema_fields_updates: List[Dict[str, Any]]
+            current_schema: List[Dict[str, Any]], schema_fields_updates: Dict[Any, Dict[str, Any]]
         ) -> List[Dict[str, Any]]:
 
             # Turn schema_field_updates into a dict keyed on field names
