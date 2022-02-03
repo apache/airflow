@@ -52,7 +52,7 @@ from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
@@ -2924,84 +2924,68 @@ class TestSchedulerJob:
         ti.refresh_from_db(session=session)
         assert ti.state == State.QUEUED
 
-    def test_runs_are_created_after_max_active_runs_was_reached(self, dag_maker, caplog):
+    def test_runs_are_created_after_max_active_runs_was_reached(self, dag_maker, session):
         """
-        This tests that more DagRuns are created after max_active_runs had reached
-        and some DagRun had finished.
+        Test that when creating runs once max_active_runs is reached the runs does not stick
         """
-        with dag_maker(max_active_runs=1):
-            DummyOperator(task_id='task')
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor(do_update=False)
+        self.scheduler_job.executor = MockExecutor(do_update=True)
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
-        session = settings.Session()
 
-        # schedule cycle when DR created
-        self.scheduler_job._do_scheduling(session)
-        session.flush()
-        assert session.query(DagRun).count() == 1
-        dm = session.query(DagModel).one()
-        assert dm.next_dagrun == DEFAULT_DATE
+        with dag_maker(max_active_runs=1, session=session) as dag:
+            # Need to use something that doesn't immediately get marked as success by the scheduler
+            BashOperator(task_id='task', bash_command='true')
 
-        # schedule cycle when max_active_runs reached
-        self.scheduler_job._do_scheduling(session)
-        session.flush()
-
-        # set dagrun to success
-        dr = session.query(DagRun).one()
-        dr.state = DagRunState.SUCCESS
-        ti = dr.get_task_instance('task', session)
-        ti.state = TaskInstanceState.SUCCESS
-        session.merge(ti)
-        session.merge(dr)
-        session.flush()
-
-        # few cycle for calculate date and create new DR
-        for _ in range(2):
-            self.scheduler_job._do_scheduling(session)
-            session.flush()
-        assert session.query(DagRun).count() == 2
-        dm = session.query(DagModel).one()
-        assert dm.next_dagrun == DEFAULT_DATE + timedelta(days=1)
-
-    def test_more_runs_are_not_created_when_max_active_runs_is_reached(self, dag_maker, caplog):
-        """
-        This tests that when max_active_runs is reached, _create_dag_runs doesn't create
-        more dagruns
-        """
-        with dag_maker(max_active_runs=1):
-            DummyOperator(task_id='task')
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor(do_update=False)
-        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
-        session = settings.Session()
-        self.scheduler_job._do_scheduling(session)
-        session.flush()
-        assert session.query(DagRun).count() == 1
-        dm = session.query(DagModel).one()
-        assert dm.next_dagrun == DEFAULT_DATE
-
-        # set dagrun to success
-        dr = session.query(DagRun).one()
-        dr.state = DagRunState.SUCCESS
-        ti = dr.get_task_instance('task', session)
-        ti.state = TaskInstanceState.SUCCESS
-        session.merge(ti)
-        session.merge(dr)
-        session.flush()
-
-        # check that next_dagrun is set properly by Schedulerjob._update_dag_next_dagruns
-        self.scheduler_job._schedule_dag_run(dr, session)
-        session.flush()
-        assert len(DagModel.dags_needing_dagruns(session).all()) == 1
-        # assert next_dagrun has been updated correctly
-        dm = session.query(DagModel).one()
-        assert dm.next_dagrun == DEFAULT_DATE + timedelta(days=1)
-        # assert no dagruns is created yet
-        assert (
-            session.query(DagRun).filter(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])).count()
-            == 0
+        dag_run = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            session=session,
         )
+
+        # Reach max_active_runs
+        for _ in range(3):
+            self.scheduler_job._do_scheduling(session)
+
+        # Complete dagrun
+        # Add dag_run back in to the session (_do_scheduling does an expunge_all)
+        dag_run = session.merge(dag_run)
+        session.refresh(dag_run)
+        dag_run.get_task_instance(task_id='task', session=session).state = State.SUCCESS
+
+        # create new run
+        for _ in range(3):
+            self.scheduler_job._do_scheduling(session)
+
+        # Assert that new runs has created
+        dag_runs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(dag_runs) == 2
+
+    def test_more_runs_are_not_created_when_max_active_runs_is_reached(self, dag_maker, session):
+        """
+        This tests that when max_active_runs is reached, _create_dag_runs doesn't create more dagruns
+        """
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor(do_update=False)
+        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        with dag_maker(max_active_runs=1) as dag:
+            # Need to use something that doesn't immediately get marked as success by the scheduler
+            BashOperator(task_id='dummy1', bash_command='true')
+
+        dag_maker.create_dagrun(
+            state=State.RUNNING,
+            session=session,
+        )
+
+        for _ in range(3):
+            self.scheduler_job._do_scheduling(session)
+
+        # Assert that no more dagruns has been created
+        dag_runs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(dag_runs) == 1
+
+        # Assert that the next_dagrun hasn't been updated
+        dm = DagModel.get_current(dag_id=dag.dag_id, session=session)
+        assert dm.next_dagrun == DEFAULT_DATE
 
     def test_max_active_runs_creation_phasing(self, dag_maker, session):
         """
