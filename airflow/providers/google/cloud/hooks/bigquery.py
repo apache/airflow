@@ -1410,7 +1410,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_table_schema(
         self,
-        schema_fields_updates: Dict[Any, Dict[str, Any]],
+        schema_fields_updates: List[Dict[str, Any]],
         include_policy_tags: bool,
         dataset_id: str,
         table_id: str,
@@ -1445,13 +1445,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 ]},
             ]
 
-        :type schema_fields_updates: Dict[Any, Dict[str, Any]]
+        :type schema_fields_updates: List[dict]
         :param project_id: The name of the project where we want to update the table.
         :type project_id: str
         """
 
         def _build_new_schema(
-            current_schema: List[Dict[str, Any]], schema_fields_updates: Dict[Any, Dict[str, Any]]
+            current_schema: List[Dict[str, Any]], schema_fields_updates: List[Dict[str, Any]]
         ) -> List[Dict[str, Any]]:
 
             # Turn schema_field_updates into a dict keyed on field names
