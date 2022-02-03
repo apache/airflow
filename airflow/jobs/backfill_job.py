@@ -18,8 +18,9 @@
 #
 
 import time
-from typing import TYPE_CHECKING, Iterator, Optional, Sequence, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
 
+import attr
 import pendulum
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -62,6 +63,7 @@ class BackfillJob(BaseJob):
 
     __mapper_args__ = {'polymorphic_identity': 'BackfillJob'}
 
+    @attr.define
     class _DagRunTaskStatus:
         """
         Internal status of the backfill job. This class is intended to be instantiated
@@ -85,32 +87,17 @@ class BackfillJob(BaseJob):
         :param total_runs: Number of total dag runs able to run
         """
 
-        # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
-        def __init__(
-            self,
-            to_run=None,
-            running=None,
-            skipped=None,
-            succeeded=None,
-            failed=None,
-            not_ready=None,
-            deadlocked=None,
-            active_runs=None,
-            executed_dag_run_dates=None,
-            finished_runs=0,
-            total_runs=0,
-        ):
-            self.to_run = to_run or {}
-            self.running = running or {}
-            self.skipped = skipped or set()
-            self.succeeded = succeeded or set()
-            self.failed = failed or set()
-            self.not_ready = not_ready or set()
-            self.deadlocked = deadlocked or set()
-            self.active_runs = active_runs or []
-            self.executed_dag_run_dates = executed_dag_run_dates or set()
-            self.finished_runs = finished_runs
-            self.total_runs = total_runs
+        to_run: Dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
+        running: Dict[TaskInstanceKey, TaskInstance] = attr.ib(factory=dict)
+        skipped: Set[TaskInstanceKey] = attr.ib(factory=set)
+        succeeded: Set[TaskInstanceKey] = attr.ib(factory=set)
+        failed: Set[TaskInstanceKey] = attr.ib(factory=set)
+        not_ready: Set[TaskInstanceKey] = attr.ib(factory=set)
+        deadlocked: Set[TaskInstance] = attr.ib(factory=set)
+        active_runs: List[DagRun] = attr.ib(factory=list)
+        executed_dag_run_dates: Set[pendulum.DateTime] = attr.ib(factory=set)
+        finished_runs: int = 0
+        total_runs: int = 0
 
     def __init__(
         self,
@@ -645,11 +632,11 @@ class BackfillJob(BaseJob):
         return executed_run_dates
 
     @provide_session
-    def _collect_errors(self, ti_status, session=None):
-        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKey]) -> str:
+    def _collect_errors(self, ti_status: _DagRunTaskStatus, session=None):
+        def tabulate_ti_keys_set(ti_keys: Iterable[TaskInstanceKey]) -> str:
             # Sorting by execution date first
-            sorted_ti_keys = sorted(
-                set_ti_keys,
+            sorted_ti_keys: Any = sorted(
+                ti_keys,
                 key=lambda ti_key: (
                     ti_key.run_id,
                     ti_key.dag_id,
@@ -658,17 +645,14 @@ class BackfillJob(BaseJob):
                     ti_key.try_number,
                 ),
             )
-            return tabulate(
-                sorted_ti_keys, headers=["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"]
-            )
 
-        def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:
-            # Sorting by execution date first
-            sorted_tis = sorted(set_tis, key=lambda ti: (ti.run_id, ti.dag_id, ti.task_id, ti.try_number))
-            tis_values = (
-                (ti.dag_id, ti.task_id, ti.run_id, ti.map_index, ti.try_number) for ti in sorted_tis
-            )
-            return tabulate(tis_values, headers=["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"])
+            if all(key.map_index == -1 for key in ti_keys):
+                headers = ["DAG ID", "Task ID", "Run ID", "Try number"]
+                sorted_ti_keys = map(lambda k: k[0:4], sorted_ti_keys)
+            else:
+                headers = ["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"]
+
+            return tabulate(sorted_ti_keys, headers=headers)
 
         err = ''
         if ti_status.failed:
@@ -704,7 +688,7 @@ class BackfillJob(BaseJob):
             err += '\n\nThese tasks are skipped:\n'
             err += tabulate_ti_keys_set(ti_status.skipped)
             err += '\n\nThese tasks are deadlocked:\n'
-            err += tabulate_tis_set(ti_status.deadlocked)
+            err += tabulate_ti_keys_set([ti.key for ti in ti_status.deadlocked])
 
         return err
 
