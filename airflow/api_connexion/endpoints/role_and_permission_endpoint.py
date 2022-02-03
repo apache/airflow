@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple
 from connexion import NoContent
 from flask import current_app, request
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -68,7 +68,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
-    direction = "desc" if order_by.startswith("-") else "asc"
+    direction = desc if order_by.startswith("-") else asc
     to_replace = {"role_id": "id"}
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
@@ -80,7 +80,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
         )
 
     query = session.query(Role)
-    roles = query.order_by(getattr(getattr(Role, order_param), direction)()).offset(offset).limit(limit).all()
+    roles = query.order_by(direction(getattr(Role, order_param))).offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
