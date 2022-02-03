@@ -58,7 +58,7 @@ Working with Custom XCom Backends in Containers
 
 Depending on where Airflow is deployed i.e., local, Docker, K8s, etc. it can be useful to be assured that a custom XCom backend is actually being initialized. For example, the complexity of the container environment can make it more difficult to determine if your backend is being loaded correctly during container deployment. Luckily the following guidance can be used to assist you in building confidence in your custom XCom implementation.
 
-Firstly, if you can exec into a terminal in the container then you should be able to do::
+Firstly, if you can exec into a terminal in the container then you should be able to do:
 
 .. code-block:: python
 
