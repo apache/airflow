@@ -41,26 +41,22 @@ class _PostgresServerSideCursorDecorator:
 
     def __init__(self, cursor):
         self.cursor = cursor
-        self.rows = []
         self.initialized = False
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.rows:
-            return self.rows.pop()
-        else:
-            self.initialized = True
-            return next(self.cursor)
+        self.initialized = True
+        return next(self.cursor)
 
     @property
     def description(self):
-        """Fetch first row to initialize cursor description when using server side cursor."""
+        """Fetch a row to initialize cursor's `description` attribute when server side cursor is used."""
         if not self.initialized:
-            element = self.cursor.fetchone()
-            self.rows.append(element)
             self.initialized = True
+            self.cursor.fetchone()
+            self.cursor.scroll(0, mode='absolute')
         return self.cursor.description
 
 
