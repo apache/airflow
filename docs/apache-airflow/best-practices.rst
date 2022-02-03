@@ -275,7 +275,43 @@ the meta-data file in your DAG easily. The location of the file to read can be f
     with open(configuration_file_path) as yaml_file:
         configuration = yaml.safe_load(yaml_file)
     # Configuration dict is available here
+    
+    
+Dynamic DAGs with loops
+.......................
+You can dynamically generate DAGs with loops. It's handly, if you need to start several parallel processes that differs only in configuration. 
 
+.. code-block:: python
+
+    from datetime import datetime
+    from airflow.decorators import dag, task
+
+    configs = {
+        'config1': {
+            'message': 'first DAG will receive this message'
+        },
+        'config2': {
+            'message': 'second DAG will receive this message'
+        },
+    }
+
+    for config_name, config in configs.items():
+        dag_id = f'dynamic_generated_dag_{config_name}'
+
+        @dag(dag_id=dag_id, start_date=datetime(2022, 2, 1))
+        def dynamic_generated_dag():
+            @task
+            def print_message(message):
+                print(message)
+
+            print_message(config['message'])
+
+        globals()[dag_id] = dynamic_generated_dag()  
+
+The code below will generate a DAG for each config: ``dynamic_generated_dag_config1`` and ``dynamic_generated_dag_config2``. Each of them can run separately with related configuration
+
+.. warning::
+  Using this practice, pay attention to "late binding" behaviour in Python. See `that GitHub disscusion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
 
 .. _best_practices/airflow_variables:
 
