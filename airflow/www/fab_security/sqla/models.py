@@ -16,6 +16,7 @@
 # under the License.
 
 import datetime
+from functools import cached_property
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -138,9 +139,21 @@ class Permission(Model):
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
     id = Column(Integer, get_sequence_or_identity("ab_permission_view_id_seq"), primary_key=True)
     action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
-    action = relationship("Action", primaryjoin=action_id == foreign(Action.id), uselist=False)
+    action = relationship(
+        "Action",
+        primaryjoin=action_id == foreign(Action.id),
+        uselist=False,
+        backref="permission",
+        lazy="joined",
+    )
     resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
-    resource = relationship("Resource", primaryjoin=resource_id == foreign(Resource.id), uselist=False)
+    resource = relationship(
+        "Resource",
+        primaryjoin=resource_id == foreign(Resource.id),
+        uselist=False,
+        backref="permission",
+        lazy="joined",
+    )
 
     def __repr__(self):
         return str(self.action).replace("_", " ") + " on " + str(self.resource)
@@ -216,7 +229,7 @@ class User(Model):
     def is_anonymous(self):
         return False
 
-    @property
+    @cached_property
     def perms(self):
         perms = set()
         for role in self.roles:
