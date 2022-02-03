@@ -306,6 +306,11 @@ class BaseSecurityManager:
         return url_for(f"{self.registeruser_view.endpoint}.{self.registeruser_view.default_view}")
 
     @property
+    def get_user_datamodel(self):
+        """Gets the User data model"""
+        return self.user_view.datamodel
+
+    @property
     def get_register_user_datamodel(self):
         """Gets the Register User data model"""
         return self.registerusermodelview.datamodel
