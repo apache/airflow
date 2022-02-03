@@ -66,6 +66,7 @@ class SSHHook(BaseHook):
         Use conn_timeout instead.
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
+    :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -109,6 +110,7 @@ class SSHHook(BaseHook):
         timeout: Optional[int] = None,
         conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
+        banner_timeout: float = 30.0,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -121,6 +123,7 @@ class SSHHook(BaseHook):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
+        self.banner_timeout = banner_timeout
         self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
@@ -293,6 +296,7 @@ class SSHHook(BaseHook):
             port=self.port,
             sock=self.host_proxy,
             look_for_keys=self.look_for_keys,
+            banner_timeout=self.banner_timeout,
         )
 
         if self.password:
