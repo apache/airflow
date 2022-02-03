@@ -39,7 +39,6 @@ class TestSalesforceHook(unittest.TestCase):
         with create_session() as session:
             session.query(Connection).filter(Connection.conn_id == conn_id).delete()
             session.add(conn_object)
-            session.commit()
 
     def test_get_conn_exists(self):
         self.salesforce_hook.conn = Mock(spec=Salesforce)

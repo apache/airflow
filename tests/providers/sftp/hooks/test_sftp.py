@@ -57,7 +57,6 @@ class TestSFTPHook(unittest.TestCase):
         connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
         old_login = connection.login
         connection.login = login
-        session.commit()
         return old_login
 
     def setUp(self):

@@ -744,7 +744,6 @@ class TaskInstance(Base, LoggingMixin):
         self.log.error("Recording the task instance as FAILED")
         self.state = State.FAILED
         session.merge(self)
-        session.commit()
 
     @provide_session
     def refresh_from_db(self, session=NEW_SESSION, lock_for_update=False) -> None:
@@ -1203,7 +1202,6 @@ class TaskInstance(Base, LoggingMixin):
             if not self.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
             ):
-                session.commit()
                 return False
 
             # For reporting purposes, we report based on 1-indexed,
@@ -1241,7 +1239,6 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.warning(hr_line_break)
                 self.queued_dttm = timezone.utcnow()
                 session.merge(self)
-                session.commit()
                 return False
 
         # print status message

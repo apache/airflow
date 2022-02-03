@@ -115,8 +115,6 @@ class Pool(Base):
             pool.slots = slots
             pool.description = description
 
-        session.commit()
-
         return pool
 
     @staticmethod
@@ -131,7 +129,6 @@ class Pool(Base):
             raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
         session.delete(pool)
-        session.commit()
 
         return pool
 

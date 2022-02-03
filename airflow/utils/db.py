@@ -97,7 +97,6 @@ def merge_conn(conn, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
-        session.commit()
 
 
 @provide_session
@@ -110,7 +109,6 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
             description="Default pool",
         )
         session.add(default_pool)
-        session.commit()
 
 
 @provide_session

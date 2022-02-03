@@ -344,17 +344,12 @@ class BackfillJob(BaseJob):
         dag_run.refresh_from_db()
         make_transient(dag_run)
 
-        try:
-            for ti in dag_run.get_task_instances():
-                # all tasks part of the backfill are scheduled to run
-                if ti.state == State.NONE:
-                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
-                if ti.state != TaskInstanceState.REMOVED:
-                    tasks_to_run[ti.key] = ti
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
+        for ti in dag_run.get_task_instances():
+            # all tasks part of the backfill are scheduled to run
+            if ti.state == State.NONE:
+                ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+            if ti.state != TaskInstanceState.REMOVED:
+                tasks_to_run[ti.key] = ti
 
         return tasks_to_run
 
@@ -505,7 +500,6 @@ class BackfillJob(BaseJob):
                         )
                         ti_status.running[key] = ti
                         ti_status.to_run.pop(key)
-                    session.commit()
                     return
 
                 if ti.state == TaskInstanceState.UPSTREAM_FAILED:

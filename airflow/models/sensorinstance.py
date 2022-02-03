@@ -139,8 +139,6 @@ class SensorInstance(Base):
         sensor.state = State.SENSING
         sensor.start_date = timezone.utcnow()
         session.add(sensor)
-        session.commit()
-
         return True
 
     @property

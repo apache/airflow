@@ -477,7 +477,6 @@ class BaseXCom(Base, LoggingMixin):
             if not isinstance(xcom, XCom):
                 raise TypeError(f'Expected XCom; received {xcom.__class__.__name__}')
             session.delete(xcom)
-        session.commit()
 
     @overload
     @classmethod

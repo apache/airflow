@@ -701,9 +701,6 @@ class TestDatabricksHookToken(unittest.TestCase):
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.extra = json.dumps({'token': TOKEN, 'host': HOST})
-
-        session.commit()
-
         self.hook = DatabricksHook()
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
@@ -733,8 +730,6 @@ class TestDatabricksHookTokenInPassword(unittest.TestCase):
         conn.login = None
         conn.password = TOKEN
         conn.extra = None
-        session.commit()
-
         self.hook = DatabricksHook(retry_delay=0)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
@@ -757,9 +752,6 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.extra = json.dumps({'token': TOKEN})
-
-        session.commit()
-
         self.hook = DatabricksHook()
 
 
@@ -814,7 +806,6 @@ class TestDatabricksHookAadToken(unittest.TestCase):
                 'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
             }
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
@@ -856,7 +847,6 @@ class TestDatabricksHookAadTokenOtherClouds(unittest.TestCase):
                 'azure_ad_endpoint': self.ad_endpoint,
             }
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
@@ -901,7 +891,6 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
                 'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
             }
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
@@ -949,7 +938,6 @@ class TestDatabricksHookAadTokenManagedIdentity(unittest.TestCase):
                 'use_azure_managed_identity': True,
             }
         )
-        session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')

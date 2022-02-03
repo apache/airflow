@@ -70,8 +70,6 @@ def create_pool(name, slots, description, session=None):
         pool.slots = slots
         pool.description = description
 
-    session.commit()
-
     return pool
 
 
@@ -90,6 +88,5 @@ def delete_pool(name, session=None):
         raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
     session.delete(pool)
-    session.commit()
 
     return pool

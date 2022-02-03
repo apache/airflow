@@ -459,15 +459,13 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 else:
                     # ti.state != State.SENSING
                     sensor_instance.state = ti.state
-
-            session.commit()
-
         except Exception:
             self.log.warning(
                 "Exception _mark_multi_state in smart sensor for hashcode %s",
                 str(poke_hash),  # cast to str in advance for highlighting
                 exc_info=True,
             )
+            raise
         self.log.info("Marked %s tasks out of %s to state %s", count_marked, len(query_result), state)
 
     @provide_session

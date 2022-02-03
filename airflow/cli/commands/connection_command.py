@@ -238,31 +238,31 @@ def connections_add(args):
     with create_session() as session:
         if not session.query(Connection).filter(Connection.conn_id == new_conn.conn_id).first():
             session.add(new_conn)
-            msg = 'Successfully added `conn_id`={conn_id} : {uri}'
-            msg = msg.format(
-                conn_id=new_conn.conn_id,
-                uri=args.conn_uri
-                or urlunparse(
-                    (
-                        new_conn.conn_type,
-                        '{login}:{password}@{host}:{port}'.format(
-                            login=new_conn.login or '',
-                            password='******' if new_conn.password else '',
-                            host=new_conn.host or '',
-                            port=new_conn.port or '',
-                        ),
-                        new_conn.schema or '',
-                        '',
-                        '',
-                        '',
-                    )
-                ),
-            )
-            print(msg)
         else:
             msg = f'A connection with `conn_id`={new_conn.conn_id} already exists.'
             raise SystemExit(msg)
 
+    msg = 'Successfully added `conn_id`={conn_id} : {uri}'
+    msg = msg.format(
+        conn_id=new_conn.conn_id,
+        uri=args.conn_uri
+            or urlunparse(
+            (
+                new_conn.conn_type,
+                '{login}:{password}@{host}:{port}'.format(
+                    login=new_conn.login or '',
+                    password='******' if new_conn.password else '',
+                    host=new_conn.host or '',
+                    port=new_conn.port or '',
+                ),
+                new_conn.schema or '',
+                '',
+                '',
+                '',
+            )
+        ),
+    )
+    print(msg)
 
 @cli_utils.action_cli
 def connections_delete(args):

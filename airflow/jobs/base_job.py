@@ -145,17 +145,16 @@ class BaseJob(Base, LoggingMixin):
             < self.heartrate * grace_multiplier
         )
 
-    @provide_session
-    def kill(self, session=None):
+    def kill(self):
         """Handles on_kill callback and updates state in database."""
-        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
-        job.end_date = timezone.utcnow()
-        try:
-            self.on_kill()
-        except Exception as e:
-            self.log.error('on_kill() method failed: %s', str(e))
-        session.merge(job)
-        session.commit()
+        with create_session() as session:
+            job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+            job.end_date = timezone.utcnow()
+            try:
+                self.on_kill()
+            except Exception as e:
+                self.log.error('on_kill() method failed: %s', str(e))
+            session.merge(job)
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
@@ -253,7 +252,6 @@ class BaseJob(Base, LoggingMixin):
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
-                session.commit()
 
         Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 

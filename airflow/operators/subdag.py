@@ -153,7 +153,6 @@ class SubDagOperator(BaseSensorOperator):
             for task_instance in failed_task_instances:
                 task_instance.state = State.NONE
                 session.merge(task_instance)
-            session.commit()
 
     def pre_execute(self, context):
         super().pre_execute(context)

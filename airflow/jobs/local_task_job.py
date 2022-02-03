@@ -277,7 +277,6 @@ class LocalTaskJob(BaseJob):
             num = dag_run.schedule_tis(schedulable_tis)
             self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
 
-            session.commit()
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
             self.log.info(
@@ -285,7 +284,7 @@ class LocalTaskJob(BaseJob):
                 e.statement,
                 exc_info=True,
             )
-            session.rollback()
+            raise
 
     @provide_session
     def _update_dagrun_state_for_paused_dag(self, session=None):
