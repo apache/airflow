@@ -16,7 +16,7 @@
 # under the License.
 """This module contains a link for GCS Storage assets."""
 from airflow.models import BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 
 BASE_LINK = "https://console.cloud.google.com"
 GCS_STORAGE_LINK = BASE_LINK + "/storage/browser/{uri};tab=objects?project={project_id}"
@@ -28,8 +28,12 @@ class StorageLink(BaseOperatorLink):
     name = "GCS Storage"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        storage_conf = ti.xcom_pull(task_ids=operator.task_id, key="storage_conf")
+        storage_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="storage_conf",
+        )
         return (
             GCS_STORAGE_LINK.format(
                 uri=storage_conf["uri"],

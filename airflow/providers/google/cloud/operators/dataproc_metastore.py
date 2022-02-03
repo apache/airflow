@@ -30,7 +30,7 @@ from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.common.links.storage import StorageLink
 
@@ -53,8 +53,12 @@ class DataprocMetastoreBackupLink(BaseOperatorLink):
     name = "Dataproc Metastore Backup"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        backup_conf = ti.xcom_pull(task_ids=operator.task_id, key="backup_conf")
+        backup_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="backup_conf",
+        )
         return (
             METASTORE_BACKUP_LINK.format(
                 region=backup_conf["region"],
@@ -73,8 +77,12 @@ class DataprocMetastoreBackupsLink(BaseOperatorLink):
     name = "Dataproc Metastore Backups"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        backups_list_conf = ti.xcom_pull(task_ids=operator.task_id, key="backups_list_conf")
+        backups_list_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="backups_list_conf",
+        )
         return (
             METASTORE_BACKUPS_LINK.format(
                 region=backups_list_conf["region"],
@@ -92,8 +100,12 @@ class DataprocMetastoreExportLink(BaseOperatorLink):
     name = "Dataproc Metastore Export Metadata"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        export_conf = ti.xcom_pull(task_ids=operator.task_id, key="export_conf")
+        export_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="export_conf",
+        )
         return (
             METASTORE_EXPORT_LINK.format(
                 region=export_conf["region"],
@@ -111,8 +123,12 @@ class DataprocMetastoreImportLink(BaseOperatorLink):
     name = "Dataproc Metastore Import Metadata"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        import_conf = ti.xcom_pull(task_ids=operator.task_id, key="import_conf")
+        import_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="import_conf",
+        )
         return (
             METASTORE_IMPORT_LINK.format(
                 region=import_conf["region"],
@@ -131,12 +147,16 @@ class DataprocMetastoreServiceLink(BaseOperatorLink):
     name = "Dataproc Metastore Service"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        service_conf = ti.xcom_pull(task_ids=operator.task_id, key="service_conf")
+        service_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="service_conf",
+        )
         return (
             METASTORE_SERVICE_LINK.format(
-                service_id=service_conf["service_id"],
                 region=service_conf["region"],
+                service_id=service_conf["service_id"],
                 project_id=service_conf["project_id"],
             )
             if service_conf
