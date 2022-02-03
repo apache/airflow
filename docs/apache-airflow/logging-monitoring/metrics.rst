@@ -50,7 +50,7 @@ the metrics that start with the elements of the list:
     statsd_allow_list = scheduler,executor,dagrun
 
 If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
-in ``[scheduler]`` section.  It should point to a function that validates the statsd stat name, applies changes
+in ``[metrics]`` section.  It should point to a function that validates the StatsD stat name, applies changes
 to the stat name if necessary, and returns the transformed stat name. The function may looks as follow:
 
 .. code-block:: python
