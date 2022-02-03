@@ -51,7 +51,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.6, 3.7, 3.8, 3.9)
+* Python (One of: 3.7, 3.8, 3.9)
 * MySQL 5.7+
 * libxml
 
@@ -102,7 +102,7 @@ Creating a Local virtualenv
 
 To use your IDE for Airflow development and testing, you need to configure a virtual
 environment. Ideally you should set up virtualenv for all Python versions that Airflow
-supports (3.6, 3.7, 3.8, 3.9).
+supports (3.7, 3.8, 3.9).
 
 To create and initialize the local virtualenv:
 
@@ -122,7 +122,7 @@ To create and initialize the local virtualenv:
 
     .. code-block:: bash
 
-      conda create -n airflow python=3.6
+      conda create -n airflow python=3.7  # or 3.8, or 3.9
       conda activate airflow
 
 2. Install Python PIP requirements:
@@ -150,8 +150,9 @@ for different python versions). For development on current main source:
 
    .. code-block:: bash
 
+    # use the same version of python as you are working with, 3.7, 3.8, or 3.9
     pip install -e ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
 
 This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
 code rather than moved to the installation directory. During the installation airflow will install - but then
@@ -162,8 +163,9 @@ You can also install Airflow in non-editable mode:
 
    .. code-block:: bash
 
+    # use the same version of python as you are working with, 3.7, 3.8, or 3.9
     pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
 
 This will copy the sources to directory where usually python packages are installed. You can see the list
 of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
@@ -171,8 +173,9 @@ sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable 
 
    .. code-block:: bash
 
+    # use the same version of python as you are working with, 3.7, 3.8, or 3.9
     INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
 
 
 Note: when you first initialize database (the next step), you may encounter some problems.
@@ -237,7 +240,7 @@ before running ``pip install`` command:
 .. code-block:: bash
 
   INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 This way no providers packages will be installed and they will always be imported from the "airflow/providers"
 folder.
