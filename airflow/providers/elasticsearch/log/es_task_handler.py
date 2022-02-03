@@ -198,7 +198,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     (
                         '',
                         (
-                            f"*** Log {log_id} not found in elasticsearch. "
+                            f"*** Log {log_id} not found in Elasticsearch. "
                             "If your task started recently, please wait a moment and reload this page. "
                             "Otherwise, the logs for this task instance may have been removed."
                         ),
