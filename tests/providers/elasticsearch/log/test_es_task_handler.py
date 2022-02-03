@@ -161,7 +161,7 @@ class TestElasticsearchTaskHandler:
             # we expect a log not found message when checking began more than 5 seconds ago
             assert len(logs[0]) == 1
             actual_message = logs[0][0][1]
-            expected_pattern = r'^\*\*\* Log .* not found in elasticsearch.*'
+            expected_pattern = r'^\*\*\* Log .* not found in Elasticsearch.*'
             assert re.match(expected_pattern, actual_message) is not None
             assert metadatas[0]['end_of_log'] is True
         else:
