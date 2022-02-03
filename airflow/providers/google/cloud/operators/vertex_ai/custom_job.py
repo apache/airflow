@@ -27,7 +27,7 @@ from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 
 if TYPE_CHECKING:
@@ -46,8 +46,9 @@ class VertexAIModelLink(BaseOperatorLink):
     name = "Vertex AI Model"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        model_conf = ti.xcom_pull(task_ids=operator.task_id, key="model_conf")
+        model_conf = XCom.get_one(
+            key='model_conf', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             VERTEX_AI_MODEL_LINK.format(
                 region=model_conf["region"],
@@ -65,8 +66,9 @@ class VertexAITrainingPipelinesLink(BaseOperatorLink):
     name = "Vertex AI Training Pipelines"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        project_id = ti.xcom_pull(task_ids=operator.task_id, key="project_id")
+        project_id = XCom.get_one(
+            key='project_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             VERTEX_AI_TRAINING_PIPELINES_LINK.format(
                 project_id=project_id,
