@@ -1088,10 +1088,8 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
 
-        ref = weakref.proxy(group)
-
         def set_ref(task: BaseOperator) -> BaseOperator:
-            task.task_group = ref
+            task.task_group = weakref.proxy(group)
             return task
 
         group.children = {
