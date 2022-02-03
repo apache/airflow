@@ -18,7 +18,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -35,8 +35,12 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
     name = "Monitor Pipeline Run"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        run_id = ti.xcom_pull(task_ids=operator.task_id, key="run_id")
+        run_id = XCom.get_one(
+            key="run_id",
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+        )
 
         conn = BaseHook.get_connection(operator.azure_data_factory_conn_id)
         subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]

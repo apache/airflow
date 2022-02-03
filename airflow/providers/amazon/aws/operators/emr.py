@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 if TYPE_CHECKING:
@@ -238,8 +238,9 @@ class EmrClusterLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        flow_id = ti.xcom_pull(task_ids=operator.task_id)
+        flow_id = XCom.get_one(
+            key="return_value", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
             if flow_id

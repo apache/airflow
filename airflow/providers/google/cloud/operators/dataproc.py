@@ -36,8 +36,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
@@ -59,8 +58,9 @@ class DataprocJobLink(BaseOperatorLink):
     name = "Dataproc Job"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_conf = ti.xcom_pull(task_ids=operator.task_id, key="job_conf")
+        job_conf = XCom.get_one(
+            key="job_conf", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             DATAPROC_JOB_LOG_LINK.format(
                 job_id=job_conf["job_id"],
@@ -78,8 +78,9 @@ class DataprocClusterLink(BaseOperatorLink):
     name = "Dataproc Cluster"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        cluster_conf = ti.xcom_pull(task_ids=operator.task_id, key="cluster_conf")
+        cluster_conf = XCom.get_one(
+            key="cluster_conf", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             DATAPROC_CLUSTER_LINK.format(
                 cluster_name=cluster_conf["cluster_name"],
