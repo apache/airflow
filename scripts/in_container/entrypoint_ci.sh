@@ -166,7 +166,8 @@ ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
 chmod 600 ~/.ssh/*
 
 # SSH Service
-sudo service ssh restart >/dev/null 2>&1
+install -d /run/sshd
+/usr/sbin/sshd -e -D &
 
 # Sometimes the server is not quick enough to load the keys!
 while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
