@@ -405,6 +405,21 @@ class SchedulerJob(BaseJob):
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
 
+                    if task_instance.pool_slots > open_slots:
+                        self.log.info(
+                            "Not executing %s since it requires %s slots "
+                            "but there are %s open slots in the pool %s.",
+                            task_instance,
+                            task_instance.pool_slots,
+                            open_slots,
+                            pool,
+                        )
+                        pool_num_starving_tasks[pool_name] += 1
+                        num_starving_tasks_total += 1
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        # Though we can execute tasks with lower priority if there's enough room
+                        continue
+
                     # Check to make sure that the task max_active_tasks of the DAG hasn't been
                     # reached.
                     dag_id = task_instance.dag_id
@@ -428,7 +443,6 @@ class SchedulerJob(BaseJob):
                         starved_dags.add(dag_id)
                         continue
 
-                    task_concurrency_limit: Optional[int] = None
                     if task_instance.dag_model.has_task_concurrency_limits:
                         # Many dags don't have a task_concurrency, so where we can avoid loading the full
                         # serialized DAG the better.
@@ -444,15 +458,8 @@ class SchedulerJob(BaseJob):
                                 {TI.state: State.FAILED}, synchronize_session='fetch'
                             )
                             continue
-                        if serialized_dag.has_task(task_instance.task_id):
-                            task_concurrency_limit = serialized_dag.get_task(
-                                task_instance.task_id
-                            ).max_active_tis_per_dag
-                    task_concurrency_limit: Optional[int] = None
-                    if task_instance.dag_model.has_task_concurrency_limits:
-                        # Many dags don't have a task_concurrency, so where we can avoid loading the full
-                        # serialized DAG the better.
-                        serialized_dag = self.dagbag.get_dag(dag_id, session=session)
+
+                        task_concurrency_limit: Optional[int] = None
                         if serialized_dag.has_task(task_instance.task_id):
                             task_concurrency_limit = serialized_dag.get_task(
                                 task_instance.task_id
@@ -471,21 +478,6 @@ class SchedulerJob(BaseJob):
                                 )
                                 starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                                 continue
-
-                    if task_instance.pool_slots > open_slots:
-                        self.log.info(
-                            "Not executing %s since it requires %s slots "
-                            "but there are %s open slots in the pool %s.",
-                            task_instance,
-                            task_instance.pool_slots,
-                            open_slots,
-                            pool,
-                        )
-                        pool_num_starving_tasks[pool_name] += 1
-                        num_starving_tasks_total += 1
-                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                        # Though we can execute tasks with lower priority if there's enough room
-                        continue
 
                     executable_tis.append(task_instance)
                     open_slots -= task_instance.pool_slots
