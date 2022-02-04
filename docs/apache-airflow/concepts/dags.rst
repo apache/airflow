@@ -102,6 +102,11 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
     # op1 >> op3 >> op5 >> op6
     chain(op1, [op2, op3], [op4, op5], op6)
 
+.. note::
+
+    We call the *upstream* task the one that is directly preceding the other task. We used to call it a parent task before.
+    Be aware that this concept does not describe the tasks that are higher in the tasks hierarchy (i.e. they are not a direct parents of the task).
+    Same definition applies to *downstream* task, which needs to be a direct child of the other task.
 
 .. _concepts:dag-loading:
 
@@ -349,7 +354,7 @@ Note that if you are running the DAG at the very start of its life---specificall
 Trigger Rules
 ~~~~~~~~~~~~~
 
-By default, Airflow will wait for all upstream tasks for a task to be :ref:`successful <concepts:task-states>` before it runs that task.
+By default, Airflow will wait for all upstream (direct parents) tasks for a task to be :ref:`successful <concepts:task-states>` before it runs that task.
 
 However, this is just the default behaviour, and you can control it using the ``trigger_rule`` argument to a Task. The options for ``trigger_rule`` are:
 
@@ -362,6 +367,60 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``none_failed_min_one_success``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
 * ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``always``: No dependencies at all, run this task at any time
+
+.. note::
+
+    Be aware that trigger rules only rely on the direct upstream (parent) tasks, e.g. ``one_failed`` will ignore any failed (or ``upstream_failed``) tasks that are not a direct parent of the parameterized task.
+    It's easier to grab the concept with an example.
+
+    Let's say that we have following DAG:
+
+    .. code-block:: python
+
+        from datetime import datetime
+        from airflow import DAG
+        from airflow.exceptions import AirflowException
+        from airflow.operators.bash import BashOperator
+        from airflow.operators.python import PythonOperator
+
+
+        def raise_exception():
+            raise AirflowException()
+
+
+        with DAG(
+            dag_id="trigger_rule_example",
+            schedule_interval="@once",
+            start_date=datetime(2021, 1, 1),
+            catchup=False,
+        ) as dag:
+            failing_task = PythonOperator(
+                task_id="failing_task", python_callable=raise_exception
+            )
+
+            passing_task = BashOperator(task_id="passing_task", bash_command="echo neutral")
+
+            teardown = BashOperator(
+                task_id="teardown", bash_command="echo teardown", trigger_rule="all_done"
+            )
+
+            watcher = PythonOperator(
+                task_id="watcher", trigger_rule="one_failed", python_callable=raise_exception
+            )
+
+            failing_task >> passing_task >> teardown
+            [failing_task, passing_task, teardown] >> watcher
+
+    We have several tasks that serve different purposes:
+
+    - ``failing_task`` always fails,
+    - ``passing_task`` always succeeds,
+    - ``teardown`` is always triggered (regardless the states of the other tasks) and it should always succeed,
+    - ``watcher`` is a downstream task for each other task, i.e. it will be triggered when any task fails and thus fail the whole DAG Run, since it's a leaf task.
+
+    It's important to note, that without ``watcher`` task, the whole DAG Run will get the ``success`` state, since the only failing task is not the leaf task, and the ``teardown`` task will finish with ``success``.
+    If we want the ``watcher`` to monitor the state of all tasks, we need to make it dependent on all of them separately. Thanks to this, we can fail the DAG Run if any of the tasks fail.
+    On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole DAG Run will also get the ``failed`` status.
 
 You can also combine this with the :ref:`concepts:depends-on-past` functionality if you wish.
 
@@ -698,7 +757,7 @@ You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` a
 would only be applicable for that subfolder.
 
 DAG Dependencies
-================
+----------------
 
 *Added in Airflow 2.1*
 
