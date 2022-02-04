@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-AIRFLOW_SOURCES=$(pwd)
-export AIRFLOW_SOURCES
-readonly AIRFLOW_SOURCES
+export INSTALL_FROM_PYPI="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
+export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+export DOCKER_CACHE="pulled"
+export VERBOSE="true"
 
-export DOCKER_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/docker.sh
-export KUBECTL_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kubectl.sh
-export KIND_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kind.sh
-export HELM_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/helm.sh
-export SKIP_IN_CONTAINER_CHECK="true"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "scripts/ci/libraries/_all_libs.sh"
+# Builds or waits for the PROD image in the CI environment
+function build_prod_images_on_ci() {
+    build_images::prepare_prod_build
+    start_end::group_start "Build PROD image ${AIRFLOW_CI_IMAGE}"
+    build_images::clean_build_cache
+    build_images::build_prod_images_from_locally_built_airflow_packages
+    start_end::group_end
+}
 
-initialization::create_directories
-
-initialization::initialize_common_environment
-
-# shellcheck disable=SC1091
-source "/opt/bats/lib/load.bash"
+build_prod_images_on_ci

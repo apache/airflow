@@ -549,13 +549,10 @@ Setting up Debug
 - Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
-
-    from airflow.utils.state import State
-
     ...
 
     if __name__ == "__main__":
-        dag.clear(dag_run_state=State.NONE)
+        dag.clear()
         dag.run()
 
 - Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
@@ -745,14 +742,6 @@ All Tests are inside ./tests directory.
 
    <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
-
-
-  - |BASH Unit Testing (BATS)|
-
-  .. |BASH Unit Testing (BATS)| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#bash-unit-testing-bats" target="_blank">
-   BASH Unit Testing (BATS)</a>
 
 
 Pre-commit
@@ -1362,13 +1351,10 @@ Setting up Debug
 - Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
-
-    from airflow.utils.state import State
-
     ...
 
     if __name__ == "__main__":
-        dag.clear(dag_run_state=State.NONE)
+        dag.clear()
         dag.run()
 
 - Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
@@ -1562,14 +1548,6 @@ All Tests are inside ./tests directory.
 
    <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
-
-
-  - |BASH Unit Testing (BATS)|
-
-  .. |BASH Unit Testing (BATS)| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#bash-unit-testing-bats" target="_blank">
-   BASH Unit Testing (BATS)</a>
 
 
 Pre-commit

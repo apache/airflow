@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export PRINT_INFO_FROM_SCRIPTS="false"
-export SKIP_CHECK_REMOTE_IMAGE="true"
 
-if [[ $# -eq 0 ]]; then
-    params=("tests/bats")
-else
-    params=("${@}")
-fi
+from airflow import DAG
+from airflow.decorators import task
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
 
-# shellcheck source=scripts/ci/static_checks/bats_tests.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/bats_tests.sh" "${params[@]}"
+
+@task
+def make_list():
+    return [1, 2, {'a': 'b'}]
+
+
+def consumer(*args):
+    print(repr(args))
+
+
+with DAG(dag_id='test_mapped_classic', start_date=days_ago(2)) as dag:
+    PythonOperator(task_id='consumer', python_callable=consumer).map(op_args=make_list())

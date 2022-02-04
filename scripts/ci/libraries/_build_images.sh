@@ -112,7 +112,7 @@ function build_images::encourage_rebuilding_on_modified_files() {
     set +u
     if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
         echo
-        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_MAJOR_MINOR_VERSION} image might be outdated${COLOR_RESET}"
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_MAJOR_MINOR_VERSION} might be outdated${COLOR_RESET}"
         echo
         echo "${COLOR_BLUE}Please run this command at earliest convenience: ${COLOR_RESET}"
         echo
@@ -204,7 +204,7 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the images by running:
+   Make sure you build the image by running:
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
 
@@ -359,12 +359,20 @@ function build_images::prepare_ci_build() {
     permissions::fix_group_permissions
 }
 
+function build_images::clean_build_cache() {
+    mkdir -pv "${BUILD_CACHE_DIR}"
+    rm -rf "${BUILD_CACHE_DIR}"
+    rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+}
+
 # Only rebuilds CI image if needed. It checks if the docker image build is needed
 # because any of the important source files (from scripts/ci/libraries/_initialization.sh) has
 # changed or in any of the edge cases (docker image removed, .build cache removed etc.
 # In case rebuild is needed, it determines (by comparing layers in local and remote image)
 # Whether pull is needed before rebuild.
 function build_images::rebuild_ci_image_if_needed() {
+    local needs_docker_build="false"
+    local force_build="false"
     if [[ -f "${BUILT_CI_IMAGE_FLAG_FILE}" ]]; then
         verbosity::print_info
         verbosity::print_info "CI image already built locally."
@@ -373,13 +381,12 @@ function build_images::rebuild_ci_image_if_needed() {
         verbosity::print_info
         verbosity::print_info "CI image not built locally: force pulling and building"
         verbosity::print_info
-        export FORCE_BUILD="true"
+        force_build="true"
     fi
-    local needs_docker_build="false"
     md5sum::check_if_docker_build_is_needed
     if [[ ${needs_docker_build} == "true" ]]; then
         SKIP_REBUILD="false"
-        if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
+        if [[ ${CI:=} != "true" && "${force_build:=}" != "true" ]]; then
             build_images::confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
@@ -502,6 +509,10 @@ function build_images::build_ci_image() {
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
         . -f Dockerfile.ci
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # Push the image as "latest" so that it can be used in Breeze
+        docker_v push "${AIRFLOW_CI_IMAGE}"
+    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
@@ -651,6 +662,10 @@ function build_images::build_prod_images() {
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
         . -f Dockerfile
+    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
+        # Push the image as "latest" so that it can be used in Breeze
+        docker_v push "${AIRFLOW_PROD_IMAGE}"
+    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
@@ -707,6 +722,35 @@ function build_images::cleanup_docker_context_files() {
     mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
     rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
 }
+
+# PRe-commit version of confirming the ci image that is used in pre-commits
+# it displays additional information - what the user should do in order to bring the local images
+# back to state that pre-commit will be happy with
+function build_images::rebuild_ci_image_if_confirmed_for_pre_commit() {
+    local needs_docker_build="false"
+    export THE_IMAGE_TYPE="CI"
+
+    md5sum::check_if_docker_build_is_needed
+
+    if [[ ${needs_docker_build} == "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is needed!"
+        verbosity::print_info
+    else
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is not needed!"
+        verbosity::print_info
+    fi
+
+    if [[ "${needs_docker_build}" == "true" ]]; then
+        SKIP_REBUILD="false"
+        build_images::confirm_image_rebuild
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            build_images::rebuild_ci_image_if_needed
+        fi
+    fi
+}
+
 
 function build_images::build_prod_images_from_locally_built_airflow_packages() {
     # We do not install from PyPI

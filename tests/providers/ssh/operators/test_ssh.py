@@ -51,7 +51,7 @@ class TestSSHOperator:
     def setup_method(self):
         from airflow.providers.ssh.hooks.ssh import SSHHook
 
-        hook = SSHHook(ssh_conn_id='ssh_default')
+        hook = SSHHook(ssh_conn_id='ssh_default', banner_timeout=100)
         hook.no_host_key_check = True
         self.dag = DAG('ssh_test', default_args={'start_date': DEFAULT_DATE})
         self.hook = hook
@@ -60,7 +60,13 @@ class TestSSHOperator:
         timeout = 20
         ssh_id = "ssh_default"
         with self.dag:
-            task = SSHOperator(task_id="test", command=COMMAND, timeout=timeout, ssh_conn_id="ssh_default")
+            task = SSHOperator(
+                task_id="test",
+                command=COMMAND,
+                timeout=timeout,
+                ssh_conn_id="ssh_default",
+                banner_timeout=100,
+            )
         task.execute(None)
         assert timeout == task.ssh_hook.conn_timeout
         assert ssh_id == task.ssh_hook.ssh_conn_id
@@ -76,6 +82,7 @@ class TestSSHOperator:
                 conn_timeout=conn_timeout,
                 cmd_timeout=cmd_timeout,
                 ssh_conn_id="ssh_default",
+                banner_timeout=100,
             )
         task.execute(None)
         assert conn_timeout == task.ssh_hook.conn_timeout
@@ -90,6 +97,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command=COMMAND,
             do_xcom_push=True,
+            banner_timeout=100,
         )
         ti.run()
         assert ti.duration is not None
@@ -104,6 +112,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command=COMMAND,
             do_xcom_push=True,
+            banner_timeout=100,
         )
         ti.run()
         assert ti.duration is not None
@@ -119,6 +128,7 @@ class TestSSHOperator:
             command=COMMAND,
             do_xcom_push=True,
             environment={'TEST': 'value'},
+            banner_timeout=100,
         )
         ti.run()
         assert ti.duration is not None
@@ -133,6 +143,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command="sleep 1",
             do_xcom_push=True,
+            banner_timeout=100,
         )
         ti.run()
         assert ti.duration is not None
@@ -153,6 +164,7 @@ class TestSSHOperator:
             command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag,
+            banner_timeout=100,
         )
         try:
             task_1.execute(None)
@@ -166,6 +178,7 @@ class TestSSHOperator:
             command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag,
+            banner_timeout=100,
         )
         try:
             task_2.execute(None)
@@ -181,6 +194,7 @@ class TestSSHOperator:
             command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag,
+            banner_timeout=100,
         )
         task_3.execute(None)
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
@@ -193,6 +207,7 @@ class TestSSHOperator:
             timeout=TIMEOUT,
             dag=self.dag,
             remote_host='operator_remote_host',
+            banner_timeout=100,
         )
         try:
             task_4.execute(None)
@@ -220,6 +235,7 @@ class TestSSHOperator:
             cmd_timeout=TIMEOUT,
             get_pty=get_pty_in,
             dag=self.dag,
+            banner_timeout=100,
         )
         if command is None:
             with pytest.raises(AirflowException) as ctx:
@@ -237,6 +253,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command="ls",
             dag=self.dag,
+            banner_timeout=100,
         )
 
         se = SSHClientSideEffect(self.hook)
@@ -261,7 +278,7 @@ class TestSSHOperator:
                     success = True
                 return success
 
-        task = CustomSSHOperator(task_id="test", ssh_hook=self.hook, dag=self.dag)
+        task = CustomSSHOperator(task_id="test", ssh_hook=self.hook, dag=self.dag, banner_timeout=100)
         se = SSHClientSideEffect(self.hook)
         with unittest.mock.patch.object(task, 'get_ssh_client') as mock_get, unittest.mock.patch.object(
             task, 'run_ssh_client_command'
@@ -294,6 +311,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command=command,
             dag=self.dag,
+            banner_timeout=100,
         )
         with pytest.raises(AirflowException, match=f"error running cmd: {command}, error: .*"):
             task.execute(None)

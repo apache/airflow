@@ -56,6 +56,7 @@ class SSHOperator(BaseOperator):
         to have the remote process killed upon task timeout.
         The default is ``False`` but note that `get_pty` is forced to ``True``
         when the `command` starts with ``sudo``.
+    :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
     template_fields: Sequence[str] = ('command', 'remote_host')
@@ -74,6 +75,7 @@ class SSHOperator(BaseOperator):
         cmd_timeout: Optional[int] = None,
         environment: Optional[dict] = None,
         get_pty: bool = False,
+        banner_timeout: float = 30.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -90,6 +92,7 @@ class SSHOperator(BaseOperator):
             self.cmd_timeout = self.timeout if self.timeout else CMD_TIMEOUT
         self.environment = environment
         self.get_pty = get_pty
+        self.banner_timeout = banner_timeout
 
         if self.timeout:
             warnings.warn(
@@ -106,7 +109,11 @@ class SSHOperator(BaseOperator):
                 self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
             else:
                 self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, conn_timeout=self.conn_timeout)
+                self.ssh_hook = SSHHook(
+                    ssh_conn_id=self.ssh_conn_id,
+                    conn_timeout=self.conn_timeout,
+                    banner_timeout=self.banner_timeout,
+                )
 
         if not self.ssh_hook:
             raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
