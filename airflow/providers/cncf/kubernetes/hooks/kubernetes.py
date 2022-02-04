@@ -122,14 +122,14 @@ class KubernetesHook(BaseHook):
             config.load_incluster_config()
             return client.ApiClient()
 
-        if kubeconfig_path is not None:
+        if kubeconfig_path:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             config.load_kube_config(
                 config_file=kubeconfig_path, client_configuration=self.client_configuration
             )
             return client.ApiClient()
 
-        if kubeconfig is not None:
+        if kubeconfig:
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
                 temp_config.write(kubeconfig.encode())
