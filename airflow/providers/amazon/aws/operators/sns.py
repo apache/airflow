@@ -30,6 +30,10 @@ class SnsPublishOperator(BaseOperator):
     """
     Publish a message to Amazon SNS.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SnsPublishOperator`
+
     :param aws_conn_id: aws connection to use
     :param target_arn: either a TopicArn or an EndpointArn
     :param message: the default message you want to send (templated)
