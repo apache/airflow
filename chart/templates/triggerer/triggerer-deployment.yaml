@@ -73,6 +73,9 @@ spec:
         {{- toYaml .Values.triggerer.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.triggerer.priorityClassName }}
+      priorityClassName: {{ .Values.triggerer.priorityClassName }}
+      {{- end }}
       nodeSelector:
         {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
