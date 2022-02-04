@@ -1312,17 +1312,21 @@
       default: "True"
     - name: audit_view_excluded_events
       description: |
-        Comma separated string of views to exclude from dag audit view
+        Comma separated string of view events to exclude from dag audit view.
+        All other events will be added minus the ones passed here.
+        The audit logs in the db will not be affected by this parameter.
       version_added: 2.3.0
       type: string
       example: ~
-      default: "True"
+      default: "gantt,landing_times,tries,duration,calendar,graph,tree_data"
     - name: audit_view_included_events
       description: |
-        Comma separated string of views to include in dag audit view
+        Comma separated string of view events to include in dag audit view.
+        If passed, only these events will populate the dag audit view.
+        The audit logs in the db will not be affected by this parameter.
       version_added: 2.3.0
       type: string
-      example: ~
+      example: "dagrun_cleared,failed"
       default: ~
 
 - name: email
