@@ -172,6 +172,10 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/dms.rst
     tags: [aws]
+  - integration-name: AWS Systems Manager
+    external-doc-url: https://aws.amazon.com/systems-manager/
+    logo: /integration-logos/aws/AWS-Systems-Manager@4x.png
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -255,11 +259,15 @@ operators:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
       - airflow.providers.amazon.aws.operators.step_function
+  - integration-name: AWS Systems Manager
+    python-modules:
+      - airflow.providers.amazon.aws.operators.ssm
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
       - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
+
 
 sensors:
   - integration-name: Amazon Athena
@@ -379,6 +387,9 @@ hooks:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function
+  - integration-name: AWS Systems Manager
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ssm_parameter_store
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
@@ -408,6 +419,7 @@ hooks:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.hooks.step_function
+
 
 transfers:
   - source-integration-name: Amazon DynamoDB
