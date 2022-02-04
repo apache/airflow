@@ -41,6 +41,7 @@ class TestWasbTaskHandler:
             state=State.RUNNING,
         )
         ti.try_number = 1
+        ti.hostname = 'localhost'
         ti.raw = False
         yield ti
         clear_db_runs()
@@ -110,7 +111,7 @@ class TestWasbTaskHandler:
             [
                 [
                     (
-                        '',
+                        'localhost',
                         '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
                         'Log line\n',
                     )

@@ -30,19 +30,15 @@ class LocalFilesystemToS3Operator(BaseOperator):
 
     :param filename: Path to the local file. Path can be either absolute
             (e.g. /path/to/file.ext) or relative (e.g. ../../foo/*/*.csv). (templated)
-    :type filename: str
     :param dest_key: The key of the object to copy to. (templated)
 
         It can be either full s3:// style url or relative path from root level.
 
         When it's specified as a full s3:// url, including dest_bucket results in a TypeError.
-    :type dest_key: str
     :param dest_bucket: Name of the S3 bucket to where the object is copied. (templated)
 
         Inclusion when `dest_key` is provided as a full s3:// url results in a TypeError.
-    :type dest_bucket: str
     :param aws_conn_id: Connection id of the S3 connection to use
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 
@@ -54,19 +50,14 @@ class LocalFilesystemToS3Operator(BaseOperator):
         - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param replace: A flag to decide whether or not to overwrite the key
             if it already exists. If replace is False and the key exists, an
             error will be raised.
-    :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side
         by S3 and will be stored in an encrypted form while at rest in S3.
-    :type encrypt: bool
     :param gzip: If True, the file will be compressed locally
-    :type gzip: bool
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
-    :type acl_policy: str
     """
 
     template_fields: Sequence[str] = ('filename', 'dest_key', 'dest_bucket')

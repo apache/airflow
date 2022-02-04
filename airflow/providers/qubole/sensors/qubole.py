@@ -76,12 +76,10 @@ class QuboleFileSensor(QuboleSensor):
         :ref:`howto/operator:QuboleFileSensor`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked
         Check this `example <https://github.com/apache/airflow/blob/main\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
-    :type data: dict
 
     .. note:: Both ``data`` and ``qubole_conn_id`` fields support templating. You can
         also use ``.txt`` files for template-driven use cases.
@@ -102,12 +100,10 @@ class QubolePartitionSensor(QuboleSensor):
         :ref:`howto/operator:QubolePartitionSensor`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked.
         Check this `example <https://github.com/apache/airflow/blob/main\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
-    :type data: dict
 
     .. note:: Both ``data`` and ``qubole_conn_id`` fields support templating. You can
         also use ``.txt`` files for template-driven use cases.

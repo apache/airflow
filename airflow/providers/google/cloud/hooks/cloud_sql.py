@@ -76,14 +76,10 @@ class CloudSQLHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param api_version: This is the version of the api.
-    :type api_version: str
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
-    :type gcp_conn_id: str
     :param delegate_to: This performs a task on one host with reference to other hosts.
-    :type delegate_to: Optional[str]
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
-    :type impersonation_chain: Optional[str]
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -124,10 +120,8 @@ class CloudSQLHook(GoogleBaseHook):
         Retrieves a resource containing information about a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
-        :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
@@ -146,10 +140,8 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param body: Body required by the Cloud SQL insert API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
-        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         response = (
@@ -172,12 +164,9 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param body: Body required by the Cloud SQL patch API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body.
-        :type body: dict
         :param instance: Cloud SQL instance ID. This does not include the project ID.
-        :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         response = (
@@ -197,9 +186,7 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
-        :type instance: str
         :return: None
         """
         response = (
@@ -217,12 +204,9 @@ class CloudSQLHook(GoogleBaseHook):
         Retrieves a database resource from a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
-        :type instance: str
         :param database: Name of the database in the instance.
-        :type database: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: A Cloud SQL database resource, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
@@ -241,13 +225,10 @@ class CloudSQLHook(GoogleBaseHook):
         Creates a new database inside a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
-        :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
-        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         response = (
@@ -275,15 +256,11 @@ class CloudSQLHook(GoogleBaseHook):
         See https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch.
 
         :param instance: Database instance ID. This does not include the project ID.
-        :type instance: str
         :param database: Name of the database to be updated in the instance.
-        :type database: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
-        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         response = (
@@ -302,12 +279,9 @@ class CloudSQLHook(GoogleBaseHook):
         Deletes a database from a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
-        :type instance: str
         :param database: Name of the database to be deleted in the instance.
-        :type database: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         response = (
@@ -328,13 +302,10 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
-        :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
-        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         response = (
@@ -354,13 +325,10 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param instance: Database instance ID. This does not include the
             project ID.
-        :type instance: str
         :param body: The request body, as described in
-            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
-        :type body: dict
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         try:
@@ -381,9 +349,7 @@ class CloudSQLHook(GoogleBaseHook):
         asynchronous call.
 
         :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param operation_name: Name of the operation.
-        :type operation_name: str
         :return: None
         """
         service = self.get_conn()
@@ -427,27 +393,21 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     :param path_prefix: Unique path prefix where proxy will be downloaded and
         directories created for unix sockets.
-    :type path_prefix: str
     :param instance_specification: Specification of the instance to connect the
         proxy to. It should be specified in the form that is described in
         https://cloud.google.com/sql/docs/mysql/sql-proxy#multiple-instances in
         -instances parameter (typically in the form of ``<project>:<region>:<instance>``
         for UNIX socket connections and in the form of
         ``<project>:<region>:<instance>=tcp:<port>`` for TCP connections.
-    :type instance_specification: str
     :param gcp_conn_id: Id of Google Cloud connection to use for
         authentication
-    :type gcp_conn_id: str
     :param project_id: Optional id of the Google Cloud project to connect to - it overwrites
         default project id taken from the Google Cloud connection.
-    :type project_id: str
     :param sql_proxy_version: Specific version of SQL proxy to download
         (for example 'v1.13'). By default latest version is downloaded.
-    :type sql_proxy_version: str
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
-    :type sql_proxy_binary_path: str
     """
 
     def __init__(
@@ -719,13 +679,10 @@ class CloudSQLDatabaseHook(BaseHook):
     * **sslrootcert** - Path to server's certificate to authenticate when SSL is used.
 
     :param gcp_cloudsql_conn_id: URL of the connection
-    :type gcp_cloudsql_conn_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
-    :type gcp_conn_id: str
     :param default_gcp_project_id: Default project id used if project_id not specified
            in the connection URL
-    :type default_gcp_project_id: str
     """
 
     conn_name_attr = 'gcp_cloudsql_conn_id'

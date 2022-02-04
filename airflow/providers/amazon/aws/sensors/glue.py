@@ -32,9 +32,7 @@ class GlueJobSensor(BaseSensorOperator):
     'FAILED', 'STOPPED', 'SUCCEEDED'
 
     :param job_name: The AWS Glue Job unique name
-    :type job_name: str
     :param run_id: The AWS Glue current running job identifier
-    :type run_id: str
     """
 
     template_fields: Sequence[str] = ('job_name', 'run_id')

@@ -28,7 +28,6 @@ export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
 export INSTALL_PROVIDERS_FROM_SOURCES="false"
 export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 export DOCKER_CACHE="local"
-export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="true"
 export DOCKER_TAG=${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}
 export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
 export AIRFLOW_CONSTRAINTS="constraints"
@@ -37,8 +36,7 @@ export AIRFLOW_CONSTRAINTS="constraints"
 echo
 echo "Building and pushing ${INSTALL_AIRFLOW_VERSION} Airflow PROD image for ${PYTHON_MAJOR_MINOR_VERSION}"
 echo
-rm -rf "${BUILD_CACHE_DIR}"
-rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+build_images::clean_build_cache
 build_images::prepare_prod_build
 build_images::build_prod_images
 verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"

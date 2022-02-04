@@ -82,14 +82,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)   | Stable version (2.2.3)   |
-| -------------------- | -------------------- | ------------------------ |
-| Python               | 3.6, 3.7, 3.8, 3.9   | 3.6, 3.7, 3.8, 3.9       |
-| Kubernetes           | 1.20, 1.21           | 1.18, 1.19, 1.20         |
-| PostgreSQL           | 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
-| MySQL                | 5.7, 8               | 5.7, 8                   |
-| SQLite               | 3.15.0+              | 3.15.0+                  |
-| MSSQL(Experimental)  | 2017, 2019           |                          |
+|                     | Main version (dev)  | Stable version (2.2.3)   |
+|---------------------|---------------------|--------------------------|
+| Python              | 3.7, 3.8, 3.9       | 3.6, 3.7, 3.8, 3.9       |
+| Kubernetes          | 1.20, 1.21          | 1.18, 1.19, 1.20         |
+| PostgreSQL          | 10, 11, 12, 13      | 9.6, 10, 11, 12, 13      |
+| MySQL               | 5.7, 8              | 5.7, 8                   |
+| SQLite              | 3.15.0+             | 3.15.0+                  |
+| MSSQL(Experimental) | 2017, 2019          |                          |
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
@@ -289,16 +289,17 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
    EOL versions in main right after EOL date, and it is effectively removed when we release the
    first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example, for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
-   MAJOR or MINOR version of Airflow released after will not have it.
+   For example, for Python 3.7 it means that we will drop support in main right after 27.06.2023, and
+   the first MAJOR or MINOR version of Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.2.3` images are Python 3.7 images as we are preparing for 23.12.2021 when will
-   Python 3.6 reaches end of life.
+   and `apache/airflow:2.2.3` images are Python 3.7 images. This means that default reference image will
+   become the default at the time when we start preparing for dropping 3.7 support which is few months
+   before the end of life for Python 3.7.
 
-3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
+4. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
 

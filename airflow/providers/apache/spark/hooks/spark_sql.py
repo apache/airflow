@@ -32,33 +32,21 @@ class SparkSqlHook(BaseHook):
     "spark-sql" binary is in the PATH.
 
     :param sql: The SQL query to execute
-    :type sql: str
     :param conf: arbitrary Spark configuration property
-    :type conf: str (format: PROP=VALUE)
     :param conn_id: connection_id string
-    :type conn_id: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
         (Default: all the available cores on the worker)
-    :type total_executor_cores: int
     :param executor_cores: (Standalone & YARN only) Number of cores per
         executor (Default: 2)
-    :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
-    :type executor_memory: str
     :param keytab: Full path to the file that contains the keytab
-    :type keytab: str
     :param master: spark://host:port, mesos://host:port, yarn, or local
         (Default: The ``host`` and ``port`` set in the Connection, or ``"yarn"``)
-    :type master: str
     :param name: Name of the job.
-    :type name: str
     :param num_executors: Number of executors to launch
-    :type num_executors: int
     :param verbose: Whether to pass the verbose flag to spark-sql
-    :type verbose: bool
     :param yarn_queue: The YARN queue to submit to
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
-    :type yarn_queue: str
     """
 
     conn_name_attr = 'conn_id'
@@ -127,7 +115,6 @@ class SparkSqlHook(BaseHook):
         as default.
 
         :param cmd: command to append to the spark-sql command
-        :type cmd: str or list[str]
         :return: full command to be executed
         """
         connection_cmd = ["spark-sql"]
@@ -177,9 +164,7 @@ class SparkSqlHook(BaseHook):
         Remote Popen (actually execute the Spark-sql query)
 
         :param cmd: command to append to the spark-sql command
-        :type cmd: str or list[str]
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
-        :type kwargs: dict
         """
         spark_sql_cmd = self._prepare_command(cmd)
 

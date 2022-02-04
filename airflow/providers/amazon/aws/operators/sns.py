@@ -31,16 +31,11 @@ class SnsPublishOperator(BaseOperator):
     Publish a message to Amazon SNS.
 
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     :param target_arn: either a TopicArn or an EndpointArn
-    :type target_arn: str
     :param message: the default message you want to send (templated)
-    :type message: str
     :param subject: the message subject you want to send (templated)
-    :type subject: str
     :param message_attributes: the message attributes you want to send as a flat dict (data type will be
         determined automatically)
-    :type message_attributes: dict
     """
 
     template_fields: Sequence[str] = ('message', 'subject', 'message_attributes')

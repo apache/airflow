@@ -148,6 +148,8 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 
 See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
 
+.. _concepts:templating-native-objects:
+
 Rendering Fields as Native Python Objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -208,3 +210,17 @@ In this case, ``order_data`` argument is passed: ``{"1001": 301.27, "1002": 433.
 Airflow uses Jinja's `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_
 when ``render_template_as_native_obj`` is set to ``True``.
 With ``NativeEnvironment``, rendering a template produces a native Python type.
+
+.. _concepts:reserved-keywords:
+
+Reserved params keyword
+-----------------------
+
+In Apache Airflow 2.2.0 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
+If you upgrade your environment and get the following error:
+
+.. code-block::
+
+    AttributeError: 'str' object has no attribute '__module__'
+
+change name from ``params`` in your operators.

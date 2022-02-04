@@ -80,6 +80,7 @@ Ctrl
 DAGs
 DBs
 Daemonize
+DagCallbackRequest
 DagFileProcessorManager
 DagRun
 DagRunState
@@ -136,6 +137,7 @@ EmrCreateJobFlow
 Enum
 Env
 EnvVar
+EventBufferValueType
 ExaConnection
 Exasol
 Failover
@@ -329,7 +331,9 @@ Sasl
 SecretManagerClient
 Seedlist
 Sendgrid
+SerializedDAG
 SlackHook
+SlackResponse
 SnowflakeHook
 Spark
 SparkPi
@@ -364,6 +368,7 @@ TCP
 TLS
 TTY
 TZ
+TaskDecorator
 TaskFlow
 TaskGroup
 TaskGroups
@@ -570,6 +575,7 @@ cloudwatch
 cls
 cmake
 cmd
+cmdlet
 cmdline
 cmds
 cname
@@ -757,6 +763,7 @@ exts
 faas
 facebook
 failover
+falsy
 faq
 fargate
 fbee
@@ -1189,6 +1196,7 @@ reidentify
 reinit
 reinitialization
 relativedelta
+remoting
 renewer
 replicaSet
 repo
@@ -1217,6 +1225,7 @@ rtype
 ru
 runAsUser
 runnable
+runspace
 runtime
 sagemaker
 salesforce
@@ -1237,6 +1246,7 @@ sdk
 secretRef
 secretRefs
 securable
+securestring
 securityManager
 seealso
 seedlist
@@ -1391,6 +1401,7 @@ triggerer
 triggerers
 trino
 trojan
+truthy
 tsv
 ttl
 tunables
@@ -1402,12 +1413,15 @@ uid
 umask
 un
 unarchived
+uncommenting
 undead
 ungenerated
 unicode
 unittest
 unittests
 unix
+unmappable
+unmapped
 unpause
 unpausing
 unpredicted

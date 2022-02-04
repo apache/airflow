@@ -81,7 +81,17 @@ def utc_epoch() -> dt.datetime:
     return result
 
 
-def convert_to_utc(value):
+@overload
+def convert_to_utc(value: None) -> None:
+    ...
+
+
+@overload
+def convert_to_utc(value: dt.datetime) -> DateTime:
+    ...
+
+
+def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
     """
     Returns the datetime with the default timezone added if timezone
     information was not associated
@@ -89,13 +99,13 @@ def convert_to_utc(value):
     :param value: datetime
     :return: datetime with tzinfo
     """
-    if not value:
+    if value is None:
         return value
 
     if not is_localized(value):
         value = pendulum.instance(value, TIMEZONE)
 
-    return value.astimezone(utc)
+    return pendulum.instance(value.astimezone(utc))
 
 
 @overload

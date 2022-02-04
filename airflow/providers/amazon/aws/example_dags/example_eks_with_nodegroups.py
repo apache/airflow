@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 from datetime import datetime
 from os import environ
 
@@ -51,7 +55,7 @@ with DAG(
 ) as dag:
 
     # [START howto_operator_eks_create_cluster]
-    # Create an Amazon EKS Cluster control plane without attaching a compute service.
+    # Create an Amazon EKS Cluster control plane without attaching compute service.
     create_cluster = EksCreateClusterOperator(
         task_id='create_eks_cluster',
         cluster_role_arn=ROLE_ARN,

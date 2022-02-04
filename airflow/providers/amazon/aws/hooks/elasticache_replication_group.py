@@ -28,13 +28,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     :param max_retries: Max retries for checking availability of and deleting replication group
             If this is not supplied then this is defaulted to 10
-    :type max_retries: int
     :param exponential_back_off_factor: Multiplication factor for deciding next sleep time
             If this is not supplied then this is defaulted to 1
-    :type exponential_back_off_factor: float
     :param initial_poke_interval: Initial sleep time in seconds
             If this is not supplied then this is defaulted to 60 seconds
-    :type initial_poke_interval: float
     """
 
     TERMINAL_STATES = frozenset({"available", "create-failed", "deleting"})
@@ -59,7 +56,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Call ElastiCache API for creating a replication group
 
         :param config: Configuration for creating the replication group
-        :type config: dict
         :return: Response from ElastiCache create replication group API
         :rtype: dict
         """
@@ -70,7 +66,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Call ElastiCache API for deleting a replication group
 
         :param replication_group_id: ID of replication group to delete
-        :type replication_group_id: str
         :return: Response from ElastiCache delete replication group API
         :rtype: dict
         """
@@ -81,7 +76,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Call ElastiCache API for describing a replication group
 
         :param replication_group_id: ID of replication group to describe
-        :type replication_group_id: str
         :return: Response from ElastiCache describe replication group API
         :rtype: dict
         """
@@ -92,7 +86,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Get current status of replication group
 
         :param replication_group_id: ID of replication group to check for status
-        :type replication_group_id: str
         :return: Current status of replication group
         :rtype: str
         """
@@ -103,7 +96,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Helper for checking if replication group is available or not
 
         :param replication_group_id: ID of replication group to check for availability
-        :type replication_group_id: str
         :return: True if available else False
         :rtype: bool
         """
@@ -120,16 +112,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Check if replication group is available or not by performing a describe over it
 
         :param replication_group_id: ID of replication group to check for availability
-        :type replication_group_id: str
         :param initial_sleep_time: Initial sleep time in seconds
             If this is not supplied then this is defaulted to class level value
-        :type initial_sleep_time: float
         :param exponential_back_off_factor: Multiplication factor for deciding next sleep time
             If this is not supplied then this is defaulted to class level value
-        :type exponential_back_off_factor: float
         :param max_retries: Max retries for checking availability of replication group
             If this is not supplied then this is defaulted to class level value
-        :type max_retries: int
         :return: True if replication is available else False
         :rtype: bool
         """
@@ -179,16 +167,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Helper for deleting a replication group ensuring it is either deleted or can't be deleted
 
         :param replication_group_id: ID of replication to delete
-        :type replication_group_id: str
         :param initial_sleep_time: Initial sleep time in second
             If this is not supplied then this is defaulted to class level value
-        :type initial_sleep_time: float
         :param exponential_back_off_factor: Multiplication factor for deciding next sleep time
             If this is not supplied then this is defaulted to class level value
-        :type exponential_back_off_factor: float
         :param max_retries: Max retries for checking availability of replication group
             If this is not supplied then this is defaulted to class level value
-        :type max_retries: int
         :return: Response from ElastiCache delete replication group API and flag to identify if deleted or not
         :rtype: (dict, bool)
         """
@@ -259,16 +243,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         Delete a replication group ensuring it is either deleted or can't be deleted
 
         :param replication_group_id: ID of replication to delete
-        :type replication_group_id: str
         :param initial_sleep_time: Initial sleep time in second
             If this is not supplied then this is defaulted to class level value
-        :type initial_sleep_time: float
         :param exponential_back_off_factor: Multiplication factor for deciding next sleep time
             If this is not supplied then this is defaulted to class level value
-        :type exponential_back_off_factor: float
         :param max_retries: Max retries for checking availability of replication group
             If this is not supplied then this is defaulted to class level value
-        :type max_retries: int
         :return: Response from ElastiCache delete replication group API
         :rtype: dict
         :raises AirflowException: If replication group is not deleted

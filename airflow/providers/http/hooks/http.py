@@ -30,13 +30,10 @@ class HttpHook(BaseHook):
     Interact with HTTP servers.
 
     :param method: the API method to be called
-    :type method: str
     :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
-    :type http_conn_id: str
     :param auth_type: The auth type for the service
-    :type auth_type: AuthBase of python requests lib
     """
 
     conn_name_attr = 'http_conn_id'
@@ -64,7 +61,6 @@ class HttpHook(BaseHook):
         Returns http session for use with requests
 
         :param headers: additional headers to be passed through as a dictionary
-        :type headers: dict
         """
         session = requests.Session()
 
@@ -105,15 +101,11 @@ class HttpHook(BaseHook):
         Performs the request
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
-        :type endpoint: str
         :param data: payload to be uploaded or request parameters
-        :type data: dict
         :param headers: additional headers to be passed through as a dictionary
-        :type headers: dict
         :param extra_options: additional options to be used when executing the request
             i.e. {'check_response': False} to avoid checking raising exceptions on non
             2XX or 3XX status codes
-        :type extra_options: dict
         :param request_kwargs: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
         """
@@ -121,10 +113,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
-            url = self.base_url + '/' + endpoint
-        else:
-            url = (self.base_url or '') + (endpoint or '')
+        url = self.url_from_endpoint(endpoint)
 
         if self.method == 'GET':
             # GET uses params
@@ -146,7 +135,6 @@ class HttpHook(BaseHook):
         status codes
 
         :param response: A requests response object
-        :type response: requests.response
         """
         try:
             response.raise_for_status()
@@ -166,13 +154,10 @@ class HttpHook(BaseHook):
         checking for the result
 
         :param session: the session to be used to execute the request
-        :type session: requests.Session
         :param prepped_request: the prepared request generated in run()
-        :type prepped_request: session.prepare_request
         :param extra_options: additional options to be used when executing the request
             i.e. ``{'check_response': False}`` to avoid checking raising exceptions on non 2XX
             or 3XX status codes
-        :type extra_options: dict
         """
         extra_options = extra_options or {}
 
@@ -210,7 +195,6 @@ class HttpHook(BaseHook):
 
         :param _retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity
-        :type _retry_args: dict
 
 
         .. code-block:: python
@@ -227,6 +211,12 @@ class HttpHook(BaseHook):
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         return self._retry_obj(self.run, *args, **kwargs)
+
+    def url_from_endpoint(self, endpoint: Optional[str]) -> str:
+        """Combine base url with endpoint"""
+        if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
+            return self.base_url + '/' + endpoint
+        return (self.base_url or '') + (endpoint or '')
 
     def test_connection(self):
         """Test HTTP Connection"""

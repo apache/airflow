@@ -33,29 +33,20 @@ class ExasolToS3Operator(BaseOperator):
     Export data from Exasol database to AWS S3 bucket.
 
     :param query_or_table: the sql statement to be executed or table name to export
-    :type query_or_table: str
     :param key: S3 key that will point to the file
-    :type key: str
     :param bucket_name: Name of the bucket in which to store the file
-    :type bucket_name: str
     :param replace: A flag to decide whether or not to overwrite the key
         if it already exists. If replace is False and the key exists, an
         error will be raised.
-    :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side
         by S3 and will be stored in an encrypted form while at rest in S3.
-    :type encrypt: bool
     :param gzip: If True, the file will be compressed locally
-    :type gzip: bool
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
-    :type acl_policy: str
     :param query_params: Query parameters passed to underlying ``export_to_file``
         method of :class:`~pyexasol.connection.ExaConnection`.
-    :type query_params: dict
     :param export_params: Extra parameters passed to underlying ``export_to_file``
         method of :class:`~pyexasol.connection.ExaConnection`.
-    :type export_params: dict
     """
 
     template_fields: Sequence[str] = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')

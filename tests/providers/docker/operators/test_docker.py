@@ -47,10 +47,17 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock = mock.Mock(spec=APIClient)
         self.client_mock.create_container.return_value = {'Id': 'some_id'}
         self.client_mock.images.return_value = []
-        self.client_mock.attach.return_value = ['container log 1', 'container log 2']
         self.client_mock.pull.return_value = {"status": "pull log"}
         self.client_mock.wait.return_value = {"StatusCode": 0}
         self.client_mock.create_host_config.return_value = mock.Mock()
+        self.log_messages = ['container log 1', 'container log 2']
+        self.client_mock.attach.return_value = self.log_messages
+
+        # If logs() is called with tail then only return the last value, otherwise return the whole log.
+        self.client_mock.logs.side_effect = (
+            lambda **kwargs: self.log_messages[-kwargs['tail']] if 'tail' in kwargs else self.log_messages
+        )
+
         self.client_class_patcher = mock.patch(
             'airflow.providers.docker.operators.docker.APIClient',
             return_value=self.client_mock,
@@ -117,6 +124,9 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
         )
+        self.client_mock.logs.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True, tail=1
+        )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
         assert (
@@ -178,6 +188,9 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.logs.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True, tail=1
         )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
@@ -283,6 +296,9 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
         )
+        self.client_mock.logs.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True, tail=1
+        )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
         assert (
@@ -339,10 +355,21 @@ class TestDockerOperator(unittest.TestCase):
             print_exception_mock.assert_not_called()
 
     def test_execute_container_fails(self):
-        self.client_mock.wait.return_value = {"StatusCode": 1}
+        failed_msg = {'StatusCode': 1}
+        log_line = ['unicode container log 😁   ', b'byte string container log']
+        expected_message = 'Docker container failed: {failed_msg} lines {expected_log_output}'
+        self.client_mock.attach.return_value = log_line
+        self.client_mock.wait.return_value = failed_msg
+
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
-        with pytest.raises(AirflowException):
+
+        with pytest.raises(AirflowException) as raised_exception:
             operator.execute(None)
+
+        assert str(raised_exception.value) == expected_message.format(
+            failed_msg=failed_msg,
+            expected_log_output=f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}',
+        )
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}

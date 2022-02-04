@@ -142,6 +142,11 @@ looks like:
         # A list of timetable classes to register so they can be used in DAGs.
         timetables = []
 
+        # A list of Listeners that plugin provides. Listeners can register to
+        # listen to particular events that happen in Airflow, like
+        # TaskInstance state changes. Listeners are python modules.
+        listeners = []
+
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.

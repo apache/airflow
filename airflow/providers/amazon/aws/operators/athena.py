@@ -19,7 +19,6 @@
 import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
-from uuid import uuid4
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -42,25 +41,15 @@ class AthenaOperator(BaseOperator):
         :ref:`howto/operator:AthenaOperator`
 
     :param query: Presto to be run on athena. (templated)
-    :type query: str
     :param database: Database to select. (templated)
-    :type database: str
     :param output_location: s3 path to write the query results into. (templated)
-    :type output_location: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
-    :type client_request_token: str
     :param workgroup: Athena workgroup in which query will be run
-    :type workgroup: str
     :param query_execution_context: Context in which query need to be run
-    :type query_execution_context: dict
     :param result_configuration: Dict with path to store results in and config related to encryption
-    :type result_configuration: dict
     :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
-    :type sleep_time: int
     :param max_tries: Number of times to poll for query state before function exits
-    :type max_tries: int
     """
 
     ui_color = '#44b5e2'
@@ -88,7 +77,7 @@ class AthenaOperator(BaseOperator):
         self.database = database
         self.output_location = output_location
         self.aws_conn_id = aws_conn_id
-        self.client_request_token = client_request_token or str(uuid4())
+        self.client_request_token = client_request_token
         self.workgroup = workgroup
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}

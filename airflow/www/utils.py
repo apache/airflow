@@ -26,8 +26,11 @@ import sqlalchemy as sqla
 from flask import Response, request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
+from flask_appbuilder.models.filters import BaseFilter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_babel import lazy_gettext
 from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
@@ -451,6 +454,46 @@ class UtcAwareFilterMixin:
         return super().apply(query, value)
 
 
+class FilterGreaterOrEqual(BaseFilter):
+    """Greater than or Equal filter."""
+
+    name = lazy_gettext("Greater than or Equal")
+    arg_name = "gte"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+
+        if value is None:
+            return query
+
+        return query.filter(field >= value)
+
+
+class FilterSmallerOrEqual(BaseFilter):
+    """Smaller than or Equal filter."""
+
+    name = lazy_gettext("Smaller than or Equal")
+    arg_name = "lte"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+
+        if value is None:
+            return query
+
+        return query.filter(field <= value)
+
+
+class UtcAwareFilterSmallerOrEqual(UtcAwareFilterMixin, FilterSmallerOrEqual):
+    """Smaller than or Equal filter for UTC time."""
+
+
+class UtcAwareFilterGreaterOrEqual(UtcAwareFilterMixin, FilterGreaterOrEqual):
+    """Greater than or Equal filter for UTC time."""
+
+
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
     """Equality filter for UTC time."""
 
@@ -477,7 +520,14 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
         (
             'is_utcdatetime',
-            [UtcAwareFilterEqual, UtcAwareFilterGreater, UtcAwareFilterSmaller, UtcAwareFilterNotEqual],
+            [
+                UtcAwareFilterEqual,
+                UtcAwareFilterGreater,
+                UtcAwareFilterSmaller,
+                UtcAwareFilterNotEqual,
+                UtcAwareFilterSmallerOrEqual,
+                UtcAwareFilterGreaterOrEqual,
+            ],
         ),
         # FAB will try to create filters for extendedjson fields even though we
         # exclude them from all UI, so we add this here to make it ignore them.
@@ -562,14 +612,10 @@ class UIAlert:
     Helper for alerts messages shown on the UI
 
     :param message: The message to display, either a string or Markup
-    :type message: Union[str,Markup]
     :param category: The category of the message, one of "info", "warning", "error", or any custom category.
         Defaults to "info".
-    :type category: str
     :param roles: List of roles that should be shown the message. If ``None``, show to all users.
-    :type roles: Optional[List[str]]
     :param html: Whether the message has safe html markup in it. Defaults to False.
-    :type html: bool
 
 
     For example, show a message to all users:
@@ -610,7 +656,7 @@ class UIAlert:
     def should_show(self, securitymanager) -> bool:
         """Determine if the user should see the message based on their role membership"""
         if self.roles:
-            user_roles = {r.name for r in securitymanager.get_user_roles()}
+            user_roles = {r.name for r in securitymanager.current_user.roles}
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

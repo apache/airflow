@@ -31,7 +31,6 @@ class RedshiftHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :type aws_conn_id: str
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -44,11 +43,8 @@ class RedshiftHook(AwsBaseHook):
         Return status of a cluster
 
         :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
-        :type skip_final_cluster_snapshot: bool
         :param final_cluster_snapshot_identifier: Optional[str]
-        :type final_cluster_snapshot_identifier: Optional[str]
         """
         try:
             response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)['Clusters']
@@ -66,11 +62,8 @@ class RedshiftHook(AwsBaseHook):
         Delete a cluster and optionally create a snapshot
 
         :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
-        :type skip_final_cluster_snapshot: bool
         :param final_cluster_snapshot_identifier: name of final cluster snapshot
-        :type final_cluster_snapshot_identifier: str
         """
         final_cluster_snapshot_identifier = final_cluster_snapshot_identifier or ''
 
@@ -86,7 +79,6 @@ class RedshiftHook(AwsBaseHook):
         Gets a list of snapshots for a cluster
 
         :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
         """
         response = self.get_conn().describe_cluster_snapshots(ClusterIdentifier=cluster_identifier)
         if 'Snapshots' not in response:
@@ -101,9 +93,7 @@ class RedshiftHook(AwsBaseHook):
         Restores a cluster from its snapshot
 
         :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
         :param snapshot_identifier: unique identifier for a snapshot of a cluster
-        :type snapshot_identifier: str
         """
         response = self.get_conn().restore_from_cluster_snapshot(
             ClusterIdentifier=cluster_identifier, SnapshotIdentifier=snapshot_identifier
@@ -115,9 +105,7 @@ class RedshiftHook(AwsBaseHook):
         Creates a snapshot of a cluster
 
         :param snapshot_identifier: unique identifier for a snapshot of a cluster
-        :type snapshot_identifier: str
         :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
         """
         response = self.get_conn().create_cluster_snapshot(
             SnapshotIdentifier=snapshot_identifier,

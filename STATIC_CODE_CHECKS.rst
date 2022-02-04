@@ -136,17 +136,11 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``base-operator``                      Checks that BaseOperator is imported properly
 ------------------------------------ ---------------------------------------------------------------- ------------
-``bats-tests``                         Runs BATS bash unit tests
------------------------------------- ---------------------------------------------------------------- ------------
-``bats-in-container-tests``            Run in Breeze container bats tests                                   *
------------------------------------- ---------------------------------------------------------------- ------------
 ``black``                              Runs Black (the uncompromising Python code formatter)
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``blacken-docs``                       Run black on python code blocks in documentation files
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``boring-cyborg``                      Checks for Boring Cyborg configuration consistency
------------------------------------- ---------------------------------------------------------------- ------------
-``build``                              Builds image for mypy, flake8                                        *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``       Regenerates the JSON file with cross-provider dependencies
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -383,7 +377,7 @@ Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
+     ./breeze static-check flake8 -- --files tests/core/* --verbose
 
 Run all tests for the currently staged files:
 

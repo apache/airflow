@@ -17,14 +17,22 @@
 # under the License.
 """Hook for SSH connections."""
 import os
+import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
+from select import select
 from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
+from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -32,7 +40,7 @@ from airflow.hooks.base import BaseHook
 try:
     from airflow.utils.platform import getuser
 except ImportError:
-    from getpass import getuser
+    from getpass import getuser  # type: ignore[misc]
 
 TIMEOUT_DEFAULT = 10
 
@@ -47,27 +55,19 @@ class SSHHook(BaseHook):
         Connections from where all the required parameters can be fetched like
         username, password or key_file. Thought the priority is given to the
         param passed during init
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect
-    :type remote_host: str
     :param username: username to connect to the remote_host
-    :type username: str
     :param password: password of the username to connect to the remote_host
-    :type password: str
     :param key_file: path to key file to use to connect to the remote_host
-    :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
-    :type port: int
     :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
         The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :type conn_timeout: int
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
-    :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
-    :type keepalive_interval: int
+    :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -91,7 +91,7 @@ class SSHHook(BaseHook):
     hook_name = 'SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],
@@ -111,6 +111,7 @@ class SSHHook(BaseHook):
         timeout: Optional[int] = None,
         conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
+        banner_timeout: float = 30.0,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -123,12 +124,13 @@ class SSHHook(BaseHook):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
+        self.banner_timeout = banner_timeout
+        self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
         self.allow_host_key_change = False
-        self.host_proxy = None
         self.host_key = None
         self.look_for_keys = True
 
@@ -242,13 +244,18 @@ class SSHHook(BaseHook):
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
-                self.host_proxy = paramiko.ProxyCommand(host_info['proxycommand'])
+                self.host_proxy_cmd = host_info['proxycommand']
 
             if not (self.password or self.key_file):
                 if host_info and host_info.get('identityfile'):
                     self.key_file = host_info['identityfile'][0]
 
         self.port = self.port or SSH_PORT
+
+    @cached_property
+    def host_proxy(self) -> Optional[paramiko.ProxyCommand]:
+        cmd = self.host_proxy_cmd
+        return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
         """
@@ -290,6 +297,7 @@ class SSHHook(BaseHook):
             port=self.port,
             sock=self.host_proxy,
             look_for_keys=self.look_for_keys,
+            banner_timeout=self.banner_timeout,
         )
 
         if self.password:
@@ -302,7 +310,18 @@ class SSHHook(BaseHook):
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
 
-        client.connect(**connect_kwargs)
+        log_before_sleep = lambda retry_state: self.log.info(
+            "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+        )
+
+        for attempt in Retrying(
+            reraise=True,
+            wait=wait_fixed(3) + wait_random(0, 2),
+            stop=stop_after_attempt(3),
+            before_sleep=log_before_sleep,
+        ):
+            with attempt:
+                client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
@@ -333,11 +352,8 @@ class SSHHook(BaseHook):
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
 
         :param remote_port: The remote port to create a tunnel to
-        :type remote_port: int
         :param remote_host: The remote host to create a tunnel to (default localhost)
-        :type remote_host: str
         :param local_port:  The local port to attach the tunnel to
-        :type local_port: int
 
         :return: sshtunnel.SSHTunnelForwarder object
         """
@@ -413,3 +429,70 @@ class SSHHook(BaseHook):
             'Ensure key provided is valid for one of the following'
             'key formats: RSA, DSS, ECDSA, or Ed25519'
         )
+
+    def exec_ssh_client_command(
+        self,
+        ssh_client: paramiko.SSHClient,
+        command: str,
+        get_pty: bool,
+        environment: Optional[dict],
+        timeout: Optional[int],
+    ) -> Tuple[int, bytes, bytes]:
+        self.log.info("Running command: %s", command)
+
+        # set timeout taken as params
+        stdin, stdout, stderr = ssh_client.exec_command(
+            command=command,
+            get_pty=get_pty,
+            timeout=timeout,
+            environment=environment,
+        )
+        # get channels
+        channel = stdout.channel
+
+        # closing stdin
+        stdin.close()
+        channel.shutdown_write()
+
+        agg_stdout = b''
+        agg_stderr = b''
+
+        # capture any initial output in case channel is closed already
+        stdout_buffer_length = len(stdout.channel.in_buffer)
+
+        if stdout_buffer_length > 0:
+            agg_stdout += stdout.channel.recv(stdout_buffer_length)
+
+        # read from both stdout and stderr
+        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+            readq, _, _ = select([channel], [], [], timeout)
+            for recv in readq:
+                if recv.recv_ready():
+                    line = stdout.channel.recv(len(recv.in_buffer))
+                    agg_stdout += line
+                    self.log.info(line.decode('utf-8', 'replace').strip('\n'))
+                if recv.recv_stderr_ready():
+                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                    agg_stderr += line
+                    self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
+            if (
+                stdout.channel.exit_status_ready()
+                and not stderr.channel.recv_stderr_ready()
+                and not stdout.channel.recv_ready()
+            ):
+                stdout.channel.shutdown_read()
+                try:
+                    stdout.channel.close()
+                except Exception:
+                    # there is a race that when shutdown_read has been called and when
+                    # you try to close the connection, the socket is already closed
+                    # We should ignore such errors (but we should log them with warning)
+                    self.log.warning("Ignoring exception on close", exc_info=True)
+                break
+
+        stdout.close()
+        stderr.close()
+
+        exit_status = stdout.channel.recv_exit_status()
+
+        return exit_status, agg_stdout, agg_stderr

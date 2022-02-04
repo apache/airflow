@@ -16,7 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google AutoML hook."""
+"""
+This module contains a Google AutoML hook.
+
+.. spelling::
+
+    PredictResponse
+"""
 import sys
 from typing import Dict, Optional, Sequence, Tuple, Union
 
@@ -115,20 +121,14 @@ class CloudAutoMLHook(GoogleBaseHook):
 
         :param model: The model_id to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.automl_v1beta1.types.Model`
-        :type model: Union[dict, google.cloud.automl_v1beta1.types.Model]
         :param project_id: ID of the Google Cloud project where model will be created if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
@@ -160,31 +160,22 @@ class CloudAutoMLHook(GoogleBaseHook):
         Instead, a long running operation object is returned.
 
         :param model_id: Name of the model_id requested to serve the batch prediction.
-        :type model_id: str
         :param input_config: Required. The input configuration for batch prediction.
             If a dict is provided, it must be of the same form as the protobuf message
             `google.cloud.automl_v1beta1.types.BatchPredictInputConfig`
-        :type input_config: Union[dict, google.cloud.automl_v1beta1.types.BatchPredictInputConfig]
         :param output_config: Required. The Configuration specifying where output predictions should be
             written. If a dict is provided, it must be of the same form as the protobuf message
             `google.cloud.automl_v1beta1.types.BatchPredictOutputConfig`
-        :type output_config: Union[dict, google.cloud.automl_v1beta1.types.BatchPredictOutputConfig]
         :param params: Additional domain-specific parameters for the predictions, any string must be up to
             25000 characters long.
-        :type params: Optional[Dict[str, str]]
         :param project_id: ID of the Google Cloud project where model is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
@@ -220,26 +211,18 @@ class CloudAutoMLHook(GoogleBaseHook):
         returned in the response.
 
         :param model_id: Name of the model_id requested to serve the prediction.
-        :type model_id: str
         :param payload: Required. Payload to perform a prediction on. The payload must match the problem type
             that the model_id was trained to solve. If a dict is provided, it must be of
             the same form as the protobuf message `google.cloud.automl_v1beta1.types.ExamplePayload`
-        :type payload: Union[dict, google.cloud.automl_v1beta1.types.ExamplePayload]
         :param params: Additional domain-specific parameters, any string must be up to 25000 characters long.
-        :type params: Optional[Dict[str, str]]
         :param project_id: ID of the Google Cloud project where model is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types.PredictResponse` instance
         """
@@ -268,20 +251,14 @@ class CloudAutoMLHook(GoogleBaseHook):
 
         :param dataset: The dataset to create. If a dict is provided, it must be of the
             same form as the protobuf message Dataset.
-        :type dataset: Union[dict, Dataset]
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types.Dataset` instance.
         """
@@ -310,23 +287,16 @@ class CloudAutoMLHook(GoogleBaseHook):
         Imports data into a dataset. For Tables this method can only be called on an empty Dataset.
 
         :param dataset_id: Name of the AutoML dataset.
-        :type dataset_id: str
         :param input_config: The desired input location and its domain specific semantics, if any.
             If a dict is provided, it must be of the same form as the protobuf message InputConfig.
-        :type input_config: Union[dict, InputConfig]
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
@@ -358,33 +328,23 @@ class CloudAutoMLHook(GoogleBaseHook):
         Lists column specs in a table spec.
 
         :param dataset_id: Name of the AutoML dataset.
-        :type dataset_id: str
         :param table_spec_id: table_spec_id for path builder.
-        :type table_spec_id: str
         :param field_mask: Mask specifying which fields to read. If a dict is provided, it must be of the same
             form as the protobuf message `google.cloud.automl_v1beta1.types.FieldMask`
-        :type field_mask: Union[dict, google.cloud.automl_v1beta1.types.FieldMask]
         :param filter_: Filter expression, see go/filtering.
-        :type filter_: str
         :param page_size: The maximum number of resources contained in the
             underlying API response. If page streaming is performed per
             resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number
             of resources in a page.
-        :type page_size: int
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types.ColumnSpec` instance.
         """
@@ -417,20 +377,14 @@ class CloudAutoMLHook(GoogleBaseHook):
         Gets a AutoML model.
 
         :param model_id: Name of the model.
-        :type model_id: str
         :param project_id: ID of the Google Cloud project where model is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types.Model` instance.
         """
@@ -458,20 +412,14 @@ class CloudAutoMLHook(GoogleBaseHook):
         Deletes a AutoML model.
 
         :param model_id: Name of the model.
-        :type model_id: str
         :param project_id: ID of the Google Cloud project where model is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance.
         """
@@ -498,18 +446,13 @@ class CloudAutoMLHook(GoogleBaseHook):
 
         :param dataset: The dataset which replaces the resource on the server.
             If a dict is provided, it must be of the same form as the protobuf message Dataset.
-        :type dataset: Union[dict, Dataset]
         :param update_mask: The update mask applies to the resource.  If a dict is provided, it must
             be of the same form as the protobuf message FieldMask.
-        :type update_mask: Union[dict, FieldMask]
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types.Dataset` instance..
         """
@@ -542,24 +485,17 @@ class CloudAutoMLHook(GoogleBaseHook):
         domains manage deployment automatically.
 
         :param model_id: Name of the model requested to serve the prediction.
-        :type model_id: str
         :param image_detection_metadata: Model deployment metadata specific to Image Object Detection.
             If a dict is provided, it must be of the same form as the protobuf message
             ImageObjectDetectionModelDeploymentMetadata
-        :type image_detection_metadata: Union[ImageObjectDetectionModelDeploymentMetadata, dict]
         :param project_id: ID of the Google Cloud project where model will be created if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance.
         """
@@ -591,28 +527,20 @@ class CloudAutoMLHook(GoogleBaseHook):
         Lists table specs in a dataset_id.
 
         :param dataset_id: Name of the dataset.
-        :type dataset_id: str
         :param filter_: Filter expression, see go/filtering.
-        :type filter_: str
         :param page_size: The maximum number of resources contained in the
             underlying API response. If page streaming is performed per
             resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number
             of resources in a page.
-        :type page_size: int
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: A `google.gax.PageIterator` instance. By default, this
             is an iterable of `google.cloud.automl_v1beta1.types.TableSpec` instances.
@@ -643,17 +571,12 @@ class CloudAutoMLHook(GoogleBaseHook):
 
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: A `google.gax.PageIterator` instance. By default, this
             is an iterable of `google.cloud.automl_v1beta1.types.Dataset` instances.
@@ -684,20 +607,14 @@ class CloudAutoMLHook(GoogleBaseHook):
         Deletes a dataset and all of its contents.
 
         :param dataset_id: ID of dataset to be deleted.
-        :type dataset_id: str
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
-        :type project_id: str
         :param location: The location of the project.
-        :type location: str
         :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
             retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             `retry` is specified, the timeout applies to each individual attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """

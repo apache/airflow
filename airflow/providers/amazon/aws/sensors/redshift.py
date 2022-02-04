@@ -17,7 +17,9 @@
 # under the License.
 import warnings
 
-from airflow.providers.amazon.aws.sensors.redshift_cluster import AwsRedshiftClusterSensor
+from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+
+AwsRedshiftClusterSensor = RedshiftClusterSensor
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
@@ -25,4 +27,4 @@ warnings.warn(
     stacklevel=2,
 )
 
-__all__ = ["AwsRedshiftClusterSensor"]
+__all__ = ["AwsRedshiftClusterSensor", "RedshiftClusterSensor"]

@@ -84,7 +84,7 @@ TRY_NUMBER = 1
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({('core', 'load_examples'): 'false'}):
-        with env_vars({('core', 'load_examples'): 'false'}):
+        with env_vars({'AIRFLOW__CORE__LOAD_EXAMPLES': 'false'}):
             yield
 
 
@@ -169,7 +169,6 @@ class TestSchedulerJob:
         dags_folder.
 
         :param dags_folder: the directory to traverse
-        :type dags_folder: str
         """
         self.scheduler_job = SchedulerJob(
             executor=self.null_exec, num_times_parse_dags=1, subdir=os.path.join(dags_folder)
@@ -645,6 +644,34 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
+        """Check that task instances of missing DAGs are failed"""
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag'
+        task_id_1 = 'dummy'
+        task_id_2 = 'dummydummy'
+
+        with dag_maker(dag_id=dag_id, session=session, default_args={"max_active_tis_per_dag": 1}):
+            DummyOperator(task_id=task_id_1)
+            DummyOperator(task_id=task_id_2)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.dagbag = mock.MagicMock()
+        self.scheduler_job.dagbag.get_dag.return_value = None
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        tis = dr.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+        assert 0 == len(res)
+        tis = dr.get_task_instances(session=session)
+        assert len(tis) == 2
+        assert all(ti.state == State.FAILED for ti in tis)
+
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
         with dag_maker(dag_id=dag_id, max_active_tasks=16):
@@ -689,12 +716,16 @@ class TestSchedulerJob:
     def test_not_enough_pool_slots(self, caplog, dag_maker):
         dag_id = 'SchedulerJobTest.test_test_not_enough_pool_slots'
         with dag_maker(dag_id=dag_id, concurrency=16):
-            DummyOperator(task_id="dummy", pool="some_pool", pool_slots=4)
+            DummyOperator(task_id="cannot_run", pool="some_pool", pool_slots=4)
+            DummyOperator(task_id="can_run", pool="some_pool", pool_slots=1)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         session = settings.Session()
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        ti = dr.task_instances[1]
         ti.state = State.SCHEDULED
         session.merge(ti)
         some_pool = Pool(pool='some_pool', slots=2, description='my pool')
@@ -704,10 +735,24 @@ class TestSchedulerJob:
             self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
                 "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]>. "
+                "SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled]>. "
                 "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
                 in caplog.text
             )
+
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.state == State.SCHEDULED)
+            .count()
+            == 1
+        )
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.state == State.QUEUED)
+            .count()
+            == 1
+        )
+
         session.flush()
         session.rollback()
 
@@ -2316,6 +2361,7 @@ class TestSchedulerJob:
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
+            'test_invalid_param.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:

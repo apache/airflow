@@ -52,7 +52,6 @@ class DateTimeSensor(BaseSensorOperator):
             )
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :type target_time: str or datetime.datetime
     """
 
     template_fields: Sequence[str] = ("target_time",)
@@ -83,7 +82,6 @@ class DateTimeSensorAsync(DateTimeSensor):
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :type target_time: str or datetime.datetime
     """
 
     def execute(self, context: Context):

@@ -25,7 +25,8 @@ cd "${AIRFLOW_SOURCES}"
 export AIRFLOW_VERSION=2.2.2
 
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-buster" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \

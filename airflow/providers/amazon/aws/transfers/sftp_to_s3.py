@@ -38,22 +38,16 @@ class SFTPToS3Operator(BaseOperator):
 
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :type sftp_conn_id: str
     :param sftp_path: The sftp remote path. This is the specified file path
         for downloading the file from the SFTP server.
-    :type sftp_path: str
     :param s3_conn_id: The s3 connection id. The name or identifier for
         establishing a connection to S3
-    :type s3_conn_id: str
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket to where
         the file is uploaded.
-    :type s3_bucket: str
     :param s3_key: The targeted s3 key. This is the specified path for
         uploading the file to S3.
-    :type s3_key: str
     :param use_temp_file: If True, copies file first to local,
         if False streams file from SFTP to S3.
-    :type use_temp_file: bool
     """
 
     template_fields: Sequence[str] = ('s3_key', 'sftp_path')

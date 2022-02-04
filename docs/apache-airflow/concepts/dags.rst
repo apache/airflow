@@ -260,7 +260,7 @@ The task_id returned by the Python function has to reference a task directly dow
 
     .. image:: /img/branch_note.png
 
-    The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will be still be run, even though it was not returned as part of the branch decision.
+    The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
 The ``BranchPythonOperator`` can also be used with XComs allowing branching context to dynamically decide what branch to follow based on upstream tasks. For example:
 
@@ -605,8 +605,47 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
-Note that :doc:`pools` are *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so
-resources could be consumed by SubdagOperators beyond any limits you may have set.
+
+.. note::
+
+    Parallelism is *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so resources could be consumed by SubdagOperators beyond any limits you may have set.
+
+
+
+TaskGroups vs SubDAGs
+----------------------
+
+SubDAGs, while serving a similar purpose as TaskGroups, introduces both performance and functional issues due to its implementation.
+
+* The SubDagOperator starts a BackfillJob, which ignores existing parallelism configurations potentially oversubscribing the worker environment.
+* SubDAGs have their own DAG attributes. When the SubDAG DAG attributes are inconsistent with its parent DAG, unexpected behavior can occur.
+* Unable to see the "full" DAG in one view as SubDAGs exists as a full fledged DAG.
+* SubDAGs introduces all sorts of edge cases and caveats. This can disrupt user experience and expectation.
+
+TaskGroups, on the other hand, is a better option given that it is purely a UI grouping concept. All tasks within the TaskGroup still behave as any other tasks outside of the TaskGroup.
+
+You can see the core differences between these two constructs.
+
++--------------------------------------------------------+--------------------------------------------------------+
+| TaskGroup                                              | SubDAG                                                 |
++========================================================+========================================================+
+| Repeating patterns as part of the same DAG             |  Repeating patterns as a separate DAG                  |
++--------------------------------------------------------+--------------------------------------------------------+
+| One set of views and statistics for the DAG            |  Separate set of views and statistics between parent   |
+|                                                        |  and child DAGs                                        |
++--------------------------------------------------------+--------------------------------------------------------+
+| One set of DAG configuration                           |  Several sets of DAG configurations                    |
++--------------------------------------------------------+--------------------------------------------------------+
+| Honors parallelism configurations through existing     |  Does not honor parallelism configurations due to      |
+| SchedulerJob                                           |  newly spawned BackfillJob                             |
++--------------------------------------------------------+--------------------------------------------------------+
+| Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
++--------------------------------------------------------+--------------------------------------------------------+
+
+.. note::
+
+    SubDAG is deprecated hence TaskGroup is always the preferred choice.
+
 
 
 Packaging DAGs
