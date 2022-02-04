@@ -1669,7 +1669,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for scheduler pods.",
                     "type": [
                         "string",
                         "null"
@@ -1947,7 +1947,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for triggerer pods.",
                     "type": [
                         "string",
                         "null"
@@ -2657,7 +2657,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for webserver pods.",
                     "type": [
                         "string",
                         "null"
@@ -2948,7 +2948,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for Flower pods.",
                     "type": [
                         "string",
                         "null"
@@ -3087,7 +3087,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for StatsD pods.",
                     "type": [
                         "string",
                         "null"
@@ -3396,7 +3396,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Set priority value from the priority class name",
+                    "description": "Specify priority for PgBouncer pods.",
                     "type": [
                         "string",
                         "null"
