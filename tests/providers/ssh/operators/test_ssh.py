@@ -77,7 +77,6 @@ class TestSSHOperator:
         assert conn_timeout == ssh_hook.conn_timeout
         assert "ssh_default" == ssh_hook.ssh_conn_id
 
-    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     @pytest.mark.parametrize(
         ("enable_xcom_pickling", "output", "expected"),
         [(False, b"airflow", "YWlyZmxvdw=="), (True, b"airflow", b"airflow"), (True, b'', b'')],
