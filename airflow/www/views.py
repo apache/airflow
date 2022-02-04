@@ -3155,6 +3155,7 @@ class Airflow(AirflowBaseView):
         content = self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
+            root=request.args.get('root'),
             dag_id=dag_id,
             dag_logs=dag_audit_logs,
             page_size=PAGE_SIZE,
