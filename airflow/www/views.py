@@ -3137,6 +3137,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def audit_log(self, session=None):
         dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         included_events = conf.get('webserver', 'audit_view_included_events')
         excluded_events = conf.get('webserver', 'audit_view_excluded_events')
@@ -3153,6 +3154,7 @@ class Airflow(AirflowBaseView):
 
         content = self.render_template(
             'airflow/dag_audit_log.html',
+            dag=dag,
             dag_id=dag_id,
             dag_logs=dag_audit_logs,
             page_size=PAGE_SIZE,
