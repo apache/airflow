@@ -287,7 +287,7 @@ class SchedulerJob(BaseJob):
         starved_dags: Set[str] = set()
         starved_tasks: Set[Tuple[str, str]] = set()
 
-        pool_num_starving_tasks = defaultdict(int)
+        pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
 
         for loop_count in itertools.count(start=1):
 
