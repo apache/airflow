@@ -28,9 +28,7 @@ class AirbyteHook(HttpHook):
 
     :param airbyte_conn_id: Required. The name of the Airflow connection to get
         connection information for Airbyte.
-    :type airbyte_conn_id: str
     :param api_version: Optional. Airbyte API version.
-    :type api_version: str
     """
 
     conn_name_attr = 'airbyte_conn_id'
@@ -57,12 +55,9 @@ class AirbyteHook(HttpHook):
         Helper method which polls a job to check if it finishes.
 
         :param job_id: Required. Id of the Airbyte job
-        :type job_id: str
         :param wait_seconds: Optional. Number of seconds between checks.
-        :type wait_seconds: float
         :param timeout: Optional. How many seconds wait for job to be ready.
             Used only if ``asynchronous`` is False.
-        :type timeout: float
         """
         state = None
         start = time.monotonic()
@@ -93,7 +88,6 @@ class AirbyteHook(HttpHook):
         Submits a job to a Airbyte server.
 
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
-        :type connection_id: str
         """
         return self.run(
             endpoint=f"api/{self.api_version}/connections/sync",
@@ -106,7 +100,6 @@ class AirbyteHook(HttpHook):
         Gets the resource representation for a job in Airbyte.
 
         :param job_id: Required. Id of the Airbyte job
-        :type job_id: int
         """
         return self.run(
             endpoint=f"api/{self.api_version}/jobs/get",

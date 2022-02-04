@@ -17,12 +17,12 @@
 from typing import List, Optional, Tuple
 
 import pendulum
+from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
 
-from airflow._vendor.connexion import NoContent
 from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound

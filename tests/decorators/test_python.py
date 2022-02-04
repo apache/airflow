@@ -16,24 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
+from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
 import pytest
-from parameterized import parameterized
 
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models import DAG
 from airflow.models.baseoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from tests.operators.test_python import Call, assert_calls_equal, build_recording_function
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -48,66 +48,19 @@ TI_CONTEXT_ENV_VARS = [
 ]
 
 
-class Call:
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
+class TestAirflowTaskDecorator:
+    def setup_class(self):
+        clear_db_runs()
 
-
-def build_recording_function(calls_collection):
-    """
-    We can not use a Mock instance as a PythonOperator callable function or some tests fail with a
-    TypeError: Object of type Mock is not JSON serializable
-    Then using this custom function recording custom Call objects for further testing
-    (replacing Mock.assert_called_with assertion method)
-    """
-
-    def recording_function(*args, **kwargs):
-        calls_collection.append(Call(*args, **kwargs))
-
-    return recording_function
-
-
-class TestPythonBase(unittest.TestCase):
-    """Base test class for TestPythonOperator and TestPythonSensor classes"""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def setUp(self):
-        super().setUp()
-        self.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
-        self.addCleanup(self.dag.clear)
-        self.clear_run()
-        self.addCleanup(self.clear_run)
-
-    def tearDown(self):
-        super().tearDown()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def clear_run(self):
+    def setup_method(self):
+        self.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
         self.run = False
 
-    def _assert_calls_equal(self, first, second):
-        assert isinstance(first, Call)
-        assert isinstance(second, Call)
-        assert first.args == second.args
-        # eliminate context (conf, dag_run, task_instance, etc.)
-        test_args = ["an_int", "a_date", "a_templated_string"]
-        first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
-        second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
-        assert first.kwargs == second.kwargs
+    def teardown_method(self):
+        self.dag.clear()
+        self.run = False
+        clear_db_runs()
 
-
-class TestAirflowTaskDecorator(TestPythonBase):
     def test_python_operator_python_callable_is_callable(self):
         """Tests that @task will only instantiate if
         the python_callable argument is callable."""
@@ -115,22 +68,34 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with pytest.raises(TypeError):
             task_decorator(not_callable, dag=self.dag)
 
-    @parameterized.expand([["dict"], ["dict[str, int]"], ["Dict"], ["Dict[str, int]"]])
-    def test_infer_multiple_outputs_using_dict_typing(self, test_return_annotation):
-        if sys.version_info < (3, 9) and test_return_annotation == "dict[str, int]":
-            self.skipTest("dict[...] not a supported typing prior to Python 3.9")
+    @pytest.mark.parametrize(
+        "resolve",
+        [
+            pytest.param(eval, id="eval"),
+            pytest.param(lambda t: t, id="stringify"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "annotation",
+        [
+            "dict",
+            pytest.param(
+                "dict[str, int]",
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 9),
+                    reason="PEP 585 is implemented in Python 3.9",
+                ),
+            ),
+            "Dict",
+            "Dict[str, int]",
+        ],
+    )
+    def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):
+        @task_decorator
+        def identity_dict(x: int, y: int) -> resolve(annotation):
+            return {"x": x, "y": y}
 
-            @task_decorator
-            def identity_dict(x: int, y: int) -> eval(test_return_annotation):
-                return {"x": x, "y": y}
-
-            assert identity_dict(5, 5).operator.multiple_outputs is True
-
-            @task_decorator
-            def identity_dict_stringified(x: int, y: int) -> test_return_annotation:
-                return {"x": x, "y": y}
-
-            assert identity_dict_stringified(5, 5).operator.multiple_outputs is True
+        assert identity_dict(5, 5).operator.multiple_outputs is True
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
@@ -288,7 +253,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         assert len(recorded_calls) == 1
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 4,
@@ -319,7 +284,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         assert len(recorded_calls) == 1
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 an_int=4,

@@ -292,19 +292,13 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     all sensor task state in task_instance table
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
-    :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
         between each tries.
-    :type poke_interval: int
     :param smart_sensor_timeout: Time, in seconds before the internal sensor
         job times out if poke_timeout is not defined.
-    :type smart_sensor_timeout: float
     :param shard_min: shard code lower bound (inclusive)
-    :type shard_min: int
     :param shard_max: shard code upper bound (exclusive)
-    :type shard_max: int
     :param poke_timeout: Time, in seconds before the task times out and fails.
-    :type poke_timeout: float
     """
 
     ui_color = '#e6f1f2'
@@ -495,9 +489,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         logically experienced all retries and the try_number should be set to max_tries.
 
         :param sensor_work: The sensor_work with exception.
-        :type sensor_work: SensorWork
         :param error: The error message for this sensor_work.
-        :type error: str.
         :param session: The sqlalchemy session.
         """
 

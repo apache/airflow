@@ -58,13 +58,9 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     """Runs DAG processing in a separate process using DagFileProcessor
 
     :param file_path: a Python file containing Airflow DAG definitions
-    :type file_path: str
     :param pickle_dags: whether to serialize the DAG objects to the DB
-    :type pickle_dags: bool
     :param dag_ids: If specified, only look at these DAG ID's
-    :type dag_ids: List[str]
     :param callback_requests: failure callback to execute
-    :type callback_requests: List[airflow.utils.callback_requests.CallbackRequest]
     """
 
     # Counter that increments every time an instance of this class is created
@@ -116,21 +112,14 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         Process the given file.
 
         :param result_channel: the connection to use for passing back the result
-        :type result_channel: multiprocessing.Connection
         :param parent_channel: the parent end of the channel to close in the child
-        :type parent_channel: multiprocessing.Connection
         :param file_path: the file to process
-        :type file_path: str
         :param pickle_dags: whether to pickle the DAGs found in the file and
             save them to the DB
-        :type pickle_dags: bool
         :param dag_ids: if specified, only examine DAG ID's that are
             in this list
-        :type dag_ids: list[str]
         :param thread_name: the name to use for the process that is launched
-        :type thread_name: str
         :param callback_requests: failure callback to execute
-        :type callback_requests: List[airflow.utils.callback_requests.CallbackRequest]
         :return: the process that was launched
         :rtype: multiprocessing.Process
         """
@@ -223,7 +212,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         Terminate (and then kill) the process launched to process the file.
 
         :param sigkill: whether to issue a SIGKILL if SIGTERM doesn't work.
-        :type sigkill: bool
         """
         if self._process is None or self._parent_channel is None:
             raise AirflowException("Tried to call terminate before starting!")
@@ -353,9 +341,7 @@ class DagFileProcessor(LoggingMixin):
     Returns a tuple of 'number of dags found' and 'the count of import errors'
 
     :param dag_ids: If specified, only look at these DAG ID's
-    :type dag_ids: List[str]
     :param log: Logger to save the processing process
-    :type log: logging.Logger
     """
 
     UNIT_TEST_MODE: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
@@ -532,9 +518,7 @@ class DagFileProcessor(LoggingMixin):
         Airflow UI so that users know that there are issues parsing DAGs.
 
         :param session: session for ORM operations
-        :type session: sqlalchemy.orm.session.Session
         :param dagbag: DagBag containing DAGs with import errors
-        :type dagbag: airflow.DagBag
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
@@ -565,7 +549,6 @@ class DagFileProcessor(LoggingMixin):
 
         :param dagbag: Dag Bag of dags
         :param callback_requests: failure callbacks to execute
-        :type callback_requests: List[airflow.utils.callback_requests.CallbackRequest]
         :param session: DB session.
         """
         for request in callback_requests:
@@ -628,14 +611,10 @@ class DagFileProcessor(LoggingMixin):
         6. Record any errors importing the file into ORM
 
         :param file_path: the path to the Python file that should be executed
-        :type file_path: str
         :param callback_requests: failure callback to execute
-        :type callback_requests: List[airflow.utils.dag_processing.CallbackRequest]
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
-        :type pickle_dags: bool
         :param session: Sqlalchemy ORM Session
-        :type session: Session
         :return: number of dags found, count of import errors
         :rtype: Tuple[int, int]
         """

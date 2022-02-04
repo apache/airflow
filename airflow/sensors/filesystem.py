@@ -36,13 +36,10 @@ class FileSensor(BaseSensorOperator):
 
     :param fs_conn_id: reference to the File (path)
         connection id
-    :type fs_conn_id: str
     :param filepath: File or folder name (relative to
         the base path set within the connection), can be a glob.
-    :type filepath: str
     :param recursive: when set to ``True``, enables recursive directory matching behavior of
         ``**`` in glob filepath parameter. Defaults to ``False``.
-    :type recursive: bool
     """
 
     template_fields: Sequence[str] = ('filepath',)

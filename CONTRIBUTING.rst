@@ -582,7 +582,7 @@ Airflow dependencies
 
    Only ``pip`` installation is currently officially supported.
 
-   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
@@ -609,13 +609,13 @@ apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, a
 apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
 cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
 devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
-http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
-opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
-qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
-snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv, webhdfs,
-winrm, yandex, zendesk
+facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs,
+hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb,
+microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
+openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto,
+qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity,
+slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv,
+webhdfs, winrm, yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -674,7 +674,7 @@ Here is the list of packages and their extras:
 Package                    Extras
 ========================== ===========================
 airbyte                    http
-amazon                     apache.hive,cncf.kubernetes,exasol,ftp,google,imap,mongo,mysql,salesforce,ssh
+amazon                     apache.hive,cncf.kubernetes,exasol,ftp,google,imap,mongo,salesforce,ssh
 apache.beam                google
 apache.druid               apache.hive
 apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica

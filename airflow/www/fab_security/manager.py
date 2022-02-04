@@ -107,7 +107,7 @@ class BaseSecurityManager:
     """ Flask-OAuth """
     oauth_remotes: Dict[str, Any]
     """ OAuth email whitelists """
-    oauth_whitelists: Dict[str, List]
+    oauth_whitelists: Dict[str, List] = {}
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     @staticmethod
@@ -1140,7 +1140,6 @@ class BaseSecurityManager:
         Openid user Authentication
 
         :param email: user's email to authenticate
-        :type self: User model
         """
         user = self.find_user(email=email)
         if user is None or (not user.is_active):
@@ -1155,7 +1154,6 @@ class BaseSecurityManager:
         REMOTE_USER user Authentication
 
         :param username: user's username for remote auth
-        :type self: User model
         """
         user = self.find_user(username=username)
 
@@ -1385,7 +1383,7 @@ class BaseSecurityManager:
         """
         Adds an action on a resource to the backend
 
-        :param base_permissions:
+        :param base_action_names:
             list of permissions from view (all exposed methods):
              'can_add','can_edit' etc...
         :param resource_name:
@@ -1537,7 +1535,6 @@ class BaseSecurityManager:
         Gets an existing action record.
 
         :param name: name
-        :type name: str
         :return: Action record, if it exists
         :rtype: Action
         """
@@ -1566,7 +1563,6 @@ class BaseSecurityManager:
         Deletes a permission action.
 
         :param name: Name of action to delete (e.g. can_read).
-        :type name: str
         :return: Whether or not delete was successful.
         :rtype: bool
         """
@@ -1583,7 +1579,6 @@ class BaseSecurityManager:
         Returns a resource record by name, if it exists.
 
         :param name: Name of resource
-        :type name: str
         """
         raise NotImplementedError
 
@@ -1601,7 +1596,6 @@ class BaseSecurityManager:
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
-        :type name: str
         """
         raise NotImplementedError
 
@@ -1625,9 +1619,7 @@ class BaseSecurityManager:
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
-        :type action_name: str
         :param resource_name: Name of resource
-        :type resource_name: str
         :return: The existing permission
         :rtype: Permission
         """
@@ -1638,7 +1630,6 @@ class BaseSecurityManager:
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
-        :type resource: Resource
         :return: Action objects representing resource->action pair
         :rtype: Permission
         """
@@ -1649,9 +1640,7 @@ class BaseSecurityManager:
         Creates a permission linking an action and resource.
 
         :param action_name: Name of existing action
-        :type action_name: str
         :param resource_name: Name of existing resource
-        :type resource_name: str
         :return: Resource created
         :rtype: Permission
         """
@@ -1663,9 +1652,7 @@ class BaseSecurityManager:
         underlying action or resource.
 
         :param action_name: Name of existing action
-        :type action_name: str
         :param resource_name: Name of existing resource
-        :type resource_name: str
         :return: None
         :rtype: None
         """
@@ -1679,9 +1666,7 @@ class BaseSecurityManager:
         Add an existing permission pair to a role.
 
         :param role: The role about to get a new permission.
-        :type role
         :param permission: The permission pair to add to a role.
-        :type permission: Permission
         :return: None
         :rtype: None
         """
@@ -1692,9 +1677,7 @@ class BaseSecurityManager:
         Remove a permission pair from a role.
 
         :param role: User role containing permissions.
-        :type role
         :param permission: Object representing resource-> action pair
-        :type permission: Permission
         """
         raise NotImplementedError
 

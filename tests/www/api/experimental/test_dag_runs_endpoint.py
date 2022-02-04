@@ -19,7 +19,7 @@ import json
 
 import pytest
 
-from airflow.api.common.experimental.trigger_dag import trigger_dag
+from airflow.api.common.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
@@ -97,12 +97,8 @@ class TestDagRunsEndpoint:
         # Create DagRun
         trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
-        response = self.app.get(url_template.format(dag_id))
-        assert 200 == response.status_code
-        data = json.loads(response.data.decode('utf-8'))
-
-        assert isinstance(data, list)
-        assert len(data) == 0
+        with pytest.raises(ValueError):
+            self.app.get(url_template.format(dag_id))
 
     def test_get_dag_runs_invalid_dag_id(self):
         url_template = '/api/experimental/dags/{}/dag_runs'

@@ -612,14 +612,10 @@ class UIAlert:
     Helper for alerts messages shown on the UI
 
     :param message: The message to display, either a string or Markup
-    :type message: Union[str,Markup]
     :param category: The category of the message, one of "info", "warning", "error", or any custom category.
         Defaults to "info".
-    :type category: str
     :param roles: List of roles that should be shown the message. If ``None``, show to all users.
-    :type roles: Optional[List[str]]
     :param html: Whether the message has safe html markup in it. Defaults to False.
-    :type html: bool
 
 
     For example, show a message to all users:

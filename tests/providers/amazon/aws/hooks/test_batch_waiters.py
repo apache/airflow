@@ -79,31 +79,31 @@ class AwsClients(NamedTuple):
     log: "botocore.client.CloudWatchLogs"
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def batch_client(aws_region):
     with mock_batch():
         yield boto3.client("batch", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def ec2_client(aws_region):
     with mock_ec2():
         yield boto3.client("ec2", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def ecs_client(aws_region):
     with mock_ecs():
         yield boto3.client("ecs", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def iam_client(aws_region):
     with mock_iam():
         yield boto3.client("iam", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def logs_client(aws_region):
     with mock_logs():
         yield boto3.client("logs", region_name=aws_region)

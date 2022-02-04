@@ -233,6 +233,32 @@ class TestPytestSnowflakeHook:
                     'warehouse': 'af_wh',
                 },
             ),
+            (
+                {
+                    **BASE_CONNECTION_KWARGS,
+                    'extra': {
+                        **BASE_CONNECTION_KWARGS['extra'],
+                        'extra__snowflake__insecure_mode': False,
+                    },
+                },
+                (
+                    'snowflake://user:pw@airflow.af_region/db/public?'
+                    'application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh'
+                ),
+                {
+                    'account': 'airflow',
+                    'application': 'AIRFLOW',
+                    'authenticator': 'snowflake',
+                    'database': 'db',
+                    'password': 'pw',
+                    'region': 'af_region',
+                    'role': 'af_role',
+                    'schema': 'public',
+                    'session_parameters': None,
+                    'user': 'user',
+                    'warehouse': 'af_wh',
+                },
+            ),
         ],
     )
     def test_hook_should_support_prepare_basic_conn_params_and_uri(

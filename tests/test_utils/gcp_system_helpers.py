@@ -56,7 +56,6 @@ def resolve_full_gcp_key_path(key: str) -> str:
     Returns path full path to provided GCP key.
 
     :param key: Name of the GCP key, for example ``my_service.json``
-    :type key: str
     :returns: Full path to the key
     """
     path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
@@ -82,12 +81,9 @@ def provide_gcp_context(
     as ``key_file_path``.
 
     :param key_file_path: Path to file with GCP credentials .json file.
-    :type key_file_path: str
     :param scopes: OAuth scopes for the connection
-    :type scopes: Sequence
     :param project_id: The id of GCP project for the connection.
         Default: ``os.environ["GCP_PROJECT_ID"]`` or None
-    :type project_id: str
     """
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
     if project_id is None:

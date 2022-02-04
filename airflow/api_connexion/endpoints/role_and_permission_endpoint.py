@@ -17,11 +17,11 @@
 
 from typing import List, Optional, Tuple
 
+from connexion import NoContent
 from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
-from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
@@ -147,7 +147,7 @@ def post_role() -> APIResponse:
     if not role:
         perms = [(item['action']['name'], item['resource']['name']) for item in data['permissions'] if item]
         _check_action_and_resource(security_manager, perms)
-        security_manager.init_role(role_name=data['name'], perms=perms)
+        security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)
     detail = f"Role with name {role.name!r} already exists; please update with the PATCH endpoint"
     raise AlreadyExists(detail=detail)

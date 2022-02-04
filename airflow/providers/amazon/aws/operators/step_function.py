@@ -37,15 +37,10 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         :class:`~airflow.models.BaseOperator`
 
     :param state_machine_arn: ARN of the Step Function State Machine
-    :type state_machine_arn: str
     :param name: The name of the execution.
-    :type name: Optional[str]
     :param state_machine_input: JSON data input to pass to the State Machine
-    :type state_machine_input: Union[Dict[str, any], str, None]
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     :param do_xcom_push: if True, execution_arn is pushed to XCom with key execution_arn.
-    :type do_xcom_push: bool
     """
 
     template_fields: Sequence[str] = ('state_machine_arn', 'name', 'input')
@@ -92,9 +87,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         :class:`~airflow.models.BaseOperator`
 
     :param execution_arn: ARN of the Step Function State Machine Execution
-    :type execution_arn: str
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('execution_arn',)

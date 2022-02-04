@@ -559,7 +559,7 @@ class TestCliDags(unittest.TestCase):
                 mock.call().clear(
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
-                    dag_run_state=State.NONE,
+                    dag_run_state=False,
                 ),
                 mock.call().run(
                     executor=mock_executor.return_value,
@@ -588,7 +588,7 @@ class TestCliDags(unittest.TestCase):
                 mock.call().clear(
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
-                    dag_run_state=State.NONE,
+                    dag_run_state=False,
                 ),
                 mock.call().run(
                     executor=mock_executor.return_value,

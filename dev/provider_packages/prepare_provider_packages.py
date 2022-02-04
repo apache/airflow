@@ -1702,16 +1702,16 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),
+        target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
     )
 
     return Mode(
         target_versions=target_versions,
         line_length=config.get('line_length', Mode.line_length),
-        is_pyi=config.get('is_pyi', Mode.is_pyi),
-        string_normalization=not config.get('skip_string_normalization', not Mode.string_normalization),
-        experimental_string_processing=config.get(
-            'experimental_string_processing', Mode.experimental_string_processing
+        is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
+        string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
+        experimental_string_processing=bool(
+            config.get('experimental_string_processing', Mode.experimental_string_processing)
         ),
     )
 
@@ -2165,6 +2165,11 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
+    (
+        "This module is deprecated. Please use `kubernetes.client.models.V1ResourceRequirements`"
+        " and `kubernetes.client.models.V1ContainerPort`."
+    ),
+    "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
     ' got 216 from PyObject',
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
@@ -2192,6 +2197,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` or '
     '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
+    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
 }
 
 

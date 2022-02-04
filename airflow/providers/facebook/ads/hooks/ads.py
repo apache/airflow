@@ -54,10 +54,8 @@ class FacebookAdsReportingHook(BaseHook):
         https://developers.facebook.com/docs/marketing-apis/
 
     :param facebook_conn_id: Airflow Facebook Ads connection ID
-    :type facebook_conn_id: str
     :param api_version: The version of Facebook API. Default to None. If it is None,
         it will use the Facebook business SDK default version.
-    :type api_version: Optional[str]
 
     """
 
@@ -122,12 +120,9 @@ class FacebookAdsReportingHook(BaseHook):
 
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type fields: List[str]
         :param params: Parameters that determine the query for Facebook
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type params: Dict[str, Any]
         :param sleep_time: Time to sleep when async call is happening
-        :type sleep_time: int
 
         :return: Facebook Ads API response,
             converted to Facebook Ads Row objects regarding given Account ID type
@@ -166,17 +161,12 @@ class FacebookAdsReportingHook(BaseHook):
 
         :param account_id: Facebook Account ID that holds ads information
                 https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
-        :type account_id: str
         :param api: FacebookAdsApi created in the hook
-        :type api: FacebookAdsApi
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type fields: List[str]
         :param params: Parameters that determine the query for Facebook
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type params: Dict[str, Any]
         :param sleep_time: Time to sleep when async call is happening
-        :type sleep_time: int
         """
         ad_account = AdAccount(account_id, api=api)
         _async = ad_account.get_insights(params=params, fields=fields, is_async=True)

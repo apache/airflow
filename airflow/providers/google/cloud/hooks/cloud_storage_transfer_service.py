@@ -108,9 +108,7 @@ def gen_job_name(job_name: str) -> str:
     Suffix — current timestamp
 
     :param job_name:
-    :rtype job_name: str
     :return: job_name with suffix
-    :rtype: str
     """
     uniq = int(time.time())
     return f"{job_name}_{uniq}"
@@ -159,7 +157,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         :param body: (Required) A request body, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/patch#request-body
-        :type body: dict
         :return: transfer job.
             See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
@@ -205,11 +202,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Transfer Service.
 
         :param job_name: (Required) Name of the job to be fetched
-        :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
             Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
-        :type project_id: str
         :return: Transfer Job
         :rtype: dict
         """
@@ -227,7 +222,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
-        :type request_filter: dict
         :return: List of Transfer Jobs
         :rtype: list[dict]
         """
@@ -261,11 +255,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         New transfers will be performed based on the schedule.
 
         :param job_name: (Required) Name of the job to be updated
-        :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
             Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
-        :type project_id: str
         :return: If successful, TransferJob.
         :rtype: dict
         """
@@ -288,10 +280,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Updates a transfer job that runs periodically.
 
         :param job_name: (Required) Name of the job to be updated
-        :type job_name: str
         :param body: A request body, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/patch#request-body
-        :type body: dict
         :return: If successful, TransferJob.
         :rtype: dict
         """
@@ -312,11 +302,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         30 days after soft delete.
 
         :param job_name: (Required) Name of the job to be deleted
-        :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
             Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
-        :type project_id: str
         :rtype: None
         """
         (
@@ -338,7 +326,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Cancels an transfer operation in Google Storage Transfer Service.
 
         :param operation_name: Name of the transfer operation.
-        :type operation_name: str
         :rtype: None
         """
         self.get_conn().transferOperations().cancel(name=operation_name).execute(num_retries=self.num_retries)
@@ -348,7 +335,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Gets an transfer operation in Google Storage Transfer Service.
 
         :param operation_name: (Required) Name of the transfer operation.
-        :type operation_name: str
         :return: transfer operation
             See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/Operation
@@ -373,7 +359,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
               in the connection
               See: :doc:`/connections/gcp`
 
-        :type request_filter: dict
         :return: transfer operation
         :rtype: list[dict]
         """
@@ -414,7 +399,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Pauses an transfer operation in Google Storage Transfer Service.
 
         :param operation_name: (Required) Name of the transfer operation.
-        :type operation_name: str
         :rtype: None
         """
         self.get_conn().transferOperations().pause(name=operation_name).execute(num_retries=self.num_retries)
@@ -424,7 +408,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Resumes an transfer operation in Google Storage Transfer Service.
 
         :param operation_name: (Required) Name of the transfer operation.
-        :type operation_name: str
         :rtype: None
         """
         self.get_conn().transferOperations().resume(name=operation_name).execute(num_retries=self.num_retries)
@@ -441,14 +424,11 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :param job: Transfer job
             See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
-        :type job: dict
         :param expected_statuses: State that is expected
             See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-        :type expected_statuses: set[str]
         :param timeout: Time in which the operation must end in seconds. If not specified, defaults to 60
             seconds.
-        :type timeout: Optional[Union[float, timedelta]]
         :rtype: None
         """
         expected_statuses = (
@@ -493,11 +473,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         throw :class:`airflow.exceptions.AirflowException`.
 
         :param operations: (Required) List of transfer operations to check.
-        :type operations: list[dict]
         :param expected_statuses: (Required) status that is expected
             See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-        :type expected_statuses: set[str]
         :return: If there is an operation with the expected state
             in the operation list, returns true,
         :raises: airflow.exceptions.AirflowException If it encounters operations

@@ -61,7 +61,6 @@ class SubDagOperator(BaseSensorOperator):
     :param subdag: the DAG object to run as a subdag of the current DAG.
     :param session: sqlalchemy session
     :param conf: Configuration for the subdag
-    :type conf: dict
     :param propagate_skipped_state: by setting this argument you can define
         whether the skipped state of leaf task(s) should be propagated to the
         parent dag's downstream task.

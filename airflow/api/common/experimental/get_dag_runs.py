@@ -22,6 +22,7 @@ from flask import url_for
 
 from airflow.api.common.experimental import check_and_get_dag
 from airflow.models import DagRun
+from airflow.utils.state import DagRunState
 
 
 def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -36,7 +37,7 @@ def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any
     check_and_get_dag(dag_id=dag_id)
 
     dag_runs = []
-    state = state.lower() if state else None
+    state = DagRunState(state.lower()) if state else None
     for run in DagRun.find(dag_id=dag_id, state=state):
         dag_runs.append(
             {

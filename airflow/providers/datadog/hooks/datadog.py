@@ -36,7 +36,6 @@ class DatadogHook(BaseHook, LoggingMixin):
     Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
-    :type datadog_conn_id: str
     """
 
     def __init__(self, datadog_conn_id: str = 'datadog_default') -> None:
@@ -74,15 +73,10 @@ class DatadogHook(BaseHook, LoggingMixin):
         Sends a single datapoint metric to DataDog
 
         :param metric_name: The name of the metric
-        :type metric_name: str
         :param datapoint: A single integer or float related to the metric
-        :type datapoint: int or float
         :param tags: A list of tags associated with the metric
-        :type tags: list
         :param type_: Type of your metric: gauge, rate, or count
-        :type type_: str
         :param interval: If the type of the metric is rate or count, define the corresponding interval
-        :type interval: int
         """
         response = api.Metric.send(
             metric=metric_name, points=datapoint, host=self.host, tags=tags, type=type_, interval=interval
@@ -97,11 +91,8 @@ class DatadogHook(BaseHook, LoggingMixin):
         function applied to it and returns the results.
 
         :param query: The datadog query to execute (see datadog docs)
-        :type query: str
         :param from_seconds_ago: How many seconds ago to start querying for.
-        :type from_seconds_ago: int
         :param to_seconds_ago: Up to how many seconds ago to query for.
-        :type to_seconds_ago: int
         """
         now = int(time.time())
 
@@ -129,27 +120,18 @@ class DatadogHook(BaseHook, LoggingMixin):
         alerting itself.
 
         :param title: The title of the event
-        :type title: str
         :param text: The body of the event (more information)
-        :type text: str
         :param aggregation_key: Key that can be used to aggregate this event in a stream
-        :type aggregation_key: str
         :param alert_type: The alert type for the event, one of
             ["error", "warning", "info", "success"]
-        :type alert_type: str
         :param date_happened: POSIX timestamp of the event; defaults to now
-        :type date_happened: int
         :handle: User to post the event as; defaults to owner of the application key used
             to submit.
         :param handle: str
         :param priority: Priority to post the event as. ("normal" or "low", defaults to "normal")
-        :type priority: str
         :param related_event_id: Post event as a child of the given event
-        :type related_event_id: id
         :param tags: List of tags to apply to the event
-        :type tags: list[str]
         :param device_name: device_name to post the event with
-        :type device_name: list
         """
         response = api.Event.create(
             title=title,

@@ -21,8 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.qubole.hooks.qubole import (
     COMMAND_ARGS,
     HYPHEN_ARGS,
@@ -48,7 +47,6 @@ class QDSLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
-        ti = TaskInstance(task=operator, execution_date=dttm)
         conn = BaseHook.get_connection(
             getattr(operator, "qubole_conn_id", None)
             or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
@@ -57,7 +55,9 @@ class QDSLink(BaseOperatorLink):
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
         else:
             host = 'https://api.qubole.com/v2/analyze?command_id='
-        qds_command_id = ti.xcom_pull(task_ids=operator.task_id, key='qbol_cmd_id')
+        qds_command_id = XCom.get_one(
+            key='qbol_cmd_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         url = host + str(qds_command_id) if qds_command_id else ''
         return url
 
@@ -71,7 +71,6 @@ class QuboleOperator(BaseOperator):
         :ref:`howto/operator:QuboleOperator`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     kwargs:
         :command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd

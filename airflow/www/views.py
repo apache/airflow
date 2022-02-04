@@ -84,7 +84,7 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
@@ -114,7 +114,7 @@ from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.timezone import td_format, utcnow
@@ -770,6 +770,9 @@ class Airflow(AirflowBaseView):
         state_color_mapping["null"] = state_color_mapping.pop(None)
 
         page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
+        page_title_has_markup = conf.getboolean(
+            section="webserver", key="instance_name_has_markup", fallback=False
+        )
 
         dashboard_alerts = [
             fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
@@ -815,7 +818,7 @@ class Airflow(AirflowBaseView):
             migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
-            page_title=page_title,
+            page_title=Markup(page_title) if page_title_has_markup else page_title,
             page_size=dags_per_page,
             num_of_pages=num_of_pages,
             num_dag_from=min(start + 1, num_of_all_dags),
@@ -1225,7 +1228,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def rendered_k8s(self):
+    @provide_session
+    def rendered_k8s(self, session: Session = NEW_SESSION):
         """Get rendered k8s yaml."""
         if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
             abort(404)
@@ -1236,14 +1240,15 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         logging.info("Retrieving rendered templates.")
-        dag = current_app.dag_bag.get_dag(dag_id)
+
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        dag_run = dag.get_dagrun(execution_date=dttm)
-        ti = dag_run.get_task_instance(task_id=task.task_id)
+        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
 
         pod_spec = None
         try:
-            pod_spec = ti.get_rendered_k8s_spec()
+            pod_spec = ti.get_rendered_k8s_spec(session=session)
         except AirflowException as e:
             msg = "Error rendering Kubernetes POD Spec: " + escape(e)
             if e.__cause__:
@@ -1372,7 +1377,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+        dttm = timezone.parse(execution_date) if execution_date else None
         form = DateTimeForm(data={'execution_date': dttm})
         dag_model = DagModel.get_dagmodel(dag_id)
 
@@ -1621,12 +1626,11 @@ class Airflow(AirflowBaseView):
         """Runs Task Instance."""
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
+        dag_run_id = request.form.get('dag_run_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
-        execution_date = request.form.get('execution_date')
-        execution_date = timezone.parse(execution_date)
         ignore_all_deps = request.form.get('ignore_all_deps') == "true"
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
@@ -1637,7 +1641,7 @@ class Airflow(AirflowBaseView):
             flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
-        dag_run = dag.get_dagrun(execution_date=execution_date)
+        dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id)
         if not ti:
             flash(
@@ -3308,15 +3312,15 @@ class SlaMissModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
+    list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'notification_sent', 'timestamp']
 
     label_columns = {
         'execution_date': 'Logical Date',
     }
 
-    add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
-    edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
-    search_columns = ['dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date']
+    add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'notification_sent', 'timestamp']
+    edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'notification_sent', 'timestamp']
+    search_columns = ['dag_id', 'task_id', 'email_sent', 'notification_sent', 'timestamp', 'execution_date']
     base_order = ('execution_date', 'desc')
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
@@ -3589,19 +3593,17 @@ class ConnectionModelView(AirflowModelView):
         """Process form data."""
         conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
-        extra = {
-            key: form.data[key]
-            for key in self.extra_fields
-            if key in form.data and key.startswith(f"extra__{conn_type}__")
-        }
 
-        # If parameters are added to the classic `Extra` field, include these values along with
-        # custom-field extras.
-        extra_conn_params = form.data.get("extra")
+        # The extra value is the combination of custom fields for this conn_type and the Extra field.
+        # The extra form field with all extra values (including custom fields) is in the form being processed
+        # so we start with those values, and override them with anything in the custom fields.
+        extra = {}
 
-        if extra_conn_params:
+        extra_field = form.data.get("extra")
+
+        if extra_field:
             try:
-                extra.update(json.loads(extra_conn_params))
+                extra.update(json.loads(extra_field))
             except (JSONDecodeError, TypeError):
                 flash(
                     Markup(
@@ -3610,10 +3612,18 @@ class ConnectionModelView(AirflowModelView):
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_conn_params}",
+                        f"{extra_field}",
                     ),
                     category="error",
                 )
+
+        custom_fields = {
+            key: form.data[key]
+            for key in self.extra_fields
+            if key in form.data and key.startswith(f"extra__{conn_type}__")
+        }
+
+        extra.update(custom_fields)
 
         if extra.keys():
             form.extra.data = json.dumps(extra)
@@ -4909,3 +4919,28 @@ class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'add': 'create',
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]

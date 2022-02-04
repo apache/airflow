@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+The CloudFormationCreateStackOperator and CloudFormationDeleteStackOperator
+used ``params`` as one of the constructor arguments, however this name clashes with params
+argument ``params`` field which is processed differently in Airflow 2.2.
+The ``params`` parameter has been renamed to ``cloudformation_parameters`` to make it non-ambiguous.
+
+Any usage of CloudFormationCreateStackOperator and CloudFormationDeleteStackOperator where
+``params`` were passed, should be changed to use ``cloudformation_parameters`` instead.
+
 2.6.0
 .....
 

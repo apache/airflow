@@ -117,11 +117,8 @@ class SQLCheckOperator(BaseSQLOperator):
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: str
     :param conn_id: the connection ID used to connect to the database.
-    :type conn_id: str
     :param database: name of database which overwrite the defined one in connection
-    :type database: str
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -156,7 +153,6 @@ def _convert_to_float_if_possible(s):
     if appropriate
 
     :param s: the string to be converted
-    :type s: str
     """
     try:
         ret = float(s)
@@ -170,11 +166,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
     Performs a simple value check using sql code.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: str
     :param conn_id: the connection ID used to connect to the database.
-    :type conn_id: str
     :param database: name of database which overwrite the defined one in connection
-    :type database: str
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
@@ -263,16 +256,11 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     a certain tolerance of the ones from days_back before.
 
     :param table: the table name
-    :type table: str
     :param conn_id: the connection ID used to connect to the database.
-    :type conn_id: str
     :param database: name of database which will overwrite the defined one in connection
-    :type database: Optional[str]
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
-    :type days_back: Optional[int]
     :param date_filter_column: The column name for the dates to filter on. Defaults to 'ds'
-    :type date_filter_column: Optional[str]
     :param ratio_formula: which formula to use to compute the ratio between
         the two metrics. Assuming cur is the metric of today and ref is
         the metric to today - days_back.
@@ -281,11 +269,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         relative_diff: computes abs(cur-ref) / ref
 
         Default: 'max_over_min'
-    :type ratio_formula: str
     :param ignore_zero: whether we should ignore zero metrics
-    :type ignore_zero: bool
     :param metrics_thresholds: a dictionary of ratios indexed by metrics
-    :type metrics_thresholds: dict
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
@@ -407,15 +392,10 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     value OR a sql statement that results a numeric.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: str
     :param conn_id: the connection ID used to connect to the database.
-    :type conn_id: str
     :param database: name of database which overwrite the defined one in connection
-    :type database: str
     :param min_threshold: numerical value or min threshold sql to be executed (templated)
-    :type min_threshold: numeric or str
     :param max_threshold: numerical value or max threshold sql to be executed (templated)
-    :type max_threshold: numeric or str
     """
 
     template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold")
@@ -489,20 +469,14 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     Allows a DAG to "branch" or follow a specified path based on the results of a SQL query.
 
     :param sql: The SQL code to be executed, should return true or false (templated)
-    :type sql: Can receive a str representing a sql statement or reference to a template file.
-               Template reference are recognized by str ending in '.sql'.
-               Expected SQL query to return Boolean (True/False), integer (0 = False, Otherwise = 1)
-               or string (true/y/yes/1/on/false/n/no/0/off).
+       Template reference are recognized by str ending in '.sql'.
+       Expected SQL query to return Boolean (True/False), integer (0 = False, Otherwise = 1)
+       or string (true/y/yes/1/on/false/n/no/0/off).
     :param follow_task_ids_if_true: task id or task ids to follow if query returns true
-    :type follow_task_ids_if_true: str or list
     :param follow_task_ids_if_false: task id or task ids to follow if query returns false
-    :type follow_task_ids_if_false: str or list
     :param conn_id: the connection ID used to connect to the database.
-    :type conn_id: str
     :param database: name of database which overwrite the defined one in connection
-    :type database: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
     """
 
     template_fields: Sequence[str] = ("sql",)

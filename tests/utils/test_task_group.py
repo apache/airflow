@@ -1096,6 +1096,32 @@ def test_decorator_unknown_args():
             ...
 
 
+def test_decorator_multiple_use_task():
+    from airflow.decorators import task
+
+    @dag("test-dag", start_date=DEFAULT_DATE)
+    def _test_dag():
+        @task
+        def t():
+            pass
+
+        @task_group_decorator
+        def tg():
+            for _ in range(3):
+                t()
+
+        t() >> tg() >> t()
+
+    test_dag = _test_dag()
+    assert test_dag.task_ids == [
+        "t",  # Start end.
+        "tg.t",
+        "tg.t__1",
+        "tg.t__2",
+        "t__1",  # End node.
+    ]
+
+
 def test_decorator_partial_unmapped():
     @task_group_decorator
     def tg():

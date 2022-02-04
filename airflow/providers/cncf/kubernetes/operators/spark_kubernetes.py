@@ -34,16 +34,11 @@ class SparkKubernetesOperator(BaseOperator):
 
     :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' as either a
         path to a '.json' file or a JSON string.
-    :type application_file:  str
     :param namespace: kubernetes namespace to put sparkApplication
-    :type namespace: str
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the to Kubernetes cluster.
-    :type kubernetes_conn_id: str
     :param api_group: kubernetes api group of sparkApplication
-    :type api_group: str
     :param api_version: kubernetes api version of sparkApplication
-    :type api_version: str
     """
 
     template_fields: Sequence[str] = ('application_file', 'namespace')

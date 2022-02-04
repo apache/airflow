@@ -142,7 +142,6 @@ def task_policy(task) -> None:
         for more than 48 hours
 
     :param task: task to be mutated
-    :type task: airflow.models.baseoperator.BaseOperator
     """
 
 
@@ -162,7 +161,6 @@ def dag_policy(dag) -> None:
     * Check if every DAG has configured tags
 
     :param dag: dag to be mutated
-    :type dag: airflow.models.dag.DAG
     """
 
 
@@ -177,7 +175,6 @@ def task_instance_mutation_hook(task_instance):
     This could be used, for instance, to modify the task instance during retries.
 
     :param task_instance: task instance to be mutated
-    :type task_instance: airflow.models.taskinstance.TaskInstance
     """
 
 
@@ -208,7 +205,6 @@ def get_airflow_context_vars(context):
     to your PYTHONPATH that defines this ``get_airflow_context_vars`` function.
 
     :param context: The context for the task_instance of interest.
-    :type context: dict
     """
     return {}
 

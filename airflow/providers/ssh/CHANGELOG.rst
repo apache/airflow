@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a retry with wait interval for SSH operator (#14489)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.3.0
 .....
 

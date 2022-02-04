@@ -149,9 +149,7 @@ class ExceptionWithTraceback:
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
 
     :param exception: The exception to wrap
-    :type exception: Exception
     :param exception_traceback: The stacktrace to wrap
-    :type exception_traceback: str
     """
 
     def __init__(self, exception: Exception, exception_traceback: str):
@@ -558,7 +556,6 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
 
     :param async_result: a tuple of the Celery task key and the async Celery object used
         to fetch the task's state
-    :type async_result: tuple(str, celery.result.AsyncResult)
     :return: a tuple of the Celery task key and the Celery state and the celery info
         of the task
     :rtype: tuple[str, str, str]

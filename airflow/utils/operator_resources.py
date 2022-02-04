@@ -32,13 +32,10 @@ class Resource:
     Represents a resource requirement in an execution environment for an operator.
 
     :param name: Name of the resource
-    :type name: str
     :param units_str: The string representing the units of a resource (e.g. MB for a CPU
         resource) to be used for display purposes
-    :type units_str: str
     :param qty: The number of units of the specified resource that are required for
         execution of the operator.
-    :type qty: long
     """
 
     def __init__(self, name, units_str, qty):
@@ -111,13 +108,9 @@ class Resources:
     default values from the airflow config.
 
     :param cpus: The number of cpu cores that are required
-    :type cpus: long
     :param ram: The amount of RAM required
-    :type ram: long
     :param disk: The amount of disk space required
-    :type disk: long
     :param gpus: The number of gpu units that are required
-    :type gpus: long
     """
 
     def __init__(

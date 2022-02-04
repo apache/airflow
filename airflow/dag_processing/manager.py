@@ -94,18 +94,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     :param dag_directory: Directory where DAG definitions are kept. All
         files in file_paths should be under this directory
-    :type dag_directory: str
     :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
-    :type max_runs: int
     :param processor_timeout: How long to wait before timing out a DAG file processor
-    :type processor_timeout: timedelta
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :type dag_ids: list[str]
     :param pickle_dags: whether to pickle DAGs.
-    :type: pickle_dags: bool
     :param async_mode: Whether to start agent in async mode
-    :type async_mode: bool
     """
 
     def __init__(
@@ -188,7 +182,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         Sends information about the callback to be executed by DagFileProcessor.
 
         :param request: Callback request to be executed.
-        :type request: CallbackRequest
         """
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
@@ -204,9 +197,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         Sends information about the SLA callback to be executed by DagFileProcessor.
 
         :param full_filepath: DAG File path
-        :type full_filepath: str
         :param dag_id: DAG ID
-        :type dag_id: str
         """
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
@@ -390,20 +381,13 @@ class DagFileProcessorManager(LoggingMixin):
 
     :param dag_directory: Directory where DAG definitions are kept. All
         files in file_paths should be under this directory
-    :type dag_directory: unicode
     :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
-    :type max_runs: int
     :param processor_timeout: How long to wait before timing out a DAG file processor
-    :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
-    :type signal_conn: MultiprocessingConnection
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :type dag_ids: list[str]
     :param pickle_dags: whether to pickle DAGs.
-    :type pickle_dags: bool
     :param async_mode: whether to start the manager in async mode
-    :type async_mode: bool
     """
 
     def __init__(
@@ -709,7 +693,6 @@ class DagFileProcessorManager(LoggingMixin):
         Clears import errors for files that no longer exist.
 
         :param session: session for ORM operations
-        :type session: sqlalchemy.orm.session.Session
         """
         query = session.query(errors.ImportError)
         if self._file_paths:
@@ -723,7 +706,6 @@ class DagFileProcessorManager(LoggingMixin):
 
         :param known_file_paths: a list of file paths that may contain Airflow
             DAG definitions
-        :type known_file_paths: list[unicode]
         :return: None
         """
         # File Path: Path to the file containing the DAG definition
@@ -786,7 +768,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_pid(self, file_path):
         """
         :param file_path: the path to the file that's being processed
-        :type file_path: unicode
         :return: the PID of the process processing the given file or None if
             the specified file is not being processed
         :rtype: int
@@ -805,7 +786,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_runtime(self, file_path):
         """
         :param file_path: the path to the file that was processed
-        :type file_path: unicode
         :return: the runtime (in seconds) of the process of the last run, or
             None if the file was never processed.
         :rtype: float
@@ -816,7 +796,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_dag_count(self, file_path):
         """
         :param file_path: the path to the file that was processed
-        :type file_path: unicode
         :return: the number of dags loaded from that file, or None if the file
             was never processed.
         :rtype: int
@@ -827,7 +806,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_error_count(self, file_path):
         """
         :param file_path: the path to the file that was processed
-        :type file_path: unicode
         :return: the number of import errors from processing, or None if the file
             was never processed.
         :rtype: int
@@ -838,7 +816,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_finish_time(self, file_path):
         """
         :param file_path: the path to the file that was processed
-        :type file_path: unicode
         :return: the finish time of the process of the last run, or None if the
             file was never processed.
         :rtype: datetime
@@ -849,7 +826,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_start_time(self, file_path):
         """
         :param file_path: the path to the file that's being processed
-        :type file_path: unicode
         :return: the start time of the process that's processing the
             specified file or None if the file is not currently being processed
         :rtype: datetime
@@ -861,7 +837,6 @@ class DagFileProcessorManager(LoggingMixin):
     def get_run_count(self, file_path):
         """
         :param file_path: the path to the file that's being processed
-        :type file_path: unicode
         :return: the number of times the given file has been parsed
         :rtype: int
         """
@@ -873,7 +848,6 @@ class DagFileProcessorManager(LoggingMixin):
         Update this with a new set of paths to DAG definition files.
 
         :param new_file_paths: list of paths to DAG definition files
-        :type new_file_paths: list[unicode]
         :return: None
         """
         self._file_paths = new_file_paths
