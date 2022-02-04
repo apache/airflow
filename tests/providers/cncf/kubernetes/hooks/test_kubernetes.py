@@ -180,6 +180,31 @@ class TestKubernetesHook:
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.client."
+        "CustomObjectsApi.delete_namespaced_custom_object"
+    )
+    def test_delete_custom_object(
+        self, mock_delete_custom_object, mock_kube_config_merger, mock_kube_config_loader
+    ):
+        kubernetes_hook = KubernetesHook(conn_id='default_kube_config')
+        kubernetes_hook.delete_custom_object(
+            group="test-group",
+            version="test-version",
+            plural="test-plural",
+            body="test-body",
+            namespace="test-namespace",
+        )
+        mock_delete_custom_object.assert_called_once_with(
+            group="test-group",
+            version="test-version",
+            plural="test-plural",
+            body="test-body",
+            namespace="test-namespace",
+        )
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION", "/mock/config")
     def test_default_kube_config_connection(self, mock_kube_config_merger, mock_kube_config_loader):
         kubernetes_hook = KubernetesHook(conn_id='default_kube_config')

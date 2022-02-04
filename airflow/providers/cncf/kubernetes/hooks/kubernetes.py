@@ -213,6 +213,32 @@ class KubernetesHook(BaseHook):
         except client.rest.ApiException as e:
             raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
 
+    def delete_custom_object(
+        self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
+    ):
+        """
+        Delete custom resource definition object in Kubernetes
+
+        :param group: api group
+        :param version: api version
+        :param plural: api plural
+        :param body: crd object definition
+        :param namespace: kubernetes namespace
+        """
+        api = client.CustomObjectsApi(self.api_client)
+        if namespace is None:
+            namespace = self.get_namespace()
+        if isinstance(body, str):
+            body = _load_body_to_dict(body)
+        try:
+            response = api.delete_namespaced_custom_object(
+                group=group, version=version, namespace=namespace, plural=plural, body=body
+            )
+            self.log.debug("Response: %s", response)
+            return response
+        except client.rest.ApiException as e:
+            raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
+
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
     ):

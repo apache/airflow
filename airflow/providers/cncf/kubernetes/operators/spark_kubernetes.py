@@ -73,3 +73,14 @@ class SparkKubernetesOperator(BaseOperator):
             namespace=self.namespace,
         )
         return response
+
+    def on_kill(self) -> None:
+        self.log.info("Deleting sparkApplication")
+        hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
+        hook.delete_custom_object(
+            group=self.api_group,
+            version=self.api_version,
+            plural="sparkapplications",
+            body=self.application_file,
+            namespace=self.namespace,
+        )
