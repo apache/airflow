@@ -57,8 +57,8 @@ class VerticaToMySqlOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {
         "sql": "sql",
-        "mysql_preoperator": "sql",
-        "mysql_postoperator": "sql",
+        "mysql_preoperator": "mysql",
+        "mysql_postoperator": "mysql",
     }
     ui_color = '#a0e08c'
 
