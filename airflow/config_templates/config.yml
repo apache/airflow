@@ -1310,6 +1310,20 @@
       type: boolean
       example: ~
       default: "True"
+    - name: audit_view_excluded_events
+      description: |
+        Comma separated string of views to exclude from dag audit view
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "True"
+    - name: audit_view_included_events
+      description: |
+        Comma separated string of views to include in dag audit view
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
 
 - name: email
   description: |
