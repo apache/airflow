@@ -68,6 +68,14 @@ class TestKubernetesHook(unittest.TestCase):
                 extra=json.dumps({'extra__kubernetes__namespace': 'mock_namespace'}),
             )
         )
+        
+        db.merge_conn(
+            Connection(
+                conn_id='kubernetes_empty_kubeconfig_path',
+                conn_type='kubernetes',
+                extra=json.dumps({'extra__kubernetes__kube_config':'{"test": "kube"}','extra__kubernetes__kube_config_path':''}),
+            )
+        )
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -111,6 +119,20 @@ class TestKubernetesHook(unittest.TestCase):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_default_kube_config')
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once_with("/mock/config")
+        mock_kube_config_merger.assert_called_once()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch.object(tempfile, 'NamedTemporaryFile')
+    def test_default_kube_config_connection(
+        self,
+        mock_kube_config_loader,
+        mock_kube_config_merger,
+    ):
+        kubernetes_hook = KubernetesHook(conn_id='kubernetes_empty_kubeconfig_path')
+        api_conn = kubernetes_hook.get_conn()
+        mock_kube_config_loader.assert_called_once_with("")
         mock_kube_config_merger.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
