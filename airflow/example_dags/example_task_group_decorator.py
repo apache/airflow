@@ -60,7 +60,7 @@ def task_end() -> None:
 @task_group
 def task_group_function(value: int) -> None:
     """TaskGroup for grouping related Tasks"""
-    return task_3(task_2(task_1(value)))
+    task_3(task_2(task_1(value)))
 
 
 # Executing Tasks and TaskGroups

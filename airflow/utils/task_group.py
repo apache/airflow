@@ -92,7 +92,6 @@ class TaskGroup(DAGNode):
             # used_group_ids is shared across all TaskGroups in the same DAG to keep track
             # of used group_id to avoid duplication.
             self.used_group_ids = set()
-            self._parent_group = None
             self.dag = dag
         else:
             if prefix_group_id:
@@ -108,28 +107,29 @@ class TaskGroup(DAGNode):
             if not parent_group and not dag:
                 raise AirflowException("TaskGroup can only be used inside a dag")
 
-            self._parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
-            if not self._parent_group:
+            parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
+            if not parent_group:
                 raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
-            if dag is not self._parent_group.dag:
+            if dag is not parent_group.dag:
                 raise RuntimeError(
-                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, self._parent_group.dag
+                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, parent_group.dag
                 )
 
-            self.used_group_ids = self._parent_group.used_group_ids
+            self.used_group_ids = parent_group.used_group_ids
 
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         self._group_id = group_id
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
+        self.children: Dict[str, DAGNode] = {}
+        if parent_group:
+            parent_group.add(self)
+
         self.used_group_ids.add(self.group_id)
         if self.group_id:
             self.used_group_ids.add(self.downstream_join_id)
             self.used_group_ids.add(self.upstream_join_id)
-        self.children: Dict[str, DAGNode] = {}
-        if self._parent_group:
-            self._parent_group.add(self)
 
         self.tooltip = tooltip
         self.ui_color = ui_color
@@ -175,6 +175,10 @@ class TaskGroup(DAGNode):
         """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
 
+    @property
+    def parent_group(self) -> Optional["TaskGroup"]:
+        return self.task_group
+
     def __iter__(self):
         for child in self.children.values():
             if isinstance(child, TaskGroup):
@@ -184,6 +188,8 @@ class TaskGroup(DAGNode):
 
     def add(self, task: DAGNode) -> None:
         """Add a task to this TaskGroup."""
+        # Set the TG first, as setting it might change the return value of node_id!
+        task.task_group = weakref.proxy(self)
         key = task.node_id
 
         if key in self.children:
@@ -201,7 +207,6 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
-        task.task_group = weakref.proxy(self)
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
@@ -216,8 +221,8 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> Optional[str]:
         """group_id of this TaskGroup."""
-        if self._parent_group and self._parent_group.prefix_group_id and self._parent_group.group_id:
-            return self._parent_group.child_id(self._group_id)
+        if self.task_group and self.task_group.prefix_group_id and self.task_group.group_id:
+            return self.task_group.child_id(self._group_id)
 
         return self._group_id
 
@@ -380,8 +385,8 @@ class TaskGroup(DAGNode):
             raise RuntimeError("Cannot map a TaskGroup that already has children")
         if not self.group_id:
             raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
-        if self._parent_group:
-            self._parent_group._remove(self)
+        if self.task_group:
+            self.task_group._remove(self)
         return MappedTaskGroup(group_id=self._group_id, dag=self.dag, mapped_arg=arg)
 
 

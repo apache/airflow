@@ -575,6 +575,7 @@ cloudwatch
 cls
 cmake
 cmd
+cmdlet
 cmdline
 cmds
 cname
@@ -762,6 +763,7 @@ exts
 faas
 facebook
 failover
+falsy
 faq
 fargate
 fbee
@@ -1194,6 +1196,7 @@ reidentify
 reinit
 reinitialization
 relativedelta
+remoting
 renewer
 replicaSet
 repo
@@ -1222,6 +1225,7 @@ rtype
 ru
 runAsUser
 runnable
+runspace
 runtime
 sagemaker
 salesforce
@@ -1242,6 +1246,7 @@ sdk
 secretRef
 secretRefs
 securable
+securestring
 securityManager
 seealso
 seedlist
@@ -1396,6 +1401,7 @@ triggerer
 triggerers
 trino
 trojan
+truthy
 tsv
 ttl
 tunables

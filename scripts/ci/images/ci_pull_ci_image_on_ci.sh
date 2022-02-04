@@ -1,6 +1,4 @@
-#!/usr/bin/env bats
-
-
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,22 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-@test "convert volume list to docker params" {
-  load ../../bats_utils
-
-  read -r -a RES <<< "$(local_mounts::convert_local_mounts_to_docker_params)"
-
-  assert [ "${#RES[@]}" -gt 0 ] # Array should be non-zero length
-  assert [ "$((${#RES[@]} % 2))" == 0 ] # Array should be even length
-
-  for i in "${!RES[@]}"; do
-    if [[ $((i % 2)) == 0 ]]; then
-      # Every other value should be `-v`
-      assert [ "${RES[$i]}" == "-v" ]
-    else
-      # And the options should be of form <src>:<dest>:cached
-      assert bash -c "[[ ${RES[$i]} == *:*:cached ]]"
-    fi
-  done
+# Pulls CI image that has already been built
+function pull_ci_image_on_ci() {
+    build_images::prepare_ci_build
+    start_end::group_start "Pull CI image ${AIRFLOW_CI_IMAGE}"
+    build_images::clean_build_cache
+    md5sum::calculate_md5sum_for_all_files
+    local image_name_with_tag="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    push_pull_remove_images::wait_for_image "${image_name_with_tag}"
+    docker_v tag  "${image_name_with_tag}" "${AIRFLOW_CI_IMAGE}"
+    md5sum::update_all_md5_with_group
+    start_end::group_end
 }
+
+pull_ci_image_on_ci
