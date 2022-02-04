@@ -15,16 +15,41 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
+import tempfile
+from base64 import b64decode
+from unittest.mock import patch
+
 from airflow.decorators import task
 from airflow.models.dag import DAG
+from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
+DOCKER_IMAGE = "quay.io/bitnami/python:3.9"
 
+
+def docker_execute(self, context):
+    code = b64decode(self.environment['__PYTHON_SCRIPT'])
+    args = b64decode(self.environment['__PYTHON_INPUT'])
+    with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile() as g:
+            g.write(args)
+            g.flush()
+            with patch.object(sys, 'argv', [None, g.name, f.name]):
+                exec(code)
+        f.seek(0)
+        try:
+            return self.pickling_library.load(f)
+        except EOFError:
+            return
+
+
+@patch.object(DockerOperator, "execute", new=docker_execute)
 class TestDockerDecorator:
     def test_basic_docker_operator(self, dag_maker):
-        @task.docker(image="quay.io/bitnami/python:3.9")
+        @task.docker(image=DOCKER_IMAGE)
         def f():
             import random
 
@@ -39,7 +64,7 @@ class TestDockerDecorator:
         assert len(ti.xcom_pull()) == 100
 
     def test_basic_docker_operator_with_param(self, dag_maker):
-        @task.docker(image="quay.io/bitnami/python:3.9")
+        @task.docker(image=DOCKER_IMAGE)
         def f(num_results):
             import random
 
@@ -57,7 +82,7 @@ class TestDockerDecorator:
 
     def test_basic_docker_operator_multiple_output(self, dag_maker):
         @task.docker(
-            image="quay.io/bitnami/python:3.9",
+            image=DOCKER_IMAGE,
             multiple_outputs=True,
         )
         def return_dict(number: int):
@@ -76,7 +101,7 @@ class TestDockerDecorator:
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_no_return(self, dag_maker):
-        @task.docker(image="quay.io/bitnami/python:3.9")
+        @task.docker(image=DOCKER_IMAGE)
         def f():
             pass
 
@@ -92,7 +117,7 @@ class TestDockerDecorator:
         """Test calling decorated function 21 times in a DAG"""
 
         @task.docker(
-            image="quay.io/bitnami/python:3.9",
+            image=DOCKER_IMAGE,
             network_mode="bridge",
             api_version="auto",
         )
