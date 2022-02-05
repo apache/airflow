@@ -28,6 +28,7 @@ services:
         condition: service_healthy
   mysql:
     image: mysql:${MYSQL_VERSION}
+    # platform: linux/amd64  # uncomment this line if you're using mac M1
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
