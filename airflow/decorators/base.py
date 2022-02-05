@@ -38,6 +38,7 @@ from typing import (
 )
 
 import attr
+import typing_extensions
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -233,19 +234,21 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
-        return_type = self.function_signature.return_annotation
+        try:
+            return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
+        except Exception:  # Can't evaluate retrurn type.
+            return False
 
-        # If the return type annotation is already the builtins ``dict`` type, use it for the inference.
-        if return_type == dict:
-            ttype = return_type
-        # Checking if Python 3.6, ``__origin__`` attribute does not exist until 3.7; need to use ``__extra__``
-        # TODO: Remove check when support for Python 3.6 is dropped in Airflow 2.3.
-        elif sys.version_info < (3, 7):
-            ttype = getattr(return_type, "__extra__", None)
+        # Get the non-subscripted type. The ``__origin__`` attribute is not
+        # stable until 3.7, but we need to use ``__extra__`` instead.
+        # TODO: Remove the ``__extra__`` branch when support for Python 3.6 is
+        # dropped in Airflow 2.3.
+        if sys.version_info < (3, 7):
+            ttype = getattr(return_type, "__extra__", return_type)
         else:
-            ttype = getattr(return_type, "__origin__", None)
+            ttype = getattr(return_type, "__origin__", return_type)
 
-        return return_type is not inspect.Signature.empty and ttype in (dict, Dict)
+        return ttype == dict or ttype == Dict
 
     def __attrs_post_init__(self):
         self.kwargs.setdefault('task_id', self.function.__name__)

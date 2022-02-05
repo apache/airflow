@@ -333,6 +333,7 @@ Seedlist
 Sendgrid
 SerializedDAG
 SlackHook
+SlackResponse
 SnowflakeHook
 Spark
 SparkPi
@@ -455,6 +456,7 @@ apikey
 apis
 appbuilder
 approle
+aren
 arg
 args
 argv
@@ -574,6 +576,7 @@ cloudwatch
 cls
 cmake
 cmd
+cmdlet
 cmdline
 cmds
 cname
@@ -761,6 +764,7 @@ exts
 faas
 facebook
 failover
+falsy
 faq
 fargate
 fbee
@@ -1114,6 +1118,7 @@ pooler
 postMessage
 postfix
 postgres
+postgresql
 powershell
 pql
 pre
@@ -1193,6 +1198,7 @@ reidentify
 reinit
 reinitialization
 relativedelta
+remoting
 renewer
 replicaSet
 repo
@@ -1221,6 +1227,7 @@ rtype
 ru
 runAsUser
 runnable
+runspace
 runtime
 sagemaker
 salesforce
@@ -1241,6 +1248,7 @@ sdk
 secretRef
 secretRefs
 securable
+securestring
 securityManager
 seealso
 seedlist
@@ -1258,6 +1266,7 @@ sharded
 shellcheck
 shellcmd
 shm
+shouldn
 sie
 sigv
 skipable
@@ -1395,6 +1404,8 @@ triggerer
 triggerers
 trino
 trojan
+truthy
+tsql
 tsv
 ttl
 tunables

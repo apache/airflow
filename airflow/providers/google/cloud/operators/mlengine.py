@@ -22,8 +22,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 
 if TYPE_CHECKING:
@@ -980,8 +979,9 @@ class AIPlatformConsoleLink(BaseOperatorLink):
     name = "AI Platform Console"
 
     def get_link(self, operator, dttm):
-        task_instance = TaskInstance(task=operator, execution_date=dttm)
-        gcp_metadata_dict = task_instance.xcom_pull(task_ids=operator.task_id, key="gcp_metadata")
+        gcp_metadata_dict = XCom.get_one(
+            key="gcp_metadata", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         if not gcp_metadata_dict:
             return ''
         job_id = gcp_metadata_dict['job_id']

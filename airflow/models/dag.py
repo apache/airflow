@@ -1344,7 +1344,6 @@ class DAG(LoggingMixin):
                     session=session,
                 ),
             )
-            .join(TaskInstance.dag_run)
             .order_by(DagRun.execution_date)
             .all()
         )
@@ -2909,7 +2908,12 @@ class DagModel(Base):
             self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
 
-        log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
+        log.info(
+            "Setting next_dagrun for %s to %s, run_after=%s",
+            dag.dag_id,
+            self.next_dagrun,
+            self.next_dagrun_create_after,
+        )
 
 
 def dag(*dag_args, **dag_kwargs):

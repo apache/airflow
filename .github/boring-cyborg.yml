@@ -252,4 +252,3 @@ checkUpToDate:
     - airflow/migrations/*
     - airflow/migrations/**/*
     - airflow/alembic.ini
-    - airflow/**/*.py

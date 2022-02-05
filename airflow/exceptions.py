@@ -98,6 +98,10 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
+class AirflowOptionalProviderFeatureException(AirflowException):
+    """Raise by providers when imports are missing for optional provider features."""
+
+
 class UnmappableXComTypePushed(AirflowException):
     """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
 

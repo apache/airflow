@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from docker import APIClient
 from docker.errors import APIError
@@ -39,7 +39,7 @@ class DockerHook(BaseHook, LoggingMixin):
     hook_name = 'Docker'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],

@@ -1388,7 +1388,7 @@
       description: |
         Email address that will be used as sender address.
         It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
@@ -1697,7 +1697,7 @@
     - name: stuck_queued_task_check_interval
       description: |
         How often to check for stuck queued task (in seconds)
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: integer
       example: ~
       default: "300"

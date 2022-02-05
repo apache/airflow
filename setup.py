@@ -191,7 +191,7 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.19.0',
+    'boto3>=1.15.0,<2.0.0',
     'watchtower~=2.0.1',
     'jsonpath_ng>=1.5.3',
     'redshift_connector~=2.0.888',
@@ -287,6 +287,9 @@ facebook = [
 ]
 flask_appbuilder_authlib = [
     'authlib',
+]
+github = [
+    'pygithub',
 ]
 google = [
     'PyOpenSSL',
@@ -447,7 +450,7 @@ presto = [
     pandas_requirement,
 ]
 psrp = [
-    'pypsrp~=0.5',
+    'pypsrp~=0.8',
 ]
 qubole = [
     'qds-sdk>=1.10.4',
@@ -633,6 +636,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'exasol': exasol,
     'facebook': facebook,
     'ftp': [],
+    'github': github,
     'google': google,
     'grpc': grpc,
     'hashicorp': hashicorp,

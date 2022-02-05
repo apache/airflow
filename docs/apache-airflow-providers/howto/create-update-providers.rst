@@ -304,6 +304,53 @@ main Airflow documentation that involves some steps with the providers is also w
     ./breeze build-docs -- --package-filter apache-airflow-providers-<NEW_PROVIDER>
     ./breeze build-docs -- --package-filter apache-airflow
 
+Optional provider features
+--------------------------
+
+  .. note::
+
+    This feature is available in Airflow 2.3+.
+
+Some providers might provide optional features, which are only available when some packages or libraries
+are installed. Such features will typically result in ``ImportErrors`` however those import errors
+should be silently ignored rather than pollute the logs of Airflow with false warnings. False warnings
+are a very bad pattern, as they tend to turn into blind spots, so avoiding false warnings is encouraged.
+However until Airflow 2.3, Airflow had no mechanism to selectively ignore "known" ImportErrors. So
+Airflow 2.1 and 2.2 silently ignored all ImportErrors coming from providers with actually lead to
+ignoring even important import errors - without giving the clue to Airflow users that there is something
+missing in provider dependencies.
+
+In Airflow 2.3, new exception :class:`~airflow.exceptions.OptionalProviderFeatureException` has been
+introduced and Providers can use the exception to signal that the ImportError (or any other error) should
+be ignored by Airflow ProvidersManager. However this Exception is only available in Airflow 2.3 so if
+providers would like to remain compatible with Airflow 2.1 and 2.2, they should continue throwing
+the ImportError exception.
+
+Example code (from Plyvel Hook, part of the Google Provider) explains how such conditional error handling
+should be implemented to keep compatibility with Airflow 2.1 and 2.2
+
+  .. code-block:: python
+
+    try:
+        import plyvel
+        from plyvel import DB
+
+        from airflow.exceptions import AirflowException
+        from airflow.hooks.base import BaseHook
+
+    except ImportError as e:
+        # Plyvel is an optional feature and if imports are missing, it should be silently ignored
+        # As of Airflow 2.3  and above the operator can throw OptionalProviderFeatureException
+        try:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+        except ImportError:
+            # However, in order to keep backwards-compatibility with Airflow 2.1 and 2.2, if the
+            # 2.3 exception cannot be imported, the original ImportError should be raised.
+            # This try/except can be removed when the provider depends on Airflow >= 2.3.0
+            raise e
+        raise AirflowOptionalProviderFeatureException(e)
+
+
 How-to Update a community provider
 ----------------------------------
 

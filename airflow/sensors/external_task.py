@@ -215,6 +215,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         TI = TaskInstance
         DR = DagRun
+        if not dttm_filter:
+            return 0
+
         if self.external_task_ids:
             count = (
                 session.query(func.count())  # .count() is inefficient

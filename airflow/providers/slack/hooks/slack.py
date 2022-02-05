@@ -19,6 +19,7 @@
 from typing import Any, Optional
 
 from slack_sdk import WebClient
+from slack_sdk.web.slack_response import SlackResponse
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -78,7 +79,7 @@ class SlackHook(BaseHook):
 
         raise AirflowException('Cannot get token: No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, api_method: str, **kwargs) -> None:
+    def call(self, api_method: str, **kwargs) -> SlackResponse:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 
@@ -89,5 +90,8 @@ class SlackHook(BaseHook):
             form-encoding will take place. Optional.
         :param params: The URL parameters to append to the URL. Optional.
         :param json: JSON for the body to attach to the request. Optional.
+        :return: The server's response to an HTTP request. Data from the response can be
+            accessed like a dict.  If the response included 'next_cursor' it can be
+            iterated on to execute subsequent requests.
         """
-        self.client.api_call(api_method, **kwargs)
+        return self.client.api_call(api_method, **kwargs)

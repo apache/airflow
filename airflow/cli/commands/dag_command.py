@@ -48,7 +48,7 @@ from airflow.utils.cli import (
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState
 
 
 @cli_utils.action_cli
@@ -106,7 +106,7 @@ def dag_backfill(args, dag=None):
                 end_date=args.end_date,
                 confirm_prompt=not args.yes,
                 include_subdags=True,
-                dag_run_state=State.NONE,
+                dag_run_state=DagRunState.QUEUED,
             )
 
         try:
