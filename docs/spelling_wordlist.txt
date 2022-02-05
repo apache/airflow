@@ -34,6 +34,7 @@ BackfillJobTest
 Backfills
 Banco
 BaseClient
+BaseObject
 BaseOperator
 BaseView
 BaseXCom
@@ -420,6 +421,7 @@ Yandex
 Yieldr
 Zego
 Zendesk
+Zenpy
 Zsh
 Zymergen
 abc
@@ -1502,5 +1504,6 @@ youtrack
 youtube
 zA
 zendesk
+zenpy
 zope
 zsh

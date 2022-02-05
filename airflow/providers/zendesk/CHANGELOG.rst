@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Misc
+~~~
+``ZendeskHook`` moved from using ``zdesk`` to ``zenpy`` package.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+Changed the return type of ``ZendeskHook.get_conn`` to return a ``zenpy.Zenpy`` object instead of a ``zdesk.Zendesk`` object.
+Changed the return type of ``ZendeskHook.call`` to return a ``zenpy.lib.api_objects.BaseObject`` instead of a dictionary.
+``Zendesk`` and ``ZendeskError`` classes are removed from ``airflow.hooks.zendesk_hook`` imports.
+
 2.0.1
 .....
 

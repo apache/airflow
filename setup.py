@@ -525,7 +525,7 @@ yandex = [
     'yandexcloud>=0.122.0',
 ]
 zendesk = [
-    'zdesk',
+    'zenpy>=2.0.24',
 ]
 # End dependencies group
 
