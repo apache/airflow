@@ -57,7 +57,6 @@ from flask import (
 from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
-from flask_appbuilder.filters import app_template_filter
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder.security.views import (
@@ -77,7 +76,7 @@ from flask_appbuilder.security.views import (
 )
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
-from itsdangerous import Signer, BadSignature
+from itsdangerous import BadSignature, Signer
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
@@ -577,27 +576,30 @@ class AirflowBaseView(BaseView):
         if TriggererJob.is_needed():
             kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJob.most_recent_job)
 
-        # Instead of adding origin and base_url to every context, we calculate it and add it in one
-        # place
-        # If the DAG is already in the template context, grab it out
-        dag: DAG = kwargs.get('dag')
-        if not dag:
-            # Ordered by most frequent to least frequent, first one wins
-            dag_id = request.args.get('dag_id', request.form.get('dag_id', request.values.get('dag_id')))
+        if 'origin' not in kwargs:
+            # Instead of adding origin and base_url to every context, we calculate it and add it in one
+            # place
+            # If the DAG is already in the template context, grab it out
+            dag: DAG = kwargs.get('dag')
+            if not dag:
+                # Ordered by most frequent to least frequent, first one wins
+                dag_id = request.args.get('dag_id', request.form.get('dag_id', request.values.get('dag_id')))
 
-            # Since dag_id can potentially come from an unverified GET parameter or a form value,
-            # we can't yet guarantee that the view has validated it. We do that here by querying
-            # for a DAG with the given dag_id and assume that all of the values in the database
-            # have been validated.
-            if dag_id is not None:
-                dag: DAG = current_app.dag_bag.get_dag(dag_id)
+                # Since dag_id can potentially come from an unverified GET parameter or a form value,
+                # we can't yet guarantee that the view has validated it. We do that here by querying
+                # for a DAG with the given dag_id and assume that all of the values in the database
+                # have been validated.
+                if dag_id is not None:
+                    dag: DAG = current_app.dag_bag.get_dag(dag_id)
 
-        # If the DAG with the given dag_id exists, sign a URL to this page with it
-        # The existence of this value or not exposes whether or not a DAG with the given dag_id
-        # exists, but that is unlikely to be useful on its own (200 vs 404), and we need to rely on
-        # ACLs to control access to it anyway (404 vs 403).
-        if dag:
-            kwargs['origin'] = _sign_origin_url(get_safe_url(url_for(request.endpoint, dag_id=dag.dag_id)))
+            # If the DAG with the given dag_id exists, sign a URL to this page with it
+            # The existence of this value or not exposes whether or not a DAG with the given dag_id
+            # exists, but that is unlikely to be useful on its own (200 vs 404), and we need to rely on
+            # ACLs to control access to it anyway (404 vs 403).
+            if dag:
+                kwargs['origin'] = _sign_origin_url(
+                    get_safe_url(url_for(request.endpoint, dag_id=dag.dag_id))
+                )
 
         kwargs['base_url'] = _sign_origin_url(get_safe_url(request.base_url))
         return super().render_template(
@@ -1769,10 +1771,7 @@ class Airflow(AirflowBaseView):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         # Should be the trigger page itself - redirect here on form error
-        origin = get_safe_url(_unsign_origin_url(request.form.get('origin')))
-        # Should be the page that was visited before the trigger page, like the graph, tree, or DAG
-        # details pages - redirect here on cancel or success
-        previous_url = get_safe_url(_unsign_origin_url(request.values.get('previous')))
+        origin = get_safe_url(_unsign_origin_url(request.form.get('origin', request.values.get('origin'))))
         unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
@@ -1810,7 +1809,7 @@ class Airflow(AirflowBaseView):
                 doc_md=doc_md,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                previous_url=previous_url,  # URL for the cancel button
+                origin=origin,  # URL for the cancel button
             )
 
         try:
@@ -1824,7 +1823,7 @@ class Airflow(AirflowBaseView):
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                previous_url=previous_url,  # URL for the cancel button
+                origin=origin,  # URL for the cancel button
             )
 
         dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
@@ -1845,7 +1844,7 @@ class Airflow(AirflowBaseView):
                         conf=request_conf,
                         form=form,
                         is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                        previous_url=previous_url,  # URL for the cancel button
+                        origin=origin,  # URL for the cancel button
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
@@ -1856,7 +1855,7 @@ class Airflow(AirflowBaseView):
                     conf=request_conf,
                     form=form,
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                    previous_url=previous_url,  # URL for the cancel button
+                    origin=origin,  # URL for the cancel button
                 )
 
         if unpause and dag.is_paused:
@@ -1881,11 +1880,11 @@ class Airflow(AirflowBaseView):
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                previous_url=previous_url,  # URL for the cancel button
+                origin=origin,  # URL for the cancel button
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
-        return redirect(previous_url)  # Page to redirect upon success
+        return redirect(origin)  # Page to redirect upon success
 
     def _clear_dag_tis(
         self, dag, start_date, end_date, origin, recursive=False, confirmed=False, only_failed=False

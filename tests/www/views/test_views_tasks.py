@@ -263,7 +263,7 @@ def test_rendered_k8s_without_k8s(admin_client):
     assert 404 == resp.status_code
 
 
-def test_tree_trigger_previous_tree_view(app, admin_client, mock_unsign_origin_url):
+def test_tree_trigger_origin_tree_view(app, admin_client, mock_unsign_origin_url):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -274,12 +274,12 @@ def test_tree_trigger_previous_tree_view(app, admin_client, mock_unsign_origin_u
 
     url = 'tree?dag_id=test_tree_view'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_tree_view', 'previous': '/tree?dag_id=test_tree_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
-def test_graph_trigger_previous_graph_view(app, admin_client, mock_unsign_origin_url):
+def test_graph_trigger_origin_graph_view(app, admin_client, mock_unsign_origin_url):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -290,12 +290,12 @@ def test_graph_trigger_previous_graph_view(app, admin_client, mock_unsign_origin
 
     url = 'graph?dag_id=test_tree_view'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_tree_view', 'previous': '/graph?dag_id=test_tree_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/graph?dag_id=test_tree_view'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
-def test_dag_details_trigger_previous_dag_details_view(app, admin_client, mock_unsign_origin_url):
+def test_dag_details_trigger_origin_dag_details_view(app, admin_client, mock_unsign_origin_url):
     app.dag_bag.get_dag('test_graph_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -306,7 +306,7 @@ def test_dag_details_trigger_previous_dag_details_view(app, admin_client, mock_u
 
     url = 'dag_details?dag_id=test_graph_view'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_graph_view', 'previous': '/dag_details?dag_id=test_graph_view'}
+    params = {'dag_id': 'test_graph_view', 'origin': '/dag_details?dag_id=test_graph_view'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 

@@ -147,7 +147,7 @@ def test_trigger_dag_form_origin_url(
 ):
     test_dag_id = "example_bash_operator"
 
-    resp = admin_client.get(f'trigger?dag_id={test_dag_id}&previous={test_origin}')
+    resp = admin_client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
     check_content_in_response(
         '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
             expected_origin
