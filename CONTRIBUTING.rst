@@ -1256,10 +1256,24 @@ How to rebase PR
 ================
 
 A lot of people are unfamiliar with the rebase workflow in Git, but we think it is an excellent workflow,
-providing a better alternative to the merge workflow. We've therefore written a short guide for those who would like to learn it.
+providing a better alternative to the merge workflow. We've therefore written a short guide for those who
+would like to learn it.
 
-As opposed to the merge workflow, the rebase workflow allows us to
-clearly separate your changes from the changes of others. It puts the responsibility of rebasing on the
+
+As of February 2022, GitHub introduced the capability of "Update with Rebase" which make it easy to perform
+rebase straight in the GitHub UI, so in cases when there are no conflicts, rebasing to latest version
+of ``main`` can be done very easily following the instructions
+`in the GitHub blog <https://github.blog/changelog/2022-02-03-more-ways-to-keep-your-pull-request-branch-up-to-date/>`_
+
+.. image:: images/rebase.png
+    :align: center
+    :alt: Update PR with rebase
+
+However, when you have conflicts, sometimes you will have to perform rebase manually, and resolve the
+conflicts, and remainder of the section describes how to approach it.
+
+As opposed to the merge workflow, the rebase workflow allows us to clearly separate your changes from the
+changes of others. It puts the responsibility of rebasing on the
 author of the change. It also produces a "single-line" series of commits on the main branch. This
 makes it easier to understand what was going on and to find reasons for problems (it is especially
 useful for "bisecting" when looking for a commit that introduced some bugs).
@@ -1452,23 +1466,21 @@ this is for the sake of maintainability.
 
 Here are a few rules that are important to keep in mind when you enter our community:
 
- * Do not be afraid to ask questions
- * The communication is asynchronous - do not expect immediate answers, ping others on slack
-   (#development channel) if blocked
- * There is a #newbie-questions channel in slack as a safe place to ask questions
- * You can ask one of the committers to be a mentor for you, committers can guide within the community
- * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
- * It’s your responsibility as an author to take your PR from start-to-end including leading communication
-   in the PR
- * It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
-   it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
- * Be considerate to the high code quality/test coverage requirements for Apache Airflow
- * If in doubt - ask the community for their opinion or propose to vote at the devlist
- * Discussions should concern subject matters - judge or criticise the merit but never criticise people
- * It’s OK to express your own emotions while communicating - it helps other people to understand you
- * Be considerate for feelings of others. Tell about how you feel not what you think of others
-
-
+* Do not be afraid to ask questions
+* The communication is asynchronous - do not expect immediate answers, ping others on slack
+  (#development channel) if blocked
+* There is a #newbie-questions channel in slack as a safe place to ask questions
+* You can ask one of the committers to be a mentor for you, committers can guide within the community
+* You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
+* It’s your responsibility as an author to take your PR from start-to-end including leading communication
+  in the PR
+* It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
+  it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
+* Be considerate to the high code quality/test coverage requirements for Apache Airflow
+* If in doubt - ask the community for their opinion or propose to vote at the devlist
+* Discussions should concern subject matters - judge or criticise the merit but never criticise people
+* It’s OK to express your own emotions while communicating - it helps other people to understand you
+* Be considerate for feelings of others. Tell about how you feel not what you think of others
 
 Commit Policy
 =============
