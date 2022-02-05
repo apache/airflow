@@ -129,7 +129,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
-from airflow.www.widgets import AirflowModelListWidget
+from airflow.www.widgets import AirflowModelListWidget, AirflowModelShowWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -3224,6 +3224,7 @@ class AirflowModelView(ModelView):
     """Airflow Mode View."""
 
     list_widget = AirflowModelListWidget
+    show_widget = AirflowModelShowWidget
     page_size = PAGE_SIZE
 
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
@@ -3867,6 +3868,7 @@ class VariableModelView(AirflowModelView):
         'add': 'create',
         'list': 'read',
         'edit': 'edit',
+        'show': 'show',
         'delete': 'delete',
         'action_muldelete': 'delete',
         'action_varexport': 'read',
@@ -3874,6 +3876,7 @@ class VariableModelView(AirflowModelView):
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_SHOW,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
@@ -3882,6 +3885,7 @@ class VariableModelView(AirflowModelView):
     list_columns = ['key', 'val', 'description', 'is_encrypted']
     add_columns = ['key', 'val', 'description']
     edit_columns = ['key', 'val', 'description']
+    show_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
