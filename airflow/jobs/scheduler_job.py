@@ -139,6 +139,8 @@ class SchedulerJob(BaseJob):
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
 
+        self.last_check_time = {}
+
         if conf.getboolean('smart_sensor', 'use_smart_sensor'):
             compatible_sensors = set(
                 map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
@@ -884,11 +886,28 @@ class SchedulerJob(BaseJob):
         """Get Next DagRuns to Examine with retries"""
         return DagRun.next_dagruns_to_examine(state, session)
 
+    def _get_recently_checked_dags(self, current_time=None) -> List:
+        """Get dags for which `max_active_runs` has been reached recently"""
+        if current_time is None:
+            current_time = timezone.utcnow()
+        check_interval = timedelta(
+            seconds=conf.getint('scheduler', 'min_active_runs_check_interval', fallback=10)
+        )
+
+        skip_dags = []
+        for dag_id in self.last_check_time:
+            if self.last_check_time[dag_id] + check_interval > current_time:
+                skip_dags.append(dag_id)
+        return skip_dags
+
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard, session):
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
-        query = DagModel.dags_needing_dagruns(session)
-        self._create_dag_runs(query.all(), session)
+        # Reduce the number of dags due to high CPU usage
+        skip_dags = self._get_recently_checked_dags()
+        self.log.debug("Skipping dags after max_active_runs has been reached: %s", skip_dags)
+        dag_models = DagModel.dags_needing_dagruns(session, skip_dags).all()
+        self._create_dag_runs(dag_models, session)
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
@@ -972,6 +991,7 @@ class SchedulerJob(BaseJob):
                 total_active_runs,
                 dag.max_active_runs,
             )
+            self.last_check_time[dag_model.dag_id] = timezone.utcnow()
             return False
         return True
 

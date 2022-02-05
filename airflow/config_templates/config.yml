@@ -1961,6 +1961,15 @@
       type: string
       example: ~
       default: "15"
+    - name: min_active_runs_check_interval
+      description: |
+        The number of seconds after which the dag that has reached ``max_active_run``
+        will be checked again for the need to create new DagRuns. Keeping this
+        number low will increase CPU usage.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "10"
 - name: triggerer
   description: ~
   options:

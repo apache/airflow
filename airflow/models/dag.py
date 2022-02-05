@@ -2849,7 +2849,7 @@ class DagModel(Base):
                 continue
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session):
+    def dags_needing_dagruns(cls, session: Session, skip_dags=None):
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -2861,6 +2861,9 @@ class DagModel(Base):
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
 
+        if skip_dags is None:
+            skip_dags = []
+
         query = (
             session.query(cls)
             .filter(
@@ -2868,6 +2871,7 @@ class DagModel(Base):
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
                 cls.next_dagrun_create_after <= func.now(),
+                cls.dag_id.notin_(skip_dags),
             )
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
