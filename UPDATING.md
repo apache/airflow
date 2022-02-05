@@ -1415,7 +1415,7 @@ delete this option.
 
 #### `airflow.models.dagbag.DagBag`
 
-Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+Passing `store_serialized_dags` argument to `DagBag.__init__` and accessing `DagBag.store_serialized_dags` property
 are deprecated and will be removed in future versions.
 
 
