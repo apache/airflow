@@ -822,8 +822,8 @@ def dag_bag_multiple():
 
     daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
 
-    start = DummyOperator(task_id="start", dag=agg_dag)
-    for i in range(25):
+    begin = DummyOperator(task_id="begin", dag=agg_dag)
+    for i in range(8):
         task = ExternalTaskMarker(
             task_id=f"{daily_task.task_id}_{i}",
             external_dag_id=daily_dag.dag_id,
@@ -831,30 +831,25 @@ def dag_bag_multiple():
             execution_date="{{ macros.ds_add(ds, -1 * %s) }}" % i,
             dag=agg_dag,
         )
-        start >> task
+        begin >> task
 
     yield dag_bag
 
 
-@pytest.mark.quarantined
-@pytest.mark.backend("postgres", "mysql")
 def test_clear_multiple_external_task_marker(dag_bag_multiple):
     """
     Test clearing a dag that has multiple ExternalTaskMarker.
-
-    sqlite3 parser stack size is 100 lexical items by default so this puts a hard limit on
-    the level of nesting in the sql. This test is intentionally skipped in sqlite.
     """
     agg_dag = dag_bag_multiple.get_dag("agg_dag")
-
-    for delta in range(len(agg_dag.tasks)):
-        execution_date = DEFAULT_DATE + timedelta(days=delta)
-        run_tasks(dag_bag_multiple, execution_date=execution_date)
-
-    # There used to be some slowness caused by calling count() inside DAG.clear().
-    # That has since been fixed. It should take no more than a few seconds to call
-    # dag.clear() here.
-    assert agg_dag.clear(start_date=execution_date, end_date=execution_date, dag_bag=dag_bag_multiple) == 51
+    tis = run_tasks(dag_bag_multiple, execution_date=DEFAULT_DATE)
+    session = settings.Session()
+    try:
+        qry = session.query(TaskInstance).filter(
+            TaskInstance.state == State.NONE, TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids)
+        )
+        assert agg_dag.clear(dag_bag=dag_bag_multiple) == len(tis) == qry.count() == 10
+    finally:
+        session.close()
 
 
 @pytest.fixture
