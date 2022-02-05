@@ -74,7 +74,23 @@ Once you have built the documentation run the following command from the root di
 
     docs/start_doc_server.sh
 
-Then, view your docs at ``localhost:8000``
+You need to have python installed to run the command, if you get an error message -- python: command not found
+It is possible that you don't have python installed or added to PATH.
+Visit link <https://python.land/installing-python> to install python and add to PATH
+
+If you have python installed and you still get that error message.
+It could possibly be that you do not have python set as default to link to python3. If this is the case,
+modify the "docs/start_docs_server.sh" file and change "python" to "python3"  and it should run.
+
+.. code-block:: bash
+
+    (cd "${DOCS_DIR}"/_build || exit;
+        python3 -m http.server 8000
+    )
+
+Then, view your docs at ``localhost:8000``, if you are using a virtual machine e.g WSL2,
+you need to find the WSL2 machine IP address and in your browser replace “0.0.0.0” with it
+``http://n.n.n.n:8000``, where n.n.n.n will be the IP of the WSL2.
 
 Troubleshooting
 ---------------
