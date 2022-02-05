@@ -192,9 +192,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             self.log.error(e)
             raise AirflowException(
                 "For now, we only support instantiating SQLAlchemy engine by"
-                " export GOOGLE_APPLICATION_CREDENTIALS"
-                " using extra__google_cloud_platform__key_path"
-                " and extra__google_cloud_platform__keyfile_dict"
+                " using ADC"
+                ", extra__google_cloud_platform__key_path"
+                "and extra__google_cloud_platform__keyfile_dict"
             )
 
     @staticmethod
