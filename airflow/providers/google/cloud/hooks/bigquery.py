@@ -23,7 +23,6 @@ implementation for BigQuery.
 import hashlib
 import json
 import logging
-import os
 import time
 import warnings
 from copy import deepcopy
@@ -175,26 +174,28 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: the created engine.
         """
         connection = self.get_connection(self.gcp_conn_id)
-        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") is not None:
-            return create_engine(self.get_uri(), **engine_kwargs)
-        elif connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
+        if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
             credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
             return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
         elif connection.extra_dejson.get("extra__google_cloud_platform__keyfile_dict"):
             credential_file_content = json.loads(
                 connection.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
             )
-            self.log.info("Saving credentials to %s", self.credentials_path)
-            with open(self.credentials_path, "w") as file:
-                json.dump(credential_file_content, file)
-            return create_engine(self.get_uri(), credentials_path=self.credentials_path, **engine_kwargs)
-
-        raise AirflowException(
-            "For now, we only support instantiating SQLAlchemy engine by"
-            " export GOOGLE_APPLICATION_CREDENTIALS"
-            " using extra__google_cloud_platform__key_path"
-            " and extra__google_cloud_platform__keyfile_dict"
-        )
+            return create_engine(self.get_uri(), credentials_info=credential_file_content, **engine_kwargs)
+        try:
+            # 1. If the environment variable GOOGLE_APPLICATION_CREDENTIALS is set
+            # ADC uses the service account key or configuration file that the variable points to.
+            # 2. If the environment variable GOOGLE_APPLICATION_CREDENTIALS isn't set
+            # ADC uses the service account that is attached to the resource that is running your code.
+            return create_engine(self.get_uri(), **engine_kwargs)
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(
+                "For now, we only support instantiating SQLAlchemy engine by"
+                " export GOOGLE_APPLICATION_CREDENTIALS"
+                " using extra__google_cloud_platform__key_path"
+                " and extra__google_cloud_platform__keyfile_dict"
+            )
 
     @staticmethod
     def _resolve_table_reference(
