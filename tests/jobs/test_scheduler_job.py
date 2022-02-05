@@ -3037,7 +3037,9 @@ class TestSchedulerJob:
                 complete_one_dagrun()
                 model: DagModel = session.query(DagModel).get(dag.dag_id)
 
-            expected_execution_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
+            expected_execution_dates = [
+                datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)
+            ]
             dagrun_execution_dates = [
                 dr.execution_date for dr in session.query(DagRun).order_by(DagRun.execution_date).all()
             ]
@@ -3838,19 +3840,15 @@ class TestSchedulerJobQueriesCount:
             self.scheduler_job.last_check_time = {}
             assert self.scheduler_job._get_recently_checked_dags() == []
 
-            self.scheduler_job.last_check_time = {
-                'test_dag': timezone.datetime(2016, 1, 1, 20, 59, 59)
-            }
-            assert self.scheduler_job._get_recently_checked_dags(
-                timezone.datetime(2016, 1, 1, 21, 1, 0)
-            ) == []
+            self.scheduler_job.last_check_time = {'test_dag': timezone.datetime(2016, 1, 1, 20, 59, 59)}
+            assert (
+                self.scheduler_job._get_recently_checked_dags(timezone.datetime(2016, 1, 1, 21, 1, 0)) == []
+            )
 
-            self.scheduler_job.last_check_time = {
-                'test_dag': timezone.datetime(2016, 1, 1, 20, 59, 59)
-            }
-            assert self.scheduler_job._get_recently_checked_dags(
-                timezone.datetime(2016, 1, 1, 21, 0, 5)
-            ) == ['test_dag']
+            self.scheduler_job.last_check_time = {'test_dag': timezone.datetime(2016, 1, 1, 20, 59, 59)}
+            assert self.scheduler_job._get_recently_checked_dags(timezone.datetime(2016, 1, 1, 21, 0, 5)) == [
+                'test_dag'
+            ]
 
             self.scheduler_job.last_check_time = {
                 'test_dag0': timezone.datetime(2016, 1, 1, 20, 59, 50),
@@ -3860,6 +3858,6 @@ class TestSchedulerJobQueriesCount:
                 'test_dag4': timezone.datetime(2015, 1, 1, 20, 59, 59),
                 'test_dag5': timezone.datetime(2016, 1, 1, 20, 59, 59),
             }
-            assert sorted(self.scheduler_job._get_recently_checked_dags(
-                timezone.datetime(2016, 1, 1, 21, 0, 0)
-            )) == ['test_dag1', 'test_dag3', 'test_dag5']
+            assert sorted(
+                self.scheduler_job._get_recently_checked_dags(timezone.datetime(2016, 1, 1, 21, 0, 0))
+            ) == ['test_dag1', 'test_dag3', 'test_dag5']

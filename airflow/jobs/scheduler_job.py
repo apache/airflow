@@ -25,7 +25,7 @@ import sys
 import time
 import warnings
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, text, tuple_
@@ -139,7 +139,7 @@ class SchedulerJob(BaseJob):
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
 
-        self.last_check_time = {}
+        self.last_check_time: Dict[str, datetime] = {}
 
         if conf.getboolean('smart_sensor', 'use_smart_sensor'):
             compatible_sensors = set(
