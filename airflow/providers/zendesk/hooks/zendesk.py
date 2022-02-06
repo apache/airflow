@@ -44,8 +44,6 @@ class ZendeskHook(BaseHook):
         zenpy_client, url = self._init_conn()
         self.zenpy_client = zenpy_client
         self.__url = url
-        # Keep reference to the _get method to allow arbitrary endpoint call for
-        # backwards compatibility. (alternative to old ZendeskHook.call method)
         self.get = self.zenpy_client.users._get
 
     def _init_conn(self) -> Tuple[Zenpy, str]:
