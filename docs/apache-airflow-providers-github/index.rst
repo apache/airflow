@@ -93,10 +93,10 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``PyGithub``
-===================  ==================
+=============  ==================
+PIP package    Version required
+=============  ==================
+``pygithub``
+=============  ==================
 
 .. include:: ../../airflow/providers/github/CHANGELOG.rst

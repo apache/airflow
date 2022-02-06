@@ -28,6 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.4.0
+.....
+
+Latest change: 2022-02-04
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`ab762a5a8 <https://github.com/apache/airflow/commit/ab762a5a8ae147ae33500ee3c7e7a73d25d03ad7>`_  2022-02-04   ``Refactor SSH tests to not use SSH server in operator tests (#21326)``
+`d353f023f <https://github.com/apache/airflow/commit/d353f023ff8856c00b9f054526cb2e40ff0116ae>`_  2022-02-02   ``Add banner_timeout feature to SSH Hook/Operator (#21262)``
+`b6edc3bfa <https://github.com/apache/airflow/commit/b6edc3bfa1ed46bed2ae23bb2baeefde3f9a59d3>`_  2022-02-01   ``Add a retry with wait interval for SSH operator #14489 (#19981)``
+`cb7305321 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`9ed9b5170 <https://github.com/apache/airflow/commit/9ed9b5170c8dbb11469a88c41e323d8b61a1e7e6>`_  2022-01-24   ``Fix last remaining MyPy errors (#21020)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`129b4d2ac <https://github.com/apache/airflow/commit/129b4d2ac2ce09d42fb487f8a9aaac7eb7901a05>`_  2022-01-09   ``Delay the creation of ssh proxy until get_conn() (#20474) (#20474)``
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`da783f88a <https://github.com/apache/airflow/commit/da783f88a16e20211d7087bd5c8802dc002c78a8>`_  2021-12-13   ``Fix MyPy Errors for SSH provider (#20241)``
+================================================================================================  ===========  =========================================================================
+
 2.3.0
 .....
 
@@ -36,6 +58,7 @@ Latest change: 2021-10-29
 ================================================================================================  ===========  ========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ========================================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `2197e4b59 <https://github.com/apache/airflow/commit/2197e4b59a7cf859eff5969b5f27b5e4f1084d3b>`_  2021-10-29   ``Correctly handle get_pty attribute if command passed as XComArg or template (#19323)``
 `1571f8054 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
 `73fcbb0e4 <https://github.com/apache/airflow/commit/73fcbb0e4e151c9965fd69ba08de59462bbbe6dc>`_  2021-10-13   ``Refactor SSHOperator so a subclass can run many commands (#10874) (#17378)``

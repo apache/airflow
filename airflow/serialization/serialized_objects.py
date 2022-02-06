@@ -19,6 +19,7 @@
 import datetime
 import enum
 import logging
+import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type, Union
@@ -567,7 +568,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialize_op = cls._serialize_node(op)
+
+        stock_deps = op.deps is MappedOperator.DEFAULT_DEPS
+        serialize_op = cls._serialize_node(op, include_deps=not stock_deps)
         # It must be a class at this point for it to work, not a string
         assert isinstance(op.operator_class, type)
         serialize_op['_task_type'] = op.operator_class.__name__
@@ -577,10 +580,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
-        return cls._serialize_node(op)
+        return cls._serialize_node(op, include_deps=op.deps is not BaseOperator.deps)
 
     @classmethod
-    def _serialize_node(cls, op: Union[BaseOperator, MappedOperator]) -> Dict[str, Any]:
+    def _serialize_node(cls, op: Union[BaseOperator, MappedOperator], include_deps: bool) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = type(op).__name__
@@ -594,8 +597,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 op.operator_extra_links
             )
 
-        if op.deps is not BaseOperator.deps:
-            # Are the deps different to BaseOperator, if so serialize the class names!
+        if include_deps:
+            # Are the deps different to "stock", if so serialize the class names!
             # For Airflow 2.0 expediency we _only_ allow built in Dep classes.
             # Fix this for 2.0.x or 2.1
             deps = []
@@ -641,7 +644,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 # These are all re-set later
                 partial_kwargs={},
                 mapped_kwargs={},
-                deps=tuple(),
+                deps=MappedOperator.DEFAULT_DEPS,
                 is_dummy=False,
                 template_fields=(),
                 template_ext=(),
@@ -1084,8 +1087,13 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
+
+        def set_ref(task: BaseOperator) -> BaseOperator:
+            task.task_group = weakref.proxy(group)
+            return task
+
         group.children = {
-            label: task_dict[val]  # type: ignore
+            label: set_ref(task_dict[val])  # type: ignore
             if _type == DAT.OP  # type: ignore
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
             for label, (_type, val) in encoded_group["children"].items()

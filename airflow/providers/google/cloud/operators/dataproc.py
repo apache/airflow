@@ -1231,6 +1231,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         'impersonation_chain',
     )
     template_ext = ('.q',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#0273d4'
     job_type = 'spark_sql_job'
 

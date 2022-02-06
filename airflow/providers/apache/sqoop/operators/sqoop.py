@@ -110,6 +110,7 @@ class SqoopOperator(BaseOperator):
         'hcatalog_table',
         'schema',
     )
+    template_fields_renderers = {'query': 'sql'}
     ui_color = '#7D8CA4'
 
     def __init__(
