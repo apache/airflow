@@ -343,6 +343,7 @@ google = [
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
     pandas_requirement,
+    'sqlalchemy-bigquery>=1.2.1',
 ]
 grpc = [
     'google-auth>=1.0.0, <3.0.0',
