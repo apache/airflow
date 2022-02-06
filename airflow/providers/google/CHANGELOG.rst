@@ -18,6 +18,42 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add hook for integrating with Google Calendar (#20542)``
+* ``Add encoding parameter to 'GCSToLocalFilesystemOperator' to fix #20901 (#20919)``
+* ``batch as templated field in DataprocCreateBatchOperator (#20905)``
+* ``Make timeout Optional for wait_for_operation (#20981)``
+* ``Add more SQL template fields renderers (#21237)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cloudsql import links fix. (#21199)``
+
+Misc
+~~~~
+
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix last google provider MyPy errors (#21010)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Revert "Create CustomJob and Datasets operators for Vertex AI service (#20077)" (#21203)``
+   * ``Create CustomJob and Datasets operators for Vertex AI service (#20077)``
+   * ``Extend dataproc example dag (#21091)``
+   * ``Squelch more deprecation warnings (#21003)``
+   * ``Remove a few stray ':type's in docs (#21014)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Fix BigQuery system test (#21320)``
+
+.. Review and move the new changes to one of the sections above:
+
 6.3.0
 .....
 

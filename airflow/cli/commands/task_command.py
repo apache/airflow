@@ -224,6 +224,8 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
+    if ti.task.is_mapped:
+        ti.task = ti.task.unmap()
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,

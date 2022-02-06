@@ -57,6 +57,7 @@ class HiveToMySqlOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'hql', 'mysql_preoperator': 'mysql', 'mysql_postoperator': 'mysql'}
     ui_color = '#a0e08c'
 
     def __init__(

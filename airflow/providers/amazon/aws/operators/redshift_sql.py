@@ -44,6 +44,7 @@ class RedshiftSQLOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {"sql": "postgresql"}
 
     def __init__(
         self,
