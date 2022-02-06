@@ -333,6 +333,7 @@ Sagemaker
 Sasl
 SearchResultGenerator
 SecretManagerClient
+SecureString
 Seedlist
 Sendgrid
 SerializedDAG
@@ -359,6 +360,7 @@ Statsd
 StorageClass
 StoredInfoType
 Stringified
+StringList
 Subclasses
 Subdirectory
 Submodules
