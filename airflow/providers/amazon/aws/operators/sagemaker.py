@@ -608,3 +608,27 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 raise AirflowException(
                     f'A SageMaker training job with name {training_job_name} already exists.'
                 )
+
+
+class SageMakerDeleteModelOperator(BaseOperator):
+    """Deletes a SageMaker model. This operator returns True if model was present
+    and deleted else return False if Model was not present
+    :param model_name: The name of Sagemaker Model
+    :param aws_conn_id: The AWS connection ID to use
+    """
+
+    def __init__(self,
+                 *,
+                 model_name: str,
+                 aws_conn_id: str,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.model_name = model_name
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, context: 'Context') -> Any:
+        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        delete_model_response = sagemaker_hook.delete_model(model_name=self.model_name)
+        if delete_model_response:
+            self.log.info("Model %s deleted Successfully.", self.model_name)
+        return delete_model_response

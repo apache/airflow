@@ -667,3 +667,22 @@ class TestSageMakerHook(unittest.TestCase):
 
         ret = hook.find_processing_job_by_name("existing_job")
         assert not ret
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_delete_model(self, mock_conn):
+        mock_conn.delete_model.return_value = None
+        hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
+        response = hook.delete_model(model_name='test')
+        assert response is True
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_delete_model_not_exists(self, mock_conn):
+        from botocore.exceptions import ClientError
+
+        error_resp = {"Error": {"Code": "ValidationException"}}
+        mock_conn().delete_model.side_effect = ClientError(
+            error_response=error_resp, operation_name="dummy"
+        )
+        hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
+        response = hook.delete_model(model_name='test')
+        assert response is False
