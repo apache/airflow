@@ -34,6 +34,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
     otherwise, CeleryExecutor is used.
     """
 
+    supports_celery: bool = True
     supports_ad_hoc_ti_run: bool = True
 
     KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')

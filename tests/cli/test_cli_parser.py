@@ -206,8 +206,9 @@ class TestCli(TestCase):
             stderr = stderr.getvalue()
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
-            "works only with CeleryExecutor, CeleryKubernetesExecutor and executors derived from them, "
-            "your current executor: SequentialExecutor, subclassed from: BaseExecutor, see help above."
+            "works only with executors that has 'supports_celery' set to True, "
+            "your current executor: SequentialExecutor, does not have this attribute set to True, "
+            "see help above."
         ) in stderr
 
     @parameterized.expand(
@@ -216,6 +217,7 @@ class TestCli(TestCase):
             "CeleryKubernetesExecutor",
             "custom_executor.CustomCeleryExecutor",
             "custom_executor.CustomCeleryKubernetesExecutor",
+            "custom_executor.CustomSupportsCeleryExecutor",
         ]
     )
     def test_dag_parser_celery_command_accept_celery_executor(self, executor):

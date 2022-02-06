@@ -59,31 +59,23 @@ class DefaultHelpParser(argparse.ArgumentParser):
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command"""
         if action.dest == 'subcommand' and value == 'celery':
+            try:
+                from airflow.executors.celery_executor import CeleryExecutor  # noqa
+            except ImportError:
+                message = (
+                    "The celery subcommand requires that you pip install the celery module. "
+                    "To do it, run: pip install 'apache-airflow[celery]'"
+                )
+                raise ArgumentError(action, message)
+
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
                 executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
-                classes = ()
-                try:
-                    from airflow.executors.celery_executor import CeleryExecutor
-
-                    classes += (CeleryExecutor,)
-                except ImportError:
+                if not getattr(executor_cls, "supports_celery", False):
                     message = (
-                        "The celery subcommand requires that you pip install the celery module. "
-                        "To do it, run: pip install 'apache-airflow[celery]'"
-                    )
-                    raise ArgumentError(action, message)
-                try:
-                    from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
-
-                    classes += (CeleryKubernetesExecutor,)
-                except ImportError:
-                    pass
-                if not issubclass(executor_cls, classes):
-                    message = (
-                        f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
-                        f'executors derived from them, your current executor: {executor}, subclassed from: '
-                        f'{", ".join([base_cls.__qualname__ for base_cls in executor_cls.__bases__])}'
+                        f"celery subcommand works only with executors that has 'supports_celery' "
+                        f"set to True, your current executor: {executor}, does not have this attribute "
+                        f"set to True"
                     )
                     raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':
