@@ -66,7 +66,7 @@ class GlueJobOperator(BaseOperator):
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
         retry_limit: int = 0,
-        num_of_dpus: int = 6,
+        num_of_dpus: Optional[int] = None,
         aws_conn_id: str = 'aws_default',
         region_name: Optional[str] = None,
         s3_bucket: Optional[str] = None,
