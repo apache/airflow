@@ -59,10 +59,10 @@ class MockExecutor(BaseExecutor):
             # for tests!
             def sort_by(item):
                 key, val = item
-                (dag_id, task_id, date, try_number) = key
+                (dag_id, task_id, date, try_number, map_index) = key
                 (_, prio, _, _) = val
                 # Sort by priority (DESC), then date,task, try
-                return -prio, date, dag_id, task_id, try_number
+                return -prio, date, dag_id, task_id, map_index, try_number
 
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)

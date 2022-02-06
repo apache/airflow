@@ -456,6 +456,7 @@ apikey
 apis
 appbuilder
 approle
+aren
 arg
 args
 argv
@@ -1117,6 +1118,7 @@ pooler
 postMessage
 postfix
 postgres
+postgresql
 powershell
 pql
 pre
@@ -1264,6 +1266,7 @@ sharded
 shellcheck
 shellcmd
 shm
+shouldn
 sie
 sigv
 skipable
@@ -1402,6 +1405,7 @@ triggerers
 trino
 trojan
 truthy
+tsql
 tsv
 ttl
 tunables

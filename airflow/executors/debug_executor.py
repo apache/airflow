@@ -76,6 +76,8 @@ class DebugExecutor(BaseExecutor):
         key = ti.key
         try:
             params = self.tasks_params.pop(ti.key, {})
+            if ti.task.is_mapped:
+                ti.task = ti.task.unmap()
             ti._run_raw_task(job_id=ti.job_id, **params)
             self.change_state(key, State.SUCCESS)
             ti._run_finished_callback()

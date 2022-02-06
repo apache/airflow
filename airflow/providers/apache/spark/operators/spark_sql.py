@@ -53,6 +53,7 @@ class SparkSqlOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('_sql',)
     template_ext: Sequence[str] = (".sql", ".hql")
+    template_fields_renderers = {'_sql': 'sql'}
 
     def __init__(
         self,

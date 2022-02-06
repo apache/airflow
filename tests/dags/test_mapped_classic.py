@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,9 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pathlib
+from airflow import DAG
+from airflow.decorators import task
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
 
-from airflow.utils import timezone
 
-DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEST_DAGS_FOLDER = pathlib.Path(__file__).parent.with_name('dags')
+@task
+def make_list():
+    return [1, 2, {'a': 'b'}]
+
+
+def consumer(*args):
+    print(repr(args))
+
+
+with DAG(dag_id='test_mapped_classic', start_date=days_ago(2)) as dag:
+    PythonOperator(task_id='consumer', python_callable=consumer).map(op_args=make_list())
