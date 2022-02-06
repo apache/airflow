@@ -1947,7 +1947,7 @@ class TestTaskInstance:
 
         with dag_maker('test-dag', session=session) as dag:
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
-        dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
+        dag.fileloc = TEST_DAGS_FOLDER / 'test_get_k8s_pod_yaml.py'
         ti = dag_maker.create_dagrun().task_instances[0]
         ti.task = task
 

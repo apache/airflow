@@ -19,3 +19,22 @@
 
 Package apache-airflow-providers-github
 ------------------------------------------------------
+
+`Github <https://www.github.com/>`__
+
+
+This is detailed commit list of changes for versions provider package: ``github``.
+For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2022-01-28
+
+================================================================================================  ===========  ===================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===================================
+`5d23fbe2b <https://github.com/apache/airflow/commit/5d23fbe2bb123ad778ff580cf85d1b3e39206388>`_  2022-01-28   ``Adding GitHub provider (#21076)``
+================================================================================================  ===========  ===================================

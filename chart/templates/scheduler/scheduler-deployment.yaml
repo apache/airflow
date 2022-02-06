@@ -90,6 +90,9 @@ spec:
         {{- toYaml .Values.scheduler.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.scheduler.priorityClassName }}
+      priorityClassName: {{ .Values.scheduler.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:

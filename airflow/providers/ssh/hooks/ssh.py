@@ -21,6 +21,7 @@ import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
+from select import select
 from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
 import paramiko
@@ -428,3 +429,70 @@ class SSHHook(BaseHook):
             'Ensure key provided is valid for one of the following'
             'key formats: RSA, DSS, ECDSA, or Ed25519'
         )
+
+    def exec_ssh_client_command(
+        self,
+        ssh_client: paramiko.SSHClient,
+        command: str,
+        get_pty: bool,
+        environment: Optional[dict],
+        timeout: Optional[int],
+    ) -> Tuple[int, bytes, bytes]:
+        self.log.info("Running command: %s", command)
+
+        # set timeout taken as params
+        stdin, stdout, stderr = ssh_client.exec_command(
+            command=command,
+            get_pty=get_pty,
+            timeout=timeout,
+            environment=environment,
+        )
+        # get channels
+        channel = stdout.channel
+
+        # closing stdin
+        stdin.close()
+        channel.shutdown_write()
+
+        agg_stdout = b''
+        agg_stderr = b''
+
+        # capture any initial output in case channel is closed already
+        stdout_buffer_length = len(stdout.channel.in_buffer)
+
+        if stdout_buffer_length > 0:
+            agg_stdout += stdout.channel.recv(stdout_buffer_length)
+
+        # read from both stdout and stderr
+        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+            readq, _, _ = select([channel], [], [], timeout)
+            for recv in readq:
+                if recv.recv_ready():
+                    line = stdout.channel.recv(len(recv.in_buffer))
+                    agg_stdout += line
+                    self.log.info(line.decode('utf-8', 'replace').strip('\n'))
+                if recv.recv_stderr_ready():
+                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                    agg_stderr += line
+                    self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
+            if (
+                stdout.channel.exit_status_ready()
+                and not stderr.channel.recv_stderr_ready()
+                and not stdout.channel.recv_ready()
+            ):
+                stdout.channel.shutdown_read()
+                try:
+                    stdout.channel.close()
+                except Exception:
+                    # there is a race that when shutdown_read has been called and when
+                    # you try to close the connection, the socket is already closed
+                    # We should ignore such errors (but we should log them with warning)
+                    self.log.warning("Ignoring exception on close", exc_info=True)
+                break
+
+        stdout.close()
+        stderr.close()
+
+        exit_status = stdout.channel.recv_exit_status()
+
+        return exit_status, agg_stdout, agg_stderr

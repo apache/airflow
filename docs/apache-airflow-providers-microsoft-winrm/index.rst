@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/microsoft/winrm/index>
@@ -52,7 +58,7 @@ Package apache-airflow-providers-microsoft-winrm
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------

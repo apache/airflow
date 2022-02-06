@@ -2255,7 +2255,7 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     # dagrun should be set to QUEUED
     assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1)}
+    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1, -1)}
 
 
 @pytest.mark.parametrize(

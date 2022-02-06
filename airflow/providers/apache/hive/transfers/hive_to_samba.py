@@ -47,6 +47,7 @@ class HiveToSambaOperator(BaseOperator):
         '.hql',
         '.sql',
     )
+    template_fields_renderers = {'hql': 'hql'}
 
     def __init__(
         self,

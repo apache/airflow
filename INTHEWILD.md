@@ -294,6 +294,7 @@ Currently, **officially** using Airflow:
 1. [MTsolutions](https://www.mtsolutions.io)[[@slara](https://github.com/slara)]
 1. [Multiply](https://www.multiply.com) [[@nrhvyc](https://github.com/nrhvyc)]
 1. [Mutt Data](https://muttdata.ai/) [[@plorenzatto](https://github.com/plorenzatto)]
+1. [My Money Bank](https://www.mymoneybank.com/) [[@renardguill](https://github.com/renardguill), [@NBardelot](https://github.com/NBardelot), [@vliger](https://github.com/vliger), [@Gaelleb22](https://github.com/Gaelleb22)]
 1. [Narrativa](https://www.narrativa.com/)
 1. [National Bank of Canada](https://nbc.ca) [[@brilhana](https://github.com/brilhana)]
 1. [Nav, Inc.](https://nav.com/) [[@tigerjz32](https://github.com/tigerjz32)]

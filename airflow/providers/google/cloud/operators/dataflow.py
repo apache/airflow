@@ -822,6 +822,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         "project_id",
         "gcp_conn_id",
     )
+    template_fields_renderers = {"query": "sql"}
 
     def __init__(
         self,
