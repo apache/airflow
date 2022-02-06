@@ -1990,6 +1990,7 @@ class DAG(LoggingMixin):
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
+        only_default_trigger_rule=False,
     ):
         """
         Returns a subset of the current dag as a deep copy of the current dag
@@ -2005,6 +2006,7 @@ class DAG(LoggingMixin):
         """
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
+        from airflow.utils.trigger_rule import TriggerRule
 
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
@@ -2025,6 +2027,10 @@ class DAG(LoggingMixin):
             elif include_direct_upstream:
                 upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
                 also_include.extend(upstream)
+
+        if only_default_trigger_rule:
+            matched_tasks = [t for t in matched_tasks if t.trigger_rule == TriggerRule.ALL_SUCCESS]
+            also_include = [t for t in also_include if t.trigger_rule == TriggerRule.ALL_SUCCESS]
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task

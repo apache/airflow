@@ -249,6 +249,13 @@ class LocalTaskJob(BaseJob):
                 session=session,
             ).one()
 
+            # Get a partial dag with just the specific tasks we want to
+            # examine. In order for dep checks to work correctly, we
+            # include ourself (so TriggerRuleDep can check the state of the
+            # task we just executed)
+            # NOTE: Only tasks with default trigger_rule ALL_SUCCESS are included in partial_dag
+            # because applying task_instance_scheduling_decisions() on a partial DAG is flawed
+            # for other trigger_rules.
             task = self.task_instance.task
             assert task.dag  # For Mypy.
 
@@ -260,6 +267,7 @@ class LocalTaskJob(BaseJob):
                 include_downstream=True,
                 include_upstream=False,
                 include_direct_upstream=True,
+                only_default_trigger_rule=True,
             )
 
             dag_run.dag = partial_dag
