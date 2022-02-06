@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from zenpy.lib.api_objects import Ticket
 
 from airflow.models import Connection
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
@@ -39,65 +40,46 @@ class TestZendeskHook:
                 password='eb243592-faa2-4ba2-a551q-1afdf565c889',
             )
         )
+        self.hook = ZendeskHook(zendesk_conn_id=self.conn_id)
 
     def test_hook_init_and_get_conn(self):
-        hook = ZendeskHook(zendesk_conn_id=self.conn_id)
-        zenpy_client = hook.get_conn()
         # Verify config of zenpy APIs
+        zenpy_client = self.hook.get_conn()
         assert zenpy_client.users.subdomain == 'yoursubdomain'
         assert zenpy_client.users.domain == 'zendesk.com'
         assert zenpy_client.users.session.auth == ('user@gmail.com', 'eb243592-faa2-4ba2-a551q-1afdf565c889')
         assert not zenpy_client.cache.disabled
-        assert hook._ZendeskHook__url == 'https://yoursubdomain.zendesk.com'
+        assert self.hook._ZendeskHook__url == 'https://yoursubdomain.zendesk.com'
 
-    @pytest.mark.parametrize(
-        "call_params,expected_params",
-        [
-            (
-                {
-                    "path": 'api/v2/users/1/tickets.json',
-                    "query": {'query_param1': 'value1', "query_param2": "value2"},
-                },
-                {
-                    "url": "https://yoursubdomain.zendesk.com/api/v2/users/1/tickets" ".json",
-                    "params": {'query_param1': 'value1', "query_param2": "value2"},
-                },
-            ),
-            (
-                {
-                    "path": 'api/v2/users/1/tickets.json',
-                    "query": {'query_param1': 'value1', "query_param2": "value2"},
-                    "extra_param1": 'extra_value1',
-                    "extra_param2": 'extra_value2',
-                },
-                {
-                    "url": "https://yoursubdomain.zendesk.com/api/v2/users/1/tickets" ".json",
-                    "params": {'query_param1': 'value1', "query_param2": "value2"},
-                    "extra_param1": 'extra_value1',
-                    "extra_param2": 'extra_value2',
-                },
-            ),
-            (
-                {
-                    "path": '/api/v2/users/1/tickets.json',
-                    "query": {'query_param1': 'value1', "query_param2": "value2"},
-                },
-                {
-                    "url": "https://yoursubdomain.zendesk.com/api/v2/users/1/tickets" ".json",
-                    "params": {'query_param1': 'value1', "query_param2": "value2"},
-                },
-            ),
-            (
-                {
-                    "path": '/api/v2/users/1/tickets.json',
-                },
-                {"url": "https://yoursubdomain.zendesk.com/api/v2/users/1/tickets" ".json", "params": None},
-            ),
-        ],
-    )
-    def test_hook_custom_get_request(self, call_params, expected_params):
-        hook = ZendeskHook(zendesk_conn_id=self.conn_id)
-        mock_get = mock.Mock()
-        hook._get = mock_get
-        hook.call(**call_params)
-        mock_get.assert_called_once_with(**expected_params)
+    def test_get_ticket(self):
+        zenpy_client = self.hook.get_conn()
+        with patch.object(zenpy_client, 'tickets') as tickets_mock:
+            self.hook.get_ticket(ticket_id=1)
+            tickets_mock.assert_called_once_with(id=1)
+
+    def test_search_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        with patch.object(zenpy_client, 'search') as search_mock:
+            self.hook.search_tickets(status='open', sort_order='desc')
+            search_mock.assert_called_once_with(type='ticket', status='open', sort_order='desc')
+
+    def test_create_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        ticket = Ticket(subject="This is a test ticket to create")
+        with patch.object(zenpy_client.tickets, 'create') as search_mock:
+            self.hook.create_tickets(ticket, extra_parameter="extra_parameter")
+            search_mock.assert_called_once_with(ticket, extra_parameter="extra_parameter")
+
+    def test_update_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        ticket = Ticket(subject="This is a test ticket to update")
+        with patch.object(zenpy_client.tickets, 'update') as search_mock:
+            self.hook.update_tickets(ticket, extra_parameter="extra_parameter")
+            search_mock.assert_called_once_with(ticket, extra_parameter="extra_parameter")
+
+    def test_delete_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        ticket = Ticket(subject="This is a test ticket to delete")
+        with patch.object(zenpy_client.tickets, 'delete') as search_mock:
+            self.hook.delete_tickets(ticket, extra_parameter="extra_parameter")
+            search_mock.assert_called_once_with(ticket, extra_parameter="extra_parameter")

@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-from typing import Any, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from zenpy import Zenpy
 from zenpy.lib.api import BaseApi
-from zenpy.lib.api_objects import BaseObject
+from zenpy.lib.api_objects import JobStatus, Ticket, TicketAudit
+from zenpy.lib.generator import SearchResultGenerator
 
 from airflow.hooks.base import BaseHook
 
@@ -45,8 +45,8 @@ class ZendeskHook(BaseHook):
         self.zenpy_client = zenpy_client
         self.__url = url
         # Keep reference to the _get method to allow arbitrary endpoint call for
-        # backwards compatibility. (ZendeskHook.call method)
-        self._get = self.zenpy_client.users._get
+        # backwards compatibility. (alternative to old ZendeskHook.call method)
+        self.get = self.zenpy_client.users._get
 
     def _init_conn(self) -> Tuple[Zenpy, str]:
         """
@@ -72,24 +72,51 @@ class ZendeskHook(BaseHook):
         """
         return self.zenpy_client
 
-    def call(
-        self,
-        path: str,
-        query: Optional[dict] = None,
-        **kwargs: Any,
-    ) -> BaseObject:
+    def get_ticket(self, ticket_id: int) -> Ticket:
         """
-        Call Zendesk API and return results.
+        Retrieve ticket.
 
-        This endpoint is kept for backward compatibility purpose but it should be
-        removed in the future to expose specific methods for each resource.
-        TODO: When removing this method, remove the reference to _get in __init__
-
-        :param path: The Zendesk API to call.
-        :param query: Query parameters.
-        :param kwargs: (optional) Additional parameters directly passed to the
-            request.Session.get method.
-        :return: A BaseObject representing the response from Zendesk. You can call
-            ``.to_dict()`` if you need to send it to XCom.
+        :return: Ticket object retrieved.
         """
-        return self._get(url=os.path.join(self.__url, path.lstrip("/")), params=query, **kwargs)
+        return self.zenpy_client.tickets(id=ticket_id)
+
+    def search_tickets(self, **kwargs) -> SearchResultGenerator:
+        """
+        Search tickets.
+
+        :param kwargs: (optional) Search fields given to the zenpy search method.
+        :return: SearchResultGenerator of Ticket objects.
+        """
+        return self.zenpy_client.search(type='ticket', **kwargs)
+
+    def create_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> Union[TicketAudit, JobStatus]:
+        """
+        Create tickets.
+
+        :param tickets: Ticket or List of Ticket to create.
+        :param kwargs: (optional) Additional fields given to the zenpy create method.
+        :return: A TicketAudit object containing information about the Ticket created.
+            When sending bulk request, returns a JobStatus object.
+        """
+        return self.zenpy_client.tickets.create(tickets, **kwargs)
+
+    def update_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> Union[TicketAudit, JobStatus]:
+        """
+        Update tickets.
+
+        :param tickets: Updated Ticket or List of Ticket object to update.
+        :param kwargs: (optional) Additional fields given to the zenpy update method.
+        :return: A TicketAudit object containing information about the Ticket updated.
+            When sending bulk request, returns a JobStatus object.
+        """
+        return self.zenpy_client.tickets.update(tickets, **kwargs)
+
+    def delete_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> None:
+        """
+        Delete tickets, returns nothing on success and raises APIException on failure.
+
+        :param tickets: Ticket or List of Ticket to delete.
+        :param kwargs: (optional) Additional fields given to the zenpy delete method.
+        :return:
+        """
+        return self.zenpy_client.tickets.delete(tickets, **kwargs)
