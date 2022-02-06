@@ -126,22 +126,7 @@ class TaskDecoratorCollection:
             such as transmission a large amount of XCom to TaskAPI.
         """
     @overload
-    def virtualenv(self, python_callable: F) -> F: ...
-    def kubernetes(
-        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-    ) -> TaskDecorator:
-        """Wraps a function to be executed on a k8s pod using KubernetesPodOperator
-
-        Also accepts any argument that KubernetesPodOperator will via ``kwargs``.
-
-        :param python_callable: Function to decorate
-        :type python_callable: Optional[Callable]
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
-        :type multiple_outputs: bool
-        """
+    def virtualenv(self, python_callable: Function) -> Function: ...
     # [START decorator_signature]
     def docker(
         self,
@@ -240,5 +225,20 @@ class TaskDecoratorCollection:
         :param cap_add: Include container capabilities
         """
         # [END decorator_signature]
+    def kubernetes(
+        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    ) -> TaskDecorator:
+        """Wraps a function to be executed on a k8s pod using KubernetesPodOperator
+
+        Also accepts any argument that KubernetesPodOperator will via ``kwargs``.
+
+        :param python_callable: Function to decorate
+        :type python_callable: Optional[Callable]
+        :param multiple_outputs: if set, function return value will be
+            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
+            with index as key. Dict will unroll to xcom values with keys as XCom keys.
+            Defaults to False.
+        :type multiple_outputs: bool
+        """
 
 task: TaskDecoratorCollection
