@@ -946,6 +946,38 @@
       type: string
       example: ~
       default: "False"
+    - name: default_on_failure_callback
+      description: |
+        The default on_failure_callback assigned to each new operator, unless
+        provided explicitly or passed via ``default_args``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
+    - name: default_on_execute_callback
+      description: |
+        The default default_on_execute_callback assigned to each new operator, unless
+        provided explicitly or passed via ``default_args``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
+    - name: default_on_retry_callback
+      description: |
+        The default default_on_retry_callback assigned to each new operator, unless
+        provided explicitly or passed via ``default_args``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
+    - name: default_on_success_callback
+      description: |
+        The default default_on_success_callback assigned to each new operator, unless
+        provided explicitly or passed via ``default_args``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
 - name: hive
   description: ~
   options:

@@ -550,10 +550,18 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
-        on_execute_callback: Optional[TaskStateChangeCallback] = None,
-        on_failure_callback: Optional[TaskStateChangeCallback] = None,
-        on_success_callback: Optional[TaskStateChangeCallback] = None,
-        on_retry_callback: Optional[TaskStateChangeCallback] = None,
+        on_execute_callback: Optional[TaskStateChangeCallback] = conf.getimport(
+            'operators', 'default_on_execute_callback', fallback=None
+        ),
+        on_failure_callback: Optional[TaskStateChangeCallback] = conf.getimport(
+            'operators', 'default_on_failure_callback', fallback=None
+        ),
+        on_success_callback: Optional[TaskStateChangeCallback] = conf.getimport(
+            'operators', 'default_on_success_callback', fallback=None
+        ),
+        on_retry_callback: Optional[TaskStateChangeCallback] = conf.getimport(
+            'operators', 'default_on_retry_callback', fallback=None
+        ),
         pre_execute: Optional[TaskPreExecuteHook] = None,
         post_execute: Optional[TaskPostExecuteHook] = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
