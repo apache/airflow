@@ -29,10 +29,6 @@ class DatabricksSqlOperator(BaseOperator):
     """
     Executes SQL code in a Databricks SQL endpoint or Databricks cluster
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DatabricksSqlOperator`
-
     :param databricks_conn_id: Reference to
         :ref:`Databricks connection id<howto/connection:databricks>`
     :param http_path:
@@ -74,7 +70,7 @@ class DatabricksSqlOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         self.log.info('Executing: %s', self.sql)
         hook = self._get_hook()
-        results = hook.run(self.sql, autocommit=True, parameters=self.parameters)
+        results = hook.run(self.sql, parameters=self.parameters)
         # self.log.debug('Results: %s', results)
         if self.do_xcom_push:
             return results

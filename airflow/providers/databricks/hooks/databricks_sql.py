@@ -52,7 +52,7 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
     ) -> None:
         super().__init__(databricks_conn_id)
         self._sql_conn = None
-        self._token = None
+        self._token: Optional[str] = None
         self._http_path = http_path
         self.supports_autocommit = True
         self.session_config = session_configuration
@@ -70,7 +70,8 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
         if not self._http_path:
             if 'http_path' not in self.databricks_conn.extra_dejson:
                 raise AirflowException(
-                    "http_path should be provided either explicitly or in extra parameter of Databricks connection"
+                    "http_path should be provided either explicitly or "
+                    "in extra parameter of Databricks connection"
                 )
             self._http_path = self.databricks_conn.extra_dejson['http_path']
         requires_init = True
@@ -87,6 +88,8 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
             self.session_config = self.databricks_conn.extra_dejson.get('session_configuration')
 
         if not self._sql_conn or requires_init:
+            if self._sql_conn:  # close already existing connection
+                self._sql_conn.close()
             self._sql_conn = sql.connect(
                 self.host,
                 self._http_path,
@@ -126,23 +129,28 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
             sql = self.maybe_split_sql_string(sql)
         self.log.debug("Executing %d statements", len(sql))
 
-        with closing(self.get_conn()) as conn:
+        conn = None
+        for sql_statement in sql:
+            # when using AAD tokens, it could expire if previous query run longer than token lifetime
+            conn = self.get_conn()
             with closing(conn.cursor()) as cur:
-                for sql_statement in sql:
-                    self.log.info("Executing statement: %s, parameters: %s", sql_statement, parameters)
-                    if parameters:
-                        cur.execute(sql_statement, parameters)
-                    else:
-                        cur.execute(sql_statement)
+                self.log.info("Executing statement: %s, parameters: %s", sql_statement, parameters)
+                if parameters:
+                    cur.execute(sql_statement, parameters)
+                else:
+                    cur.execute(sql_statement)
 
-                    results = []
-                    if handler is not None:
-                        cur = handler(cur)
-                    for row in cur:
-                        self.log.debug("Statement results: %s", row)
-                        results.append(row)
+                results = []
+                if handler is not None:
+                    cur = handler(cur)
+                for row in cur:
+                    self.log.debug("Statement results: %s", row)
+                    results.append(row)
 
-                    self.log.info("Rows affected: %s", cur.rowcount)
+                self.log.info("Rows affected: %s", cur.rowcount)
+        if conn:
+            conn.close()
+            self._sql_conn = None
 
         # Return only result of the last SQL expression
         return results

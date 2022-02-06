@@ -113,7 +113,7 @@ Note that there is exactly one named parameter for each top level parameter in t
    * - job_id: str
      - ID of the existing Databricks jobs (required)
    * - jar_params: list[str]
-     - A list of parameters for jobs with JAR tasks, e.g. ``"jar_params": ["john doe", "35"]``. The parameters will be passed to JAR file as command line parameters. If specified upon run-now, it would        overwrite the parameters specified in job setting. The json representation of this field (i.e. ``{"jar_params":["john doe","35"]}``) cannot exceed 10,000 bytes. This field will be templated.
+     - A list of parameters for jobs with JAR tasks, e.g. ``"jar_params": ["john doe", "35"]``. The parameters will be passed to JAR file as command line parameters. If specified upon run-now, it would overwrite the parameters specified in job setting. The json representation of this field (i.e. ``{"jar_params":["john doe","35"]}``) cannot exceed 10,000 bytes. This field will be templated.
    * - notebook_params: dict[str,str]
      - A dict from keys to values for jobs with notebook task, e.g.``"notebook_params": {"name": "john doe", "age":  "35"}```. The map is passed to the notebook and will be accessible through the ``dbutils.widgets.get function``. See `Widgets <https://docs.databricks.com/notebooks/widgets.html>`_ for more information. If not specified upon run-now, the triggered run will use the job’s base parameters. ``notebook_params`` cannot be specified in conjunction with ``jar_params``. The json representation of this field (i.e. ``{"notebook_params":{"name":"john doe","age":"35"}}``) cannot exceed 10,000 bytes. This field will be templated.
    * - python_params: list[str]
@@ -132,3 +132,36 @@ Note that there is exactly one named parameter for each top level parameter in t
      - number of seconds to wait between retries
    * - do_xcom_push: boolean
      - whether we should push run_id and run_page_url to xcom
+
+DatabricksSqlOperator
+===========================
+
+Use the :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator` to execute SQL
+on `Databricks SQL endpoint  <https://docs.databricks.com/sql/admin/sql-endpoints.html>`_ or
+`Databricks cluster <https://docs.databricks.com/clusters/index.html>`_.
+
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+Operator executes given SQL queries against configured endpoint.  There are 3 ways of specifying SQL queries:
+1. Simple string.
+2. List of strings.
+3. Name of the file with SQL queries. File must have ``.sql`` extension. Each query should finish with ``;<new_line>``
+
+.. list-table:: Databricks Airflow Connection Metadata
+   :widths: 15 25
+   :header-rows: 1
+
+   * - Parameter
+     - Input
+   * - sql: str or list[str]
+     - Required parameter specifying a queries to execute.
+   * - http_path: str
+     - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection.
+   * - parameters: dict[str, any]
+     - Optional parameters that will be used to substitute variable(s) in SQL query.
+   * - session_configuration: dict[str,str]
+     - optional dict specifying Spark configuration parameters that will be set for the session.
+   * - do_xcom_push: boolean
+     - whether we should push query results (last query if multiple queries are provided) to xcom. Default: true
