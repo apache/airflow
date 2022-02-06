@@ -61,9 +61,8 @@ class SSMParameterStoreHook(AwsBaseHook):
 
     def get_parameters_by_path(self, path: str, **parameter_kwargs):
         """
-        Retrieve parameter value from AWS Systems Manager Parameter Store.
-        Reflecting format it stored in the AWS Systems Manager Parameter Store
-        :param path: hierarchy for the parameters
+        Retrieve value of one or more parameters matching the path from AWS Systems Manager Parameter Store.
+        :param path: path/hierarchy for the parameters
         :param parameter_kwargs:  Keyword args that define the configurations used to retrieve the parameter
         :return: dict with the value of the Systems Manager Parameter
         :rtype: dict
