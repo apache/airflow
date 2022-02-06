@@ -256,7 +256,8 @@ dask = [
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
-    'requests>=2.26.0',
+    'requests>=2.26.0, <3',
+    'databricks-sql-connector>=1.0.0, <2.0.0',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -861,6 +862,7 @@ ALL_DB_PROVIDERS = [
     'apache.hive',
     'apache.pinot',
     'cloudant',
+    'databricks',
     'exasol',
     'influxdb',
     'microsoft.mssql',

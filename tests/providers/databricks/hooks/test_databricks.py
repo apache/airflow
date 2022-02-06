@@ -29,16 +29,14 @@ from requests import exceptions as requests_exceptions
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import (
+from airflow.providers.databricks.hooks.databricks import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_DEFAULT_AD_ENDPOINT,
     AZURE_MANAGEMENT_ENDPOINT,
     AZURE_METADATA_SERVICE_INSTANCE_URL,
     AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
-    SUBMIT_RUN_ENDPOINT,
     TOKEN_REFRESH_LEAD_TIME,
-    DatabricksHook,
-    RunState,
 )
 from airflow.utils.session import provide_session
 

@@ -40,19 +40,25 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators.rst
     logo: /integration-logos/databricks/Databricks.png
     tags: [service]
+
 operators:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.operators.databricks
+      - airflow.providers.databricks.operators.databricks_sql
 
 hooks:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.hooks.databricks
+      - airflow.providers.databricks.hooks.databricks_sql
+      - airflow.providers.databricks.hooks.databricks_base
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.databricks.hooks.databricks.DatabricksHook
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
+    connection-type: databricks
+  - hook-class-name: airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook
     connection-type: databricks
