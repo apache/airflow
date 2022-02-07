@@ -466,6 +466,8 @@ class AirflowAppBuilder:
         :param category_label:
             The label that will be displayed on the menu,
             if absent param name will be used
+        :param baseview:
+            A BaseView type class instantiated.
         :param cond:
             If a callable, :code:`cond` will be invoked when
             constructing the menu items. If it returns :code:`True`,

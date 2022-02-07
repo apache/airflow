@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
+import pathlib
 
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEST_DAGS_FOLDER = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'dags'))
+TEST_DAGS_FOLDER = pathlib.Path(__file__).parent.with_name('dags')

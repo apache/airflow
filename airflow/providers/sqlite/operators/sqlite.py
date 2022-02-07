@@ -39,6 +39,7 @@ class SqliteOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#cdaaed'
 
     def __init__(

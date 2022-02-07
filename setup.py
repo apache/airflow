@@ -191,7 +191,7 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.19.0',
+    'boto3>=1.15.0,<2.0.0',
     'watchtower~=2.0.1',
     'jsonpath_ng>=1.5.3',
     'redshift_connector~=2.0.888',
@@ -288,6 +288,9 @@ facebook = [
 flask_appbuilder_authlib = [
     'authlib',
 ]
+github = [
+    'pygithub',
+]
 google = [
     'PyOpenSSL',
     # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
@@ -340,6 +343,7 @@ google = [
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
     pandas_requirement,
+    'sqlalchemy-bigquery>=1.2.1',
 ]
 grpc = [
     'google-auth>=1.0.0, <3.0.0',
@@ -447,7 +451,7 @@ presto = [
     pandas_requirement,
 ]
 psrp = [
-    'pypsrp~=0.5',
+    'pypsrp~=0.8',
 ]
 qubole = [
     'qds-sdk>=1.10.4',
@@ -522,7 +526,7 @@ yandex = [
     'yandexcloud>=0.122.0',
 ]
 zendesk = [
-    'zdesk',
+    'zenpy>=2.0.24',
 ]
 # End dependencies group
 
@@ -633,6 +637,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'exasol': exasol,
     'facebook': facebook,
     'ftp': [],
+    'github': github,
     'google': google,
     'grpc': grpc,
     'hashicorp': hashicorp,

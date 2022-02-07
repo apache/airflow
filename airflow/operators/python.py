@@ -222,16 +222,33 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
-    Allows a workflow to continue only if a condition is met. Otherwise, the
-    workflow "short-circuits" and downstream tasks are skipped.
+    Allows a pipeline to continue based on the result of a ``python_callable``.
 
-    The ShortCircuitOperator is derived from the PythonOperator. It evaluates a
-    condition and short-circuits the workflow if the condition is False. Any
-    downstream tasks are marked with a state of "skipped". If the condition is
-    True, downstream tasks proceed as normal.
+    The ShortCircuitOperator is derived from the PythonOperator and evaluates the result of a
+    ``python_callable``. If the returned result is False or a falsy value, the pipeline will be
+    short-circuited. Downstream tasks will be marked with a state of "skipped" based on the short-circuiting
+    mode configured. If the returned result is True or a truthy value, downstream tasks proceed as normal and
+    an ``XCom`` of the returned result is pushed.
 
-    The condition is determined by the result of `python_callable`.
+    The short-circuiting can be configured to either respect or ignore the ``trigger_rule`` set for
+    downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default setting, all
+    downstream tasks are skipped without considering the ``trigger_rule`` defined for tasks. However, if this
+    parameter is set to False, the direct downstream tasks are skipped but the specified ``trigger_rule`` for
+    other subsequent downstream tasks are respected. In this mode, the operator assumes the direct downstream
+    tasks were purposely meant to be skipped but perhaps not other subsequent tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ShortCircuitOperator`
+
+    :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
+        be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
+        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
     """
+
+    def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
     def execute(self, context: Context) -> Any:
         condition = super().execute(context)
@@ -241,13 +258,21 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info('Proceeding with downstream tasks...')
             return condition
 
-        self.log.info('Skipping downstream tasks...')
-
-        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
+        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        self.log.debug("Downstream task IDs %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context["dag_run"], context["logical_date"], downstream_tasks)
+            dag_run = context["dag_run"]
+            execution_date = dag_run.execution_date
+
+            if self.ignore_downstream_trigger_rules is True:
+                self.log.info("Skipping all downstream tasks...")
+                self.skip(dag_run, execution_date, downstream_tasks)
+            else:
+                self.log.info("Skipping downstream tasks while respecting trigger rules...")
+                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
+                # Scheduler handle the remaining downstream task(s) appropriately.
+                self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
 
         self.log.info("Done.")
 

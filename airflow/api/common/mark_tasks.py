@@ -485,6 +485,7 @@ def set_dag_run_state_to_running(
 
     :param dag: the DAG of which to alter state
     :param execution_date: the execution date from which to start looking
+    :param run_id: the id of the DagRun
     :param commit: commit DAG and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,

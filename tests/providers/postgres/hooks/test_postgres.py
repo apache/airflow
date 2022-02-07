@@ -65,7 +65,7 @@ class TestPostgresHookConn(unittest.TestCase):
         assert mock_connect.call_count == 1
 
         self.assertEqual(
-            self.db_hook.get_uri(), "postgres://login:password@host/schema?client_encoding=utf-8"
+            self.db_hook.get_uri(), "postgresql://login:password@host/schema?client_encoding=utf-8"
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
@@ -168,7 +168,7 @@ class TestPostgresHookConn(unittest.TestCase):
                 port=1,
             )
         )
-        assert "postgres://login:password@host:1/schema" == self.db_hook.get_uri()
+        assert "postgresql://login:password@host:1/schema" == self.db_hook.get_uri()
 
     def test_get_uri_from_connection_with_schema_override(self):
         hook = PostgresHook(schema='schema-override')
@@ -182,7 +182,7 @@ class TestPostgresHookConn(unittest.TestCase):
                 port=1,
             )
         )
-        assert "postgres://login:password@host:1/schema-override" == hook.get_uri()
+        assert "postgresql://login:password@host:1/schema-override" == hook.get_uri()
 
 
 class TestPostgresHook(unittest.TestCase):

@@ -23,22 +23,20 @@ FROM ${PYTHON_BASE_IMAGE} as main
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
-ARG AIRFLOW_VERSION="2.2.0.dev0"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="6"
 
 # Make sure noninteractive debian install is used and language variables set
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} AIRFLOW_VERSION=${AIRFLOW_VERSION} \
+ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MSSQL_CLIENT="true"
 
-# Print versions
-RUN echo "Base image: ${PYTHON_BASE_IMAGE}, Airflow version: ${AIRFLOW_VERSION}"
+RUN echo "Base image version: ${PYTHON_BASE_IMAGE}"
 
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
@@ -98,15 +96,13 @@ RUN apt-get update \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
-# We run chmod +x to fix permission issue in Azure DevOps when running the scripts
-# However when AUFS Docker backend is used, this might cause "text file busy" error
-# when script is executed right after it's executable flag has been changed, so
-# we run additional sync afterwards. See https://github.com/moby/moby/issues/13594
-RUN chmod a+x /scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh \
-    && sync  \
-    && /scripts/docker/install_mysql.sh prod  \
-    && /scripts/docker/install_mysql.sh dev  \
-    && /scripts/docker/install_mssql.sh \
+# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
+# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
+# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
+# That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
+RUN bash /scripts/docker/install_mysql.sh prod  \
+    && bash /scripts/docker/install_mysql.sh dev  \
+    && bash /scripts/docker/install_mssql.sh \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
               --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
@@ -186,25 +182,6 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
     mkdir -pv ${AIRFLOW_HOME}/dags && \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
-# Install BATS and its dependencies for "in container" tests
-ARG BATS_VERSION="0.4.0"
-ARG BATS_SUPPORT_VERSION="0.3.0"
-ARG BATS_ASSERT_VERSION="2.0.0"
-ARG BATS_FILE_VERSION="0.2.0"
-
-RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.tar.gz -o /tmp/bats.tgz \
-    && tar -zxf /tmp/bats.tgz -C /tmp \
-    && /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf \
-    && mkdir -p /opt/bats/lib/bats-support \
-    && curl -sSL https://github.com/bats-core/bats-support/archive/v${BATS_SUPPORT_VERSION}.tar.gz -o /tmp/bats-support.tgz \
-    && tar -zxf /tmp/bats-support.tgz -C /opt/bats/lib/bats-support --strip 1 && rm -rf /tmp/* \
-    && mkdir -p /opt/bats/lib/bats-assert \
-    && curl -sSL https://github.com/bats-core/bats-assert/archive/v${BATS_ASSERT_VERSION}.tar.gz -o /tmp/bats-assert.tgz \
-    && tar -zxf /tmp/bats-assert.tgz -C /opt/bats/lib/bats-assert --strip 1 && rm -rf /tmp/* \
-    && mkdir -p /opt/bats/lib/bats-file \
-    && curl -sSL https://github.com/bats-core/bats-file/archive/v${BATS_FILE_VERSION}.tar.gz -o /tmp/bats-file.tgz \
-    && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
-
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
@@ -236,6 +213,8 @@ ARG CASS_DRIVER_NO_CYTHON="1"
 # Build cassandra driver on multiple CPUs
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
+ARG AIRFLOW_VERSION="2.3.0.dev"
+
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
     AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS} \
@@ -248,6 +227,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
     INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI} \
+    AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # In the CI image we always:
 # * install MySQL, MsSQL
@@ -264,6 +244,8 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
     CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY} \
     CASS_DRIVER_NO_CYTHON=${CASS_DRIVER_NO_CYTHON}
+
+RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
@@ -292,10 +274,10 @@ COPY scripts/docker/install_pip_version.sh scripts/docker/install_airflow_depend
 # account for removed dependencies (we do not install them in the first place)
 RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not valid but we can't disable them :(\e[0m\n"; \
     echo -e "\n\e[34mSee https://github.com/pypa/pip/issues/10556 for details.\e[0m\n" ; \
-    /scripts/docker/install_pip_version.sh; \
+    bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
+        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 # Copy package.json and yarn.lock to install node modules
@@ -305,7 +287,7 @@ COPY airflow/www/package.json airflow/www/yarn.lock ${AIRFLOW_SOURCES}/airflow/w
 COPY scripts/docker/prepare_node_modules.sh /scripts/docker/
 
 # Package JS/css for production
-RUN /scripts/docker/prepare_node_modules.sh
+RUN bash /scripts/docker/prepare_node_modules.sh
 
 # Copy all the needed www/ for assets compilation. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/
@@ -315,7 +297,7 @@ COPY scripts/docker/compile_www_assets.sh /scripts/docker/
 
 # Build artifacts without removing temporary artifacts (we will need them for incremental changes)
 # in build  mode
-RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" /scripts/docker/compile_www_assets.sh
+RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" bash /scripts/docker/compile_www_assets.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
@@ -334,22 +316,21 @@ COPY scripts/docker/install_airflow.sh /scripts/docker/
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        /scripts/docker/install_airflow.sh; \
+        bash /scripts/docker/install_airflow.sh; \
     fi
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
-COPY scripts/docker/load.bash /opt/bats/lib/
 COPY scripts/docker/install_pip_version.sh scripts/docker/install_additional_dependencies.sh /scripts/docker/
 
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-RUN /scripts/docker/install_pip_version.sh; \
+RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        /scripts/docker/install_additional_dependencies.sh; \
+        bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 # Install autocomplete for airflow

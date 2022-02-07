@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Oracle Provider: Fix handling of bindvars with no parameters (#20720)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
 2.1.0
 .....
 

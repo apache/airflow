@@ -80,7 +80,24 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Passing ``execution_date`` to ``XCom.set()``, ``XCom.clear()``, ``XCom.get_one()``, and ``XCom.get_many()`` is deprecated
+### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
+
+When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
+In the previous versions of SQLAlchemy it was possible to use `postgres://`, but using it in
+SQLAlchemy 1.4.0+ results in:
+
+```
+>       raise exc.NoSuchModuleError(
+            "Can't load plugin: %s:%s" % (self.group, name)
+        )
+E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+```
+
+If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+Details in the [SQLAlchemy Changelog](https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b).
+
+### Passing `execution_date` to `XCom.set()`, `XCom.clear()`, `XCom.get_one()`, and `XCom.get_many()` is deprecated
 
 Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
 
@@ -1398,7 +1415,7 @@ delete this option.
 
 #### `airflow.models.dagbag.DagBag`
 
-Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+Passing `store_serialized_dags` argument to `DagBag.__init__` and accessing `DagBag.store_serialized_dags` property
 are deprecated and will be removed in future versions.
 
 
