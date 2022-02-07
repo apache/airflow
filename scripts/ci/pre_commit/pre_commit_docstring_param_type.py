@@ -31,11 +31,9 @@ if __name__ not in ("__main__", "__mp_main__"):
 console = Console(color_system="standard", width=200)
 
 
-def check_file(the_file: Path) -> list:
-    """Returns number of wrong checkout instructions in the workflow file"""
-    content = the_file.read_text()
-    matches = re.findall(r' +\:type .+?\:', content)
-    return matches
+def _check_file(file: Path) -> list:
+    content = file.read_text()
+    return re.findall(r' +\:type .+?\:', content)
 
 
 def _join_with_newline(list_):
@@ -44,16 +42,12 @@ def _join_with_newline(list_):
 
 if __name__ == '__main__':
     error_list = []
-    total_err_num = 0
-    for a_file in sys.argv[1:]:
-        matches = check_file(Path(a_file))
+    for file in sys.argv[1:]:
+        matches = _check_file(Path(file))
         if matches:
-            total_err_num += 1
-            error_list.append((a_file, matches))
-    if total_err_num:
-        error_message = '\n'.join(
-            [f"{file}: \n{_join_with_newline(matches)}" for file, matches in error_list]
-        )
+            error_list.append((file, matches))
+    if error_list:
+        error_message = '\n'.join([f"{f}: \n{_join_with_newline(m)}" for f, m in error_list])
         console.print(
             f"""
 [red]Found files with types specified in docstring.
