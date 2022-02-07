@@ -18,7 +18,7 @@
 import json
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 
 if TYPE_CHECKING:
@@ -34,8 +34,9 @@ class DbtCloudRunJobOperatorLink(BaseOperatorLink):
     name = "Monitor Job Run"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_run_url = ti.xcom_pull(task_ids=operator.task_id, key="job_run_url")
+        job_run_url = XCom.get_one(
+            dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm, key="job_run_url"
+        )
 
         return job_run_url
 
