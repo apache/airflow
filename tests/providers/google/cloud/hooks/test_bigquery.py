@@ -177,7 +177,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                 r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
             ),
         ):
-
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -192,7 +191,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             match="schema_update_options is only allowed if"
             " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'.",
         ):
-
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -945,6 +943,35 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             "and extra__google_cloud_platform__keyfile_dict",
         ):
             self.hook.get_sqlalchemy_engine()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_insert_job_with_async(self, mock_client, mock_query_job):
+        job_conf = {
+            "query": {
+                "query": "SELECT * FROM test",
+                "useLegacySql": "False",
+            }
+        }
+        mock_query_job._JOB_TYPE = "query"
+
+        self.hook.insert_job(
+            configuration=job_conf, job_id=JOB_ID, project_id=PROJECT_ID, location=LOCATION, is_async=True
+        )
+
+        mock_client.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+        )
+
+        mock_query_job.from_api_repr.assert_called_once_with(
+            {
+                'configuration': job_conf,
+                'jobReference': {'jobId': JOB_ID, 'projectId': PROJECT_ID, 'location': LOCATION},
+            },
+            mock_client.return_value,
+        )
+        mock_query_job.from_api_repr.return_value._begin.assert_called_once()
 
 
 class TestBigQueryTableSplitter(unittest.TestCase):
@@ -2018,7 +2045,6 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
     def test_create_external_table_description(self, mock_create):
-
         description = "Test Description"
         self.hook.create_external_table(
             external_project_dataset_table='my_dataset.my_table',
