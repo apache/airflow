@@ -77,4 +77,4 @@ class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
 class AirflowVaribaleShowWidget(RenderTemplateWidget):
     """Airflow variable show widget"""
 
-    template = 'airflow/variable_show.html'
+    template = 'airflow/variable_show_widget.html'

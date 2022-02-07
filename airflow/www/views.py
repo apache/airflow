@@ -3859,6 +3859,8 @@ class VariableModelView(AirflowModelView):
 
     list_template = 'airflow/variable_list.html'
     edit_template = 'airflow/variable_edit.html'
+    show_template = 'airflow/variable_show.html'
+
     show_widget = AirflowVaribaleShowWidget
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # type: ignore
