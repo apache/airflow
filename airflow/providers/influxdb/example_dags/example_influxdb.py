@@ -22,7 +22,7 @@ from airflow.models.dag import DAG
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 
 
-@task(task_id="influxdb_task")
+@task(task_id="influxdb_task")  # type: ignore
 def test_influxdb_hook():
     bucket_name = 'test-influx'
     influxdb_hook = InfluxDBHook()
