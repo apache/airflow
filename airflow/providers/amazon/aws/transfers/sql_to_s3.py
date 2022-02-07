@@ -127,10 +127,14 @@ class SqlToS3Operator(BaseOperator):
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
                 notna_series = df[col].dropna().values
-                if np.isclose(notna_series, notna_series.astype(int)).all():
+                if np.equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
                     df[col] = np.where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(pd.Int64Dtype())
+                elif np.isclose(notna_series, notna_series.astype(int)).all():
+                    # set to float dtype that retains floats and supports NaNs
+                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    df[col] = df[col].astype(pd.Float64Dtype())
 
     def execute(self, context: 'Context') -> None:
         sql_hook = self._get_hook()

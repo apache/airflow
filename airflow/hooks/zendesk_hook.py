@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.zendesk.hooks.zendesk import Zendesk, ZendeskError, ZendeskHook  # noqa
+from airflow.providers.zendesk.hooks.zendesk import ZendeskHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.zendesk.hooks.zendesk`.",

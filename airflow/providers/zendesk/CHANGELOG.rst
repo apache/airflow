@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Misc
+~~~
+``ZendeskHook`` moved from using ``zdesk`` to ``zenpy`` package.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+Changed the return type of ``ZendeskHook.get_conn`` to return a ``zenpy.Zenpy`` object instead of a ``zdesk.Zendesk`` object.
+Deleted the ``ZendeskHook.call``, alternatively you can use the ``ZendeskHook.get`` method to make custom get calls to Zendesk API.
+``Zendesk`` and ``ZendeskError`` classes are removed from ``airflow.hooks.zendesk_hook`` imports.
+
 2.0.1
 .....
 
