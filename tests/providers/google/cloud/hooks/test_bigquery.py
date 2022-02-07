@@ -177,6 +177,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                 r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
             ),
         ):
+
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -191,6 +192,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             match="schema_update_options is only allowed if"
             " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'.",
         ):
+
             self.hook.run_load(
                 "test.test",
                 "test_schema.json",
@@ -2006,6 +2008,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
 class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_labels(self, mock_insert):
+
         labels = {'label1': 'test1', 'label2': 'test2'}
         self.hook.run_load(
             destination_project_dataset_table='my_dataset.my_table',
@@ -2019,6 +2022,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_description(self, mock_insert):
+
         description = "Test Description"
         self.hook.run_load(
             destination_project_dataset_table='my_dataset.my_table',
@@ -2032,6 +2036,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
     def test_create_external_table_labels(self, mock_create):
+
         labels = {'label1': 'test1', 'label2': 'test2'}
         self.hook.create_external_table(
             external_project_dataset_table='my_dataset.my_table',
@@ -2045,6 +2050,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
     def test_create_external_table_description(self, mock_create):
+
         description = "Test Description"
         self.hook.create_external_table(
             external_project_dataset_table='my_dataset.my_table',
