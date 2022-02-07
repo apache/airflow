@@ -132,9 +132,7 @@ class S3Hook(AwsBaseHook):
         Parses the S3 Url into a bucket name and key.
 
         :param s3url: The S3 Url to parse.
-        :rtype s3url: str
         :return: the parsed bucket name and key
-        :rtype: tuple of str
         """
         parsed_url = urlparse(s3url)
 
