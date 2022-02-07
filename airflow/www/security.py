@@ -350,6 +350,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :param resource_name: name of view-menu or resource.
         :param user: user name
         :return: Whether user could perform certain action on the resource.
+        :rtype bool
         """
         if not user:
             user = g.user

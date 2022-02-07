@@ -117,7 +117,11 @@ class SecurityManager(BaseSecurityManager):
         )
 
     def add_register_user(self, username, first_name, last_name, email, password="", hashed_password=""):
-        """Add a registration request for the user."""
+        """
+        Add a registration request for the user.
+
+        :rtype : RegisterUser
+        """
         register_user = self.registeruser_model()
         register_user.username = username
         register_user.email = email

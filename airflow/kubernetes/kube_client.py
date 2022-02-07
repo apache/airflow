@@ -121,6 +121,7 @@ def get_kube_client(
     :param cluster_context: context of the cluster
     :param config_file: configuration file
     :return kubernetes client
+    :rtype client.CoreV1Api
     """
     if not has_kubernetes:
         raise _import_err
