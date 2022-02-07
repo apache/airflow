@@ -22,11 +22,45 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+BASE_LINK = "https://console.cloud.google.com/data-fusion"
+DATAFUSION_BASE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+
+
+class DataFusionInstanceLink(BaseOperatorLink):
+    """Helper class for constructing Data Fusion Instance link"""
+
+    name = "Data Fusion Instance"
+
+    def get_link(self, operator, dttm):
+        instance_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="instance_conf",
+        )
+        return (
+            DATAFUSION_BASE_LINK.format(
+                region=instance_conf["region"],
+                instance_name=instance_conf["instance_name"],
+                project_id=instance_conf["project_id"],
+            )
+            if instance_conf
+            else ""
+        )
+
+
+def _get_project_id(instance):
+    instance = instance["name"]
+    project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
+    return project_id
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -60,6 +94,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         "instance_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -95,8 +130,17 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        hook.wait_for_operation(operation)
+        instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
+        self.xcom_push(
+            context,
+            key="instance_conf",
+            value={
+                "region": self.location,
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+            },
+        )
 
 
 class CloudDataFusionDeleteInstanceOperator(BaseOperator):
@@ -201,6 +245,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         "instance",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -257,6 +302,15 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
                 instance = hook.get_instance(
                     instance_name=self.instance_name, location=self.location, project_id=self.project_id
                 )
+        self.xcom_push(
+            context,
+            key="instance_conf",
+            value={
+                "region": self.location,
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+            },
+        )
         return instance
 
 
@@ -299,6 +353,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         "instance",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -340,8 +395,17 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        hook.wait_for_operation(operation)
+        instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s updated successfully", self.instance_name)
+        self.xcom_push(
+            context,
+            key="instance_conf",
+            value={
+                "region": self.location,
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+            },
+        )
 
 
 class CloudDataFusionGetInstanceOperator(BaseOperator):
@@ -374,6 +438,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         "instance_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -408,6 +473,16 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
             instance_name=self.instance_name,
             location=self.location,
             project_id=self.project_id,
+        )
+
+        self.xcom_push(
+            context,
+            key="instance_conf",
+            value={
+                "region": self.location,
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+            },
         )
         return instance
 
