@@ -64,6 +64,16 @@ def fallback_to_default_account(func: Callable) -> Callable:
     return wrapper
 
 
+def _get_provider_info() -> Tuple[str, str]:
+    from airflow.providers_manager import ProvidersManager
+
+    manager = ProvidersManager()
+    package_name = manager.hooks[DbtCloudHook.conn_type].package_name  # type: ignore[union-attr]
+    provider = manager.providers[package_name]
+
+    return package_name, provider.version
+
+
 class TokenAuth(AuthBase):
     """Helper class for Auth when executing requests."""
 
@@ -71,6 +81,8 @@ class TokenAuth(AuthBase):
         self.token = token
 
     def __call__(self, request: PreparedRequest) -> PreparedRequest:
+        package_name, provider_version = _get_provider_info()
+        request.headers["User-Agent"] = f"{package_name}-v{provider_version}"
         request.headers["Content-Type"] = "application/json"
         request.headers["Authorization"] = f"Token {self.token}"
 
