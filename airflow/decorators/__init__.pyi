@@ -22,6 +22,8 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TypeVar, Union, overload
 
+from mypy_extensions import KwArg
+
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -227,4 +229,4 @@ class TaskDecoratorCollection:
         # [END decorator_signature]
 
 DecoratedTaskType = Callable[[Function], TaskDecoratorCollection]
-task: Union[DecoratedTaskType, Callable[[..., Any], DecoratedTaskType]]
+task: Union[DecoratedTaskType, Callable[[..., KwArg()], DecoratedTaskType]]
