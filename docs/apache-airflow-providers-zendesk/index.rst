@@ -27,6 +27,7 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/zendesk/index>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/zendesk/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-zendesk/>
     Installing from sources <installing-providers-from-sources>
 
