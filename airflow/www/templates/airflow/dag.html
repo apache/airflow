@@ -139,7 +139,7 @@
           <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
-          <li><a href="{{ url_for('Airflow.audit_log', dag_id=dag.dag_id) }}">
+          <li><a href="{{ url_for('Airflow.audit_log', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">plagiarism</span>
             Audit Log</a></li>
         </ul>
