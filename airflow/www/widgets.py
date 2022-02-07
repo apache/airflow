@@ -73,7 +73,8 @@ class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
         kwargs['readonly'] = 'true'
         return super().__call__(field, **kwargs)
 
-class AirflowModelShowWidget(RenderTemplateWidget):
-    """Airflow model show widget"""
 
-    template = 'airflow/model_show.html'
+class AirflowVaribaleShowWidget(RenderTemplateWidget):
+    """Airflow variable show widget"""
+
+    template = 'airflow/variable_show.html'
