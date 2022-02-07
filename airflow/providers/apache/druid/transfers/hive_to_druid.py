@@ -66,6 +66,7 @@ class HiveToDruidOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql', 'intervals')
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'hql'}
 
     def __init__(
         self,

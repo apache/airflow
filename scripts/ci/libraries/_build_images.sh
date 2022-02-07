@@ -112,7 +112,7 @@ function build_images::encourage_rebuilding_on_modified_files() {
     set +u
     if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
         echo
-        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_MAJOR_MINOR_VERSION} image might be outdated${COLOR_RESET}"
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_MAJOR_MINOR_VERSION} might be outdated${COLOR_RESET}"
         echo
         echo "${COLOR_BLUE}Please run this command at earliest convenience: ${COLOR_RESET}"
         echo
@@ -722,6 +722,35 @@ function build_images::cleanup_docker_context_files() {
     mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
     rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
 }
+
+# PRe-commit version of confirming the ci image that is used in pre-commits
+# it displays additional information - what the user should do in order to bring the local images
+# back to state that pre-commit will be happy with
+function build_images::rebuild_ci_image_if_confirmed_for_pre_commit() {
+    local needs_docker_build="false"
+    export THE_IMAGE_TYPE="CI"
+
+    md5sum::check_if_docker_build_is_needed
+
+    if [[ ${needs_docker_build} == "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is needed!"
+        verbosity::print_info
+    else
+        verbosity::print_info
+        verbosity::print_info "Docker image pull and build is not needed!"
+        verbosity::print_info
+    fi
+
+    if [[ "${needs_docker_build}" == "true" ]]; then
+        SKIP_REBUILD="false"
+        build_images::confirm_image_rebuild
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            build_images::rebuild_ci_image_if_needed
+        fi
+    fi
+}
+
 
 function build_images::build_prod_images_from_locally_built_airflow_packages() {
     # We do not install from PyPI

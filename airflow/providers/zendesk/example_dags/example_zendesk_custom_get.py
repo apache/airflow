@@ -15,22 +15,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-AIRFLOW_SOURCES=$(pwd)
-export AIRFLOW_SOURCES
-readonly AIRFLOW_SOURCES
+from datetime import datetime
+from typing import Dict, List
 
-export DOCKER_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/docker.sh
-export KUBECTL_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kubectl.sh
-export KIND_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kind.sh
-export HELM_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/helm.sh
-export SKIP_IN_CONTAINER_CHECK="true"
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "scripts/ci/libraries/_all_libs.sh"
 
-initialization::create_directories
+def zendesk_custom_get_request() -> List[Dict]:
+    hook = ZendeskHook()
+    response = hook.get(
+        url="https://yourdomain.zendesk.com/api/v2/organizations.json",
+    )
+    return [org.to_dict() for org in response]
 
-initialization::initialize_common_environment
 
-# shellcheck disable=SC1091
-source "/opt/bats/lib/load.bash"
+with DAG(
+    dag_id="zendesk_custom_get_dag",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
+    fetch_organizations = PythonOperator(
+        task_id="trigger_zendesk_hook",
+        python_callable=zendesk_custom_get_request,
+    )

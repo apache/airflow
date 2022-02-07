@@ -84,7 +84,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
         args:
           - --comment-style
           - "|#|"
@@ -535,21 +535,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.7.2 -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-      - id: bats-tests
-        name: Run BATS bash tests for changed Breeze bash files
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/
-        files: ^breeze$|^breeze-complete$|^tests/bats/breeze
-        pass_filenames: false
-      - id: bats-tests
-        name: Run BATS bash tests for changed bash files
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh
-        files: \.sh$|\.bash$|\.bats$
-        exclude: ^tests/bats/in_container|^scripts/in_container|^tests/bats/breeze|^airflow/_vendor/
-        pass_filenames: true
-        require_serial: true
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
       - id: stylelint
         name: stylelint
         entry: "stylelint"
@@ -733,18 +719,6 @@ repos:
         pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7
-        language: system
-        always_run: true
-        pass_filenames: false
-      - id: bats-in-container-tests
-        name: Run in container bats tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
-        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
-        pass_filenames: false
       - id: mypy
         name: Run mypy
         language: system

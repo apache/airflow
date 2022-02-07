@@ -303,20 +303,23 @@ class TaskInstanceKey(NamedTuple):
     task_id: str
     run_id: str
     try_number: int = 1
+    map_index: int = -1
 
     @property
-    def primary(self) -> Tuple[str, str, str]:
+    def primary(self) -> Tuple[str, str, str, int]:
         """Return task instance primary key part of the key"""
-        return self.dag_id, self.task_id, self.run_id
+        return self.dag_id, self.task_id, self.run_id, self.map_index
 
     @property
     def reduced(self) -> 'TaskInstanceKey':
         """Remake the key by subtracting 1 from try number to match in memory information"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1))
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
+        )
 
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
         """Returns TaskInstanceKey with provided ``try_number``"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
 
     @property
     def key(self) -> "TaskInstanceKey":
@@ -795,8 +798,6 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-        self.log.debug("Refreshed TaskInstance %s", self)
-
     def refresh_from_task(self, task: "BaseOperator", pool_override=None):
         """
         Copy common attributes from the given task.
@@ -829,12 +830,11 @@ class TaskInstance(Base, LoggingMixin):
             execution_date=self.execution_date,
             session=session,
         )
-        self.log.debug("XCom data cleared")
 
     @property
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @provide_session
     def set_state(self, state: Optional[str], session=NEW_SESSION):
@@ -1068,7 +1068,10 @@ class TaskInstance(Base, LoggingMixin):
                     yield dep_status
 
     def __repr__(self):
-        return f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} [{self.state}]>"
+        prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
+        if self.map_index != -1:
+            prefix += f"map_index={self.map_index} "
+        return prefix + f"[{self.state}]>"
 
     def next_retry_datetime(self):
         """
@@ -1312,6 +1315,11 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
+        if self.task.is_mapped:
+            raise RuntimeError(
+                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
+                'expanded already!'
+            )
         self.test_mode = test_mode
         self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
@@ -1422,12 +1430,16 @@ class TaskInstance(Base, LoggingMixin):
 
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-            self.log.info(
-                "Exporting the following env vars:\n%s",
-                '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
-            )
-
             os.environ.update(airflow_context_vars)
+
+            # Log context only for the default execution method, the assumption
+            # being that otherwise we're resuming a deferred task (in which
+            # case there's no need to log these again).
+            if not self.next_method:
+                self.log.info(
+                    "Exporting the following env vars:\n%s",
+                    '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+                )
 
             # Run pre_execute callback
             self.task.pre_execute(context=context)
@@ -1715,6 +1727,8 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db(session)
 
         task = self.task
+        if task.is_mapped:
+            task = task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
@@ -2248,19 +2262,29 @@ class TaskInstance(Base, LoggingMixin):
 
         dag_id = first.dag_id
         run_id = first.run_id
+        map_index = first.map_index
         first_task_id = first.task_id
         # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
-        # and task_id -- this can be over 150x for huge numbers of TIs (20k+)
-        if all(t.dag_id == dag_id and t.run_id == run_id for t in tis):
+        # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
+        if all(t.dag_id == dag_id and t.run_id == run_id and t.map_index == map_index for t in tis):
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
+                TaskInstance.map_index == map_index,
                 TaskInstance.task_id.in_(t.task_id for t in tis),
             )
-        if all(t.dag_id == dag_id and t.task_id == first_task_id for t in tis):
+        if all(t.dag_id == dag_id and t.task_id == first_task_id and t.map_index == map_index for t in tis):
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id.in_(t.run_id for t in tis),
+                TaskInstance.map_index == map_index,
+                TaskInstance.task_id == first_task_id,
+            )
+        if all(t.dag_id == dag_id and t.run_id == run_id and t.task_id == first_task_id for t in tis):
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index.in_(t.map_index for t in tis),
                 TaskInstance.task_id == first_task_id,
             )
 
@@ -2270,13 +2294,14 @@ class TaskInstance(Base, LoggingMixin):
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.task_id == ti.task_id,
                     TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
                 )
                 for ti in tis
             )
         else:
-            return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id).in_(
-                [ti.key.primary for ti in tis]
-            )
+            return tuple_(
+                TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index
+            ).in_([ti.key.primary for ti in tis])
 
 
 # State of the task instance.

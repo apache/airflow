@@ -268,3 +268,31 @@ class TestAirflowCommon:
         }
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
+
+    def test_priority_class_name(self):
+        docs = render_chart(
+            values={
+                "flower": {"priorityClassName": "low-priority-flower"},
+                "pgbouncer": {"priorityClassName": "low-priority-pgbouncer"},
+                "scheduler": {"priorityClassName": "low-priority-scheduler"},
+                "statsd": {"priorityClassName": "low-priority-statsd"},
+                "triggerer": {"priorityClassName": "low-priority-triggerer"},
+                "webserver": {"priorityClassName": "low-priority-webserver"},
+                "workers": {"priorityClassName": "low-priority-worker"},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            component = doc['metadata']['labels']['component']
+            priority = doc['spec']['template']['spec']['priorityClassName']
+
+            assert priority == f"low-priority-{component}"
