@@ -404,7 +404,12 @@ class CeleryExecutor(BaseExecutor):
         session_ = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session_):
-            celery_task_ids = [t.task_id for t in session_.query(task_cls.task_id).all()]
+            celery_task_ids = [
+                t.task_id
+                for t in session_.query(task_cls.task_id)
+                .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
+                .all()
+            ]
         self.log.debug("Checking for stuck queued tasks")
 
         max_allowed_time = utcnow() - self.task_adoption_timeout

@@ -86,6 +86,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#a0e08c'
 
     def __init__(

@@ -34,6 +34,7 @@ BackfillJobTest
 Backfills
 Banco
 BaseClient
+BaseObject
 BaseOperator
 BaseView
 BaseXCom
@@ -202,6 +203,7 @@ Jira
 JobComplete
 JobExists
 JobRunning
+JobStatus
 JobTrigger
 Json
 Jupyter
@@ -328,6 +330,7 @@ SSHTunnelForwarder
 SaaS
 Sagemaker
 Sasl
+SearchResultGenerator
 SecretManagerClient
 Seedlist
 Sendgrid
@@ -382,6 +385,7 @@ Terraform
 TextToSpeechClient
 Tez
 Thinknear
+TicketAudit
 ToC
 Tooltip
 Tunables
@@ -420,6 +424,7 @@ Yandex
 Yieldr
 Zego
 Zendesk
+Zenpy
 Zsh
 Zymergen
 abc
@@ -456,6 +461,7 @@ apikey
 apis
 appbuilder
 approle
+aren
 arg
 args
 argv
@@ -1117,6 +1123,7 @@ pooler
 postMessage
 postfix
 postgres
+postgresql
 powershell
 pql
 pre
@@ -1264,6 +1271,7 @@ sharded
 shellcheck
 shellcmd
 shm
+shouldn
 sie
 sigv
 skipable
@@ -1402,6 +1410,7 @@ triggerers
 trino
 trojan
 truthy
+tsql
 tsv
 ttl
 tunables
@@ -1498,5 +1507,6 @@ youtrack
 youtube
 zA
 zendesk
+zenpy
 zope
 zsh

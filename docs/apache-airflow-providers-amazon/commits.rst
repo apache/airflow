@@ -28,6 +28,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-02-04
+
+================================================================================================  ===========  ============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================================
+`39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`ddb5246bd <https://github.com/apache/airflow/commit/ddb5246bd1576e2ce6abf8c80c3328d7d71a75ce>`_  2022-02-03   ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+`5185d6ab2 <https://github.com/apache/airflow/commit/5185d6ab26113b760fcf14b3dc4863b341b361d8>`_  2022-01-29   ``Alleviate import warning for 'EmrClusterLink' in deprecated AWS module (#21195)``
+`7ae156fd2 <https://github.com/apache/airflow/commit/7ae156fd29b446332939eb142b68ecd80ee8b999>`_  2022-01-29   ``[SQSSensor] Add opt-in to disable auto-delete messages (#21159)``
+`ff4939f23 <https://github.com/apache/airflow/commit/ff4939f23ca11e77705fb0a54fe9d3b37375ec05>`_  2022-01-25   ``Remove ':type' directives from 'SqlToS3Operator' (#21079)``
+`bad070f7f <https://github.com/apache/airflow/commit/bad070f7f484a9b4065a0d86195a1e8002d9bfef>`_  2022-01-24   ``Create a generic operator SqlToS3Operator and deprecate the MySqlToS3Operator.  (#20807)``
+`c5ffe0c2d <https://github.com/apache/airflow/commit/c5ffe0c2dac14b940b600acaccda3b387ca14a28>`_  2022-01-23   ``fix: cloudwatch logs fetch logic (#20814)``
+`27b77d37a <https://github.com/apache/airflow/commit/27b77d37a9b2e63e95a123c31085e580fc82b16c>`_  2022-01-21   ``Fix all Amazon Provider MyPy errors (#20935)``
+`73c0d241d <https://github.com/apache/airflow/commit/73c0d241d804507abc651a365f93d60c543349d5>`_  2022-01-21   ``Remove a few stray ':type's in docs (#21014)``
+`a59a2be57 <https://github.com/apache/airflow/commit/a59a2be5710876137551658add2e0f76eff3c456>`_  2022-01-21   ``Move some base_aws logging from info to debug level (#20858)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`34efb42eb <https://github.com/apache/airflow/commit/34efb42ebebc462b5b5eb98c70979db440e20cf2>`_  2022-01-20   ``Rename params to cloudformation_parameter in CloudFormation operators. (#20989)``
+`730db3fb7 <https://github.com/apache/airflow/commit/730db3fb774f60127ab1c865e19031f1f9c193f7>`_  2022-01-18   ``Remove all "fake" stub files (#20936)``
+`307d35651 <https://github.com/apache/airflow/commit/307d35651998901b064b02a0748b1c6f96ae3ac0>`_  2022-01-14   ``AWS: Adds support for optional kwargs in the EKS Operators (#20819)``
+`b15027410 <https://github.com/apache/airflow/commit/b15027410b4a985c15b1d7b2b2a0eedf2173f416>`_  2022-01-14   ``Fix MyPy issues in AWS Sensors (#20863)``
+`ce06e6b91 <https://github.com/apache/airflow/commit/ce06e6b917b4af9d5c16cac3646daa340798045b>`_  2022-01-13   ``AwsAthenaOperator: do not generate ''client_request_token'' if not provided (#20854)``
+`f8fd0f7b4 <https://github.com/apache/airflow/commit/f8fd0f7b4ca6cb52307be4323028bf4e409566e7>`_  2022-01-13   ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+`341b461e4 <https://github.com/apache/airflow/commit/341b461e4fbd9ae5961ef9448c8f08e1686ee5e4>`_  2022-01-09   ``Fix mypy in providers/aws/hooks (#20353)``
+`677658690 <https://github.com/apache/airflow/commit/6776586904ab2a15727dcfc1c8d03c7a32a78444>`_  2022-01-09   ``Standardize AWS SQS classes names (#20732)``
+`88e3f2ae5 <https://github.com/apache/airflow/commit/88e3f2ae5e5101928858099f9d4e7fb6542c4110>`_  2022-01-08   ``Rename amazon EMR hook name (#20767)``
+`0ebd55e0f <https://github.com/apache/airflow/commit/0ebd55e0f8fc7eb26a2b35b779106201ffe88f55>`_  2022-01-06   ``Standardize AWS Batch naming (#20369)``
+`88ea15750 <https://github.com/apache/airflow/commit/88ea1575079c0e94e1f62df38d6d592b8c827bbd>`_  2022-01-06   ``Standardize AWS Redshift naming (#20374)``
+`51dc4fd80 <https://github.com/apache/airflow/commit/51dc4fd80842d1f013d4f0572cdcaa6d40c30674>`_  2022-01-06   ``Fix MyPy issues in AWS Sensors (#20717)``
+`dd12cfcfe <https://github.com/apache/airflow/commit/dd12cfcfe9034b8c11fe9e2c3e504bae2036bade>`_  2022-01-06   ``Fix MyPy in Amazon provider for Sagemaker operator (#20715)``
+`cf5c31137 <https://github.com/apache/airflow/commit/cf5c31137d43103628499a3f3690e2a716cc34b0>`_  2022-01-06   ``Fix MyPy errors for Amazon DMS in hooks and operator (#20710)``
+`6af2137ef <https://github.com/apache/airflow/commit/6af2137ef093f39069c5f148daaf5a85c4b4b891>`_  2022-01-06   ``Fix MyPy issues in ''airflow/providers/amazon/aws/transfers'' (#20708)``
+`1fc0fa5ea <https://github.com/apache/airflow/commit/1fc0fa5ea96913faf78a5bf5d5f75f1d2fb91e97>`_  2022-01-06   ``Standardize DynamoDB naming (#20360)``
+`9c0ba1b6a <https://github.com/apache/airflow/commit/9c0ba1b6abc593bad6fe51ed52d9c0963cd09b7c>`_  2022-01-04   ``Standardize AWS ECS naming (#20332)``
+================================================================================================  ===========  ============================================================================================
+
 2.6.0
 .....
 
@@ -36,6 +74,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  ==========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==========================================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
 `746ee587d <https://github.com/apache/airflow/commit/746ee587da485acdc816129fe71df23e4f024e0b>`_  2021-12-31   ``Delete pods by default in KubernetesPodOperator (#20575)``

@@ -193,7 +193,7 @@ with models.DAG(
         task_id="update_table",
         dataset_id=DATASET_NAME,
         table_id="test_table",
-        fields=["emp_name", "salary"],
+        fields=["friendlyName", "description"],
         table_resource={
             "friendlyName": "Updated Table",
             "description": "Updated Table",
