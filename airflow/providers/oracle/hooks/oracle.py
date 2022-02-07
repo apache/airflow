@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -23,7 +24,6 @@ import cx_Oracle
 import numpy
 
 from airflow.hooks.dbapi import DbApiHook
-import warnings
 
 PARAM_TYPES = {bool, float, int, str}
 
