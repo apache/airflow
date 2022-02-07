@@ -105,9 +105,10 @@ the meta-data file in your DAG easily. The location of the file to read can be f
     # Configuration dict is available here
 
 
-Dynamic DAGs with loops
+Dynamic DAGs with ``globals()``
 .......................
-You can dynamically generate DAGs with loops. It's handly, if you need to start several parallel processes that differs only in configuration.
+You can dynamically generate DAGs by working with ``globals()``.
+As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
 
 .. code-block:: python
 
@@ -136,7 +137,8 @@ You can dynamically generate DAGs with loops. It's handly, if you need to start 
 
         globals()[dag_id] = dynamic_generated_dag()
 
-The code below will generate a DAG for each config: ``dynamic_generated_dag_config1`` and ``dynamic_generated_dag_config2``. Each of them can run separately with related configuration
+The code below will generate a DAG for each config: ``dynamic_generated_dag_config1`` and ``dynamic_generated_dag_config2``.
+Each of them can run separately with related configuration
 
 .. warning::
-  Using this practice, pay attention to "late binding" behaviour in Python. See `that GitHub disscusion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
+  Using this practice, pay attention to "late binding" behaviour in Python loops. See `that GitHub disscusion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
