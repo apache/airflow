@@ -1342,7 +1342,7 @@
       version_added: 2.3.0
       type: string
       example: ~
-      default: "gantt,landing_times,tries,duration,calendar,graph,tree"
+      default: "gantt,landing_times,tries,duration,calendar,graph,tree,tree_data"
     - name: audit_view_included_events
       description: |
         Comma separated string of view events to include in dag audit view.
