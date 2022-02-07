@@ -370,8 +370,9 @@
       default: "30"
     - name: compress_serialized_dags
       description: |
-        If True, serialized DAGs are compressed before writing to DB
-      version_added: ~
+        If True, serialized DAGs are compressed before writing to DB.
+        Note: this will disable the DAG dependencies view
+      version_added: 2.3.0
       type: string
       example: ~
       default: "False"

@@ -35,12 +35,12 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('serialized_dag', sa.Column('data_compressed', sa.LargeBinary, nullable=True))
     with op.batch_alter_table('serialized_dag') as batch_op:
         batch_op.alter_column('data', existing_type=sa.JSON, nullable=True)
+        batch_op.add_column(sa.Column('data_compressed', sa.LargeBinary, nullable=True))
 
 
 def downgrade():
     with op.batch_alter_table('serialized_dag') as batch_op:
         batch_op.alter_column('data', existing_type=sa.JSON, nullable=False)
-    op.drop_column('serialized_dag', 'data_compressed')
+        batch_op.drop_column('data_compressed')

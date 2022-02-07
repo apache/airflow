@@ -85,8 +85,8 @@ Add the following settings in ``airflow.cfg``:
     load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
 *   ``max_num_rendered_ti_fields_per_task``: This option controls the maximum number of Rendered Task Instance
     Fields (Template Fields) per task to store in the Database.
-*   ``compress_serialized_dags``: This option controls whether compressing the dag data to the Database. It is
-    useful when there are very large DAGs in your cluster.
+*   ``compress_serialized_dags``: This option controls whether to compress the Serialized DAG to the Database.
+    It is useful when there are very large DAGs in your cluster. When ``True``, this will disable the DAG dependencies view.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
 
