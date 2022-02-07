@@ -113,7 +113,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         "DataTransferServiceClient.get_transfer_run"
     )
     def test_get_transfer_run(self, service_mock):
-        self.hook.get_transfer_run(transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)
+        self.hook.get_transfer_run(run_id=RUN_ID, transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)
 
         name = f"projects/{PROJECT_ID}/transferConfigs/{TRANSFER_CONFIG_ID}/runs/{RUN_ID}"
         service_mock.assert_called_once_with(request=dict(name=name), metadata=(), retry=None, timeout=None)
