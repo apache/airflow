@@ -34,6 +34,7 @@ BackfillJobTest
 Backfills
 Banco
 BaseClient
+BaseObject
 BaseOperator
 BaseView
 BaseXCom
@@ -202,6 +203,7 @@ Jira
 JobComplete
 JobExists
 JobRunning
+JobStatus
 JobTrigger
 Json
 Jupyter
@@ -328,6 +330,7 @@ SSHTunnelForwarder
 SaaS
 Sagemaker
 Sasl
+SearchResultGenerator
 SecretManagerClient
 Seedlist
 Sendgrid
@@ -382,6 +385,7 @@ Terraform
 TextToSpeechClient
 Tez
 Thinknear
+TicketAudit
 ToC
 Tooltip
 Tunables
@@ -420,6 +424,7 @@ Yandex
 Yieldr
 Zego
 Zendesk
+Zenpy
 Zsh
 Zymergen
 abc
@@ -1502,5 +1507,6 @@ youtrack
 youtube
 zA
 zendesk
+zenpy
 zope
 zsh

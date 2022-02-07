@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add "use_ssl" option to IMAP connection (#20441)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixing MyPy issue inside providers IMAP hooks (#20968)``
+   * ``Fix mypy in providers/grpc and providers/imap (#20651)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
 2.1.0
 .....
 

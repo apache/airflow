@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.zendesk.hooks.zendesk`."""
 
-import warnings
+from datetime import datetime
+from typing import Dict, List
 
-from airflow.providers.zendesk.hooks.zendesk import ZendeskHook  # noqa
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.zendesk.hooks.zendesk`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+
+def zendesk_custom_get_request() -> List[Dict]:
+    hook = ZendeskHook()
+    response = hook.get(
+        url="https://yourdomain.zendesk.com/api/v2/organizations.json",
+    )
+    return [org.to_dict() for org in response]
+
+
+with DAG(
+    dag_id="zendesk_custom_get_dag",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
+    fetch_organizations = PythonOperator(
+        task_id="trigger_zendesk_hook",
+        python_callable=zendesk_custom_get_request,
+    )
