@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add optional features in providers. (#21074)``
+
+Misc
+~~~~
+
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Remove all "fake" stub files (#20936)``
+   * ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+
 3.5.0
 .....
 

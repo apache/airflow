@@ -19,6 +19,21 @@
 Changelog
 ---------
 
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add missed deprecations for cncf (#20031)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Make ''delete_pod'' change more prominent in K8s changelog (#20753)``
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Add optional features in providers. (#21074)``
+
 3.0.1
 .....
 

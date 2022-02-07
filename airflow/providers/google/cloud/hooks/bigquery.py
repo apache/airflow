@@ -51,6 +51,7 @@ from pandas_gbq.gbq import (
     _check_google_client_version as gbq_check_google_client_version,
     _test_google_api_imports as gbq_test_google_api_imports,
 )
+from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
@@ -114,6 +115,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = None  # type: Optional[str]
         self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
         self.labels = labels
+        self.credentials_path = "bigquery_hook_credentials.json"
 
     def get_conn(self) -> "BigQueryConnection":
         """Returns a BigQuery PEP 249 connection object."""
@@ -149,6 +151,41 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             location=location,
             credentials=self._get_credentials(),
         )
+
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        return f"bigquery://{self.project_id}"
+
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        connection = self.get_connection(self.gcp_conn_id)
+        if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
+            credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
+            return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
+        elif connection.extra_dejson.get("extra__google_cloud_platform__keyfile_dict"):
+            credential_file_content = json.loads(
+                connection.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
+            )
+            return create_engine(self.get_uri(), credentials_info=credential_file_content, **engine_kwargs)
+        try:
+            # 1. If the environment variable GOOGLE_APPLICATION_CREDENTIALS is set
+            # ADC uses the service account key or configuration file that the variable points to.
+            # 2. If the environment variable GOOGLE_APPLICATION_CREDENTIALS isn't set
+            # ADC uses the service account that is attached to the resource that is running your code.
+            return create_engine(self.get_uri(), **engine_kwargs)
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(
+                "For now, we only support instantiating SQLAlchemy engine by"
+                " using ADC"
+                ", extra__google_cloud_platform__key_path"
+                "and extra__google_cloud_platform__keyfile_dict"
+            )
 
     @staticmethod
     def _resolve_table_reference(
