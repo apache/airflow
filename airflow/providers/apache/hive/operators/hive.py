@@ -69,6 +69,7 @@ class HiveOperator(BaseOperator):
         '.hql',
         '.sql',
     )
+    template_fields_renderers = {'sql': 'hql'}
     ui_color = '#f0e4ec'
 
     def __init__(

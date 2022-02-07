@@ -25,6 +25,7 @@ from typing import Optional
 from unittest import mock
 
 import paramiko
+import pytest
 from parameterized import parameterized
 
 from airflow import settings
@@ -739,6 +740,19 @@ class TestSSHHook(unittest.TestCase):
             session.delete(conn)
             session.commit()
 
-
-if __name__ == '__main__':
-    unittest.main()
+    @pytest.mark.flaky(max_runs=5, min_passes=1)
+    def test_exec_ssh_client_command(self):
+        hook = SSHHook(
+            ssh_conn_id='ssh_default',
+            conn_timeout=30,
+            banner_timeout=100,
+        )
+        with hook.get_conn() as client:
+            ret = hook.exec_ssh_client_command(
+                client,
+                'echo airflow',
+                False,
+                None,
+                30,
+            )
+            assert ret == (0, b'airflow\n', b'')

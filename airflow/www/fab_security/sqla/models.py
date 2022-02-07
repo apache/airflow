@@ -125,7 +125,7 @@ class Role(Model):
 
     id = Column(Integer, get_sequence_or_identity("ab_role_id_seq"), primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role")
+    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role", lazy="joined")
 
     def __repr__(self):
         return self.name
@@ -138,9 +138,21 @@ class Permission(Model):
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
     id = Column(Integer, get_sequence_or_identity("ab_permission_view_id_seq"), primary_key=True)
     action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
-    action = relationship("Action", primaryjoin=action_id == foreign(Action.id), uselist=False)
+    action = relationship(
+        "Action",
+        primaryjoin=action_id == foreign(Action.id),
+        uselist=False,
+        backref="permission",
+        lazy="joined",
+    )
     resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
-    resource = relationship("Resource", primaryjoin=resource_id == foreign(Resource.id), uselist=False)
+    resource = relationship(
+        "Resource",
+        primaryjoin=resource_id == foreign(Resource.id),
+        uselist=False,
+        backref="permission",
+        lazy="joined",
+    )
 
     def __repr__(self):
         return str(self.action).replace("_", " ") + " on " + str(self.resource)
@@ -170,7 +182,7 @@ class User(Model):
     last_login = Column(DateTime)
     login_count = Column(Integer)
     fail_login_count = Column(Integer)
-    roles = relationship("Role", secondary=assoc_user_role, backref="user")
+    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="joined")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
 
@@ -215,6 +227,13 @@ class User(Model):
     @property
     def is_anonymous(self):
         return False
+
+    @property
+    def perms(self):
+        perms = set()
+        for role in self.roles:
+            perms.update((perm.action.name, perm.resource.name) for perm in role.permissions)
+        return perms
 
     def get_id(self):
         return self.id

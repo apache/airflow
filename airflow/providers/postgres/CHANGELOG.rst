@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+3.0.0
+-----
+
+The URIs returned by Postgres get_uri() returns ``postgresql://`` instead
+of ``postgres://`` prefix which is the only supported prefix for the
+SQLAlchemy 1.4.0+. Any usage of get_uri() where ``postgres://`` prefix
+should be updated to reflect it.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Replaces the usage of postgres:// with postgresql:// (#21205)``
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Fix mypy errors in postgres/hooks and postgres/operators (#20600)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix mypy providers (#20190)``
+
+.. Review and move the new changes to one of the sections above:
+
 2.4.0
 .....
 

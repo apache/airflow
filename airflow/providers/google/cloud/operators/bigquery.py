@@ -550,6 +550,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = BigQueryUIColors.QUERY.value
 
     @property
@@ -1079,6 +1080,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             self.table_resource = None
         else:
             self.table_resource = table_resource
+            self.bucket = ""
+            self.source_objects = []
+            self.schema_object = None
+            self.destination_project_dataset_table = ""
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
