@@ -32,7 +32,7 @@ from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from urllib.parse import parse_qsl, unquote, urlencode, urlparse
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse, quote
 
 import lazy_object_proxy
 import markupsafe
@@ -1349,7 +1349,7 @@ class Airflow(AirflowBaseView):
                 return jsonify(message=message, metadata=metadata)
 
             metadata['download_logs'] = True
-            attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
+            attachment_filename = quote(task_log_reader.render_log_filename(ti, try_number, session=session))
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,
