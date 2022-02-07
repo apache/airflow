@@ -323,7 +323,7 @@ class GCSToGCSOperator(BaseOperator):
                     f'{prefix} does not exist in bucket {self.source_bucket}'
                 )
                 self.log.warning(msg)
-                if self.source_objects_required:
+                if self.source_object_required:
                     raise AirflowException(msg)
 
         for source_obj in objects:
