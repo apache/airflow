@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import List
 from unittest import mock
 
 from google.api_core.retry import Retry
@@ -107,8 +108,8 @@ TEST_UPDATE_MASK = "test-update-mask"
 TEST_TRAINING_TARGET_COLUMN = "target"
 TEST_TRAINING_TIME_COLUMN = "time"
 TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN = "time_series_identifier"
-TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS = []
-TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS = []
+TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS: List[str] = []
+TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS: List[str] = []
 TEST_TRAINING_FORECAST_HORIZON = 10
 TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
 TEST_TRAINING_DATA_GRANULARITY_COUNT = 1

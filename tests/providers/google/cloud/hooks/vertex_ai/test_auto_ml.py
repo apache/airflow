@@ -56,7 +56,7 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -76,7 +76,7 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -99,7 +99,7 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
                 filter=None,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -125,7 +125,7 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -145,7 +145,7 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -168,7 +168,7 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
                 filter=None,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
