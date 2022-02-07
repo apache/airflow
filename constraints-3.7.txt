@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-07T10:18:13Z
+# This constraints file was automatically generated on 2022-02-07T19:00:48Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -280,7 +280,7 @@ google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
 google-cloud-workflows==1.5.0
 google-crc32c==1.3.0
-google-resumable-media==2.1.0
+google-resumable-media==2.2.0
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
@@ -396,7 +396,7 @@ pre-commit==2.17.0
 presto-python-client==0.7.0
 prison==0.2.1
 prometheus-client==0.13.1
-prompt-toolkit==3.0.26
+prompt-toolkit==3.0.27
 proto-plus==1.18.1
 protobuf==3.19.4
 psutil==5.9.0
@@ -430,7 +430,7 @@ pyrsistent==0.16.1
 pysftp==0.2.9
 pyspark==3.2.1
 pyspnego==0.3.1
-pytest-asyncio==0.17.0
+pytest-asyncio==0.18.0
 pytest-cov==3.0.0
 pytest-forked==1.4.0
 pytest-httpx==0.20.0
@@ -457,7 +457,7 @@ pyzmq==22.3.0
 qds-sdk==1.16.1
 readme-renderer==32.0
 redis==3.5.3
-redshift-connector==2.0.903
+redshift-connector==2.0.904
 requests-file==1.5.1
 requests-kerberos==0.14.0
 requests-mock==1.9.3
