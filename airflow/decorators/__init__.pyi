@@ -20,9 +20,7 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TypeVar, Union, overload
-
-from mypy_extensions import KwArg
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Protocol, TypeVar, Union, overload
 
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.python import python_task
@@ -229,4 +227,8 @@ class TaskDecoratorCollection:
         # [END decorator_signature]
 
 DecoratedTaskType = Callable[[Function], TaskDecoratorCollection]
-task: Union[DecoratedTaskType, Callable[[..., KwArg()], DecoratedTaskType]]
+
+class DecoratorFuncType(Protocol):
+    def __call__(self, *args, **kwargs) -> DecoratedTaskType: ...
+
+task: Union[DecoratedTaskType, DecoratorFuncType]
