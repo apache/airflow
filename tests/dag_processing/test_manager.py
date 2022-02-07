@@ -453,6 +453,48 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
             )
 
+    def test_deactivate_stale_dags(self):
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        test_dag_path = str(TEST_DAG_FOLDER / 'test_example_bash_operator.py')
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
+
+        with create_session() as session:
+            # Add stale DAG to the DB
+            dag = dagbag.get_dag('test_example_bash_operator')
+            dag.last_parsed_time = timezone.utcnow() - timedelta(hours=4)
+            dag.sync_to_db()
+
+            # Add DAG to the file_parsing_stats
+            stat = DagFileStat(
+                num_dags=1,
+                import_errors=0,
+                last_finish_time=timezone.utcnow(),
+                last_duration=1,
+                run_count=1,
+            )
+            manager._file_stats[test_dag_path] = stat
+
+            active_dags = (
+                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            )
+            assert len(active_dags) == 1
+
+            manager._deactivate_stale_dags()
+            active_dags = (
+                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            )
+
+            assert len(active_dags) == 0
+
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.kill")
     def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid):
