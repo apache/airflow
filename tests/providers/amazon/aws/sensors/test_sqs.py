@@ -26,8 +26,8 @@ from moto import mock_sqs
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook
-from airflow.providers.amazon.aws.sensors.sqs import SQSSensor
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
+from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -36,17 +36,17 @@ QUEUE_NAME = 'test-queue'
 QUEUE_URL = f'https://{QUEUE_NAME}'
 
 
-class TestSQSSensor(unittest.TestCase):
+class TestSqsSensor(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
-        self.sensor = SQSSensor(
+        self.sensor = SqsSensor(
             task_id='test_task', dag=self.dag, sqs_queue=QUEUE_URL, aws_conn_id='aws_default'
         )
 
         self.mock_context = mock.MagicMock()
-        self.sqs_hook = SQSHook()
+        self.sqs_hook = SqsHook()
 
     @mock_sqs
     def test_poke_success(self):
@@ -71,7 +71,7 @@ class TestSQSSensor(unittest.TestCase):
 
         assert self.mock_context['ti'].method_calls == context_calls, "context call  should be same"
 
-    @mock.patch.object(SQSHook, 'get_conn')
+    @mock.patch.object(SqsHook, 'get_conn')
     def test_poke_delete_raise_airflow_exception(self, mock_conn):
         message = {
             'Messages': [
@@ -104,7 +104,7 @@ class TestSQSSensor(unittest.TestCase):
 
         assert 'Delete SQS Messages failed' in ctx.value.args[0]
 
-    @mock.patch.object(SQSHook, 'get_conn')
+    @mock.patch.object(SqsHook, 'get_conn')
     def test_poke_receive_raise_exception(self, mock_conn):
         mock_conn.return_value.receive_message.side_effect = Exception('test exception')
         with pytest.raises(Exception) as ctx:
@@ -112,7 +112,7 @@ class TestSQSSensor(unittest.TestCase):
 
         assert 'test exception' in ctx.value.args[0]
 
-    @mock.patch.object(SQSHook, 'get_conn')
+    @mock.patch.object(SqsHook, 'get_conn')
     def test_poke_visibility_timeout(self, mock_conn):
         # Check without visibility_timeout parameter
         self.sqs_hook.create_queue(QUEUE_NAME)
@@ -125,7 +125,7 @@ class TestSQSSensor(unittest.TestCase):
         ]
         mock_conn.assert_has_calls(calls_receive_message)
         # Check with visibility_timeout parameter
-        self.sensor = SQSSensor(
+        self.sensor = SqsSensor(
             task_id='test_task2',
             dag=self.dag,
             sqs_queue=QUEUE_URL,
@@ -145,7 +145,7 @@ class TestSQSSensor(unittest.TestCase):
     def test_poke_message_invalid_filtering(self):
         self.sqs_hook.create_queue(QUEUE_NAME)
         self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body='hello')
-        sensor = SQSSensor(
+        sensor = SqsSensor(
             task_id='test_task2',
             dag=self.dag,
             sqs_queue=QUEUE_URL,
@@ -156,7 +156,7 @@ class TestSQSSensor(unittest.TestCase):
             sensor.poke(self.mock_context)
         assert 'Override this method to define custom filters' in ctx.value.args[0]
 
-    @mock.patch.object(SQSHook, "get_conn")
+    @mock.patch.object(SqsHook, "get_conn")
     def test_poke_message_filtering_literal_values(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [{"id": 11, "body": "a matching message"}]
@@ -195,7 +195,7 @@ class TestSQSSensor(unittest.TestCase):
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
-    @mock.patch.object(SQSHook, "get_conn")
+    @mock.patch.object(SqsHook, "get_conn")
     def test_poke_message_filtering_jsonpath(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [
@@ -241,7 +241,7 @@ class TestSQSSensor(unittest.TestCase):
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
-    @mock.patch.object(SQSHook, "get_conn")
+    @mock.patch.object(SqsHook, "get_conn")
     def test_poke_message_filtering_jsonpath_values(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [
@@ -288,3 +288,20 @@ class TestSQSSensor(unittest.TestCase):
             mock.call().delete_message_batch(QueueUrl='https://test-queue', Entries=delete_entries)
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @mock.patch.object(SqsHook, "get_conn")
+    def test_poke_do_not_delete_message_on_received(self, mock_conn):
+
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body='hello')
+
+        self.sensor = SqsSensor(
+            task_id='test_task2',
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id='aws_default',
+            # do not delete message upon reception
+            delete_message_on_reception=False,
+        )
+        self.sensor.poke(self.mock_context)
+        assert mock_conn.delete_message_batch.called is False

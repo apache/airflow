@@ -29,13 +29,10 @@ class GoogleDriveHook(GoogleBaseHook):
     Hook for the Google Drive APIs.
 
     :param api_version: API version used (for example v3).
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -44,7 +41,6 @@ class GoogleDriveHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     _conn = None  # type: Optional[Resource]
@@ -125,7 +121,6 @@ class GoogleDriveHook(GoogleBaseHook):
         Returns a get_media http request to a Google Drive object.
 
         :param file_id: The Google Drive file id
-        :type file_id: str
         :return: request
         :rtype: HttpRequest
         """
@@ -138,11 +133,8 @@ class GoogleDriveHook(GoogleBaseHook):
         Checks to see if a file exists within a Google Drive folder
 
         :param folder_id: The id of the Google Drive folder in which the file resides
-        :type folder_id: str
         :param file_name: The name of a file in Google Drive
-        :type file_name: str
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-        :type drive_id: str
         :return: True if the file exists, False otherwise
         :rtype: bool
         """
@@ -153,11 +145,8 @@ class GoogleDriveHook(GoogleBaseHook):
         Returns the file id of a Google Drive file
 
         :param folder_id: The id of the Google Drive folder in which the file resides
-        :type folder_id: str
         :param file_name: The name of a file in Google Drive
-        :type file_name: str
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-        :type drive_id: str
         :return: Google Drive file id if the file exists, otherwise None
         :rtype: str if file exists else None
         """
@@ -196,9 +185,7 @@ class GoogleDriveHook(GoogleBaseHook):
         Uploads a file that is available locally to a Google Drive service.
 
         :param local_location: The path where the file is available.
-        :type local_location: str
         :param remote_location: The path where the file will be send
-        :type remote_location: str
         :return: File ID
         :rtype: str
         """
@@ -213,7 +200,7 @@ class GoogleDriveHook(GoogleBaseHook):
         media = MediaFileUpload(local_location)
         file = (
             service.files()
-            .create(body=file_metadata, media_body=media, fields="id")
+            .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
             .execute(num_retries=self.num_retries)
         )
         self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
@@ -224,9 +211,7 @@ class GoogleDriveHook(GoogleBaseHook):
         Download a file from Google Drive.
 
         :param file_id: the id of the file
-        :type file_id: str
         :param file_handle: file handle used to write the content to
-        :type file_handle: io.TextIOWrapper
         """
         request = self.get_media_request(file_id=file_id)
         self.download_content_from_request(file_handle=file_handle, request=request, chunk_size=chunk_size)

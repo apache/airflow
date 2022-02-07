@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+* ``Add optional features in providers. (#21074)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
 2.0.3
 .....
 

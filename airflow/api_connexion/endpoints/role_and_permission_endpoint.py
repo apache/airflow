@@ -17,14 +17,14 @@
 
 from typing import List, Optional, Tuple
 
+from connexion import NoContent
 from flask import current_app, request
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
-from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
     RoleCollection,
@@ -68,11 +68,19 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
+    direction = desc if order_by.startswith("-") else asc
     to_replace = {"role_id": "id"}
+    order_param = order_by.strip("-")
+    order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = ["role_id", "name"]
+    if order_by not in allowed_filter_attrs:
+        raise BadRequest(
+            detail=f"Ordering with '{order_by}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
     query = session.query(Role)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    roles = query.offset(offset).limit(limit).all()
+    roles = query.order_by(direction(getattr(Role, order_param))).offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
@@ -147,7 +155,7 @@ def post_role() -> APIResponse:
     if not role:
         perms = [(item['action']['name'], item['resource']['name']) for item in data['permissions'] if item]
         _check_action_and_resource(security_manager, perms)
-        security_manager.init_role(role_name=data['name'], perms=perms)
+        security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)
     detail = f"Role with name {role.name!r} already exists; please update with the PATCH endpoint"
     raise AlreadyExists(detail=detail)

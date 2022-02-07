@@ -29,11 +29,8 @@ class RedisPublishOperator(BaseOperator):
     Publish a message to Redis.
 
     :param channel: redis channel to which the message is published (templated)
-    :type channel: str
     :param message: the message to publish (templated)
-    :type message: str
     :param redis_conn_id: redis connection to use
-    :type redis_conn_id: str
     """
 
     template_fields: Sequence[str] = ('channel', 'message')
@@ -50,7 +47,6 @@ class RedisPublishOperator(BaseOperator):
         Publish the message to Redis channel
 
         :param context: the context object
-        :type context: dict
         """
         redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
 

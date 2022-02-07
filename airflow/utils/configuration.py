@@ -31,11 +31,9 @@ def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
 
     :param include_env: Should the value of configuration from ``AIRFLOW__``
         environment variables be included or not
-    :type include_env: bool
     :param include_cmds: Should the result of calling any *_cmd config be
         set (True, default), or should the _cmd options be left as the
         command to run (False)
-    :type include_cmds: bool
     :return: a path to a temporary file
     """
     cfg_dict = conf.as_dict(

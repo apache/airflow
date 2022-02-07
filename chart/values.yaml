@@ -90,7 +90,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.3.0
+    tag: v3.4.0
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -514,6 +514,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
+  priorityClassName: ~
   affinity: {}
   # default worker affinity is:
   #  podAntiAffinity:
@@ -559,7 +560,7 @@ scheduler:
   # scheduler and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
   # Airflow 2.0 allows users to run multiple schedulers,
@@ -637,6 +638,8 @@ scheduler:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -866,6 +869,7 @@ webserver:
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
+  priorityClassName: ~
   affinity: {}
   # default webserver affinity is:
   #  podAntiAffinity:
@@ -901,7 +905,7 @@ triggerer:
   # triggerer and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
 
@@ -959,6 +963,8 @@ triggerer:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -1049,6 +1055,8 @@ flower:
   affinity: {}
   tolerations: []
 
+  priorityClassName: ~
+
   podAnnotations: {}
 
 # Statsd settings
@@ -1089,6 +1097,8 @@ statsd:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  priorityClassName: ~
 
   # Additional mappings for statsd exporter.
   extraMappings: []
@@ -1195,6 +1205,8 @@ pgbouncer:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  priorityClassName: ~
 
   uid: 65534
 

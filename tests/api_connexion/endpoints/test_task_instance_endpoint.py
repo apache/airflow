@@ -1116,6 +1116,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
+            dag_run_id=None,
             execution_date=DEFAULT_DATETIME_1,
             future=True,
             past=True,
@@ -1124,6 +1125,127 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             upstream=True,
             session=session,
         )
+
+    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    def test_should_assert_call_mocked_api_when_run_id(self, mock_set_task_instance_state, session):
+        self.create_task_instances(session)
+        run_id = "TEST_DAG_RUN_ID"
+        mock_set_task_instance_state.return_value = (
+            session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
+            .filter(TaskInstance.task_id == "print_the_context")
+            .all()
+        )
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "dag_run_id": run_id,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            'task_instances': [
+                {
+                    'dag_id': 'example_python_operator',
+                    'dag_run_id': 'TEST_DAG_RUN_ID',
+                    'execution_date': '2020-01-01T00:00:00+00:00',
+                    'task_id': 'print_the_context',
+                }
+            ]
+        }
+
+        mock_set_task_instance_state.assert_called_once_with(
+            commit=False,
+            downstream=True,
+            dag_run_id=run_id,
+            execution_date=None,
+            future=True,
+            past=True,
+            state='failed',
+            task_id='print_the_context',
+            upstream=True,
+            session=session,
+        )
+
+    @pytest.mark.parametrize(
+        "error, code, payload",
+        [
+            [
+                "{'_schema': ['Exactly one of execution_date or dag_run_id must be provided']}",
+                400,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+            [
+                "Task instance not found for task 'print_the_context' on execution_date "
+                "2021-01-01 00:00:00+00:00",
+                404,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "execution_date": '2021-01-01T00:00:00+00:00',
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+            [
+                "Task instance not found for task 'print_the_context' on DAG run with ID 'TEST_DAG_RUN_'",
+                404,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "dag_run_id": 'TEST_DAG_RUN_',
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+            [
+                "{'_schema': ['Exactly one of execution_date or dag_run_id must be provided']}",
+                400,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "dag_run_id": 'TEST_DAG_RUN_',
+                    "execution_date": "2020-01-01T00:00:00+00:00",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+        ],
+    )
+    def test_should_handle_errors(self, error, code, payload, session):
+        self.create_task_instances(session)
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json=payload,
+        )
+        assert response.status_code == code
+        assert response.json['detail'] == error
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -1195,8 +1317,8 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json['title'] == (
-            f"Task instance not found for task print_the_context on execution_date {date}"
+        assert response.json['detail'] == (
+            f"Task instance not found for task 'print_the_context' on execution_date {date}"
         )
         assert mock_set_task_instance_state.call_count == 0
 

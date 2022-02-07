@@ -19,6 +19,7 @@
 
 import functools
 import time
+from typing import List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -69,14 +70,12 @@ class EC2Hook(AwsBaseHook):
 
         super().__init__(*args, **kwargs)
 
-    def get_instance(self, instance_id: str, filters: list = None):
+    def get_instance(self, instance_id: str, filters: Optional[List] = None):
         """
         Get EC2 instance by id and return it.
 
         :param instance_id: id of the AWS EC2 instance
-        :type instance_id: str
         :param filters: List of filters to specify instances to get
-        :type filters: list
         :return: Instance object
         :rtype: ec2.Instance
         """
@@ -122,7 +121,7 @@ class EC2Hook(AwsBaseHook):
         return self.conn.terminate_instances(InstanceIds=instance_ids)
 
     @only_client_type
-    def describe_instances(self, filters: list = None, instance_ids: list = None):
+    def describe_instances(self, filters: Optional[List] = None, instance_ids: Optional[List] = None):
         """
         Describe EC2 instances, optionally applying filters and selective instance ids
 
@@ -139,7 +138,7 @@ class EC2Hook(AwsBaseHook):
         return self.conn.describe_instances(Filters=filters, InstanceIds=instance_ids)
 
     @only_client_type
-    def get_instances(self, filters: list = None, instance_ids: list = None) -> list:
+    def get_instances(self, filters: Optional[List] = None, instance_ids: Optional[List] = None) -> list:
         """
         Get list of instance details, optionally applying filters and selective instance ids
 
@@ -154,7 +153,7 @@ class EC2Hook(AwsBaseHook):
         ]
 
     @only_client_type
-    def get_instance_ids(self, filters: list = None) -> list:
+    def get_instance_ids(self, filters: Optional[List] = None) -> list:
         """
         Get list of instance ids, optionally applying filters to fetch selective instances
 
@@ -168,7 +167,6 @@ class EC2Hook(AwsBaseHook):
         Get EC2 instance state by id and return it.
 
         :param instance_id: id of the AWS EC2 instance
-        :type instance_id: str
         :return: current state of the instance
         :rtype: str
         """
@@ -182,12 +180,9 @@ class EC2Hook(AwsBaseHook):
         Wait EC2 instance until its state is equal to the target_state.
 
         :param instance_id: id of the AWS EC2 instance
-        :type instance_id: str
         :param target_state: target state of instance
-        :type target_state: str
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
-        :type check_interval: float
         :return: None
         :rtype: None
         """

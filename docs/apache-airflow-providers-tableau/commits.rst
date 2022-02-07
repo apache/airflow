@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.4
+.....
+
+Latest change: 2022-01-21
+
+================================================================================================  ===========  =======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =======================================================================
+`506efb6fa <https://github.com/apache/airflow/commit/506efb6fa3999ac21a8539e863d81dc684abe52a>`_  2022-01-21   ``Squelch more deprecation warnings (#21003)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`5569b868a <https://github.com/apache/airflow/commit/5569b868a990c97dfc63a0e014a814ec1cc0f953>`_  2022-01-09   ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+================================================================================================  ===========  =======================================================================
+
 2.1.3
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  =========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``

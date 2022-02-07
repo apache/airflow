@@ -134,6 +134,9 @@ JSON Schema Validation
             # a required param which can be of multiple types
             "dummy": Param(type=["null", "number", "string"]),
 
+            # an enum param, must be one of three values
+            "enum_param": Param("foo", enum=["foo", "bar", 42]),
+
             # a param which uses json-schema formatting
             "email": Param(
                 default="example@example.com",

@@ -18,11 +18,11 @@
 
 
 """
-Test AwsBatchWaiters
+Test BatchWaiters
 
 This test suite uses a large suite of moto mocks for the
-AWS batch infrastructure.  These infrastructure mocks are
-derived from the moto test suite for testing the batch client.
+AWS Batch infrastructure.  These infrastructure mocks are
+derived from the moto test suite for testing the Batch client.
 
 .. seealso::
 
@@ -43,7 +43,7 @@ import pytest
 from moto import mock_batch, mock_ec2, mock_ecs, mock_iam, mock_logs
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_waiters import AwsBatchWaitersHook
+from airflow.providers.amazon.aws.hooks.batch_waiters import BatchWaitersHook
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -79,31 +79,31 @@ class AwsClients(NamedTuple):
     log: "botocore.client.CloudWatchLogs"
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def batch_client(aws_region):
     with mock_batch():
         yield boto3.client("batch", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def ec2_client(aws_region):
     with mock_ec2():
         yield boto3.client("ec2", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def ecs_client(aws_region):
     with mock_ecs():
         yield boto3.client("ecs", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def iam_client(aws_region):
     with mock_iam():
         yield boto3.client("iam", region_name=aws_region)
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def logs_client(aws_region):
     with mock_logs():
         yield boto3.client("logs", region_name=aws_region)
@@ -216,10 +216,10 @@ def batch_infrastructure(
 #
 
 
-def test_aws_batch_waiters(aws_region):
-    assert inspect.isclass(AwsBatchWaitersHook)
-    batch_waiters = AwsBatchWaitersHook(region_name=aws_region)
-    assert isinstance(batch_waiters, AwsBatchWaitersHook)
+def test_batch_waiters(aws_region):
+    assert inspect.isclass(BatchWaitersHook)
+    batch_waiters = BatchWaitersHook(region_name=aws_region)
+    assert isinstance(batch_waiters, BatchWaitersHook)
 
 
 @mock_batch
@@ -228,15 +228,15 @@ def test_aws_batch_waiters(aws_region):
 @mock_iam
 @mock_logs
 @pytest.mark.xfail(condition=True, reason="Inexplicable timeout issue when running this test. See PR 11020")
-def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definition_name):
+def test_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definition_name):
     """
-    Submit batch jobs and wait for various job status indicators or errors.
-    These batch job waiter tests can be slow and might need to be marked
+    Submit Batch jobs and wait for various job status indicators or errors.
+    These Batch job waiter tests can be slow and might need to be marked
     for conditional skips if they take too long, although it seems to
     run in about 30 sec to a minute.
 
     .. note::
-        These tests have no control over how moto transitions the batch job status.
+        These tests have no control over how moto transitions the Batch job status.
 
     .. seealso::
         - https://github.com/boto/botocore/blob/develop/botocore/waiter.py
@@ -245,7 +245,7 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     """
 
     aws_resources = batch_infrastructure(aws_clients, aws_region, job_queue_name, job_definition_name)
-    batch_waiters = AwsBatchWaitersHook(region_name=aws_resources.aws_region)
+    batch_waiters = BatchWaitersHook(region_name=aws_resources.aws_region)
 
     job_exists_waiter = batch_waiters.get_waiter("JobExists")
     assert job_exists_waiter
@@ -271,7 +271,7 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     assert "Waiter JobExists failed" in str(ctx.value)
 
     # Submit a job and wait for various job status indicators;
-    # moto transitions the batch job status automatically.
+    # moto transitions the Batch job status automatically.
 
     job_name = "test-job"
     job_cmd = ['/bin/sh -c "for a in `seq 1 2`; do echo Hello World; sleep 0.25; done"']
@@ -318,7 +318,7 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     assert job_status == "SUCCEEDED"
 
 
-class TestAwsBatchWaiters(unittest.TestCase):
+class TestBatchWaiters(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
@@ -327,7 +327,7 @@ class TestAwsBatchWaiters(unittest.TestCase):
         self.job_id = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
         self.region_name = AWS_REGION
 
-        self.batch_waiters = AwsBatchWaitersHook(region_name=self.region_name)
+        self.batch_waiters = BatchWaitersHook(region_name=self.region_name)
         assert self.batch_waiters.aws_conn_id == 'aws_default'
         assert self.batch_waiters.region_name == self.region_name
 

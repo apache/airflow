@@ -501,7 +501,7 @@ class TestConnection(unittest.TestCase):
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+            'AIRFLOW_CONN_TEST_URI': 'postgresql://username:password@ec2.compute.com:5432/the_database',
         },
     )
     def test_using_env_var(self):
@@ -517,7 +517,7 @@ class TestConnection(unittest.TestCase):
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgresql://ec2.compute.com/the_database',
         },
     )
     def test_using_unix_socket_env_var(self):
@@ -550,7 +550,7 @@ class TestConnection(unittest.TestCase):
         with mock.patch.dict(
             'os.environ',
             {
-                'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
+                'AIRFLOW_CONN_AIRFLOW_DB': 'postgresql://username:password@ec2.compute.com:5432/the_database',
             },
         ):
             conn = SqliteHook.get_connection(conn_id='airflow_db')
@@ -563,23 +563,23 @@ class TestConnection(unittest.TestCase):
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+            'AIRFLOW_CONN_TEST_URI': 'postgresql://username:password@ec2.compute.com:5432/the_database',
+            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgresql://ec2.compute.com/the_database',
         },
     )
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
-        assert 'postgres://username:password@ec2.compute.com:5432/the_database' == hook.get_uri()
+        assert 'postgresql://username:password@ec2.compute.com:5432/the_database' == hook.get_uri()
         conn2 = BaseHook.get_connection(conn_id='test_uri_no_creds')
         hook2 = conn2.get_hook()
-        assert 'postgres://ec2.compute.com/the_database' == hook2.get_uri()
+        assert 'postgresql://ec2.compute.com/the_database' == hook2.get_uri()
 
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+            'AIRFLOW_CONN_TEST_URI': 'postgresql://username:password@ec2.compute.com:5432/the_database',
+            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgresql://ec2.compute.com/the_database',
         },
     )
     def test_dbapi_get_sqlalchemy_engine(self):
@@ -587,13 +587,13 @@ class TestConnection(unittest.TestCase):
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
-        assert 'postgres://username:password@ec2.compute.com:5432/the_database' == str(engine.url)
+        assert 'postgresql://username:password@ec2.compute.com:5432/the_database' == str(engine.url)
 
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+            'AIRFLOW_CONN_TEST_URI': 'postgresql://username:password@ec2.compute.com:5432/the_database',
+            'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgresql://ec2.compute.com/the_database',
         },
     )
     def test_get_connections_env_var(self):

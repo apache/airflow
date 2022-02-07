@@ -19,28 +19,38 @@
 from datetime import datetime
 from typing import Any, Callable, Collection, Dict, Mapping, TypeVar
 
+from airflow import settings
 from airflow.utils.context import Context, lazy_mapping_from_context
 
 R = TypeVar("R")
 
+DEFAULT_FORMAT_PREFIX = 'airflow.ctx.'
+ENV_VAR_FORMAT_PREFIX = 'AIRFLOW_CTX_'
+
 AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
-    'AIRFLOW_CONTEXT_DAG_ID': {'default': 'airflow.ctx.dag_id', 'env_var_format': 'AIRFLOW_CTX_DAG_ID'},
-    'AIRFLOW_CONTEXT_TASK_ID': {'default': 'airflow.ctx.task_id', 'env_var_format': 'AIRFLOW_CTX_TASK_ID'},
+    'AIRFLOW_CONTEXT_DAG_ID': {
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_id',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_ID',
+    },
+    'AIRFLOW_CONTEXT_TASK_ID': {
+        'default': f'{DEFAULT_FORMAT_PREFIX}task_id',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}TASK_ID',
+    },
     'AIRFLOW_CONTEXT_EXECUTION_DATE': {
-        'default': 'airflow.ctx.execution_date',
-        'env_var_format': 'AIRFLOW_CTX_EXECUTION_DATE',
+        'default': f'{DEFAULT_FORMAT_PREFIX}execution_date',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}EXECUTION_DATE',
     },
     'AIRFLOW_CONTEXT_DAG_RUN_ID': {
-        'default': 'airflow.ctx.dag_run_id',
-        'env_var_format': 'AIRFLOW_CTX_DAG_RUN_ID',
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_run_id',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_RUN_ID',
     },
     'AIRFLOW_CONTEXT_DAG_OWNER': {
-        'default': 'airflow.ctx.dag_owner',
-        'env_var_format': 'AIRFLOW_CTX_DAG_OWNER',
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_owner',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_OWNER',
     },
     'AIRFLOW_CONTEXT_DAG_EMAIL': {
-        'default': 'airflow.ctx.dag_email',
-        'env_var_format': 'AIRFLOW_CTX_DAG_EMAIL',
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_email',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL',
     },
 }
 
@@ -53,9 +63,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     in_env_var_format is set to True.
 
     :param context: The context for the task_instance of interest.
-    :type context: dict
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
-    :type in_env_var_format: bool
     :return: task_instance context as dict.
     """
     params = {}
@@ -76,6 +84,21 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task_instance, 'execution_date', 'AIRFLOW_CONTEXT_EXECUTION_DATE'),
         (dag_run, 'run_id', 'AIRFLOW_CONTEXT_DAG_RUN_ID'),
     ]
+
+    context_params = settings.get_airflow_context_vars(context)
+    for key, value in context_params.items():
+        if not isinstance(key, str):
+            raise TypeError(f"key <{key}> must be string")
+        if not isinstance(value, str):
+            raise TypeError(f"value of key <{key}> must be string, not {type(value)}")
+
+        if in_env_var_format:
+            if not key.startswith(ENV_VAR_FORMAT_PREFIX):
+                key = ENV_VAR_FORMAT_PREFIX + key.upper()
+        else:
+            if not key.startswith(DEFAULT_FORMAT_PREFIX):
+                key = DEFAULT_FORMAT_PREFIX + key
+        params[key] = value
 
     for subject, attr, mapping_key in ops:
         _attr = getattr(subject, attr, None)

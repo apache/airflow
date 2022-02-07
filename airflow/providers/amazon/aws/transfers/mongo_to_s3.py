@@ -38,30 +38,19 @@ class MongoToS3Operator(BaseOperator):
     """Operator meant to move data from mongo via pymongo to s3 via boto.
 
     :param mongo_conn_id: reference to a specific mongo connection
-    :type mongo_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
-    :type aws_conn_id: str
     :param mongo_collection: reference to a specific collection in your mongo db
-    :type mongo_collection: str
     :param mongo_query: query to execute. A list including a dict of the query
-    :type mongo_query: Union[list, dict]
     :param mongo_projection: optional parameter to filter the returned fields by
         the query. It can be a list of fields names to include or a dictionary
         for excluding fields (e.g ``projection={"_id": 0}`` )
-    :type mongo_projection: Union[list, dict]
     :param s3_bucket: reference to a specific S3 bucket to store the data
-    :type s3_bucket: str
     :param s3_key: in which S3 key the file will be stored
-    :type s3_key: str
     :param mongo_db: reference to a specific mongo database
-    :type mongo_db: str
     :param replace: whether or not to replace the file in S3 if it previously existed
-    :type replace: bool
     :param allow_disk_use: enables writing to temporary files in the case you are handling large dataset.
         This only takes effect when `mongo_query` is a list - running an aggregate pipeline
-    :type allow_disk_use: bool
     :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
-    :type compression: str
     """
 
     template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')

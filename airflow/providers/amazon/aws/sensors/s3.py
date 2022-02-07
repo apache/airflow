@@ -47,15 +47,11 @@ class S3KeySensor(BaseSensorOperator):
     :param bucket_key: The key being waited on. Supports full s3:// style url
         or relative path from root level. When it's specified as a full s3://
         url, please leave bucket_name as `None`.
-    :type bucket_key: str
     :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
         is not provided as a full s3:// url.
-    :type bucket_name: str
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
-    :type wildcard_match: bool
     :param aws_conn_id: a reference to the s3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -66,7 +62,6 @@ class S3KeySensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     """
 
     template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
@@ -131,15 +126,11 @@ class S3KeySizeSensor(S3KeySensor):
     :param bucket_key: The key being waited on. Supports full s3:// style url
         or relative path from root level. When it's specified as a full s3://
         url, please leave bucket_name as `None`.
-    :type bucket_key: str
     :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
         is not provided as a full s3:// url.
-    :type bucket_name: str
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
-    :type wildcard_match: bool
     :param aws_conn_id: a reference to the s3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -150,8 +141,6 @@ class S3KeySizeSensor(S3KeySensor):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
-    :type check_fn: Optional[Callable[..., bool]]
     :param check_fn: Function that receives the list of the S3 objects,
         and returns the boolean:
         - ``True``: a certain criteria is met
@@ -160,7 +149,6 @@ class S3KeySizeSensor(S3KeySensor):
 
             def check_fn(self, data: List) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in data if isinstance(f, dict))
-    :type check_fn: Optional[Callable[..., bool]]
     """
 
     def __init__(
@@ -179,8 +167,9 @@ class S3KeySizeSensor(S3KeySensor):
         s3_objects = self.get_files(s3_hook=self.get_hook())
         if not s3_objects:
             return False
-        check_fn = self.check_fn if self.check_fn_user is None else self.check_fn_user
-        return check_fn(s3_objects)
+        if self.check_fn_user is not None:
+            return self.check_fn_user(s3_objects)
+        return self.check_fn(s3_objects)
 
     def get_files(self, s3_hook: S3Hook, delimiter: Optional[str] = '/') -> List:
         """Gets a list of files in the bucket"""
@@ -207,9 +196,7 @@ class S3KeySizeSensor(S3KeySensor):
         """Default function for checking that S3 Objects have size more than 0
 
         :param data: List of the objects in S3 bucket.
-        :type data: list
         :param object_min_size: Checks if the objects sizes are greater then this value.
-        :type object_min_size: int
         """
         return all(f.get('Size', 0) > object_min_size for f in data if isinstance(f, dict))
 
@@ -224,11 +211,8 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     be lost between rescheduled invocations.
 
     :param bucket_name: Name of the S3 bucket
-    :type bucket_name: str
     :param prefix: The prefix being waited on. Relative path from bucket root level.
-    :type prefix: str
     :param aws_conn_id: a reference to the s3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -239,21 +223,16 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: Optional[Union[bool, str]]
     :param inactivity_period: The total seconds of inactivity to designate
         keys unchanged. Note, this mechanism is not real time and
         this operator may not return until a poke_interval after this period
         has passed with no additional objects sensed.
-    :type inactivity_period: float
     :param min_objects: The minimum number of objects needed for keys unchanged
         sensor to be considered valid.
-    :type min_objects: int
     :param previous_objects: The set of object ids found during the last poke.
-    :type previous_objects: Optional[Set[str]]
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
-    :type allow_delete: bool
     """
 
     template_fields: Sequence[str] = ('bucket_name', 'prefix')
@@ -298,7 +277,6 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         has passed and updates the state of the sensor accordingly.
 
         :param current_objects: set of object ids in bucket during last poke.
-        :type current_objects: set[str]
         """
         current_num_objects = len(current_objects)
         if current_objects > self.previous_objects:
@@ -371,14 +349,10 @@ class S3PrefixSensor(BaseSensorOperator):
     are NOT special characters in the Python regex engine.
 
     :param bucket_name: Name of the S3 bucket
-    :type bucket_name: str
     :param prefix: The prefix being waited on. Relative path from bucket root level.
-    :type prefix: str or list of str
     :param delimiter: The delimiter intended to show hierarchy.
         Defaults to '/'.
-    :type delimiter: str
     :param aws_conn_id: a reference to the s3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -389,7 +363,6 @@ class S3PrefixSensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     """
 
     template_fields: Sequence[str] = ('prefix', 'bucket_name')

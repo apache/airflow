@@ -37,27 +37,19 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         :ref:`howto/operator:BigQueryCreateDataTransferOperator`
 
     :param transfer_config: Data transfer configuration to create.
-    :type transfer_config: dict
     :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-    :type project_id: str
     :param: location: BigQuery Transfer Service location for regional transfers.
-    :type location: Optional[str]
     :param authorization_code: authorization code to use with this transfer configuration.
         This is required if new credentials are needed.
-    :type authorization_code: Optional[str]
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to
         complete. Note that if retry is specified, the timeout applies to each individual
         attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -66,7 +58,6 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -130,23 +121,16 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         :ref:`howto/operator:BigQueryDeleteDataTransferConfigOperator`
 
     :param transfer_config_id: Id of transfer config to be used.
-    :type transfer_config_id: str
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param: location: BigQuery Transfer Service location for regional transfers.
-    :type location: Optional[str]
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to
         complete. Note that if retry is specified, the timeout applies to each individual
         attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -155,7 +139,6 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -213,32 +196,23 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         :ref:`howto/operator:BigQueryDataTransferServiceStartTransferRunsOperator`
 
     :param transfer_config_id: Id of transfer config to be used.
-    :type transfer_config_id: str
     :param requested_time_range: Time range for the transfer runs that should be started.
         If a dict is provided, it must be of the same form as the protobuf
         message `~google.cloud.bigquery_datatransfer_v1.types.TimeRange`
-    :type requested_time_range: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.TimeRange]
     :param requested_run_time: Specific run_time for a transfer run to be started. The
         requested_run_time must not be in the future.  If a dict is provided, it
         must be of the same form as the protobuf message
         `~google.cloud.bigquery_datatransfer_v1.types.Timestamp`
-    :type requested_run_time: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.Timestamp]
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param: location: BigQuery Transfer Service location for regional transfers.
-    :type location: Optional[str]
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to
         complete. Note that if retry is specified, the timeout applies to each individual
         attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -247,7 +221,6 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

@@ -35,7 +35,6 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
         :ref:`howto/operator:DataprepGetJobsForJobGroupOperator`
 
     :param job_id The ID of the job that will be requests
-    :type job_id: int
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -65,11 +64,8 @@ class DataprepGetJobGroupOperator(BaseOperator):
         :ref:`howto/operator:DataprepGetJobGroupOperator`
 
     :param job_group_id: The ID of the job that will be requests
-    :type job_group_id: int
     :param embed: Comma-separated list of objects to pull in as part of the response
-    :type embed: string
     :param include_deleted: if set to "true", will include deleted objects
-    :type include_deleted: bool
     """
 
     template_fields: Sequence[str] = ("job_group_id", "embed")
@@ -112,10 +108,8 @@ class DataprepRunJobGroupOperator(BaseOperator):
         :ref:`howto/operator:DataprepRunJobGroupOperator`
 
     :param dataprep_conn_id: The Dataprep connection ID
-    :type dataprep_conn_id: str
     :param body_request:  Passed as the body_request to GoogleDataprepHook's run_job_group,
         where it's the identifier for the recipe to run
-    :type body_request: dict
     """
 
     template_fields: Sequence[str] = ("body_request",)

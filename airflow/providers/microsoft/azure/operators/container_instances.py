@@ -62,51 +62,32 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     :param ci_conn_id: connection id of a service principal which will be used
         to start the container instance
-    :type ci_conn_id: str
     :param registry_conn_id: connection id of a user which can login to a
         private docker registry. For Azure use :ref:`Azure connection id<howto/connection:azure>`
-    :type azure_conn_id: str If None, we assume a public registry
-    :type registry_conn_id: Optional[str]
     :param resource_group: name of the resource group wherein this container
         instance should be started
-    :type resource_group: str
     :param name: name of this container instance. Please note this name has
         to be unique in order to run containers in parallel.
-    :type name: str
     :param image: the docker image to be used
-    :type image: str
     :param region: the region wherein this container instance should be started
-    :type region: str
     :param environment_variables: key,value pairs containing environment
         variables which will be passed to the running container
-    :type environment_variables: Optional[dict]
     :param secured_variables: names of environmental variables that should not
         be exposed outside the container (typically passwords).
-    :type secured_variables: Optional[str]
     :param volumes: list of ``Volume`` tuples to be mounted to the container.
         Currently only Azure Fileshares are supported.
-    :type volumes: list[<conn_id, account_name, share_name, mount_path, read_only>]
     :param memory_in_gb: the amount of memory to allocate to this container
-    :type memory_in_gb: double
     :param cpu: the number of cpus to allocate to this container
-    :type cpu: double
     :param gpu: GPU Resource for the container.
-    :type gpu: azure.mgmt.containerinstance.models.GpuResource
     :param command: the command to run inside the container
-    :type command: Optional[List[str]]
     :param container_timeout: max time allowed for the execution of
         the container instance.
-    :type container_timeout: datetime.timedelta
     :param tags: azure tags as dict of str:str
-    :type tags: Optional[dict[str, str]]
     :param os_type: The operating system type required by the containers
         in the container group. Possible values include: 'Windows', 'Linux'
-    :type os_type: str
     :param restart_policy: Restart policy for all containers within the container group.
         Possible values include: 'Always', 'OnFailure', 'Never'
-    :type restart_policy: str
     :param ip_address: The IP address type of the container group.
-    :type ip_address: IpAddress
 
     **Example**::
 

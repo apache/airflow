@@ -18,7 +18,7 @@
 #
 
 """
-AWS batch service waiters
+AWS Batch service waiters
 
 .. seealso::
 
@@ -28,6 +28,7 @@ AWS batch service waiters
 
 import json
 import sys
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -37,31 +38,31 @@ import botocore.exceptions
 import botocore.waiter
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 
 
-class AwsBatchWaitersHook(AwsBatchClientHook):
+class BatchWaitersHook(BatchClientHook):
     """
-    A utility to manage waiters for AWS batch services.
+    A utility to manage waiters for AWS Batch services.
 
     .. code-block:: python
 
         import random
-        from airflow.providers.amazon.aws.operators.batch_waiters import AwsBatchWaiters
+        from airflow.providers.amazon.aws.operators.batch_waiters import BatchWaiters
 
         # to inspect default waiters
-        waiters = AwsBatchWaiters()
+        waiters = BatchWaiters()
         config = waiters.default_config  # type: Dict
         waiter_names = waiters.list_waiters()  # -> ["JobComplete", "JobExists", "JobRunning"]
 
         # The default_config is a useful stepping stone to creating custom waiters, e.g.
         custom_config = waiters.default_config  # this is a deepcopy
         # modify custom_config['waiters'] as necessary and get a new instance:
-        waiters = AwsBatchWaiters(waiter_config=custom_config)
+        waiters = BatchWaiters(waiter_config=custom_config)
         waiters.waiter_config  # check the custom configuration (this is a deepcopy)
         waiters.list_waiters()  # names of custom waiters
 
-        # During the init for AwsBatchWaiters, the waiter_config is used to build a waiter_model;
+        # During the init for BatchWaiters, the waiter_config is used to build a waiter_model;
         # and note that this only occurs during the class init, to avoid any accidental mutations
         # of waiter_config leaking into the waiter_model.
         waiters.waiter_model  # -> botocore.waiter.WaiterModel object
@@ -92,17 +93,14 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         - https://github.com/boto/botocore/tree/develop/botocore/data/ec2/2016-11-15
         - https://github.com/boto/botocore/issues/1915
 
-    :param waiter_config:  a custom waiter configuration for AWS batch services
-    :type waiter_config: Optional[Dict]
+    :param waiter_config:  a custom waiter configuration for AWS Batch services
 
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: Optional[str]
 
     :param region_name: region name to use in AWS client.
         Override the AWS region in connection (if provided)
-    :type region_name: Optional[str]
     """
 
     def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs) -> None:
@@ -118,7 +116,7 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         """
         An immutable default waiter configuration
 
-        :return: a waiter configuration for AWS batch services
+        :return: a waiter configuration for AWS Batch services
         :rtype: Dict
         """
         if self._default_config is None:
@@ -131,11 +129,11 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
     def waiter_config(self) -> Dict:
         """
         An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this
-        property. During the init for AwsBatchWaiters, the waiter_config is used to build a
+        property. During the init for BatchWaiters, the waiter_config is used to build a
         waiter_model and this only occurs during the class init, to avoid any accidental
         mutations of waiter_config leaking into the waiter_model.
 
-        :return: a waiter configuration for AWS batch services
+        :return: a waiter configuration for AWS Batch services
         :rtype: Dict
         """
         return deepcopy(self._waiter_config)  # avoid accidental mutation
@@ -143,9 +141,9 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
     @property
     def waiter_model(self) -> botocore.waiter.WaiterModel:
         """
-        A configured waiter model used to generate waiters on AWS batch services.
+        A configured waiter model used to generate waiters on AWS Batch services.
 
-        :return: a waiter model for AWS batch services
+        :return: a waiter model for AWS Batch services
         :rtype: botocore.waiter.WaiterModel
         """
         return self._waiter_model
@@ -179,9 +177,8 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         :param waiter_name: The name of the waiter. The name should match
             the name (including the casing) of the key name in the waiter
             model file (typically this is CamelCasing); see ``.list_waiters``.
-        :type waiter_name: str
 
-        :return: a waiter object for the named AWS batch service
+        :return: a waiter object for the named AWS Batch service
         :rtype: botocore.waiter.Waiter
         """
         return botocore.waiter.create_waiter_with_client(waiter_name, self.waiter_model, self.client)
@@ -190,22 +187,20 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         """
         List the waiters in a waiter configuration for AWS Batch services.
 
-        :return: waiter names for AWS batch services
+        :return: waiter names for AWS Batch services
         :rtype: List[str]
         """
         return self.waiter_model.waiter_names
 
     def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
-        Wait for batch job to complete.  This assumes that the ``.waiter_model`` is configured
+        Wait for Batch job to complete.  This assumes that the ``.waiter_model`` is configured
         using some variation of the ``.default_config`` so that it can generate waiters with the
         following names: "JobExists", "JobRunning" and "JobComplete".
 
-        :param job_id: a batch job ID
-        :type job_id: str
+        :param job_id: a Batch job ID
 
         :param delay:  A delay before polling for job status
-        :type delay: Union[int, float, None]
 
         :raises: AirflowException
 
@@ -236,3 +231,19 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
 
         except (botocore.exceptions.ClientError, botocore.exceptions.WaiterError) as err:
             raise AirflowException(err)
+
+
+class AwsBatchWaitersHook(BatchWaitersHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchWaitersHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchWaitersHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

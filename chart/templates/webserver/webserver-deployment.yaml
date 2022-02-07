@@ -87,6 +87,9 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
+      {{- if .Values.webserver.priorityClassName }}
+      priorityClassName: {{ .Values.webserver.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
@@ -116,6 +119,11 @@ spec:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:

@@ -34,21 +34,18 @@ class JdbcOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:JdbcOperator`
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param jdbc_conn_id: reference to a predefined database
-    :type jdbc_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     """
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#ededed'
 
     def __init__(

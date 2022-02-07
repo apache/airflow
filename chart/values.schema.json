@@ -646,7 +646,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.3.0"
+                            "default": "v3.4.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -1351,6 +1351,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for worker pods.",
                     "type": "object",
@@ -1485,7 +1493,7 @@
                         "timeoutSeconds": {
                             "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
                             "type": "integer",
-                            "default": 10
+                            "default": 20
                         },
                         "failureThreshold": {
                             "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
@@ -1660,6 +1668,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for scheduler pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for scheduler pods.",
                     "type": "object",
@@ -1781,7 +1797,7 @@
                         "timeoutSeconds": {
                             "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
                             "type": "integer",
-                            "default": 10
+                            "default": 20
                         },
                         "failureThreshold": {
                             "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
@@ -1929,6 +1945,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for triggerer pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for triggerer pods.",
@@ -2632,6 +2656,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for webserver pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for webserver pods.",
                     "type": "object",
@@ -2915,6 +2947,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for Flower pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for Flower pods.",
                     "type": "object",
@@ -3045,6 +3085,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for StatsD pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for StatsD pods.",
@@ -3346,6 +3394,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for PgBouncer pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for PgBouncer pods.",

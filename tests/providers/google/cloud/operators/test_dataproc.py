@@ -109,6 +109,7 @@ CONFIG = {
     "initialization_actions": [
         {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
     ],
+    "endpoint_config": {},
 }
 
 CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
@@ -153,6 +154,9 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
     "initialization_actions": [
         {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
     ],
+    "endpoint_config": {
+        "enable_http_port_access": True,
+    },
 }
 
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
@@ -367,6 +371,7 @@ class TestsClusterGenerator(unittest.TestCase):
             auto_delete_time=datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
+            enable_component_gateway=True,
         )
         cluster = generator.make()
         assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster

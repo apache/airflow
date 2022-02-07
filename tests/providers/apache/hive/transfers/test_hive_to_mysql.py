@@ -26,8 +26,7 @@ from airflow import PY39
 from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import context_to_airflow_vars
-from tests.providers.apache.hive import TestHiveEnvironment
-from tests.test_utils.mock_hooks import MockHiveServer2Hook, MockMySqlHook
+from tests.providers.apache.hive import MockHiveServer2Hook, MockMySqlHook, TestHiveEnvironment
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 

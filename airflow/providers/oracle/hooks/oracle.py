@@ -43,7 +43,6 @@ class OracleHook(DbApiHook):
 
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         used for Oracle credentials.
-    :type oracle_conn_id: str
     """
 
     conn_name_attr = 'oracle_conn_id'
@@ -186,17 +185,12 @@ class OracleHook(DbApiHook):
 
         :param table: target Oracle table, use dot notation to target a
             specific database
-        :type table: str
         :param rows: the rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: the names of the columns to fill in the table
-        :type target_fields: iterable of str
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 1000, Set greater than 0.
             Set 1 to insert each row in each single transaction
-        :type commit_every: int
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
@@ -251,15 +245,11 @@ class OracleHook(DbApiHook):
 
         :param table: target Oracle table, use dot notation to target a
             specific database
-        :type table: str
         :param rows: the rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: the names of the columns to fill in the table, default None.
             If None, each rows should have some order as table columns name
-        :type target_fields: iterable of str Or None
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
-        :type commit_every: int
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
@@ -325,6 +315,9 @@ class OracleHook(DbApiHook):
         sql = f"BEGIN {identifier}({args}); END;"
 
         def handler(cursor):
+            if cursor.bindvars is None:
+                return
+
             if isinstance(cursor.bindvars, list):
                 return [v.getvalue() for v in cursor.bindvars]
 

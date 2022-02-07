@@ -1,0 +1,27 @@
+---------------------------------------------------------
+
+This is summary of the cherry-picks:
+   Previous release: {{ previous_release }}
+   Current release: {{ current_release }}
+
+---------------------------------------------------------
+
+Changelog changes {{ changelog_changes | length }}:
+
+{% for change in changelog_changes %}
+   * {{ change.short_hash }} : {{ change.message }} : http://github.com/apache/airflow/pull/{{ change.pr }}
+{%- endfor %}
+
+Doc only changes {{ doc_only_changes | length }}:
+
+{% for change in doc_only_changes %}
+    * {{ change.short_hash }} : {{ change.message }} : http://github.com/apache/airflow/pull/{{ change.pr }}
+{%- endfor %}
+
+Excluded changes {{ excluded_changes | length }}:
+
+{% for change in excluded_changes %}
+    * {{ change.short_hash }} : {{ change.message }} : http://github.com/apache/airflow/pull/{{ change.pr }}
+{%- endfor %}
+
+--------------------------------------------------------

@@ -170,11 +170,8 @@ class DataFusionHook(GoogleBaseHook):
         At the end of an operation instance is fully restarted.
 
         :param instance_name: The name of the instance to restart.
-        :type instance_name: str
         :param location: The Cloud Data Fusion location in which to handle the request.
-        :type location: str
         :param project_id: The ID of the Google Cloud project that the instance belongs to.
-        :type project_id: str
         """
         operation = (
             self.get_conn()
@@ -192,11 +189,8 @@ class DataFusionHook(GoogleBaseHook):
         Deletes a single Date Fusion instance.
 
         :param instance_name: The name of the instance to delete.
-        :type instance_name: str
         :param location: The Cloud Data Fusion location in which to handle the request.
-        :type location: str
         :param project_id: The ID of the Google Cloud project that the instance belongs to.
-        :type project_id: str
         """
         operation = (
             self.get_conn()
@@ -220,14 +214,10 @@ class DataFusionHook(GoogleBaseHook):
         Creates a new Data Fusion instance in the specified project and location.
 
         :param instance_name: The name of the instance to create.
-        :type instance_name: str
         :param instance: An instance of Instance.
             https://cloud.google.com/data-fusion/docs/reference/rest/v1beta1/projects.locations.instances#Instance
-        :type instance: Dict[str, Any]
         :param location: The Cloud Data Fusion location in which to handle the request.
-        :type location: str
         :param project_id: The ID of the Google Cloud project that the instance belongs to.
-        :type project_id: str
         """
         operation = (
             self.get_conn()
@@ -249,11 +239,8 @@ class DataFusionHook(GoogleBaseHook):
         Gets details of a single Data Fusion instance.
 
         :param instance_name: The name of the instance.
-        :type instance_name: str
         :param location: The Cloud Data Fusion location in which to handle the request.
-        :type location: str
         :param project_id: The ID of the Google Cloud project that the instance belongs to.
-        :type project_id: str
         """
         instance = (
             self.get_conn()
@@ -278,21 +265,16 @@ class DataFusionHook(GoogleBaseHook):
         Updates a single Data Fusion instance.
 
         :param instance_name: The name of the instance to create.
-        :type instance_name: str
         :param instance: An instance of Instance.
             https://cloud.google.com/data-fusion/docs/reference/rest/v1beta1/projects.locations.instances#Instance
-        :type instance: Dict[str, Any]
         :param update_mask: Field mask is used to specify the fields that the update will overwrite
             in an instance resource. The fields specified in the updateMask are relative to the resource,
             not the full request. A field will be overwritten if it is in the mask. If the user does not
             provide a mask, all the supported fields (labels and options currently) will be overwritten.
             A comma-separated list of fully qualified names of fields. Example: "user.displayName,photo".
             https://developers.google.com/protocol-buffers/docs/reference/google.protobuf?_ga=2.205612571.-968688242.1573564810#google.protobuf.FieldMask
-        :type update_mask: str
         :param location: The Cloud Data Fusion location in which to handle the request.
-        :type location: str
         :param project_id: The ID of the Google Cloud project that the instance belongs to.
-        :type project_id: str
         """
         operation = (
             self.get_conn()
@@ -319,16 +301,12 @@ class DataFusionHook(GoogleBaseHook):
         Creates a Cloud Data Fusion pipeline.
 
         :param pipeline_name: Your pipeline name.
-        :type pipeline_name: str
         :param pipeline: The pipeline definition. For more information check:
             https://docs.cdap.io/cdap/current/en/developer-manual/pipelines/developing-pipelines.html#pipeline-configuration-file-format
-        :type pipeline: Dict[str, Any]
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :type instance_url: str
         :param namespace: if your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
-        :type namespace: str
         """
         url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         response = self._cdap_request(url=url, method="PUT", body=pipeline)
@@ -348,15 +326,11 @@ class DataFusionHook(GoogleBaseHook):
         Deletes a Cloud Data Fusion pipeline.
 
         :param pipeline_name: Your pipeline name.
-        :type pipeline_name: str
         :param version_id: Version of pipeline to delete
-        :type version_id: Optional[str]
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :type instance_url: str
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
-        :type namespace: str
         """
         url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         if version_id:
@@ -377,15 +351,11 @@ class DataFusionHook(GoogleBaseHook):
         Lists Cloud Data Fusion pipelines.
 
         :param artifact_version: Artifact version to filter instances
-        :type artifact_version: Optional[str]
         :param artifact_name: Artifact name to filter instances
-        :type artifact_name: Optional[str]
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :type instance_url: str
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
-        :type namespace: str
         """
         url = self._base_url(instance_url, namespace)
         query: Dict[str, str] = {}
@@ -433,15 +403,11 @@ class DataFusionHook(GoogleBaseHook):
         Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
-        :type pipeline_name: str
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :type instance_url: str
         :param runtime_args: Optional runtime JSON args to be passed to the pipeline
-        :type runtime_args: Optional[Dict[str, Any]]
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
-        :type namespace: str
         """
         # TODO: This API endpoint starts multiple pipelines. There will eventually be a fix
         #  return the run Id as part of the API request to run a single pipeline.
@@ -474,13 +440,10 @@ class DataFusionHook(GoogleBaseHook):
         Stops a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
-        :type pipeline_name: str
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :type instance_url: str
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
-        :type namespace: str
         """
         url = os.path.join(
             self._base_url(instance_url, namespace),

@@ -28,6 +28,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.5.0
+.....
+
+Latest change: 2022-02-04
+
+================================================================================================  ===========  ===========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================================
+`39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`534e9ae11 <https://github.com/apache/airflow/commit/534e9ae117641b4147542f2deec2a077f0a42e2f>`_  2022-01-28   ``Fix #21096: Support boolean in extra__snowflake__insecure_mode (#21155)``
+`cb7305321 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`9ea459a6b <https://github.com/apache/airflow/commit/9ea459a6bd8073f16dc197b1147f220293557dc8>`_  2022-01-08   ``Snowflake Provider: Improve tests for Snowflake Hook (#20745)``
+================================================================================================  ===========  ===========================================================================
+
 2.4.0
 .....
 
@@ -36,6 +51,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  =========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
 `d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``

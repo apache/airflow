@@ -205,7 +205,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     to_create: Deque[Tuple[int, BaseTrigger]]
 
     # Inbound queue of deleted triggers
-    to_delete: Deque[int]
+    to_cancel: Deque[int]
 
     # Outbound queue of events
     events: Deque[Tuple[int, TriggerEvent]]
@@ -221,7 +221,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         self.triggers = {}
         self.trigger_cache = {}
         self.to_create = deque()
-        self.to_delete = deque()
+        self.to_cancel = deque()
         self.events = deque()
         self.failed_triggers = deque()
 
@@ -241,13 +241,15 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         while not self.stop:
             # Run core logic
             await self.create_triggers()
-            await self.delete_triggers()
+            await self.cancel_triggers()
             await self.cleanup_finished_triggers()
             # Sleep for a bit
             await asyncio.sleep(1)
-            # Every minute, log status
+            # Every minute, log status if at least one trigger is running.
             if time.time() - last_status >= 60:
-                self.log.info("%i triggers currently running", len(self.triggers))
+                count = len(self.triggers)
+                if count > 0:
+                    self.log.info("%i triggers currently running", count)
                 last_status = time.time()
         # Wait for watchdog to complete
         await watchdog
@@ -269,13 +271,13 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
             await asyncio.sleep(0)
 
-    async def delete_triggers(self):
+    async def cancel_triggers(self):
         """
-        Drain the to_delete queue and ensure all triggers that are not in the
+        Drain the to_cancel queue and ensure all triggers that are not in the
         DB are cancelled, so the cleanup job deletes them.
         """
-        while self.to_delete:
-            trigger_id = self.to_delete.popleft()
+        while self.to_cancel:
+            trigger_id = self.to_cancel.popleft()
             if trigger_id in self.triggers:
                 # We only delete if it did not exit already
                 self.triggers[trigger_id]["task"].cancel()
@@ -380,10 +382,16 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         # line's execution, but we consider that safe, since there's a strict
         # add -> remove -> never again lifecycle this function is already
         # handling.
-        current_trigger_ids = set(self.triggers.keys())
+        running_trigger_ids = set(self.triggers.keys())
+        known_trigger_ids = (
+            running_trigger_ids.union(x[0] for x in self.events)
+            .union(self.to_cancel)
+            .union(x[0] for x in self.to_create)
+            .union(self.failed_triggers)
+        )
         # Work out the two difference sets
-        new_trigger_ids = requested_trigger_ids.difference(current_trigger_ids)
-        old_trigger_ids = current_trigger_ids.difference(requested_trigger_ids)
+        new_trigger_ids = requested_trigger_ids - known_trigger_ids
+        cancel_trigger_ids = running_trigger_ids - requested_trigger_ids
         # Bulk-fetch new trigger records
         new_triggers = Trigger.bulk_fetch(new_trigger_ids)
         # Add in new triggers
@@ -400,9 +408,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.failed_triggers.append(new_id)
                 continue
             self.to_create.append((new_id, trigger_class(**new_triggers[new_id].kwargs)))
-        # Remove old triggers
-        for old_id in old_trigger_ids:
-            self.to_delete.append(old_id)
+        # Enqueue orphaned triggers for cancellation
+        for old_id in cancel_trigger_ids:
+            self.to_cancel.append(old_id)
 
     def get_trigger_by_classpath(self, classpath: str) -> Type[BaseTrigger]:
         """

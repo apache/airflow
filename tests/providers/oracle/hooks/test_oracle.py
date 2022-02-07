@@ -296,6 +296,18 @@ class TestOracleHook(unittest.TestCase):
         with pytest.raises(ValueError):
             self.db_hook.bulk_insert_rows('table', rows)
 
+    def test_callproc_none(self):
+        parameters = None
+
+        class bindvar(int):
+            def getvalue(self):
+                return self
+
+        self.cur.bindvars = None
+        result = self.db_hook.callproc('proc', True, parameters)
+        assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(); END;')]
+        assert result == parameters
+
     def test_callproc_dict(self):
         parameters = {"a": 1, "b": 2, "c": 3}
 

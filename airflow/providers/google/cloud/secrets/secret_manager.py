@@ -56,26 +56,18 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null), requests for connections will not be sent to GCP Secrets Manager
-    :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for variables will not be sent to GCP Secrets Manager
-    :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Airflow Configurations
         containing secrets.
         If set to None (null), requests for configurations will not be sent to GCP Secrets Manager
-    :type config_prefix: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
         gcp_keyfile_dict. use default credentials in the current environment if not provided.
-    :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
-    :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes
-    :type gcp_scopes: str
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
-    :type project_id: str
     :param sep: Separator used to concatenate connections_prefix and conn_id. Default: "-"
-    :type sep: str
     """
 
     def __init__(
@@ -134,7 +126,6 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         Get secret value from the SecretManager.
 
         :param conn_id: connection id
-        :type conn_id: str
         """
         if self.connections_prefix is None:
             return None
@@ -170,9 +161,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         Get secret value from the SecretManager based on prefix.
 
         :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
-        :type secret_id: str
         """
         secret_id = self.build_path(path_prefix, secret_id, self.sep)
         return self.client.get_secret(secret_id=secret_id, project_id=self.project_id)

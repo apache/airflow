@@ -226,6 +226,24 @@ A batch can be created using:
     :start-after: [START how_to_cloud_dataproc_create_batch_operator]
     :end-before: [END how_to_cloud_dataproc_create_batch_operator]
 
+For creating a batch with Persistent History Server first you should create a Dataproc Cluster
+with specific parameters. Documentation how create cluster you can find here:
+https://cloud.google.com/dataproc/docs/concepts/jobs/history-server#setting_up_a_persistent_history_server
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+
+After Cluster was created you should add it to the Batch configuration.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+
 Get a Batch
 -----------
 

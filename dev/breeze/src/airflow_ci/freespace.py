@@ -35,16 +35,30 @@ option_verbose = click.option(
     help="Print verbose information about free space steps",
 )
 
+option_dry_run = click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Just prints commands without executing them",
+)
 
-@click.group()
-def main():
-    pass
 
-
+@click.command()
 @option_verbose
-def run_command(cmd: List[str], verbose, *, check: bool = True, **kwargs):
+@option_dry_run
+def main(verbose, dry_run):
+    run_command(["sudo", "swapoff", "-a"], verbose, dry_run)
+    run_command(["sudo", "rm", "-f", "/swapfile"], verbose, dry_run)
+    run_command(["sudo", "apt-get", "clean"], verbose, dry_run, check=False)
+    run_command(["docker", "system", "prune", "--all", "--force", "--volumes"], verbose, dry_run)
+    run_command(["df", "-h"], verbose, dry_run)
+    run_command(["docker", "logout", "ghcr.io"], verbose, dry_run)
+
+
+def run_command(cmd: List[str], verbose, dry_run, *, check: bool = True, **kwargs):
     if verbose:
         console.print(f"\n[green]$ {' '.join(shlex.quote(c) for c in cmd)}[/]\n")
+    if dry_run:
+        return
     try:
         subprocess.run(cmd, check=check, **kwargs)
     except subprocess.CalledProcessError as ex:
@@ -52,17 +66,6 @@ def run_command(cmd: List[str], verbose, *, check: bool = True, **kwargs):
         print(ex.stderr)
         print(ex.stdout)
         print("========================= OUTPUT end ============================")
-
-
-@main.command()
-@option_verbose
-def free_space(verbose):
-    run_command(["sudo", "swapoff", "-a"], verbose)
-    run_command(["sudo", "rm", "-f", "/swapfile"], verbose)
-    run_command(["sudo", "apt", "clean", "||", "true"], verbose)
-    run_command(["docker", "system", "prune", "--all", "--force", "volumes"], verbose)
-    run_command(["df", "-h"], verbose)
-    run_command(["docker", "logout", "ghcr.io"], verbose)
 
 
 if __name__ == '__main__':

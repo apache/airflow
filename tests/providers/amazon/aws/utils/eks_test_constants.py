@@ -31,6 +31,8 @@ FROZEN_TIME: str = "2013-11-27T01:42:00Z"
 MAX_FARGATE_LABELS: int = 5
 PACKAGE_NOT_PRESENT_MSG: str = "mock_eks package not present"
 PARTITION: str = "aws"
+NODEGROUP_OWNERSHIP_TAG_KEY = "kubernetes.io/cluster/{cluster_name}"
+NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE = "owned"
 NON_EXISTING_CLUSTER_NAME: str = "non_existing_cluster"
 NON_EXISTING_FARGATE_PROFILE_NAME: str = "non_existing_fargate_profile"
 NON_EXISTING_NODEGROUP_NAME: str = "non_existing_nodegroup"
@@ -108,6 +110,8 @@ class ClusterInputs:
 
 
 class FargateProfileInputs:
+    """All possible inputs for creating an AWS Fargate profile."""
+
     REQUIRED: List[Tuple[str, Any]] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
     OPTIONAL: List[Tuple[str, Any]] = [SUBNETS, TAGS]
 

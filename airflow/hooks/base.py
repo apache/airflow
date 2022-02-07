@@ -97,6 +97,14 @@ class BaseHook(LoggingMixin):
         """Returns connection for the hook."""
         raise NotImplementedError()
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> Dict[str, Any]:
+        ...
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> Dict[str, Any]:
+        ...
+
 
 class DiscoverableHook(Protocol):
     """
@@ -159,7 +167,7 @@ class DiscoverableHook(Protocol):
         ...
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """
         Returns dictionary describing customizations to implement in javascript handling the
         connection form. Should be compliant with airflow/customized_form_field_behaviours.schema.json'

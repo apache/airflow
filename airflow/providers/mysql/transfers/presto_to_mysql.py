@@ -32,24 +32,19 @@ class PrestoToMySqlOperator(BaseOperator):
     be used for smallish amount of data.
 
     :param sql: SQL query to execute against Presto. (templated)
-    :type sql: str
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
-    :type mysql_table: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param presto_conn_id: source presto connection
-    :type presto_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
         import, typically use to truncate of delete in place
         of the data coming in, allowing the task to be idempotent (running
         the task twice won't double load data). (templated)
-    :type mysql_preoperator: str
     """
 
     template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator')
     template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {"sql": "sql", "mysql_preoperator": "sql"}
+    template_fields_renderers = {"sql": "sql", "mysql_preoperator": "mysql"}
     ui_color = '#a0e08c'
 
     def __init__(

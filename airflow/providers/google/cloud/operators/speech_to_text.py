@@ -40,23 +40,17 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     :param config: information to the recognizer that specifies how to process the request. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig
-    :type config: dict or google.cloud.speech_v1.types.RecognitionConfig
     :param audio: audio data to be recognized. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionAudio
-    :type audio: dict or google.cloud.speech_v1.types.RecognitionAudio
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: str
     :param retry: (Optional) A retry object used to retry requests. If None is specified,
             requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request to complete.
         Note that if retry is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -65,7 +59,6 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_speech_to_text_synthesize_template_fields]

@@ -37,6 +37,8 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    UnmappableXComLengthPushed,
+    UnmappableXComTypePushed,
 )
 from airflow.models import (
     DAG,
@@ -50,6 +52,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.taskinstance import load_error_file, set_error_file
+from airflow.models.taskmap import TaskMap
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -484,50 +487,31 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-        "state",
-        [State.FAILED, State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE, State.UP_FOR_RETRY],
+        "state, exception, retries",
+        [
+            (State.FAILED, AirflowException, 0),
+            (State.SKIPPED, AirflowSkipException, 0),
+            (State.SUCCESS, None, 0),
+            (State.UP_FOR_RESCHEDULE, AirflowRescheduleException(timezone.utcnow()), 0),
+            (State.UP_FOR_RETRY, AirflowException, 1),
+        ],
     )
-    def test_task_wipes_next_fields(self, session, state, dag_maker):
+    def test_task_wipes_next_fields(self, session, dag_maker, state, exception, retries):
         """
         Test that ensures that tasks wipe their next_method and next_kwargs
-        when they go into a state of FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, or UP_FOR_RETRY.
+        when the TI enters one of the configured states.
         """
 
-        def failure():
-            raise AirflowException
-
-        def skip():
-            raise AirflowSkipException
-
-        def success():
-            return None
-
-        def reschedule():
-            reschedule_date = timezone.utcnow()
-            raise AirflowRescheduleException(reschedule_date)
-
-        _retries = 0
-        _retry_delay = datetime.timedelta(seconds=0)
-
-        if state == State.FAILED:
-            _python_callable = failure
-        elif state == State.SKIPPED:
-            _python_callable = skip
-        elif state == State.SUCCESS:
-            _python_callable = success
-        elif state == State.UP_FOR_RESCHEDULE:
-            _python_callable = reschedule
-        elif state in [State.FAILED, State.UP_FOR_RETRY]:
-            _python_callable = failure
-            _retries = 1
-            _retry_delay = datetime.timedelta(seconds=2)
+        def _raise_if_exception():
+            if exception:
+                raise exception
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-                python_callable=_python_callable,
-                retries=_retries,
-                retry_delay=_retry_delay,
+                python_callable=_raise_if_exception,
+                retries=retries,
+                retry_delay=datetime.timedelta(seconds=2),
             )
 
         dr = dag_maker.create_dagrun()
@@ -539,9 +523,9 @@ class TestTaskInstance:
 
         ti.task = task
         if state in [State.FAILED, State.UP_FOR_RETRY]:
-            with pytest.raises(AirflowException):
+            with pytest.raises(exception):
                 ti.run()
-        elif state in [State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE]:
+        else:
             ti.run()
         ti.refresh_from_db()
 
@@ -1635,7 +1619,34 @@ class TestTaskInstance:
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
 
-    def test_tempalte_with_custom_timetable_deprecated_context(self, create_task_instance):
+    @pytest.mark.parametrize(
+        ("field", "expected"),
+        [
+            ("next_ds", "2016-01-01"),
+            ("next_ds_nodash", "20160101"),
+            ("prev_ds", "2015-12-31"),
+            ("prev_ds_nodash", "20151231"),
+            ("yesterday_ds", "2015-12-31"),
+            ("yesterday_ds_nodash", "20151231"),
+            ("tomorrow_ds", "2016-01-02"),
+            ("tomorrow_ds_nodash", "20160102"),
+        ],
+    )
+    def test_deprecated_context(self, field, expected, create_task_instance):
+        ti = create_task_instance(execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with pytest.deprecated_call() as recorder:
+            assert context[field] == expected
+        message_beginning = (
+            f"Accessing {field!r} from the template is deprecated and "
+            f"will be removed in a future version."
+        )
+
+        recorded_message = [str(m.message) for m in recorder]
+        assert len(recorded_message) == 1
+        assert recorded_message[0].startswith(message_beginning)
+
+    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
         ti = create_task_instance(
             start_date=DEFAULT_DATE,
             timetable=AfterWorkdayTimetable(),
@@ -1923,9 +1934,11 @@ class TestTaskInstance:
             task_id,
             'run_1',
             '--mark-success',
+            '--map-index',
+            '0',
         ]
         generate_command = TI.generate_command(
-            dag_id=dag_id, task_id=task_id, run_id='run_1', mark_success=True
+            dag_id=dag_id, task_id=task_id, run_id='run_1', mark_success=True, map_index=0
         )
         assert assert_command == generate_command
 
@@ -1934,7 +1947,7 @@ class TestTaskInstance:
 
         with dag_maker('test-dag', session=session) as dag:
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
-        dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
+        dag.fileloc = TEST_DAGS_FOLDER / 'test_get_k8s_pod_yaml.py'
         ti = dag_maker.create_dagrun().task_instances[0]
         ti.task = task
 
@@ -2052,6 +2065,7 @@ class TestTaskInstance:
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
             "run_id": "test",
+            "map_index": -1,
             "start_date": run_date + datetime.timedelta(days=1),
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
@@ -2077,7 +2091,7 @@ class TestTaskInstance:
             "next_method": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
-        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values.keys()}
+        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
         assert {str(c) for c in TI.__table__.columns} == expected_keys, (
             "Please add all non-foreign values of TaskInstance to this list. "
             "This prevents refresh_from_db() from missing a field."
@@ -2146,6 +2160,12 @@ def test_refresh_from_task(pool_override):
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config
     assert ti.operator == DummyOperator.__name__
+
+    # Test that refresh_from_task does not reset ti.max_tries
+    expected_max_tries = task.retries + 10
+    ti.max_tries = expected_max_tries
+    ti.refresh_from_task(task)
+    assert ti.max_tries == expected_max_tries
 
 
 class TestRunRawTaskQueriesCount:
@@ -2216,7 +2236,7 @@ def test_sensor_timeout(mode, retries, dag_maker):
 
     mock_on_failure = mock.MagicMock()
     with dag_maker(dag_id=f'test_sensor_timeout_{mode}_{retries}'):
-        task = PythonSensor(
+        PythonSensor(
             task_id='test_raise_sensor_timeout',
             python_callable=timeout,
             on_failure_callback=mock_on_failure,
@@ -2224,10 +2244,112 @@ def test_sensor_timeout(mode, retries, dag_maker):
             mode=mode,
         )
     ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
-    ti.task = task
 
     with pytest.raises(AirflowSensorTimeout):
         ti.run()
 
     assert mock_on_failure.called
     assert ti.state == State.FAILED
+
+
+class TestTaskInstanceRecordTaskMapXComPush:
+    """Test TI.xcom_push() correctly records return values for task-mapping."""
+
+    def setup_class(self):
+        """Ensure we start fresh."""
+        with create_session() as session:
+            session.query(TaskMap).delete()
+
+    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    def test_not_recorded_for_unused(self, dag_maker, xcom_value):
+        """A value not used for task-mapping should not be recorded."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return xcom_value
+
+            push_something()
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+
+    def test_error_if_unmappable_type(self, dag_maker):
+        """If an unmappable return value is used to map, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return "abc"
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.map(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(UnmappableXComTypePushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "unmappable return type 'str'"
+
+    @conf_vars({("core", "max_map_length"): "1"})
+    def test_error_if_unmappable_length(self, dag_maker):
+        """If an unmappable return value is used to map, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return [1, 2]
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.map(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(UnmappableXComLengthPushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "unmappable return value length: 2 > 1"
+
+    @pytest.mark.parametrize(
+        "xcom_value, expected_length, expected_keys",
+        [
+            ([1, 2, 3], 3, None),
+            ({"a": 1, "b": 2}, 2, ["a", "b"]),
+        ],
+    )
+    def test_written_task_map(self, dag_maker, xcom_value, expected_length, expected_keys):
+        """Return value should be recorded in TaskMap if it's used by a downstream to map."""
+        with dag_maker(dag_id="test_written_task_map") as dag:
+
+            @dag.task()
+            def push_something():
+                return xcom_value
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.map(value=push_something())
+
+        dag_run = dag_maker.create_dagrun()
+        ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
+        ti.run()
+
+        task_map = dag_maker.session.query(TaskMap).one()
+        assert task_map.dag_id == "test_written_task_map"
+        assert task_map.task_id == "push_something"
+        assert task_map.run_id == dag_run.run_id
+        assert task_map.map_index == -1
+        assert task_map.length == expected_length
+        assert task_map.keys == expected_keys

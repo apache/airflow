@@ -42,13 +42,9 @@ class OSSKeySensor(BaseSensorOperator):
     :param bucket_key: The key being waited on. Supports full oss:// style url
         or relative path from root level. When it's specified as a full oss://
         url, please leave bucket_name as `None`.
-    :type bucket_key: str
     :param region: OSS region
-    :type region: str
     :param bucket_name: OSS bucket name
-    :type bucket_name: str
     :param oss_conn_id: The Airflow connection used for OSS credentials.
-    :type oss_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ('bucket_key', 'bucket_name')

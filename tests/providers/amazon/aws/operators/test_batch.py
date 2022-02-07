@@ -24,8 +24,8 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
-from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.operators.batch import BatchOperator
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -41,7 +41,7 @@ RESPONSE_WITHOUT_FAILURES = {
 }
 
 
-class TestAwsBatchOperator(unittest.TestCase):
+class TestBatchOperator(unittest.TestCase):
 
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
@@ -52,7 +52,7 @@ class TestAwsBatchOperator(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
     def setUp(self, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
-        self.batch = AwsBatchOperator(
+        self.batch = BatchOperator(
             task_id="task",
             job_name=JOB_NAME,
             job_queue="queue",
@@ -104,15 +104,15 @@ class TestAwsBatchOperator(unittest.TestCase):
             "parameters",
         )
 
-    @mock.patch.object(AwsBatchClientHook, "wait_for_job")
-    @mock.patch.object(AwsBatchClientHook, "check_job_success")
+    @mock.patch.object(BatchClientHook, "wait_for_job")
+    @mock.patch.object(BatchClientHook, "check_job_success")
     def test_execute_without_failures(self, check_mock, wait_mock):
         # JOB_ID is in RESPONSE_WITHOUT_FAILURES
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
         self.batch.job_id = None
         self.batch.waiters = None  # use default wait
 
-        self.batch.execute(None)
+        self.batch.execute({})
 
         self.client_mock.submit_job.assert_called_once_with(
             jobQueue="queue",
@@ -132,7 +132,7 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.client_mock.submit_job.return_value = ""
 
         with pytest.raises(AirflowException):
-            self.batch.execute(None)
+            self.batch.execute({})
 
         self.client_mock.submit_job.assert_called_once_with(
             jobQueue="queue",
@@ -144,14 +144,14 @@ class TestAwsBatchOperator(unittest.TestCase):
             tags={},
         )
 
-    @mock.patch.object(AwsBatchClientHook, "check_job_success")
+    @mock.patch.object(BatchClientHook, "check_job_success")
     def test_wait_job_complete_using_waiters(self, check_mock):
         mock_waiters = mock.Mock()
         self.batch.waiters = mock_waiters
 
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
-        self.batch.execute(None)
+        self.batch.execute({})
 
         mock_waiters.wait_for_job.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)

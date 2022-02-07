@@ -80,29 +80,22 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null value in the configuration), requests for connections will not be
         sent to AWS Secrets Manager. If you don't want a connections_prefix, set it as an empty string
-    :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null value in the configuration), requests for variables will not be sent to
         AWS Secrets Manager. If you don't want a variables_prefix, set it as an empty string
-    :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
         If set to None (null value in the configuration), requests for configurations will not be sent to
         AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
-    :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
-    :type profile_name: str
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
-    :type sep: str
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
         If False (set it as false in backend_kwargs), you can store the secret using different
         fields (password, user...).
-    :type full_url_mode: bool
     :param extra_conn_words: for using just when you set full_url_mode as false and store
         the secrets in different fields of secrets manager. You can add more words for each connection
         part beyond the default ones. The extra words to be searched should be passed as a dict of lists,
         each list corresponding to a connection part. The optional keys of the dict must be: user,
         password, host, schema, conn_type.
-    :type extra_conn_words: dict
     """
 
     def __init__(
@@ -185,7 +178,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         Get Connection Value
 
         :param conn_id: connection id
-        :type conn_id: str
         """
         if self.connections_prefix is None:
             return None
@@ -233,9 +225,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get secret value from Secrets Manager
         :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
-        :type secret_id: str
         """
         if path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
