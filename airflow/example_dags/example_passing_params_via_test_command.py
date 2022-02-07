@@ -68,17 +68,18 @@ with DAG(
 ) as dag:
     run_this = my_py_command(params={"miff": "agg"})
 
-    my_templated_command = dedent(
+    my_command = dedent(
         """
-        echo " 'foo was passed in via Airflow CLI Test command with value {{ params.foo }} "
-        echo " 'miff was passed in via BashOperator with value {{ params.miff }} "
-    """
+        echo "'foo' was passed in via Airflow CLI Test command with value '$FOO'"
+        echo "'miff' was passed in via BashOperator with value '$MIFF'"
+        """
     )
 
     also_run_this = BashOperator(
         task_id='also_run_this',
-        bash_command=my_templated_command,
+        bash_command=my_command,
         params={"miff": "agg"},
+        env={"FOO": "{{ params.foo }}", "MIFF": "{{ params.miff }}"},
     )
 
     env_var_test_task = print_env_vars()

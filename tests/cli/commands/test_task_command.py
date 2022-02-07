@@ -263,7 +263,6 @@ class TestCliTasks(unittest.TestCase):
 
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
-        assert 'echo "Parameter I passed in"' in output
 
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
