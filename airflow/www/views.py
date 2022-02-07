@@ -32,7 +32,7 @@ from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from urllib.parse import parse_qsl, unquote, urlencode, urlparse, quote
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import markupsafe
