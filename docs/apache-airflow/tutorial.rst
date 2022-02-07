@@ -151,13 +151,8 @@ stamp").
     :end-before: [END jinja_template]
 
 Notice that the ``templated_command`` contains code logic in ``{% %}`` blocks,
-references parameters like ``{{ ds }}``, calls a function as in
-``{{ macros.ds_add(ds, 7)}}``, and references a user-defined parameter
-in ``{{ params.my_param }}``.
-
-The ``params`` hook in ``BaseOperator`` allows you to pass a dictionary of
-parameters and/or objects to your templates. Please take the time
-to understand how the parameter ``my_param`` makes it through to the template.
+references parameters like ``{{ ds }}``, and calls a function as in
+``{{ macros.ds_add(ds, 7)}}``.
 
 Files can also be passed to the ``bash_command`` argument, like
 ``bash_command='templated_command.sh'``, where the file location is relative to
