@@ -34,7 +34,7 @@ console = Console(color_system="standard", width=200)
 def check_file(the_file: Path) -> list:
     """Returns number of wrong checkout instructions in the workflow file"""
     content = the_file.read_text()
-    matches = re.findall(r' +\:type .+?:', content)
+    matches = re.findall(r' +\:r?type .+?\:', content)
     return matches
 
 
