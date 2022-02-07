@@ -226,5 +226,5 @@ class TaskDecoratorCollection:
         """
         # [END decorator_signature]
 
-T = TypeVar("T", bound=TaskDecoratorCollection)
-task: Callable[[Function], T]
+DecoratedType = Callable[[Function], TaskDecoratorCollection]
+task: Union[DecoratedType, Callable[[Any], DecoratedType]]
