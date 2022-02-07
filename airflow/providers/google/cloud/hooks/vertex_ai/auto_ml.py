@@ -33,7 +33,7 @@ from google.cloud.aiplatform import (
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
-from google.cloud.aiplatform_v1.types import Model, TrainingPipeline
+from google.cloud.aiplatform_v1.types import TrainingPipeline
 
 from airflow import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -53,7 +53,15 @@ class AutoMLHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._job = None
+        self._job: Optional[
+            Union[
+                AutoMLForecastingTrainingJob,
+                AutoMLImageTrainingJob,
+                AutoMLTabularTrainingJob,
+                AutoMLTextTrainingJob,
+                AutoMLVideoTrainingJob,
+            ]
+        ] = None
 
     def get_pipeline_service_client(
         self,
@@ -232,7 +240,8 @@ class AutoMLHook(GoogleBaseHook):
 
     def cancel_auto_ml_job(self) -> None:
         """Cancel Auto ML Job for training pipeline"""
-        self._job.cancel()
+        if self._job:
+            self._job.cancel()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_tabular_training_job(
@@ -265,7 +274,7 @@ class AutoMLHook(GoogleBaseHook):
         export_evaluated_data_items_bigquery_destination_uri: Optional[str] = None,
         export_evaluated_data_items_override_destination: bool = False,
         sync: bool = True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create an AutoML Tabular Training Job.
 
@@ -420,6 +429,9 @@ class AutoMLHook(GoogleBaseHook):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
+        if not self._job:
+            raise AirflowException("AutoMLTabularTrainingJob was not created")
+
         model = self._job.run(
             dataset=dataset,
             target_column=target_column,
@@ -481,7 +493,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: Optional[str] = None,
         model_labels: Optional[Dict[str, str]] = None,
         sync: bool = True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create an AutoML Forecasting Training Job.
 
@@ -628,6 +640,9 @@ class AutoMLHook(GoogleBaseHook):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
+        if not self._job:
+            raise AirflowException("AutoMLForecastingTrainingJob was not created")
+
         model = self._job.run(
             dataset=dataset,
             target_column=target_column,
@@ -686,7 +701,7 @@ class AutoMLHook(GoogleBaseHook):
         model_labels: Optional[Dict[str, str]] = None,
         disable_early_stopping: bool = False,
         sync: bool = True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create an AutoML Image Training Job.
 
@@ -817,6 +832,9 @@ class AutoMLHook(GoogleBaseHook):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
+        if not self._job:
+            raise AirflowException("AutoMLImageTrainingJob was not created")
+
         model = self._job.run(
             dataset=dataset,
             training_fraction_split=training_fraction_split,
@@ -857,7 +875,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: Optional[str] = None,
         model_labels: Optional[Dict[str, str]] = None,
         sync: bool = True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create an AutoML Text Training Job.
 
@@ -947,6 +965,9 @@ class AutoMLHook(GoogleBaseHook):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
+        if not self._job:
+            raise AirflowException("AutoMLTextTrainingJob was not created")
+
         model = self._job.run(
             dataset=dataset,
             training_fraction_split=training_fraction_split,
@@ -982,7 +1003,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: Optional[str] = None,
         model_labels: Optional[Dict[str, str]] = None,
         sync: bool = True,
-    ) -> Model:
+    ) -> models.Model:
         """
         Create an AutoML Video Training Job.
 
@@ -1077,6 +1098,9 @@ class AutoMLHook(GoogleBaseHook):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
+        if not self._job:
+            raise AirflowException("AutoMLVideoTrainingJob was not created")
+
         model = self._job.run(
             dataset=dataset,
             training_fraction_split=training_fraction_split,
@@ -1099,7 +1123,7 @@ class AutoMLHook(GoogleBaseHook):
         training_pipeline: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a TrainingPipeline.
@@ -1132,7 +1156,7 @@ class AutoMLHook(GoogleBaseHook):
         training_pipeline: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
         Gets a TrainingPipeline.
@@ -1168,7 +1192,7 @@ class AutoMLHook(GoogleBaseHook):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
         Lists TrainingPipelines in a Location.
