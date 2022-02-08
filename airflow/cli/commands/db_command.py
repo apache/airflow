@@ -107,7 +107,7 @@ def check(_):
 @cli_utils.action_cli(check_db=False)
 def clean(args):
     """Upgrades the metadata database"""
-    print("DB: " + repr(settings.engine.url))
+    print(f"DB: {settings.engine.url!r}")
     db.upgradedb()
 
 
