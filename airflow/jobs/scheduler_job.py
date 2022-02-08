@@ -868,23 +868,30 @@ class SchedulerJob(BaseJob):
                 timer.stop(send=True)
             except (OperationalError, LockNotAvailable) as e:
                 timer.stop(send=False)
-                if isinstance(e, OperationalError) and is_lock_not_available_error(error=e) or isinstance(e,
-                                                                                                          LockNotAvailable):
+                if (
+                    isinstance(e, OperationalError)
+                    and is_lock_not_available_error(error=e)
+                    or isinstance(e, LockNotAvailable)
+                ):
                     self.log.debug("Critical section lock held by another Scheduler")
                     Stats.incr('scheduler.critical_section_busy')
                     session.rollback()
                     return 0
-                self.log.debug("If block didnt work with exception {}".format(e))
+                self.log.debug(f"If block didn't work with exception {e}")
                 raise
             except Exception as exc:
-                self.log.debug("General Exception: {}, context: {}".format(exc, exc.__context__))
+                self.log.debug(f"General Exception: {exc}, context: {exc.__context__}")
                 e = exc.__context__
-                if isinstance(e, OperationalError) and is_lock_not_available_error(error=e)or isinstance(e, LockNotAvailable):
+                if (
+                    isinstance(e, OperationalError)
+                    and is_lock_not_available_error(error=e)
+                    or isinstance(e, LockNotAvailable)
+                ):
                     self.log.debug("Critical section lock held by another Scheduler")
                     Stats.incr('scheduler.critical_section_busy')
                     session.rollback()
                     return 0
-                self.log.debug("If block didnt work with exception {}".format(e))
+                self.log.debug(f"If block didn't work with exception {e}")
                 raise
 
             guard.commit()
