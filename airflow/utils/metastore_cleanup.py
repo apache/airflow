@@ -135,9 +135,8 @@ def _print_entities(*, query: "Query", print_rows=False):
     max_rows_to_print = 100
     if num_entities > 0:
         print(f"Printing first {max_rows_to_print} rows.")
-    entries_to_delete = query.limit(max_rows_to_print).all()
-    logging.debug("print entities query: " + str(query))
-    for entry in entries_to_delete:  # type: Log
+    logging.debug("print entities query: %s", query)
+    for entry in query.limit(max_rows_to_print):  # type: Log
         print(entry.__dict__)
 
 
