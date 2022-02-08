@@ -306,15 +306,42 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         return attr.evolve(self, kwargs=partial_kwargs)
 
 
+class Task(Generic[Function]):
+    """Declaration of a @task-decorated callable for type-checking.
+
+    An instance of this type inherits the call signature of the decorated
+    function wrapped in it (not *exactly* since it actually returns an XComArg,
+    but there's no way to express that right now), and provides two additional
+    methods for task-mapping.
+
+    This type is implemented by ``_TaskDecorator`` at runtime.
+    """
+
+    __call__: Function
+
+    function: Function
+
+    def map(self, **kwargs: Any) -> XComArg:
+        ...
+
+    def partial(self, **kwargs: Any) -> "Task[Function]":
+        ...
+
+
 class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
 
     @overload
-    def __call__(self, python_callable: Function) -> Function:
+    def __call__(self, python_callable: Function) -> Task[Function]:
         """For the "bare decorator" ``@task`` case."""
 
     @overload
-    def __call__(self, *, multiple_outputs: Optional[bool], **kwargs: Any) -> Callable[[Function], Function]:
+    def __call__(
+        self,
+        *,
+        multiple_outputs: Optional[bool],
+        **kwargs: Any,
+    ) -> Callable[[Function], Task[Function]]:
         """For the decorator factory ``@task()`` case."""
 
 
