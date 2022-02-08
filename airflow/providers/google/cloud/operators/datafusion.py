@@ -31,7 +31,10 @@ if TYPE_CHECKING:
 
 
 BASE_LINK = "https://console.cloud.google.com/data-fusion"
-DATAFUSION_BASE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+BASE_PIPELINE_LINK = "https://{instance_name}-{project_id}-dot-{region_abbr}.datafusion.googleusercontent.com"
+DATAFUSION_PIPELINES_LINK = BASE_PIPELINE_LINK + "/cdap/ns/default/pipelines"
+DATAFUSION_PIPELINE_LINK = BASE_PIPELINE_LINK + "/pipelines/ns/default/view/{pipeline_name}"
 
 
 class DataFusionInstanceLink(BaseOperatorLink):
@@ -47,7 +50,7 @@ class DataFusionInstanceLink(BaseOperatorLink):
             key="instance_conf",
         )
         return (
-            DATAFUSION_BASE_LINK.format(
+            DATAFUSION_INSTANCE_LINK.format(
                 region=instance_conf["region"],
                 instance_name=instance_conf["instance_name"],
                 project_id=instance_conf["project_id"],
@@ -57,10 +60,74 @@ class DataFusionInstanceLink(BaseOperatorLink):
         )
 
 
+class DataFusionPipelineLink(BaseOperatorLink):
+    """Helper class for constructing Data Fusion Pipeline link"""
+
+    name = "Data Fusion Pipeline"
+
+    def get_link(self, operator, dttm):
+        pipeline_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="pipeline_conf",
+        )
+        return (
+            DATAFUSION_PIPELINE_LINK.format(
+                instance_name=pipeline_conf["instance_name"],
+                project_id=pipeline_conf["project_id"],
+                region_abbr=pipeline_conf["region_abbr"],
+                pipeline_name=pipeline_conf["pipeline_name"],
+            )
+            if pipeline_conf
+            else ""
+        )
+
+
+class DataFusionPipelinesLink(BaseOperatorLink):
+    """Helper class for constructing list of Data Fusion Pipelines link"""
+
+    name = "Data Fusion Pipelines"
+
+    def get_link(self, operator, dttm):
+        pipelines_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key="pipelines_conf",
+        )
+        return (
+            DATAFUSION_PIPELINES_LINK.format(
+                instance_name=pipelines_conf["instance_name"],
+                project_id=pipelines_conf["project_id"],
+                region_abbr=pipelines_conf["region_abbr"],
+            )
+            if pipelines_conf
+            else ""
+        )
+
+
 def _get_project_id(instance):
     instance = instance["name"]
     project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
     return project_id
+
+def _get_region_abbreviation(region):
+    datafusion_regions = {
+        "asia-east": "ae",
+        "asia-northeast": "ane",
+        "asia-south": "as",
+        "asia-southeast": "ase",
+        "australia-southeast": "ause",
+        "europe-north": "eun",
+        "europe-west": "euw",
+        "northamerica-northeast": "nane",
+        "southamerica-east": "sae",
+        "us-central": "usc",
+        "us-east": "use",
+        "us-west": "usw"
+    }
+    return datafusion_regions[region[:-1]] + region[-1]
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -698,6 +765,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         "artifact_version",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelinesLink(),)
 
     def __init__(
         self,
@@ -747,6 +815,16 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
             artifact_name=self.artifact_name,
         )
         self.log.info("%s", pipelines)
+
+        self.xcom_push(
+            context,
+            key="pipelines_conf",
+            value={
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+                "region_abbr": _get_region_abbreviation(self.location),
+            },
+        )
         return pipelines
 
 
@@ -793,6 +871,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         "runtime_args",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -853,6 +932,17 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         )
         self.log.info("Pipeline %s submitted successfully.", pipeline_id)
 
+        self.xcom_push(
+            context,
+            key="pipeline_conf",
+            value={
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+                "region_abbr": _get_region_abbreviation(self.location),
+                "pipeline_name": self.pipeline_name,
+            },
+        )
+
         if not self.asynchronous:
             self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
             hook.wait_for_pipeline_state(
@@ -901,6 +991,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         "pipeline_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -941,6 +1032,17 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
             project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
+
+        self.xcom_push(
+            context,
+            key="pipeline_conf",
+            value={
+                "instance_name": self.instance_name,
+                "project_id": self.project_id or _get_project_id(instance),
+                "region_abbr": _get_region_abbreviation(self.location),
+                "pipeline_name": self.pipeline_name,
+            },
+        )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,
             instance_url=api_url,
