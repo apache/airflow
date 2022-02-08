@@ -55,6 +55,7 @@ const StatusBox = ({
         onClick={onClick}
         cursor={!group.children && 'pointer'}
         data-testid="task-instance"
+        zIndex={1}
         {...rest}
       >
         <Box
