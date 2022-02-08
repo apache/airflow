@@ -15,24 +15,39 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a link for GCS Storage assets."""
-from airflow.models import BaseOperatorLink
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 
 BASE_LINK = "https://console.cloud.google.com"
 GCS_STORAGE_LINK = BASE_LINK + "/storage/browser/{uri};tab=objects?project={project_id}"
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class StorageLink(BaseOperatorLink):
     """Helper class for constructing GCS Storage link"""
 
     name = "GCS Storage"
+    key = "storage_conf"
 
-    def get_link(self, operator, dttm):
+    @staticmethod
+    def persist(context: "Context", task_instance, uri: str):
+        task_instance.xcom_push(
+            context=context,
+            key=StorageLink.key,
+            value={"uri": uri, "project_id": task_instance.project_id},
+        )
+
+    def get_link(self, operator: BaseOperator, dttm: datetime):
         storage_conf = XCom.get_one(
             dag_id=operator.dag.dag_id,
             task_id=operator.task_id,
             execution_date=dttm,
-            key="storage_conf",
+            key=StorageLink.key,
         )
         return (
             GCS_STORAGE_LINK.format(
