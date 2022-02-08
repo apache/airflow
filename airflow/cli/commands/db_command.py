@@ -112,7 +112,7 @@ def clean(args):
 
 
 # lazily imported by CLI parser for `help` command
-all_tables = list(sorted(config_dict.keys()))
+all_tables = sorted(config_dict)
 
 
 @cli_utils.action_cli(check_db=False)
