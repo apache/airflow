@@ -39,7 +39,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,
-            bigquery_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -49,7 +49,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
         assert results is True
 
         mock_hook.assert_called_once_with(
-            bigquery_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -67,7 +67,7 @@ class TestBigqueryTablePartitionExistenceSensor(TestCase):
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,
             partition_id=TEST_PARTITION_ID,
-            bigquery_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -77,7 +77,7 @@ class TestBigqueryTablePartitionExistenceSensor(TestCase):
         assert results is True
 
         mock_hook.assert_called_once_with(
-            bigquery_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
