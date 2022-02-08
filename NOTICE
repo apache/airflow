@@ -20,3 +20,11 @@ This product contains a modified portion of 'Flask App Builder' developed by Dan
 (https://github.com/dpgaspar/Flask-AppBuilder).
 
 * Copyright 2013, Daniel Vaz Gaspar
+
+
+Flask-Session:
+-----
+This product contains a modified portion of 'Flask-Session' developed by Shipeng Feng et al.
+(https://github.com/fengsp/flask-session)
+
+* Copyright 2014-2021, Shipeng Feng
