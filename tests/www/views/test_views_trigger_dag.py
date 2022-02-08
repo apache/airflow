@@ -19,6 +19,7 @@ import datetime
 import json
 
 import pytest
+from bs4 import BeautifulSoup
 
 from airflow.models import DagBag, DagRun
 from airflow.security import permissions
@@ -134,6 +135,12 @@ def test_trigger_dag_form(admin_client):
         ("javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
         ("36539'%3balert(1)%2f%2f166", "/home"),
+        ("h06bv%27-alert(99)-%27pgxtc", "h06bv&#x27;-alert(99)-&#x27;pgxtc"),
+        ("h06bv'-alert(99)-'pgxtc", "h06bv&#x27;-alert(99)-&#x27;pgxtc"),
+        (
+            '"><script>-alert(99)-</script><a href="',
+            "&quot;&gt;&lt;script&gt;-alert(99)-&lt;/script&gt;&lt;a href=&quot;",
+        ),
         (
             "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
             "/home",
@@ -146,12 +153,12 @@ def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin)
     test_dag_id = "example_bash_operator"
 
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
-    check_content_in_response(
-        '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
-            expected_origin
-        ),
-        resp,
+    assert resp.status_code == 200
+    tree = BeautifulSoup(resp.data)
+    cancel_button = next(
+        a for a in tree.find_all('a') if 'btn' in a.get('class', []) and a.string == 'Cancel'
     )
+    assert expected_origin == str(cancel_button['href'])
 
 
 @pytest.mark.parametrize(
