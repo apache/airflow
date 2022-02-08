@@ -866,14 +866,25 @@ class SchedulerJob(BaseJob):
                 # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                 # metric, way down
                 timer.stop(send=True)
-            except OperationalError as e:
+            except (OperationalError, LockNotAvailable) as e:
                 timer.stop(send=False)
-
-                if is_lock_not_available_error(error=e):
+                if isinstance(e, OperationalError) and is_lock_not_available_error(error=e) or isinstance(e,
+                                                                                                          LockNotAvailable):
                     self.log.debug("Critical section lock held by another Scheduler")
                     Stats.incr('scheduler.critical_section_busy')
                     session.rollback()
                     return 0
+                self.log.debug("If block didnt work with exception {}".format(e))
+                raise
+            except Exception as exc:
+                self.log.debug("General Exception: {}, context: {}".format(exc, exc.__context__))
+                e = exc.__context__
+                if isinstance(e, OperationalError) and is_lock_not_available_error(error=e)or isinstance(e, LockNotAvailable):
+                    self.log.debug("Critical section lock held by another Scheduler")
+                    Stats.incr('scheduler.critical_section_busy')
+                    session.rollback()
+                    return 0
+                self.log.debug("If block didnt work with exception {}".format(e))
                 raise
 
             guard.commit()
