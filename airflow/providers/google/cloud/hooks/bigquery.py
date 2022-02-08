@@ -1498,7 +1498,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
-        is_async: Optional[bool] = False,
+        is_async: bool = False,
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
