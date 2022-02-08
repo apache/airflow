@@ -1516,7 +1516,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         :param is_async: specify whether to insert job in asynchronous mode
-        :type is_async: bool
         """
         location = location or self.location
         job_id = job_id or self._custom_job_id(configuration)
