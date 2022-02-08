@@ -29,6 +29,10 @@ class EcsOperatorError(Exception):
         self.message = message
         super().__init__(message)
 
+    def __reduce__(self):
+        return EcsOperatorError, (self.failures, self.message)
+
+
 
 class ECSOperatorError(EcsOperatorError):
     """
