@@ -40,6 +40,7 @@ Misc
    * ``Prepare documentation for October Provider's release (#19321)``
    * ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
    * ``More f-strings (#18855)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.0.1
 .....
