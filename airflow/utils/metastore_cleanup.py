@@ -55,18 +55,12 @@ class _TableConfig:
     Config class for performing cleanup on a table
 
     :param orm_model: the table
-    :type: orm_model: Base
     :param recency_column: date column to filter by
-    :type: recency_column: Union["Column", "InstrumentedAttribute"]
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
-    :type: keep_last: bool
     :param keep_last_filters:
-    :type: keep_last_filters: Optional[Any]
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
-    :type: keep_last_group_by: Optional[Any]
     :param warn_if_missing: If True, then we'll suppress "table missing" exception and log a warning.
         If False then the exception will go uncaught.
-    :type warn_if_missing: bool
     """
 
     orm_model: Base
@@ -135,8 +129,8 @@ def _print_entities(*, query: "Query", print_rows=False):
     max_rows_to_print = 100
     if num_entities > 0:
         print(f"Printing first {max_rows_to_print} rows.")
-    logging.debug("print entities query: %s", query)
-    for entry in query.limit(max_rows_to_print):  # type: Log
+    logger.debug("print entities query: " + str(query))
+    for entry in query.limit(max_rows_to_print):
         print(entry.__dict__)
 
 
@@ -184,7 +178,6 @@ def _build_query(
             keep_last_group_by=keep_last_group_by,
             session=session,
         )
-        print(subquery.all())
         conditions.append(recency_column.notin_(subquery))
     query = query.filter(and_(*conditions))
     return query
@@ -256,7 +249,6 @@ class _warn_if_missing(AbstractContextManager):
     def __exit__(self, exctype, excinst, exctb):
         caught_error = exctype is not None and issubclass(exctype, OperationalError)
         if caught_error:
-            logger = logging.getLogger()
             logger.warning(f"Table %r not found.  Skipping.", self.table)
         return caught_error
 
