@@ -40,6 +40,8 @@ from urllib import parse
 import flask
 import jinja2
 import jinja2.nativetypes
+import unicodedata
+from werkzeug.urls import url_quote
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -355,3 +357,18 @@ def prune_dict(val: Any, mode='strict'):
         return new_list
     else:
         return val
+
+def encode_attachment_file_name(attachment_filename):
+    try:
+        attachment_filename = attachment_filename.encode("ascii")
+    except UnicodeEncodeError:
+        filenames = {
+            "filename": unicodedata.normalize("NFKD", attachment_filename).encode(
+                "ascii", "ignore"
+            ),
+            "filename*": "UTF-8''%s" % url_quote(attachment_filename, safe=b""),
+        }
+    else:
+        filenames = {"filename": attachment_filename}
+
+    return filenames

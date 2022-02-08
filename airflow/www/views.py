@@ -87,6 +87,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
+from werkzeug.datastructures import Headers
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -111,7 +112,7 @@ from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEP
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
-from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.helpers import alchemy_to_dict, encode_attachment_file_name
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -1349,12 +1350,14 @@ class Airflow(AirflowBaseView):
                 return jsonify(message=message, metadata=metadata)
 
             metadata['download_logs'] = True
-            attachment_filename = quote(task_log_reader.render_log_filename(ti, try_number, session=session))
+            attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
+            headers = Headers()
+            headers.add("Content-Disposition", "attachment", **encode_attachment_file_name(attachment_filename))
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,
                 mimetype="text/plain",
-                headers={"Content-Disposition": f"attachment; filename={attachment_filename}"},
+                headers=headers,
             )
         except AttributeError as e:
             error_message = [f"Task log handler does not support read logs.\n{str(e)}\n"]
