@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-03T23:48:34Z
+# This constraints file was automatically generated on 2022-02-08T01:07:18Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -90,7 +90,7 @@ grpcio==1.43.0
 gssapi==1.7.2
 gunicorn==20.1.0
 h11==0.12.0
-httpcore==0.14.6
+httpcore==0.14.7
 httpx==0.22.0
 humanize==3.14.0
 idna==3.3
@@ -126,8 +126,8 @@ platformdirs==2.4.0
 plyvel==1.4.0
 prison==0.2.1
 prometheus-client==0.13.1
-prompt-toolkit==3.0.26
-proto-plus==1.19.9
+prompt-toolkit==3.0.27
+proto-plus==1.20.0
 protobuf==3.19.4
 psutil==5.9.0
 pure-sasl==0.6.2
@@ -174,7 +174,7 @@ typing_extensions==4.0.1
 unicodecsv==0.14.1
 urllib3==1.26.8
 vine==5.0.0
-virtualenv==20.13.0
+virtualenv==20.13.1
 wcwidth==0.2.5
 websocket-client==1.2.3
 wrapt==1.13.3
