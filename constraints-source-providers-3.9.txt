@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-08T01:04:02Z
+# This constraints file was automatically generated on 2022-02-08T21:26:11Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -123,7 +123,7 @@ cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-connexion==2.10.0
+connexion==2.11.0
 coverage==6.3.1
 crcmod==1.7
 croniter==1.2.0
@@ -393,7 +393,7 @@ requests-toolbelt==0.9.1
 requests==2.27.1
 responses==0.18.0
 rfc3986==1.5.0
-rich==11.1.0
+rich==11.2.0
 rsa==4.8
 s3transfer==0.5.1
 scramp==1.4.1
@@ -405,7 +405,7 @@ sentry-sdk==1.5.4
 setproctitle==1.2.2
 simple-salesforce==1.11.5
 six==1.16.0
-slack-sdk==3.14.0
+slack-sdk==3.14.1
 smbprotocol==1.9.0
 smmap==5.0.0
 sniffio==1.2.0
@@ -448,7 +448,7 @@ textwrap3==0.9.2
 thrift-sasl==0.4.3
 thrift==0.15.0
 toml==0.10.2
-tomli==2.0.0
+tomli==2.0.1
 toolz==0.11.2
 tornado==6.1
 tqdm==4.62.3
@@ -474,7 +474,7 @@ websocket-client==1.2.3
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.128.0
+yandexcloud==0.129.0
 yarl==1.7.2
 zdesk==2.7.1
 zeep==4.1.0
