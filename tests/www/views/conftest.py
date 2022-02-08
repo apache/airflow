@@ -55,6 +55,7 @@ def app(examples_dag_bag):
             "init_flash_views",
             "init_jinja_globals",
             "init_plugins",
+            "init_airflow_session_interface",
         ]
     )
     def factory():
