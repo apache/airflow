@@ -259,7 +259,7 @@ class _warn_if_missing(AbstractContextManager):
         caught_error = exctype is not None and issubclass(exctype, OperationalError)
         if caught_error:
             logger = logging.getLogger()
-            logger.warning(f"Table {self.table!r} not found.  Skipping.")
+            logger.warning(f"Table %r not found.  Skipping.", self.table)
         return caught_error
 
 
