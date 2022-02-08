@@ -90,9 +90,8 @@ class GCSToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param source_object_required: When source_object_required is True, if you want to copy / move a specific blob
-        and it doesn't exist, an exception is raised and the task is marked as failed.
-        This parameter doesn't have any effect when the source_object that you pass is a folder or pattern.
+    :param source_object_required: Whether you want to raise an exception when the source object
+        doesn't exist. It doesn't have any effect when the source objects are folders or patterns.
 
     :Example:
 
@@ -319,9 +318,7 @@ class GCSToGCSOperator(BaseOperator):
                     hook=hook, source_object=prefix, destination_object=self.destination_object
                 )
             elif self.source_object_required:
-                msg = (
-                    f'{prefix} does not exist in bucket {self.source_bucket}'
-                )
+                msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
                 raise AirflowException(msg)
 

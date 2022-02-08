@@ -556,11 +556,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             source_objects=SOURCE_OBJECTS_SINGLE_FILE,
             destination_bucket=DESTINATION_BUCKET,
             destination_object=DESTINATION_OBJECT_PREFIX,
-            source_object_required=True
+            source_object_required=True,
         )
 
         with pytest.raises(
-            AirflowException,
-            match=f"{SOURCE_OBJECTS_SINGLE_FILE} does not exist in bucket {TEST_BUCKET}"
+            AirflowException, match=f"{SOURCE_OBJECTS_SINGLE_FILE} does not exist in bucket {TEST_BUCKET}"
         ):
             operator.execute(None)
