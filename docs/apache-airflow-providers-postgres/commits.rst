@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-08
 
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
+`8f81b9a01 <https://github.com/apache/airflow/commit/8f81b9a01c7708a282271f9afd6b16a91011f105>`_  2022-02-08   ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `e07139ab7 <https://github.com/apache/airflow/commit/e07139ab73ebf8d7ebd46655a304708f13a440ac>`_  2022-01-30   ``Replaces the usage of postgres:// with postgresql:// (#21205)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
@@ -46,7 +48,7 @@ Commit                                                                          
 `d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `dad2f8103 <https://github.com/apache/airflow/commit/dad2f8103be954afaedf15e9d098ee417b0d5d02>`_  2021-12-15   ``Fix mypy providers (#20190)``
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
 
 2.4.0
 .....

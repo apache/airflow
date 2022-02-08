@@ -129,6 +129,7 @@ PIP package                             Version required
 ``json-merge-patch``                    ``~=0.2``
 ``pandas-gbq``                          ``<0.15.0``
 ``pandas``                              ``>=0.17.1, <1.4``
+``sqlalchemy-bigquery``                 ``>=1.2.1``
 ======================================  ====================
 
 Cross provider package dependencies

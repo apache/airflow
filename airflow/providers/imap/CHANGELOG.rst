@@ -32,6 +32,7 @@ Features
    * ``Fixing MyPy issue inside providers IMAP hooks (#20968)``
    * ``Fix mypy in providers/grpc and providers/imap (#20651)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.1.0
 .....
