@@ -163,7 +163,7 @@ class S3Hook(AwsBaseHook):
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: Optional[str] = None) -> str:
+    def get_bucket(self, bucket_name: Optional[str] = None) -> object:
         """
         Returns a boto3.S3.Bucket object
 
