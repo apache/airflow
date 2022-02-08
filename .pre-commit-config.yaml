@@ -690,6 +690,15 @@ repos:
         pass_filenames: true
         files: \.github/workflows/.*\.yml$
         additional_dependencies: ['PyYAML', 'rich']
+      - id: docstring-params
+        name: Check that docstrings do not specify param types
+        entry: ./scripts/ci/pre_commit/pre_commit_docstring_param_type.py
+        language: python
+        pass_filenames: true
+        files: \.py$
+        pass_filenames: true
+        exclude: ^airflow/_vendor/
+        additional_dependencies: ['rich']
       - id: chart-schema-lint
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py

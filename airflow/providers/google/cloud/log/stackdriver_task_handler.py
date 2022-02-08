@@ -215,7 +215,6 @@ class StackdriverTaskHandler(logging.Handler):
         https://cloud.google.com/logging/docs/view/advanced-queries
 
         :param ti_labels: Task Instance's labels that will be used to search for logs
-        :type: Dict[str, str]
         :return: logs filter
         """
 
@@ -331,7 +330,6 @@ class StackdriverTaskHandler(logging.Handler):
         """
         Creates an address for an external log collecting service.
         :param task_instance: task instance object
-        :type: task_instance: TaskInstance
         :param try_number: task instance try_number to read logs from.
         :return: URL to the external log collection service
         :rtype: str

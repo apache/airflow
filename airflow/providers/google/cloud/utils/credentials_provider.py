@@ -218,7 +218,6 @@ class _CredentialProvider(LoggingMixin):
         Get current credentials and project ID.
 
         :return: Google Auth Credentials
-        :type: Tuple[google.auth.credentials.Credentials, str]
         """
         if self.key_path:
             credentials, project_id = self._get_credentials_using_key_path()

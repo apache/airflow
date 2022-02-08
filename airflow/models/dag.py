@@ -2207,12 +2207,9 @@ class DAG(LoggingMixin):
         :param verbose: Make logging output more verbose
         :param conf: user defined dictionary passed from CLI
         :param rerun_failed_tasks:
-        :type: bool
         :param run_backwards:
-        :type: bool
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
-        :type: bool
         """
         from airflow.jobs.backfill_job import BackfillJob
 
