@@ -228,13 +228,11 @@ def _cleanup_table(
 
 def _confirm_delete(*, date: DateTime, tables: List[str]):
     for_tables = f" for tables {tables!r}" if tables else ''
-    question = '\n'.join(
-        [
-            f"You have requested that we purge all data prior to {date}{for_tables}.",
-            "This is irreversible.  Consider backing up the tables first and / or doing a dry run"
-            " with option --dry-run.",
-            "Enter 'delete rows' to proceed.",
-        ]
+    question = (
+        f"You have requested that we purge all data prior to {date}{for_tables}.\n"
+        f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
+        f"with option --dry-run.\n"
+        f"Enter 'delete rows' (without quotes) to proceed."
     )
     print(question)
     answer = input().strip()
