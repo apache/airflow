@@ -35,7 +35,7 @@ dag = DAG(
 # [START howto_operator_mysql]
 
 drop_table_mysql_task = MySqlOperator(
-    task_id='create_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag
+    task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag
 )
 
 # [END howto_operator_mysql]
@@ -43,7 +43,7 @@ drop_table_mysql_task = MySqlOperator(
 # [START howto_operator_mysql_external_file]
 
 mysql_task = MySqlOperator(
-    task_id='create_table_mysql_external_file',
+    task_id='drop_table_mysql_external_file',
     sql='/scripts/drop_table.sql',
     dag=dag,
 )
