@@ -318,13 +318,12 @@ class GCSToGCSOperator(BaseOperator):
                 self._copy_single_object(
                     hook=hook, source_object=prefix, destination_object=self.destination_object
                 )
-            else:
+            elif self.source_object_required:
                 msg = (
                     f'{prefix} does not exist in bucket {self.source_bucket}'
                 )
                 self.log.warning(msg)
-                if self.source_object_required:
-                    raise AirflowException(msg)
+                raise AirflowException(msg)
 
         for source_obj in objects:
             if self.destination_object is None:
