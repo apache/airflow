@@ -946,35 +946,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         ):
             self.hook.get_sqlalchemy_engine()
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
-    def test_insert_job_with_async(self, mock_client, mock_query_job):
-        job_conf = {
-            "query": {
-                "query": "SELECT * FROM test",
-                "useLegacySql": "False",
-            }
-        }
-        mock_query_job._JOB_TYPE = "query"
-
-        self.hook.insert_job(
-            configuration=job_conf, job_id=JOB_ID, project_id=PROJECT_ID, location=LOCATION, is_async=True
-        )
-
-        mock_client.assert_called_once_with(
-            project_id=PROJECT_ID,
-            location=LOCATION,
-        )
-
-        mock_query_job.from_api_repr.assert_called_once_with(
-            {
-                'configuration': job_conf,
-                'jobReference': {'jobId': JOB_ID, 'projectId': PROJECT_ID, 'location': LOCATION},
-            },
-            mock_client.return_value,
-        )
-        mock_query_job.from_api_repr.return_value._begin.assert_called_once()
-
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
