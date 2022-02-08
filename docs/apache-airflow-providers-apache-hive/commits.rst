@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.2.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-08
 
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
+`8f81b9a01 <https://github.com/apache/airflow/commit/8f81b9a01c7708a282271f9afd6b16a91011f105>`_  2022-02-08   ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
 `5569b868a <https://github.com/apache/airflow/commit/5569b868a990c97dfc63a0e014a814ec1cc0f953>`_  2022-01-09   ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
@@ -46,7 +48,7 @@ Commit                                                                          
 `a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `485ff6cc6 <https://github.com/apache/airflow/commit/485ff6cc64d8f6a15d8d6a0be50661fe6d04b2d9>`_  2021-12-29   ``Fix MyPy errors in Apache Providers (#20422)``
 `f760823b4 <https://github.com/apache/airflow/commit/f760823b4af3f0fdfacf63dae199ec4d88028f71>`_  2021-12-11   ``Add some type hints for Hive providers (#20210)``
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
 
 2.1.0
 .....

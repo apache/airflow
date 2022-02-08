@@ -26,6 +26,7 @@ Changelog
 .....
 
 * ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
 
 Misc
 ~~~~
@@ -45,6 +46,7 @@ Misc
    * ``More f-strings (#18855)``
    * ``Update documentation for September providers release (#18613)``
    * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.1.1
 .....

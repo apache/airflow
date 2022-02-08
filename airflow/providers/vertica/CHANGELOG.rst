@@ -35,6 +35,7 @@ Features
    * ``Update documentation for provider December 2021 release (#20523)``
    * ``Even more typing in operators (template_fields/ext) (#20608)``
    * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.0.1
 .....

@@ -38,11 +38,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.4.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-08
 
 ================================================================================================  ===========  ============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================================
+`e97374020 <https://github.com/apache/airflow/commit/e9737402081aa9c9bac748de1d75b387b3b8da42>`_  2022-02-08   ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
+`34d63fabc <https://github.com/apache/airflow/commit/34d63fabc0f2a85df38a78a89f9929e110951d11>`_  2022-02-08   ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
+`6b88d432d <https://github.com/apache/airflow/commit/6b88d432d959df73433528fe3d62194239f13edd>`_  2022-02-06   ``Support to upload file to Google Shared Drive (#21319)``
+`1a77bc648 <https://github.com/apache/airflow/commit/1a77bc6481580ab6817267b6e075634caaa025be>`_  2022-02-06   ``:bug: (BigQueryHook) fix compatibility with sqlalchemy engine (#19508)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `e840acf8d <https://github.com/apache/airflow/commit/e840acf8d1840761b72b596ccd4280efece0c974>`_  2022-02-04   ``Fix BigQuery system test (#21320)``
 `ddb5246bd <https://github.com/apache/airflow/commit/ddb5246bd1576e2ce6abf8c80c3328d7d71a75ce>`_  2022-02-03   ``Refactor operator links to not create ad hoc TaskInstances (#21285)``

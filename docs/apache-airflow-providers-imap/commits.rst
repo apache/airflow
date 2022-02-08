@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.2.0
 .....
 
-Latest change: 2022-01-20
+Latest change: 2022-02-05
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
 `032cf7cdb <https://github.com/apache/airflow/commit/032cf7cdbce34ceb0e9380f86e07a6c077470396>`_  2022-01-20   ``Fixing MyPy issue inside providers IMAP hooks (#20968)``
 `25a5f553c <https://github.com/apache/airflow/commit/25a5f553c306549d3d1f0f71f3eee53c72447e41>`_  2022-01-12   ``Add "use_ssl" option to IMAP connection (#20441)``
