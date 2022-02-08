@@ -28,6 +28,9 @@ from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+
+# Alias this to WebSession so it doesn't conflict with sqla.orm.session.Session
+from airflow._vendor.flask_session.db_models import Session as WebSession  # noqa: F401
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
