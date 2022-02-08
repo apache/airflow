@@ -533,7 +533,6 @@ class TestDockerOperator(unittest.TestCase):
         xcom_all_result = xcom_all_operator.execute(None)
         no_xcom_push_result = no_xcom_push_operator.execute(None)
 
-        # Those values here are different than log above as they are from setup
         assert xcom_push_result is None
         assert xcom_all_result is None
         assert no_xcom_push_result is None
