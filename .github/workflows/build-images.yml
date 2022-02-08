@@ -126,10 +126,10 @@ jobs:
         run: |
           if [[ ${GITHUB_EVENT_NAME} == "pull_request_target" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.py "${TARGET_COMMIT_SHA}"
           else
             # Run all checks
-            ./scripts/ci/selective_ci_checks.sh
+            ./scripts/ci/selective_ci_checks.py
           fi
       - name: Compute dynamic outputs
         id: dynamic-outputs
