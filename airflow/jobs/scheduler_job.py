@@ -877,7 +877,6 @@ class SchedulerJob(BaseJob):
                     Stats.incr('scheduler.critical_section_busy')
                     session.rollback()
                     return 0
-                self.log.debug(f"If block didn't work with exception {e}")
                 raise
             except Exception as exc:
                 self.log.debug(f"General Exception: {exc}, context: {exc.__context__}")
@@ -891,7 +890,6 @@ class SchedulerJob(BaseJob):
                     Stats.incr('scheduler.critical_section_busy')
                     session.rollback()
                     return 0
-                self.log.debug(f"If block didn't work with exception {e}")
                 raise
 
             guard.commit()
