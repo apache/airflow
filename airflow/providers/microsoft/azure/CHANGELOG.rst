@@ -37,6 +37,7 @@ Misc
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Remove all "fake" stub files (#20936)``
    * ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 3.5.0
 .....

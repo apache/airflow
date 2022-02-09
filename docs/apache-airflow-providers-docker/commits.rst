@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.4.1
 .....
 
-Latest change: 2022-02-01
+Latest change: 2022-02-08
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`63fa25723 <https://github.com/apache/airflow/commit/63fa257231f5ff372cf6ab91a744cfc37ec0e9b8>`_  2022-02-08   ``Fix docker behaviour with byte lines returned (#21429)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `2f4a3d4d4 <https://github.com/apache/airflow/commit/2f4a3d4d4008a95fc36971802c514fef68e8a5d4>`_  2022-02-01   ``Fixes Docker xcom functionality (#21175)``
 `cb7305321 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``

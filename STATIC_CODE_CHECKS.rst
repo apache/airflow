@@ -172,6 +172,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``detect-private-key``                 Detects if private key is added to the repository
 ------------------------------------ ---------------------------------------------------------------- ------------
+``docstring-params``                   Checks that param types not specified in docstring
+------------------------------------ ---------------------------------------------------------------- ------------
 ``doctoc``                             Refreshes the table of contents for MD files
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``dont-use-safe-filter``               Don't use safe in templates
