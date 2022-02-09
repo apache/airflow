@@ -232,7 +232,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D202,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
