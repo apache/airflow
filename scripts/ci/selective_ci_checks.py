@@ -53,7 +53,7 @@ def ga_output(parameter_name: str, parameter_value: str):
 
 def output_all_basic_variables():
     global FULL_TESTS_NEEDED_LABEL
-    if FULL_TESTS_NEEDED_LABEL == "True":
+    if FULL_TESTS_NEEDED_LABEL:
         ga_output(
             "python_versions",
             [
