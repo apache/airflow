@@ -1419,6 +1419,11 @@ class TaskInstance(Base, LoggingMixin):
 
         def signal_handler(signum, frame):
             pid = os.getpid()
+
+            # If a task forks during execution (from DAG code) for whatever
+            # reason, we want to make sure that we react to the signal only in
+            # the process that we've spawned ourselves (referred to here as the
+            # parent process).
             if pid != parent_pid:
                 os._exit(1)
                 return
