@@ -112,7 +112,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_get_conn.return_value.get_instance.assert_has_calls(
+        mock_get_conn.return_value.get_instance.has_calls(
             [
                 mock.call(name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA),
                 mock.call(name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA),
@@ -266,7 +266,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_get_conn.return_value.get_instance.assert_has_calls(
+        mock_get_conn.return_value.get_instance.has_calls(
             [
                 mock.call(
                     name="projects/test-project-id/locations/test-location/instances/test-instance-id",
@@ -503,12 +503,12 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        mock_get_conn.return_value.get_instance.assert_has_calls(
-            [
-                mock.call(name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA),
-                mock.call(name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA),
+
+        calls = [
+                mock.call(name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA)
+                # mock.call(name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA),
             ]
-        )
+        mock_get_conn.return_value.get_instance.assert_has_calls(calls)
         mock_get_conn.return_value.create_instance.assert_called_once_with(
             resource=cloud_memcache.Instance(
                 name=TEST_NAME,
