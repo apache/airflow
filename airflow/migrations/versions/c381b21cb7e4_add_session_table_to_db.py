@@ -27,8 +27,6 @@ Create Date: 2022-01-25 13:56:35.069429
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.utils.sqlalchemy import ExtendedJSON
-
 # revision identifiers, used by Alembic.
 revision = 'c381b21cb7e4'
 down_revision = 'be2bfac3da23'
@@ -44,7 +42,7 @@ def upgrade():
         TABLE_NAME,
         sa.Column('id', sa.Integer()),
         sa.Column('session_id', sa.String(255)),
-        sa.Column('data', ExtendedJSON()),
+        sa.Column('data', sa.LargeBinary()),
         sa.Column('expiry', sa.DateTime()),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('session_id'),

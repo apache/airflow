@@ -28,9 +28,6 @@ from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
-
-# Alias this to WebSession so it doesn't conflict with sqla.orm.session.Session
-from airflow._vendor.flask_session.db_models import Session as WebSession  # noqa: F401
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
@@ -58,6 +55,9 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+
+# Alias this to WebSession so it doesn't conflict with sqla.orm.session.Session
+from airflow.models.session import Session as WebSession  # noqa: F401
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 

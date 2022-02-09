@@ -17,8 +17,7 @@
 
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
-
-from airflow._vendor.flask_session.sessions import SQLAlchemySessionInterface
+from flask_session.sessions import SqlAlchemySessionInterface
 
 
 class SesssionExemptBlueprintMixin:
@@ -33,7 +32,7 @@ class SesssionExemptBlueprintMixin:
         return super().save_session(*args, **kwargs)
 
 
-class AirflowDatabaseSessionInterface(SesssionExemptBlueprintMixin, SQLAlchemySessionInterface):
+class AirflowDatabaseSessionInterface(SesssionExemptBlueprintMixin, SqlAlchemySessionInterface):
     """Session interface that exempts some routes and stores session data in the database"""
 
 

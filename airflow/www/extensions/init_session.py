@@ -22,7 +22,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.www.session import AirflowDatabaseSessionInterface, AirflowSecureCookieSessionInterface
 
 
-def init_airflow_session_interface(app, db):
+def init_airflow_session_interface(app):
     """Set airflow session interface"""
     config = app.config.copy()
     selected_backend = conf.get('webserver', 'SESSION_BACKEND')
@@ -43,7 +43,7 @@ def init_airflow_session_interface(app, db):
     elif selected_backend == 'database':
         app.session_interface = AirflowDatabaseSessionInterface(
             app=app,
-            db=db,
+            db=None,
             # These options come from Flask-Session, but are hard-coded
             table='sessions',
             key_prefix='',
