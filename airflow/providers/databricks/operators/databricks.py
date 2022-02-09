@@ -241,8 +241,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
-    :param maintenance_windows: maintenance window(s) for your databricks platform, during maintenance all API
-    errors are considered retryable. According to databricks support as of now that is the way to go.
+    :param maintenance_windows: Maintenance window(s) for your databricks platform. During maintenance all API errors
+    are considered retryable, which is at the moment the only workaround given by databricks support.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -479,8 +479,9 @@ class DatabricksRunNowOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_maintenance_windows: maintenance window(s) for your databricks platform, during maintenance all API
-    errors are considered retryable. According to databricks support as of now that is the way to go.
+    :param databricks_maintenance_windows: Maintenance window(s) for your databricks platform.
+    During maintenance all API errors are considered retryable, which is at the moment the only workaround given by
+    databricks support.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
