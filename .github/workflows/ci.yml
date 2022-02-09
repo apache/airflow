@@ -192,10 +192,13 @@ jobs:
           import subprocess
           import sys
 
-          if ${GITHUB_EVENT_NAME} == "pull_request":
+          GITHUB_EVENT_NAME = os.environ.get('GITHUB_EVENT_NAME')
+          GITHUB_SHA = os.environ.get('GITHUB_SHA')
+
+          if GITHUB_EVENT_NAME == "pull_request":
             print("Run selective checks")
-            # ./scripts/ci/selective_ci_checks.sh "${GITHUB_SHA}"
-            subprocess.run(['python3', './scripts/ci/selective_ci_checks.py', '${TARGET_COMMIT_SHA}'])
+            # ./scripts/ci/selective_ci_checks.sh GITHUB_SHA
+            subprocess.run(['python3', './scripts/ci/selective_ci_checks.py', GITHUB_SHA])
           else:
             print("Run all checks")
             #./scripts/ci/selective_ci_checks.sh
