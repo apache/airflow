@@ -36,13 +36,14 @@ const StatusBox = ({
     executionDate, taskId, tryNumber = 0, operator, runId,
   } = instance;
   const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined, runId);
+
+  // Fetch the corresponding column element and set its background color when hovering
   const onMouseOver = () => {
-    [...containerRef.current.getElementsByClassName(runId)]
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
       .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
   };
-
   const onMouseLeave = () => {
-    [...containerRef.current.getElementsByClassName(runId)]
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
       .forEach((e) => { e.style.backgroundColor = null; });
   };
 

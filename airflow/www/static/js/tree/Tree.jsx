@@ -47,7 +47,7 @@ const Tree = () => {
   }, []);
 
   return (
-    <Box position="relative">
+    <Box position="relative" ref={containerRef}>
       <FormControl display="flex" alignItems="center" justifyContent="flex-end" width="100%">
         {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
         <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
@@ -67,7 +67,6 @@ const Tree = () => {
           </Table>
         </Box>
       </Box>
-      <div ref={containerRef} />
     </Box>
   );
 };

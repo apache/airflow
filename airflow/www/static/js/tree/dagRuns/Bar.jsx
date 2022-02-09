@@ -78,7 +78,16 @@ const DagRunBar = ({
         </Flex>
       </Tooltip>
     </Flex>
-    <Box position="absolute" width="100%" top={0} height="100vh" className={run.runId} _peerHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" zIndex={0} />
+    <Box
+      position="absolute"
+      width="100%"
+      top={0}
+      height="100vh"
+      className={`js-${run.runId}`}
+      _peerHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}
+      zIndex={0}
+      transition="background-color 0.2s"
+    />
     {index < totalRuns - 3 && index % 10 === 0 && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
