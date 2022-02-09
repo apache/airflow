@@ -63,10 +63,13 @@ class TrinoHook(DbApiHook):
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
+        user = db.login
         if db.password and extra.get('auth') == 'kerberos':
             raise AirflowException("Kerberos authorization doesn't support password.")
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)
+        elif extra.get('auth') == 'jwt':
+            auth = trino.auth.JWTAuthentication(token=extra.get('jwt__token'))
         elif extra.get('auth') == 'kerberos':
             auth = trino.auth.KerberosAuthentication(
                 config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
@@ -81,10 +84,14 @@ class TrinoHook(DbApiHook):
                 delegate=_boolify(extra.get('kerberos__delegate', False)),
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
+        
+        if _boolify(extra.get('impersonate_as_owner', False)):
+            user = os.getenv('AIRFLOW_CTX_DAG_OWNER', None)
+        
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
-            user=db.login,
+            user=user,
             source=extra.get('source', 'airflow'),
             http_scheme=extra.get('protocol', 'http'),
             catalog=extra.get('catalog', 'hive'),
