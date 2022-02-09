@@ -46,6 +46,7 @@ To publish a message to an Amazon SNS Topic you can use
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sns.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_sns_publish_operator]
     :end-before: [END howto_operator_sns_publish_operator]
 
