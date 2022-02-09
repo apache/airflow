@@ -45,48 +45,55 @@ VPC_CONFIG = {
 
 
 with DAG(
-    dag_id='example_eks_with_nodegroups_dag',
-    default_args={'cluster_name': CLUSTER_NAME},
+    dag_id='example_eks_with_nodegroups',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
-    max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_eks_create_cluster]
     # Create an Amazon EKS Cluster control plane without attaching compute service.
     create_cluster = EksCreateClusterOperator(
         task_id='create_eks_cluster',
+        cluster_name=CLUSTER_NAME,
         cluster_role_arn=ROLE_ARN,
         resources_vpc_config=VPC_CONFIG,
         compute=None,
     )
     # [END howto_operator_eks_create_cluster]
 
+    # [START howto_sensor_eks_cluster]
     await_create_cluster = EksClusterStateSensor(
         task_id='wait_for_create_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.ACTIVE,
     )
+    # [END howto_sensor_eks_cluster]
 
     # [START howto_operator_eks_create_nodegroup]
     create_nodegroup = EksCreateNodegroupOperator(
         task_id='create_eks_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         nodegroup_subnets=SUBNETS,
         nodegroup_role_arn=ROLE_ARN,
     )
     # [END howto_operator_eks_create_nodegroup]
 
+    # [START howto_sensor_eks_nodegroup]
     await_create_nodegroup = EksNodegroupStateSensor(
         task_id='wait_for_create_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.ACTIVE,
     )
+    # [END howto_sensor_eks_nodegroup]
 
     # [START howto_operator_eks_pod_operator]
     start_pod = EksPodOperator(
         task_id="run_pod",
+        cluster_name=CLUSTER_NAME,
         pod_name="run_pod",
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "ls"],
@@ -99,12 +106,15 @@ with DAG(
 
     # [START howto_operator_eks_delete_nodegroup]
     delete_nodegroup = EksDeleteNodegroupOperator(
-        task_id='delete_eks_nodegroup', nodegroup_name=NODEGROUP_NAME
+        task_id='delete_eks_nodegroup',
+        cluster_name=CLUSTER_NAME,
+        nodegroup_name=NODEGROUP_NAME,
     )
     # [END howto_operator_eks_delete_nodegroup]
 
     await_delete_nodegroup = EksNodegroupStateSensor(
         task_id='wait_for_delete_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.NONEXISTENT,
     )
@@ -115,6 +125,7 @@ with DAG(
 
     await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 

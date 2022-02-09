@@ -46,18 +46,17 @@ VPC_CONFIG = {
 
 
 with DAG(
-    dag_id='example_eks_with_fargate_profile_dag',
-    default_args={'cluster_name': CLUSTER_NAME},
+    dag_id='example_eks_with_fargate_profile',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
-    max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EksCreateClusterOperator(
         task_id='create_eks_cluster',
+        cluster_name=CLUSTER_NAME,
         cluster_role_arn=ROLE_ARN,
         resources_vpc_config=VPC_CONFIG,
         compute=None,
@@ -65,26 +64,32 @@ with DAG(
 
     await_create_cluster = EksClusterStateSensor(
         task_id='wait_for_create_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.ACTIVE,
     )
 
     # [START howto_operator_eks_create_fargate_profile]
     create_fargate_profile = EksCreateFargateProfileOperator(
         task_id='create_eks_fargate_profile',
+        cluster_name=CLUSTER_NAME,
         pod_execution_role_arn=ROLE_ARN,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         selectors=SELECTORS,
     )
     # [END howto_operator_eks_create_fargate_profile]
 
+    # [START howto_sensor_eks_fargate]
     await_create_fargate_profile = EksFargateProfileStateSensor(
         task_id='wait_for_create_fargate_profile',
+        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         target_state=FargateProfileStates.ACTIVE,
     )
+    # [END howto_sensor_eks_fargate]
 
     start_pod = EksPodOperator(
         task_id="run_pod",
+        cluster_name=CLUSTER_NAME,
         pod_name="run_pod",
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
@@ -97,12 +102,14 @@ with DAG(
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EksDeleteFargateProfileOperator(
         task_id='delete_eks_fargate_profile',
+        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
     )
     # [END howto_operator_eks_delete_fargate_profile]
 
     await_delete_fargate_profile = EksFargateProfileStateSensor(
         task_id='wait_for_delete_fargate_profile',
+        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         target_state=FargateProfileStates.NONEXISTENT,
     )
@@ -111,6 +118,7 @@ with DAG(
 
     await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 
