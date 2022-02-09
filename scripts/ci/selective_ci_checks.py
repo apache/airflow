@@ -25,6 +25,7 @@ PR_LABELS = "full tests needed"  # os.environ.get('PR_LABELS')
 GITHUB_EVENT_NAME = os.environ.get('GITHUB_EVENT_NAME')
 RANDOM = os.environ.get('RANDOM')
 ALL_TESTS = os.environ.get('ALL_TESTS')
+INCOMING_COMMIT_SHA = os.environ.get('INCOMING_COMMIT_SHA')
 
 if PR_LABELS == "full tests needed":
     print(f"Found the right PR labels in ${PR_LABELS} : 'full tests needed'")
