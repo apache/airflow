@@ -125,7 +125,13 @@ class Role(Model):
 
     id = Column(Integer, get_sequence_or_identity("ab_role_id_seq"), primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role", lazy="joined")
+    permissions = relationship(
+        "Permission",
+        secondary=assoc_permission_role,
+        backref="role",
+        lazy="joined",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
 
     def __repr__(self):
         return self.name
@@ -144,6 +150,7 @@ class Permission(Model):
         uselist=False,
         backref="permission",
         lazy="joined",
+        cascade="save-update, merge, delete, delete-orphan",
     )
     resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
     resource = relationship(
@@ -152,6 +159,7 @@ class Permission(Model):
         uselist=False,
         backref="permission",
         lazy="joined",
+        cascade="save-update, merge, delete, delete-orphan",
     )
 
     def __repr__(self):
