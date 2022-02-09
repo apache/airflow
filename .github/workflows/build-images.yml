@@ -124,13 +124,15 @@ jobs:
         env:
           PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
         run: |
-          if [[ ${GITHUB_EVENT_NAME} == "pull_request_target" ]]; then
-            # Run selective checks
-            ./scripts/ci/selective_ci_checks.py "${TARGET_COMMIT_SHA}"
-          else
-            # Run all checks
-            ./scripts/ci/selective_ci_checks.py
-          fi
+          import subprocess
+
+          if ${GITHUB_EVENT_NAME} == "pull_request_target":
+            print("Run selective checks")
+            #python3 ./scripts/ci/selective_ci_checks.py "${TARGET_COMMIT_SHA}"
+            subprocess.run(['python3', './scripts/ci/selective_ci_checks.py', '${TARGET_COMMIT_SHA}'])
+          else:
+            print("Run all checks")
+            subprocess.run(['python3', './scripts/ci/selective_ci_checks.py'])
       - name: Compute dynamic outputs
         id: dynamic-outputs
         run: |
