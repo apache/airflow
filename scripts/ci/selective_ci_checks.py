@@ -96,7 +96,7 @@ if len(sys.argv) < 1:
     check_upgrade_to_newer_dependencies_needed
     set_outputs_run_everything_and_exit
 else:
-    INCOMING_COMMIT_SHA = sys.argv[0]
+    INCOMING_COMMIT_SHA = sys.argv[1]
     print("")
     print(f"Commit SHA passed: {INCOMING_COMMIT_SHA}!")
     print("")
