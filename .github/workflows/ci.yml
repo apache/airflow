@@ -187,7 +187,9 @@ jobs:
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
+          import os
           import subprocess
+          import sys
 
           if ${GITHUB_EVENT_NAME} == "pull_request":
             print("Run selective checks")
