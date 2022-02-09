@@ -68,6 +68,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     ListDatasetsOperator,
     UpdateDatasetOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import (
+    CreateEndpointOperator,
+    DeleteEndpointOperator,
+    DeployModelOperator,
+    ListEndpointsOperator,
+)
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
@@ -164,7 +170,14 @@ COLUMN_TRANSFORMATIONS = [
     {"numeric": {"column_name": "PhotoAmt"}},
 ]
 
-MODEL_ID = "726702419169247232"
+MODEL_ID = "9182492194534064128"
+MODEL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}"
+JOB_DISPLAY_NAME = f"temp_create_batch_prediction_job_test_{uuid4()}"
+GCS_SOURCE = "gs://vertex-ai-system-tests/batch_prediction_input.jsonl"
+BIGQUERY_SOURCE = f"bq://bigquery-public-data:iowa_liquor_sales_forecasting.2021_sales_predict"
+GCS_DESTINATION_PREFIX = "gs://vertex-ai-system-tests/output"
+MODEL_PARAMETERS = json_format.ParseDict({}, Value())
+
 BATCH_PREDICTION_JOB = {
     "display_name": f"temp_create_batch_prediction_job_test_{uuid4()}",
     # Format: 'projects/{project}/locations/{location}/models/{model_id}'
@@ -187,6 +200,10 @@ BATCH_PREDICTION_JOB = {
         "starting_replica_count": 1,
         "max_replica_count": 1,
     },
+}
+
+ENDPOINT_CONF = {
+    "display_name": f"endpoint_test_{uuid4()}",
 }
 
 with models.DAG(
@@ -508,7 +525,13 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
     create_batch_prediction_job = CreateBatchPredictionJobOperator(
         task_id="create_batch_prediction_job",
-        batch_prediction_job=BATCH_PREDICTION_JOB,
+        job_display_name=JOB_DISPLAY_NAME,
+        model_name=MODEL_NAME,
+        predictions_format="csv",
+        bigquery_source=BIGQUERY_SOURCE,
+        # gcs_source=GCS_SOURCE,
+        gcs_destination_prefix=GCS_DESTINATION_PREFIX,
+        model_parameters=MODEL_PARAMETERS,
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -533,3 +556,52 @@ with models.DAG(
 
     create_batch_prediction_job >> delete_batch_prediction_job
     list_batch_prediction_job
+
+with models.DAG(
+    "example_gcp_vertex_ai_endpoint",
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as endpoint_dag:
+    # [START how_to_cloud_vertex_ai_create_endpoint_operator]
+    create_endpoint = CreateEndpointOperator(
+        task_id="create_endpoint",
+        endpoint=ENDPOINT_CONF,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_endpoint_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_endpoint_operator]
+    delete_endpoint = DeleteEndpointOperator(
+        task_id="delete_endpoint",
+        endpoint_id=create_endpoint.output['endpoint_id'],
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_delete_endpoint_operator]
+
+    # [START how_to_cloud_vertex_ai_list_endpoints_operator]
+    list_endpoints = ListEndpointsOperator(
+        task_id="list_endpoints",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_list_endpoints_operator]
+
+    # [START how_to_cloud_vertex_ai_deploy_model_operator]
+    deploy_model = DeployModelOperator(
+        task_id="deploy_model",
+        endpoint_id=create_endpoint.output['endpoint_id'],
+        deployed_model={
+            "model": "auto-ml-forecasting-model-42ab6aac-6c5d-4f6e-8d7e-9d20b1bc2259",
+        },
+        traffic_split="100",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_deploy_model_operator]
+
+    create_endpoint >> delete_endpoint
+    create_endpoint >> deploy_model
+    list_endpoints

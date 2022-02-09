@@ -18,24 +18,21 @@
 #
 """This module contains a Google Cloud Vertex AI hook."""
 
-from typing import Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import EndpointServiceClient
 from google.cloud.aiplatform_v1.services.endpoint_service.pagers import ListEndpointsPager
-from google.cloud.aiplatform_v1.types import (
-    DeployedModel,
-    Endpoint,
-)
+from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class EndpointServiceJobHook(GoogleBaseHook):
-    """Hook for Google Cloud Vertex AI Endpoint Service Job APIs."""
+class EndpointServiceHook(GoogleBaseHook):
+    """Hook for Google Cloud Vertex AI Endpoint Service APIs."""
 
     def get_endpoint_service_client(self, region: Optional[str] = None) -> EndpointServiceClient:
         """Returns EndpointServiceClient."""
@@ -54,6 +51,11 @@ class EndpointServiceJobHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    @staticmethod
+    def extract_endpoint_id(obj: Dict) -> str:
+        """Returns unique id of the endpoint."""
+        return obj["name"].rpartition("/")[-1]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_endpoint(
@@ -129,7 +131,7 @@ class EndpointServiceJobHook(GoogleBaseHook):
         region: str,
         endpoint: str,
         deployed_model: DeployedModel,
-        traffic_split: Sequence[TrafficSplitEntry],
+        traffic_split: Sequence[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -278,7 +280,7 @@ class EndpointServiceJobHook(GoogleBaseHook):
         region: str,
         endpoint: str,
         deployed_model_id: str,
-        traffic_split: Sequence[TrafficSplitEntry],
+        traffic_split: Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -321,6 +323,7 @@ class EndpointServiceJobHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
+        endpoint_id: str,
         endpoint: Endpoint,
         update_mask: FieldMask,
         retry: Optional[Retry] = None,
@@ -340,6 +343,7 @@ class EndpointServiceJobHook(GoogleBaseHook):
         :param metadata: Strings which should be sent along with the request as metadata.
         """
         client = self.get_endpoint_service_client(region)
+        endpoint["name"] = client.endpoint_path(project_id, region, endpoint_id)
 
         result = client.update_endpoint(
             request={
