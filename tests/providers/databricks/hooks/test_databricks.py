@@ -21,6 +21,7 @@ import itertools
 import json
 import time
 import unittest
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -38,9 +39,10 @@ from airflow.providers.databricks.hooks.databricks import (
     SUBMIT_RUN_ENDPOINT,
     TOKEN_REFRESH_LEAD_TIME,
     DatabricksHook,
-    RunState,
+    RunState, MaintenanceWindow, WeekDay,
 )
 from airflow.utils.session import provide_session
+import freezegun
 
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'
@@ -200,6 +202,22 @@ class TestDatabricksHook(unittest.TestCase):
         with pytest.raises(ValueError):
             DatabricksHook(retry_limit=0)
 
+    @freezegun.freeze_time(datetime(2022, 2, 9, 10))
+    def test_is_in_maintenance(self):
+        assert not DatabricksHook(maintenance_windows=None)._is_in_maintenance()
+        not_currently_active_1 = MaintenanceWindow(WeekDay.Wed, start_hour_utc=12, end_hour_utc=15)
+        not_currently_active_2 = MaintenanceWindow(WeekDay.Thu, start_hour_utc=9, end_hour_utc=10)
+        currently_active = MaintenanceWindow(WeekDay.Wed, start_hour_utc=9, end_hour_utc=11)
+        assert not DatabricksHook(maintenance_windows=[
+            not_currently_active_1,
+            not_currently_active_2,
+        ])._is_in_maintenance()
+        assert DatabricksHook(maintenance_windows=[
+            not_currently_active_1,
+            not_currently_active_2,
+            currently_active
+        ])._is_in_maintenance()
+
     def test_do_api_call_retries_with_retryable_error(self):
         for exception in [
             requests_exceptions.ConnectionError,
@@ -226,6 +244,19 @@ class TestDatabricksHook(unittest.TestCase):
                 self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
             mock_errors.assert_not_called()
+
+    @freezegun.freeze_time(datetime(2022, 2, 9, 10))
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_do_api_call_does_retry_with_non_retryable_error_during_maintenance(self, mock_requests):
+        hook = DatabricksHook(retry_delay=0, maintenance_windows=[
+            MaintenanceWindow(WeekDay.Wed, start_hour_utc=9, end_hour_utc=11)
+        ])
+        setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=403)
+        with mock.patch.object(hook.log, 'error') as mock_errors:
+            with pytest.raises(AirflowException) as e:
+                hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+            print(e)
+            assert mock_errors.call_count == hook.retry_limit
 
     def test_do_api_call_succeeds_after_retrying(self):
         for exception in [

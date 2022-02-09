@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, MaintenanceWindow
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -241,6 +241,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
+    :param maintenance_windows: maintenance window(s) for your databricks platform, during maintenance all API
+    errors are considered retryable. According to databricks support as of now that is the way to go.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -273,6 +275,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
         wait_for_termination: bool = True,
+        databricks_maintenance_windows: Optional[List[MaintenanceWindow]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -282,6 +285,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_maintenance_windows = databricks_maintenance_windows
         self.wait_for_termination = wait_for_termination
         if tasks is not None:
             self.json['tasks'] = tasks
@@ -322,6 +326,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            maintenance_windows=self.databricks_maintenance_windows,
         )
 
     def execute(self, context: 'Context'):
@@ -474,6 +479,8 @@ class DatabricksRunNowOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
+    :param databricks_maintenance_windows: maintenance window(s) for your databricks platform, during maintenance all API
+    errors are considered retryable. According to databricks support as of now that is the way to go.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -498,6 +505,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_delay: int = 1,
         do_xcom_push: bool = False,
         wait_for_termination: bool = True,
+        databricks_maintenance_windows: Optional[List[MaintenanceWindow]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -508,6 +516,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.wait_for_termination = wait_for_termination
+        self.databricks_maintenance_windows = databricks_maintenance_windows
 
         if job_id is not None:
             self.json['job_id'] = job_id
@@ -530,6 +539,7 @@ class DatabricksRunNowOperator(BaseOperator):
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            maintenance_windows=self.databricks_maintenance_windows,
         )
 
     def execute(self, context: 'Context'):

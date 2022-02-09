@@ -942,14 +942,14 @@ function initialization::check_docker_version() {
     local min_comparable_docker_version
     min_comparable_docker_version=$(initialization::ver "${min_docker_version}")
     # The #0 Strips leading zeros
-    if [[ ${comparable_docker_version#0} -lt ${min_comparable_docker_version#0} ]]; then
-        echo
-        echo "${COLOR_RED}Your version of docker is too old: ${docker_version}. Please upgrade to at least ${min_docker_version}.${COLOR_RESET}"
-        echo
-        exit 1
-    else
-        if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
+#    if [[ ${comparable_docker_version#0} -lt ${min_comparable_docker_version#0} ]]; then
+#        echo
+#        echo "${COLOR_RED}Your version of docker is too old: ${docker_version}. Please upgrade to at least ${min_docker_version}.${COLOR_RESET}"
+#        echo
+#        exit 1
+#    else
+#        if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
             echo "${COLOR_GREEN}Good version of docker ${docker_version}.${COLOR_RESET}"
-        fi
-    fi
+#        fi
+#    fi
 }

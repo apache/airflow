@@ -24,9 +24,12 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 """
 import sys
 import time
+from datetime import datetime
+from enum import Enum
 from time import sleep
-from typing import Dict
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
+import pytz
 
 import requests
 from requests import PreparedRequest, exceptions as requests_exceptions
@@ -112,6 +115,36 @@ class RunState:
         return str(self.__dict__)
 
 
+class WeekDay(Enum):
+    """Utility class to specify the weekday for maintenance."""
+    Mon = 0
+    Tue = 1
+    Wed = 2
+    Thu = 3
+    Fri = 4
+    Say = 5
+    Sun = 6
+
+
+class MaintenanceWindow:
+    """
+    Utility class to specify a maintenance window.
+
+    :param day: The maintenance week day.
+    :param start_hour_utc: Start hour of the maintenance.
+    :param end_hour_utc: End hour of the maintenance.
+    """
+
+    def __init__(self, day: WeekDay, start_hour_utc: int, end_hour_utc: int):
+        self.start_hour_utc = start_hour_utc
+        self.end_hour_utc = end_hour_utc
+        self.day = day
+
+    def is_in_maintenance(self):
+        now = datetime.now(tz=pytz.UTC)
+        return now.weekday() == self.day.value and (self.start_hour_utc <= now.hour <= self.end_hour_utc)
+
+
 class DatabricksHook(BaseHook):
     """
     Interact with Databricks.
@@ -136,6 +169,7 @@ class DatabricksHook(BaseHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
+        maintenance_windows: Optional[List[MaintenanceWindow]] = None,
     ) -> None:
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
@@ -146,6 +180,13 @@ class DatabricksHook(BaseHook):
         self.retry_delay = retry_delay
         self.aad_tokens: Dict[str, dict] = {}
         self.aad_timeout_seconds = 10
+        self.maintenance_windows = maintenance_windows
+
+    def _is_in_maintenance(self):
+        return self.maintenance_windows is not None and any((
+            maintenance_window.is_in_maintenance()
+            for maintenance_window in self.maintenance_windows
+        ))
 
     @cached_property
     def databricks_conn(self) -> Connection:
@@ -358,7 +399,7 @@ class DatabricksHook(BaseHook):
                 response.raise_for_status()
                 return response.json()
             except requests_exceptions.RequestException as e:
-                if not _retryable_error(e):
+                if not _retryable_error(e) and not self._is_in_maintenance():
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException(
