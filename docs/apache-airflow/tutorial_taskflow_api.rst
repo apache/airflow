@@ -301,7 +301,7 @@ to a TaskFlow function which parses the response as JSON.
     )
 
 
-    @task(max_retries=2)
+    @task
     def parse_results(api_results):
         return json.loads(api_results)
 
