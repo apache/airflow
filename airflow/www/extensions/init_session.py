@@ -44,11 +44,13 @@ def init_airflow_session_interface(app):
         app.session_interface = AirflowDatabaseSessionInterface(
             app=app,
             db=None,
-            # These options come from Flask-Session, but are hard-coded
+            permanent=permanent_cookie,
+            # Typically these would be configurable with Flask-Session,
+            # but we will set them explicitly instead as they don't make
+            # sense to have configurable in Airflow's use case
             table='sessions',
             key_prefix='',
             use_signer=True,
-            permanent=permanent_cookie,
         )
     else:
         raise AirflowConfigException(
