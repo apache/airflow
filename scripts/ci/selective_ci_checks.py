@@ -18,7 +18,9 @@
 # under the License.
 
 import os
+import sys
 
+# Forcing PR
 PR_LABELS = "full tests needed"  # os.environ.get('PR_LABELS')
 GITHUB_EVENT_NAME = os.environ.get('GITHUB_EVENT_NAME')
 RANDOM = os.environ.get('RANDOM')
@@ -44,32 +46,26 @@ def check_upgrade_to_newer_dependencies_needed():
         upgrade_to_newer_dependencies = RANDOM
 
 
-r'''
+def ga_output(parameter_name: str, parameter_value: str):
+    print(f"::set-output name={parameter_name}::{parameter_value}")
+    print(f"{parameter_name}={parameter_value}")
+
+
 def output_all_basic_variables():
-    if FULL_TESTS_NEEDED_LABEL:
-        NAME = "python-versions"
-        subprocess.check_output(
-            ['bash', '-c', 'source _initialization.sh &&  initialization::ga_output', NAME, '${@}']
+    global FULL_TESTS_NEEDED_LABEL
+    if FULL_TESTS_NEEDED_LABEL == "True":
+        ga_output(
+            "python_versions",
+            [
+                "3.7",
+                "3.8",
+                "3.9",
+            ],
         )
 
 
-def set_upgrade_to_newer_dependencies():
-    NAME = "upgrade-to-newer-dependencies"
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = os.environ.get('CURRENT_PYTHON_MAJOR_MINOR_VERSIONS')
-    subprocess.check_output(
-        [
-            'bash',
-            '-c',
-            'source _initialization.sh &&  initialization::parameters_to_json',
-            "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}",
-        ]
-    )
-    subprocess.check_output(
-        ['bash', '-c', 'source _initialization.sh &&  initialization::ga_output', 'python-versions']
-    )
-
-
 def set_outputs_run_everything_and_exit():
+    """
     needs_api_tests = True
     needs_api_codegen = True
     needs_helm_tests = True
@@ -84,143 +80,22 @@ def set_outputs_run_everything_and_exit():
     set_upgrade_to_newer_dependencies = upgrade_to_newer_dependencies
     needs_ui_tests = True
     needs_www_tests = True
-
-
-def set_outputs_run_all_python_tests():
-    run_tests = True
-    run_kubernetes_tests = True
-    set_test_types = ALL_TESTS
-    set_basic_checks_only = False
-    set_image_build = True
-    kubernetes_tests_needed = True
-
-
-def set_output_skip_all_tests_and_docs_and_exit():
-    needs_api_tests = False
-    needs_api_codegen = False
-    needs_helm_tests = False
-    needs_javascript_scans = False
-    needs_python_scans = False
-    run_tests = False
-    run_kubernetes_tests = False
-    set_test_types = ""
-    set_basic_checks_only = True
-    set_docs_build = False
-    set_image_build = False
-    set_upgrade_to_newer_dependencies = False
-    needs_ui_tests = False
-    needs_www_tests = False
-
-
-def set_output_skip_tests_but_build_images_and_exit():
-    needs_api_tests = False
-    needs_api_codegen = False
-    needs_helm_tests = False
-    needs_javascript_scans = False
-    needs_python_scans = False
-    run_tests = False
-    run_kubernetes_tests = False
-    set_test_types = ""
-    set_basic_checks_only = False
-    set_docs_build = True
-    set_image_build = True
-    set_upgrade_to_newer_dependencies = upgrade_to_newer_dependencies
-    needs_ui_tests = False
-    needs_www_tests = False
-
-
-def get_regexp_from_patterns():
     """
-    Converts array of patterns into single | pattern string
-    pattern_array - array storing regexp patterns
-    Outputs - pattern string
-    """
-    test_triggering_regexp = ""
-    separator = ""
-    pattern_array = os.environ.get('pattern_array')
-    for pattern in pattern_array:
-        test_triggering_regexp += separator + pattern
-        separator = "|"
-    print(test_triggering_regexp)
+    print("needs_api_tests = True")
 
 
-def show_changed_files():
-    """
-    # Shows changed files in the commit vs. the target.
-    # Input:
-    #    pattern_array - array storing regexp patterns
-    """
-    CHANGED_FILES = os.environ.get('CHANGED_FILES')
-    THE_REGEXP = get_regexp_from_patterns()
+if len(sys.argv) < 1:
     print("")
-    print(f"Changed files matching the ${THE_REGEXP} pattern:")
+    print("No Commit SHA - running all tests (likely direct merge, or scheduled run)!")
     print("")
-    for file in CHANGED_FILES:
-        if file in THE_REGEXP:
-            print(f"{CHANGED_FILES}")
-        else:
-            return True
+    INCOMING_COMMIT_SHA = ""
+    # override FULL_TESTS_NEEDED_LABEL in main/scheduled run
+    FULL_TESTS_NEEDED_LABEL = True
+    output_all_basic_variables
+    check_upgrade_to_newer_dependencies_needed
+    set_outputs_run_everything_and_exit
+else:
+    INCOMING_COMMIT_SHA = sys.argv[0]
     print("")
-
-
-def count_changed_files():
-    """
-    Counts changed files in the commit vs. the target
-    Input:
-        pattern_array - array storing regexp patterns
-    Output:
-        Count of changed files matching the patterns
-    """
-    CHANGED_FILES = os.environ.get('CHANGED_FILES')
-
-    for file in CHANGED_FILES:
-        if file in get_regexp_from_patterns():
-            print(file)
-        else:
-            return True
-
-
-def check_if_python_security_scans_should_be_run():
-    subprocess.check_output(
-        ['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check Python security scans"]
-    )
-    pattern_array = [r"^airflow/.*\.py", "^setup.py"]
-    show_changed_files
-
-    if count_changed_files == "0":
-        needs_python_scans = False
-    else:
-        needs_python_scans = True
-
-    subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_end'])
-
-
-def check_if_setup_files_changed():
-    subprocess.check_output(
-        ['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check setup.py/cfg changed"]
-    )
-    pattern_array = ["^setup.cfg", "^setup.py"]
-
-    show_changed_files
-
-    if count_changed_files != "0":
-        upgrade_to_newer_dependencies = "${RANDOM}"
-
-    subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_end'])
-
-
-def check_if_javascript_security_scans_should_be_run():
-    subprocess.check_output(
-        ['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check JavaScript security scans"]
-    )
-    pattern_array = [r"^airflow/.*\.[jt]sx?", r"^airflow/.*\.lock"]
-
-    show_changed_files
-
-    if count_changed_files == "0":
-        needs_javascript_scans = False
-    else:
-        needs_javascript_scans = True
-
-    subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_end'])
-'''
+    print(f"Commit SHA passed: {INCOMING_COMMIT_SHA}!")
+    print("")
