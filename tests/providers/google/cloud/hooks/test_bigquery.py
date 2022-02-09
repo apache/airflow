@@ -898,10 +898,10 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         _, kwargs = mock_insert.call_args
         assert kwargs["configuration"]['labels'] == {'label1': 'test1', 'label2': 'test2'}
 
-    @pytest.mark.parametrize('is_async', [True, False])
+    @pytest.mark.parametrize('nowait', [True, False])
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
-    def test_insert_job(self, mock_client, mock_query_job, is_async):
+    def test_insert_job(self, mock_client, mock_query_job, nowait):
         job_conf = {
             "query": {
                 "query": "SELECT * FROM test",
@@ -911,7 +911,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         mock_query_job._JOB_TYPE = "query"
 
         self.hook.insert_job(
-            configuration=job_conf, job_id=JOB_ID, project_id=PROJECT_ID, location=LOCATION, is_async=is_async
+            configuration=job_conf, job_id=JOB_ID, project_id=PROJECT_ID, location=LOCATION, nowait=nowait
         )
 
         mock_client.assert_called_once_with(
@@ -926,7 +926,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             },
             mock_client.return_value,
         )
-        if is_async:
+        if nowait:
             mock_query_job.from_api_repr.return_value._begin.assert_called_once()
             mock_query_job.from_api_repr.return_value.result.assert_not_called()
         else:
