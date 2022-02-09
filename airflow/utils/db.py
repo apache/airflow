@@ -619,7 +619,14 @@ def create_default_connections(session: Session = NEW_SESSION):
 @provide_session
 def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
-    upgradedb(session=session)
+    from alembic import command
+
+    from airflow.models.base import Base
+
+    Base.metadata.create_all(settings.engine)
+    # Stamp migration head with alembic
+    config = _get_alembic_config()
+    command.stamp(config, "head")
 
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
@@ -632,10 +639,9 @@ def initdb(session: Session = NEW_SESSION):
 
         # Deactivate the unknown ones
         DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
-
-        from flask_appbuilder.models.sqla import Base
-
-        Base.metadata.create_all(settings.engine)
+        add_default_pool_if_not_exists()
+        synchronize_log_template()
+    log.info("Initialization Done.")
 
 
 def _get_alembic_config():
@@ -712,7 +718,8 @@ def check_and_run_migrations():
         db_command = upgradedb
         command_name = "upgrade"
         verb = "upgrade"
-
+    log.info("Source heads: %s", source_heads)
+    log.info("DB heads: %s", db_heads)
     if sys.stdout.isatty() and verb:
         print()
         question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
@@ -1169,9 +1176,12 @@ def resetdb(session: Session = NEW_SESSION):
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         drop_airflow_models(connection)
-        drop_flask_models(connection)
 
     initdb(session=session)
+    # Add permissions (needed in tests)
+    from airflow.www.app import create_app
+
+    create_app(config={'UPDATE_FAB_PERMS': True})
 
 
 @provide_session
@@ -1269,18 +1279,6 @@ def drop_airflow_models(connection):
     version = migration_ctx._version
     if has_table(connection, version):
         version.drop(connection)
-
-
-def drop_flask_models(connection):
-    """
-    Drops all Flask models.
-
-    :param connection: SQLAlchemy Connection
-    :return: None
-    """
-    from flask_appbuilder.models.sqla import Base
-
-    Base.metadata.drop_all(connection)
 
 
 @provide_session

@@ -23,10 +23,12 @@ from typing import Any, Dict
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import event, nullsfirst
+from sqlalchemy import TIMESTAMP as sqla_TIMESTAMP, event, nullsfirst
+from sqlalchemy.dialects.mssql import DATETIME2
+from sqlalchemy.dialects.mysql import TIMESTAMP
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
-from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
+from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow.configuration import conf
 
@@ -53,7 +55,11 @@ class UtcDateTime(TypeDecorator):
 
     """
 
-    impl = DateTime(timezone=True)
+    impl = (
+        sqla_TIMESTAMP(timezone=True)
+        .with_variant(DATETIME2(precision=6), 'mssql')
+        .with_variant(TIMESTAMP(fsp=6), 'mysql')
+    )
 
     def process_bind_param(self, value, dialect):
         if value is not None:

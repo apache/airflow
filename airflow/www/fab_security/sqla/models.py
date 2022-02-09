@@ -23,7 +23,6 @@ import datetime
 from typing import TYPE_CHECKING, Union
 
 from flask import g
-from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
     Boolean,
     Column,
@@ -37,6 +36,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
+
+from airflow.models.base import Base
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -79,7 +80,7 @@ def get_sequence_or_identity(sequence_name: str) -> Union[Sequence, 'Identity']:
     return Sequence(sequence_name)
 
 
-class Action(Model):
+class Action(Base):
     """Represents permission actions such as `can_read`."""
 
     __tablename__ = "ab_permission"
@@ -90,7 +91,7 @@ class Action(Model):
         return self.name
 
 
-class Resource(Model):
+class Resource(Base):
     """Represents permission object such as `User` or `Dag`."""
 
     __tablename__ = "ab_view_menu"
@@ -109,7 +110,7 @@ class Resource(Model):
 
 assoc_permission_role = Table(
     "ab_permission_view_role",
-    Model.metadata,
+    Base.metadata,
     Column("id", Integer, get_sequence_or_identity("ab_permission_view_role_id_seq"), primary_key=True),
     Column("permission_view_id", Integer, ForeignKey("ab_permission_view.id")),
     Column("role_id", Integer, ForeignKey("ab_role.id")),
@@ -117,7 +118,7 @@ assoc_permission_role = Table(
 )
 
 
-class Role(Model):
+class Role(Base):
     """Represents a user role to which permissions can be assigned."""
 
     __tablename__ = "ab_role"
@@ -130,7 +131,7 @@ class Role(Model):
         return self.name
 
 
-class Permission(Model):
+class Permission(Base):
     """Permission pair comprised of an Action + Resource combo."""
 
     __tablename__ = "ab_permission_view"
@@ -155,7 +156,7 @@ class Permission(Model):
 
 assoc_user_role = Table(
     "ab_user_role",
-    Model.metadata,
+    Base.metadata,
     Column("id", Integer, get_sequence_or_identity("ab_user_role_id_seq"), primary_key=True),
     Column("user_id", Integer, ForeignKey("ab_user.id")),
     Column("role_id", Integer, ForeignKey("ab_role.id")),
@@ -163,7 +164,7 @@ assoc_user_role = Table(
 )
 
 
-class User(Model):
+class User(Base):
     """Represents an Airflow user which has roles assigned to it."""
 
     __tablename__ = "ab_user"
@@ -240,7 +241,7 @@ class User(Model):
         return self.get_full_name()
 
 
-class RegisterUser(Model):
+class RegisterUser(Base):
     """Represents a user registration."""
 
     __tablename__ = "ab_register_user"

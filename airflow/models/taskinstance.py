@@ -60,6 +60,7 @@ from sqlalchemy import (
     PickleType,
     String,
     and_,
+    event,
     func,
     inspect,
     or_,
@@ -70,8 +71,8 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.session import Session
+from sqlalchemy.schema import CreateIndex
 from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -371,7 +372,7 @@ class TaskInstance(Base, LoggingMixin):
     external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id = Column(BigInteger)
+    trigger_id = Column(Integer)
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
     trigger_timeout = Column(UtcDateTime)
@@ -2357,6 +2358,23 @@ class TaskInstance(Base, LoggingMixin):
             return tuple_(
                 TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index
             ).in_([ti.key.primary for ti in tis])
+
+
+@event.listens_for(TaskInstance.__table__, "after_create")
+def add_index_taskinstance(table, conn, **kw):
+    """Add unique index for mssql and mysql"""
+    if conn.dialect.name not in ['mssql', 'mysql']:
+        return
+    return CreateIndex(
+        Index(
+            'ti_map_index',
+            TaskInstance.__table__.c.dag_id,
+            TaskInstance.__table__.c.task_id,
+            TaskInstance.__table__.c.run_id,
+            TaskInstance.__table__.c.map_index,
+            unique=True,
+        )
+    ).execute_if(dialect=('mssql', 'mysql'))(table, conn, **kw)
 
 
 # State of the task instance.
