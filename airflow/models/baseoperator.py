@@ -1870,9 +1870,9 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
 
         return ret
 
-    def create_unmapped_operator(self, dag: "DAG", kwargs: Dict[str, Any]) -> BaseOperator:
+    def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
         assert not isinstance(self.operator_class, str)
-        return self.operator_class(dag=dag, task_id=self.task_id, **kwargs)
+        return self.operator_class(dag=dag, task_id=self.task_id, **self.partial_kwargs, **self.mapped_kwargs)
 
     def unmap(self) -> BaseOperator:
         """Get the "normal" Operator after applying the current mapping"""
@@ -1880,7 +1880,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
         if not dag:
             raise RuntimeError("Cannot unmap a task unless it has a DAG")
         dag._remove_task(self.task_id)
-        return self.create_unmapped_operator(dag, {**self.partial_kwargs, **self.mapped_kwargs})
+        return self.create_unmapped_operator(dag)
 
 
 # TODO: Deprecate for Airflow 3.0

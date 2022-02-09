@@ -17,7 +17,7 @@
 # under the License.
 import sys
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
@@ -548,3 +548,20 @@ def test_partial_mapped_decorator() -> None:
     }
 
     assert doubled.operator is not trippled.operator
+
+
+def test_mapped_decorator_unmap_merge_op_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1():
+            ...
+
+        @task_decorator
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).map(arg2=task1())
+
+    unmapped = dag.get_task("task2").unmap()
+    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}

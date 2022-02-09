@@ -293,7 +293,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
 
-        operator = MappedOperator(
+        operator = DecoratedMappedOperator(
             operator_class=self.operator_class,
             partial_kwargs=partial_kwargs,
             mapped_kwargs={},
@@ -316,34 +316,48 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         op_args.extend(args)
 
         op_kwargs = self.kwargs.get("op_kwargs", {})
-        duplicated_keys = set(op_kwargs).intersection(kwargs)
-        if len(duplicated_keys) == 1:
-            raise TypeError(f"duplicated partial argument: {duplicated_keys.pop()}")
-        elif duplicated_keys:
-            duplicated_keys_display = ", ".join(sorted(duplicated_keys))
-            raise TypeError(f"duplicated partial arguments: {duplicated_keys_display}")
-        op_kwargs.update(kwargs)
+        op_kwargs = _merge_kwargs(op_kwargs, kwargs, fail_reason="duplicate partial")
 
         return attr.evolve(self, kwargs={**self.kwargs, "op_args": op_args, "op_kwargs": op_kwargs})
 
 
-class Task(Generic[Function]):
-    """Declaration of a @task-decorated callable for type-checking.
+def _merge_kwargs(
+    kwargs1: Dict[str, XComArg],
+    kwargs2: Dict[str, XComArg],
+    *,
+    fail_reason: str,
+) -> Dict[str, XComArg]:
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    elif duplicated_keys:
+        duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+        raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+    return {**kwargs1, **kwargs2}
 
-    An instance of this type inherits the call signature of the decorated
-    function wrapped in it (not *exactly* since it actually returns an XComArg,
-    but there's no way to express that right now), and provides two additional
-    methods for task-mapping.
 
-    This type is implemented by ``_TaskDecorator`` at runtime.
+class DecoratedMappedOperator(MappedOperator):
+    """MappedOperator implementation for @task-decorated task function.
+
+    This has special logic to merge op_args and op_kwargs.
     """
 
-    __call__: Function
-
-    function: Function
-
-    map: Callable[..., XComArg]
-    partial: Callable[..., "Task[Function]"]
+    def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
+        assert not isinstance(self.operator_class, str)
+        op_args = self.partial_kwargs.pop("op_args", []) + self.mapped_kwargs.pop("op_args", [])
+        op_kwargs = _merge_kwargs(
+            self.partial_kwargs.pop("op_kwargs", {}),
+            self.mapped_kwargs.pop("op_kwargs", {}),
+            fail_reason="mapping already partial",
+        )
+        return self.operator_class(
+            dag=dag,
+            task_id=self.task_id,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
+            **self.partial_kwargs,
+            **self.mapped_kwargs,
+        )
 
 
 class Task(Generic[Function]):
