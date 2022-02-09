@@ -364,9 +364,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         **kwargs,
     ):
 
-        if not bool(keys) ^ bool(prefix):
-            raise ValueError("Either keys or prefix should be set.")
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
@@ -375,6 +372,8 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.verify = verify
 
     def execute(self, context: 'Context'):
+        if not bool(self.keys) ^ bool(self.prefix):
+            raise AirflowException("Either keys or prefix should be set.")        
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
