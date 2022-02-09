@@ -182,18 +182,21 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
         if: github.event_name  == 'pull_request'
-      - name: Selective checks
+      - name: Selective checks Test
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
-          if [[ ${GITHUB_EVENT_NAME} == "pull_request" ]]; then
-            # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${GITHUB_SHA}"
-          else
-            # Run all checks
-            ./scripts/ci/selective_ci_checks.sh
-          fi
+          import subprocess
+
+          if ${GITHUB_EVENT_NAME} == "pull_request":
+            print("Run selective checks")
+            # ./scripts/ci/selective_ci_checks.sh "${GITHUB_SHA}"
+            subprocess.run(['python3', './scripts/ci/selective_ci_checks.py', '${TARGET_COMMIT_SHA}'])
+          else:
+            print("Run all checks")
+            #./scripts/ci/selective_ci_checks.sh
+            subprocess.run(['python3', './scripts/ci/selective_ci_checks.py'])
       # Avoid having to specify the runs-on logic every time. We use the custom
       # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
       # on the public runners
