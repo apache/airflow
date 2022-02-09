@@ -714,7 +714,8 @@ class Airflow(AirflowBaseView):
                 .limit(dags_per_page)
                 .all()
             )
-            user_permissions = g.user.perms
+
+            user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
                 permissions.ACTION_CAN_CREATE,
@@ -3214,7 +3215,7 @@ class DagFilter(BaseFilter):
     """Filter using DagIDs"""
 
     def apply(self, query, func):
-        if current_app.appbuilder.sm.has_all_dags_access(g.user):
+        if current_app.appbuilder.sm.has_all_dags_access():
             return query
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))

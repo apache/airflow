@@ -659,7 +659,7 @@ class UIAlert:
     def should_show(self, securitymanager) -> bool:
         """Determine if the user should see the message based on their role membership"""
         if self.roles:
-            user_roles = {r.name for r in securitymanager.current_user.roles}
+            user_roles = {r.name for r in securitymanager.get_user_roles()}
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

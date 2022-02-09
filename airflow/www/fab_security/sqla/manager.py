@@ -24,6 +24,7 @@ from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
@@ -272,6 +273,12 @@ class SecurityManager(BaseSecurityManager):
     def get_public_role(self):
         return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
 
+    def get_public_permissions(self):
+        role = self.get_public_role()
+        if role:
+            return role.permissions
+        return []
+
     def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
@@ -331,6 +338,19 @@ class SecurityManager(BaseSecurityManager):
                 self.role_model.id.in_(role_ids),
             )
         ).all()
+
+    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
+        """Get all DB permissions from a role (one single query)"""
+        return (
+            self.appbuilder.get_session.query(Permission)
+            .join(Action)
+            .join(Resource)
+            .join(Permission.role)
+            .filter(Role.id == role_id)
+            .options(contains_eager(Permission.action))
+            .options(contains_eager(Permission.resource))
+            .all()
+        )
 
     def create_action(self, name):
         """

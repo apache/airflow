@@ -73,7 +73,4 @@ def resource_name_for_dag(dag_id):
 
     if dag_id.startswith(RESOURCE_DAG_PREFIX):
         return dag_id
-
-    # To account for SubDags
-    root_dag_id = dag_id.split(".")[0]
-    return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+    return f"{RESOURCE_DAG_PREFIX}{dag_id}"

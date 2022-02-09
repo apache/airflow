@@ -29,8 +29,8 @@ from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
-from airflow.www.fab_security.manager import AnonymousUser
 from airflow.www.fab_security.sqla.models import assoc_permission_role
+from airflow.www.security import AirflowSecurityManager
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import create_user_scope, delete_role, set_user_single_role
 from tests.test_utils.asserts import assert_queries_count
@@ -293,9 +293,10 @@ def test_verify_public_role_has_no_permissions(security_manager):
 
 def test_verify_default_anon_user_has_no_accessible_dag_ids(app, session, security_manager):
     with app.app_context():
-        user = AnonymousUser()
+        user = mock.MagicMock()
+        user.is_anonymous = True
         app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         with _create_dag_model_context("test_dag_id", session, security_manager):
             security_manager.sync_roles()
@@ -305,9 +306,10 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(app, session, securi
 
 def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, security_manager, has_dag_perm):
     with app.app_context():
-        user = AnonymousUser()
+        user = mock.MagicMock()
+        user.is_anonymous = True
         app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         dag_id = "test_dag_id"
         with _create_dag_model_context(dag_id, session, security_manager):
@@ -324,13 +326,14 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
     [["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]],
     indirect=True,
 )
-def test_verify_anon_user_with_admin_role_has_all_dag_access(app, security_manager, mock_dag_models):
+def test_verify_anon_user_with_admin_role_has_all_dag_access(app, session, security_manager, mock_dag_models):
     test_dag_ids = mock_dag_models
     with app.app_context():
         app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
-        user = AnonymousUser()
+        user = mock.MagicMock()
+        user.is_anonymous = True
 
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         security_manager.sync_roles()
 
@@ -341,12 +344,13 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
     app, session, security_manager, has_dag_perm
 ):
     with app.app_context():
-        user = AnonymousUser()
+        user = mock.MagicMock()
+        user.is_anonymous = True
         app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
 
         # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
         user.roles = security_manager.get_user_roles(user)
-        assert user.roles == {security_manager.get_public_role()}
+        assert user.roles == [security_manager.get_public_role()]
 
         test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
 
@@ -401,7 +405,8 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
     app.config['AUTH_ROLE_PUBLIC'] = 'Viewer'
 
     with app.app_context():
-        user = AnonymousUser()
+        user = mock.MagicMock()
+        user.is_anonymous = True
 
         perms_views = set()
         for role in security_manager.get_user_roles(user):
@@ -409,9 +414,11 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         assert perms_views == viewer_role_perms
 
 
-def test_get_current_user_permissions(app):
-    action = 'can_some_action'
-    resource = 'SomeBaseView'
+def test_get_current_user_permissions(app, security_manager, monkeypatch):
+    role_perm = 'can_some_action'
+    role_vm = 'SomeBaseView'
+
+    from airflow.www.security import AirflowSecurityManager
 
     with app.app_context():
         with create_user_scope(
@@ -419,15 +426,37 @@ def test_get_current_user_permissions(app):
             username='get_current_user_permissions',
             role_name='MyRole5',
             permissions=[
-                (action, resource),
+                (role_perm, role_vm),
             ],
         ) as user:
-            assert user.perms == {(action, resource)}
+            role = user.roles[0]
+            monkeypatch.setattr(AirflowSecurityManager, "get_user_roles", lambda x: [role])
 
-            user._perms = None
-            user.roles = []
+            assert security_manager.get_current_user_permissions() == {(role_perm, role_vm)}
 
-            assert len(user.perms) == 0
+            monkeypatch.setattr(AirflowSecurityManager, "get_user_roles", lambda x: [])
+            assert len(security_manager.get_current_user_permissions()) == 0
+
+
+def test_current_user_has_permissions(app, security_manager, monkeypatch):
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username="current_user_has_permissions",
+            role_name="current_user_has_permissions",
+            permissions=[("can_some_action", "SomeBaseView")],
+        ) as user:
+            role = user.roles[0]
+            monkeypatch.setattr(AirflowSecurityManager, "get_user_roles", lambda x: [role])
+            assert security_manager.current_user_has_permissions()
+
+            # Role, but no permissions
+            role.permissions = []
+            assert not security_manager.current_user_has_permissions()
+
+            # No role
+            monkeypatch.setattr(AirflowSecurityManager, "get_user_roles", lambda x: [])
+            assert not security_manager.current_user_has_permissions()
 
 
 def test_get_accessible_dag_ids(app, security_manager, session):
@@ -485,12 +514,13 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security
         assert security_manager.get_readable_dag_ids(user) == set()
 
 
-def test_has_access(security_manager):
+def test_has_access(security_manager, monkeypatch):
     user = mock.MagicMock()
-    action_name = "action"
-    resource_name = "resource"
-    user.perms = [(action_name, resource_name)]
-    assert security_manager.has_access(action_name, resource_name, user)
+    user.is_anonymous = False
+    from airflow.www.security import AirflowSecurityManager
+
+    monkeypatch.setattr(AirflowSecurityManager, "_has_resource_access", lambda a, b, c, d: True)
+    assert security_manager.has_access('perm', 'view', user)
 
 
 def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
@@ -501,42 +531,18 @@ def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
     assert security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id) is not None
 
 
-def test_has_all_dag_access(app, security_manager):
-    for role_name in ['Admin', 'Viewer', 'Op', 'User']:
-        with app.app_context():
-            with create_user_scope(
-                app,
-                username="user",
-                role_name=role_name,
-            ) as user:
-                assert security_manager.has_all_dags_access(user)
+def test_has_all_dag_access(security_manager, monkeypatch):
+    from airflow.www.security import AirflowSecurityManager
 
-    with app.app_context():
-        with create_user_scope(
-            app,
-            username="user",
-            role_name="read_all",
-            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
-        ) as user:
-            assert security_manager.has_all_dags_access(user)
+    monkeypatch.setattr(AirflowSecurityManager, "_has_role", lambda a, b: True)
+    assert security_manager.has_all_dags_access()
 
-    with app.app_context():
-        with create_user_scope(
-            app,
-            username="user",
-            role_name="edit_all",
-            permissions=[(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)],
-        ) as user:
-            assert security_manager.has_all_dags_access(user)
+    monkeypatch.setattr(AirflowSecurityManager, "_has_role", lambda a, b: False)
+    monkeypatch.setattr(AirflowSecurityManager, "_has_perm", lambda a, b, c: False)
+    assert not security_manager.has_all_dags_access()
 
-    with app.app_context():
-        with create_user_scope(
-            app,
-            username="user",
-            role_name="nada",
-            permissions=[],
-        ) as user:
-            assert not security_manager.has_all_dags_access(user)
+    monkeypatch.setattr(AirflowSecurityManager, "_has_perm", lambda a, b, c: True)
+    assert security_manager.has_all_dags_access()
 
 
 def test_access_control_with_non_existent_role(security_manager):

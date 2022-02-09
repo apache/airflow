@@ -511,8 +511,12 @@ class DagRun(Base, LoggingMixin):
             finished_tis = info.finished_tis
             unfinished_tis = info.unfinished_tis
 
-            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tis)
-            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tis)
+            none_depends_on_past = all(
+                not t.task.depends_on_past for t in unfinished_tis  # type: ignore[has-type]
+            )
+            none_task_concurrency = all(
+                t.task.max_active_tis_per_dag is None for t in unfinished_tis  # type: ignore[has-type]
+            )
             none_deferred = all(t.state != State.DEFERRED for t in unfinished_tis)
 
             if unfinished_tis and none_depends_on_past and none_task_concurrency and none_deferred:
