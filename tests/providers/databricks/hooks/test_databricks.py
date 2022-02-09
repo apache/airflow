@@ -39,10 +39,12 @@ from airflow.providers.databricks.hooks.databricks import (
     SUBMIT_RUN_ENDPOINT,
     TOKEN_REFRESH_LEAD_TIME,
     DatabricksHook,
-    RunState, MaintenanceWindow, WeekDay,
+    RunState, MaintenanceWindow
 )
 from airflow.utils.session import provide_session
 import freezegun
+
+from airflow.utils.weekday import WeekDay
 
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'
@@ -205,9 +207,9 @@ class TestDatabricksHook(unittest.TestCase):
     @freezegun.freeze_time(datetime(2022, 2, 9, 10))
     def test_is_in_maintenance(self):
         assert not DatabricksHook(maintenance_windows=None)._is_in_maintenance()
-        not_currently_active_1 = MaintenanceWindow(WeekDay.Wed, start_hour_utc=12, end_hour_utc=15)
-        not_currently_active_2 = MaintenanceWindow(WeekDay.Thu, start_hour_utc=9, end_hour_utc=10)
-        currently_active = MaintenanceWindow(WeekDay.Wed, start_hour_utc=9, end_hour_utc=11)
+        not_currently_active_1 = MaintenanceWindow(WeekDay.WEDNESDAY, start_hour_utc=12, end_hour_utc=15)
+        not_currently_active_2 = MaintenanceWindow(WeekDay.THURSDAY, start_hour_utc=9, end_hour_utc=10)
+        currently_active = MaintenanceWindow(WeekDay.WEDNESDAY, start_hour_utc=9, end_hour_utc=11)
         assert not DatabricksHook(maintenance_windows=[
             not_currently_active_1,
             not_currently_active_2,
@@ -249,7 +251,7 @@ class TestDatabricksHook(unittest.TestCase):
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_do_api_call_does_retry_with_non_retryable_error_during_maintenance(self, mock_requests):
         hook = DatabricksHook(retry_delay=0, maintenance_windows=[
-            MaintenanceWindow(WeekDay.Wed, start_hour_utc=9, end_hour_utc=11)
+            MaintenanceWindow(WeekDay.WEDNESDAY, start_hour_utc=9, end_hour_utc=11)
         ])
         setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=403)
         with mock.patch.object(hook.log, 'error') as mock_errors:

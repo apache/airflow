@@ -39,6 +39,7 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.utils.weekday import WeekDay
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -115,17 +116,6 @@ class RunState:
         return str(self.__dict__)
 
 
-class WeekDay(Enum):
-    """Utility class to specify the weekday for maintenance."""
-    Mon = 0
-    Tue = 1
-    Wed = 2
-    Thu = 3
-    Fri = 4
-    Say = 5
-    Sun = 6
-
-
 class MaintenanceWindow:
     """
     Utility class to specify a maintenance window.
@@ -140,9 +130,16 @@ class MaintenanceWindow:
         self.end_hour_utc = end_hour_utc
         self.day = day
 
+    @property
+    def python_date_week_day(self):
+        """
+        Week day as in a python date (the enum starts at 1, python date week days at 0).
+        """
+        return self.day.value - 1
+
     def is_in_maintenance(self):
         now = datetime.now(tz=pytz.UTC)
-        return now.weekday() == self.day.value and (self.start_hour_utc <= now.hour <= self.end_hour_utc)
+        return now.weekday() == self.python_date_week_day and (self.start_hour_utc <= now.hour <= self.end_hour_utc)
 
 
 class DatabricksHook(BaseHook):
