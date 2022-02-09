@@ -50,7 +50,7 @@ const DagRunBar = ({
         callModalDag({ execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId });
       }}
       position="relative"
-      role="group"
+      data-peer
     >
       <Tooltip
         label={<DagRunTooltip dagRun={run} />}
@@ -73,13 +73,12 @@ const DagRunBar = ({
           px="1px"
           zIndex={1}
           data-testid="run"
-
         >
           {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" data-testid="manual-run" />}
         </Flex>
       </Tooltip>
-      <Box position="absolute" width="100%" top={0} height="100vh" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} zIndex={0} />
     </Flex>
+    <Box position="absolute" width="100%" top={0} height="100vh" className={run.runId} _peerHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" zIndex={0} />
     {index < totalRuns - 3 && index % 10 === 0 && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
