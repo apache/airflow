@@ -199,3 +199,18 @@ class CleanupPodsTest(unittest.TestCase):
         assert resources == jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
         )
+
+    def test_cleanup_job_annotations(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "podAnnotations": {"foo.net/prop": "bar"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert "bar" == jmespath.search(
+            "spec.jobTemplate.spec.template.metadata.annotations.\"foo.net/prop\"", docs[0]
+        )
