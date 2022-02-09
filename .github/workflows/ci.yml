@@ -184,6 +184,7 @@ jobs:
         if: github.event_name  == 'pull_request'
       - name: Selective checks Test
         id: selective-checks
+        shell: python
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
