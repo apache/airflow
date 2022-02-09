@@ -36,7 +36,7 @@ def requires_authentication(function: T):
     @wraps(function)
     def decorated(*args, **kwargs):
         if g.user.is_anonymous:
-            return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})
+            return Response("Unauthorized", 401, {})
         return function(*args, **kwargs)
 
     return cast(T, decorated)
