@@ -48,18 +48,16 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
-try:
-    # isort: off
-    from kubernetes.client import models as k8s
-    from airflow.kubernetes.pod_generator import PodGenerator
-
-    # isort: on
-    HAS_KUBERNETES = True
-except ImportError:
-    HAS_KUBERNETES = False
-
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+
+    HAS_KUBERNETES: bool
+    try:
+        from kubernetes.client import models as k8s
+
+        from airflow.kubernetes.pod_generator import PodGenerator
+    except ImportError:
+        pass
 
 log = logging.getLogger(__name__)
 
@@ -313,7 +311,7 @@ class BaseSerialization:
             return cls._encode({str(k): cls._serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
             return [cls._serialize(v) for v in var]
-        elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
+        elif _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
@@ -374,7 +372,7 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
         elif type_ == DAT.POD:
-            if not HAS_KUBERNETES:
+            if not _has_kubernetes():
                 raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
@@ -1120,3 +1118,25 @@ class DagDependency:
     def node_id(self):
         """Node ID for graph rendering"""
         return f"{self.dependency_type}:{self.source}:{self.target}:{self.dependency_id}"
+
+
+def _has_kubernetes() -> bool:
+    global HAS_KUBERNETES
+    if "HAS_KUBERNETES" in globals():
+        return HAS_KUBERNETES
+
+    # Loading kube modules is expensive, so delay it until the last moment
+
+    try:
+        from kubernetes.client import models as k8s
+
+        from airflow.kubernetes.pod_generator import PodGenerator
+
+        globals()['k8s'] = k8s
+        globals()['PodGenerator'] = PodGenerator
+
+        # isort: on
+        HAS_KUBERNETES = True
+    except ImportError:
+        HAS_KUBERNETES = False
+    return HAS_KUBERNETES

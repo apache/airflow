@@ -35,6 +35,7 @@ Features
    * ``Fix MyPy Errors for Apache Sqoop provider. (#20304)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.0.2
 .....

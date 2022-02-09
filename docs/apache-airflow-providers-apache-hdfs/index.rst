@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections>
-    Operators <operators>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

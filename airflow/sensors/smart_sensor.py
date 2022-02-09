@@ -251,10 +251,7 @@ class SensorExceptionInfo:
             self._infra_failure_timeout = timezone.utcnow() + self._infra_failure_retry_window
 
     def should_fail_current_run(self):
-        """
-        :return: Should the sensor fail
-        :type: boolean
-        """
+        """:return: Should the sensor fail"""
         return not self.is_infra_failure or timezone.utcnow() > self._infra_failure_timeout
 
     @property
@@ -264,18 +261,11 @@ class SensorExceptionInfo:
 
     @property
     def is_infra_failure(self):
-        """
-
-        :return: If the exception is an infra failure
-        :type: boolean
-        """
+        """:return: If the exception is an infra failure"""
         return self._is_infra_failure
 
     def is_expired(self):
-        """
-        :return: If current exception need to be kept.
-        :type: boolean
-        """
+        """:return: If current exception need to be kept."""
         if not self._is_infra_failure:
             return True
         return timezone.utcnow() > self._infra_failure_timeout + datetime.timedelta(minutes=30)

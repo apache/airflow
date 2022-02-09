@@ -33,6 +33,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.1.3
 .....

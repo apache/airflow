@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -44,7 +45,10 @@ class RedshiftSQLOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {"sql": "postgresql"}
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
+    }
 
     def __init__(
         self,
