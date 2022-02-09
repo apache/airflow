@@ -18,19 +18,18 @@
 # under the License.
 
 import os
-import subprocess
 
-PR_LABELS = os.environ.get('PR_LABELS')
+PR_LABELS = "full tests needed"  # os.environ.get('PR_LABELS')
 GITHUB_EVENT_NAME = os.environ.get('GITHUB_EVENT_NAME')
 RANDOM = os.environ.get('RANDOM')
 ALL_TESTS = os.environ.get('ALL_TESTS')
 
 if PR_LABELS == "full tests needed":
     print(f"Found the right PR labels in ${PR_LABELS} : 'full tests needed'")
-    FULL_TESTS_NEEDED_LABEL = "true"
+    FULL_TESTS_NEEDED_LABEL = True
 else:
     print(f"Did not find the right PR labels in ${PR_LABELS}: 'full tests needed'")
-    FULL_TESTS_NEEDED_LABEL = "false"
+    FULL_TESTS_NEEDED_LABEL = False
 
 
 def check_upgrade_to_newer_dependencies_needed():
@@ -44,17 +43,31 @@ def check_upgrade_to_newer_dependencies_needed():
         global upgrade_to_newer_dependencies
         upgrade_to_newer_dependencies = RANDOM
 
+
+r'''
 def output_all_basic_variables():
-    if FULL_TESTS_NEEDED_LABEL == True:
+    if FULL_TESTS_NEEDED_LABEL:
         NAME = "python-versions"
-        subprocess.check_output(['bash', '-c', 'source _initialization.sh &&  initialization::ga_output', NAME, '${@}'])
+        subprocess.check_output(
+            ['bash', '-c', 'source _initialization.sh &&  initialization::ga_output', NAME, '${@}']
+        )
 
 
 def set_upgrade_to_newer_dependencies():
     NAME = "upgrade-to-newer-dependencies"
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = os.environ.get('CURRENT_PYTHON_MAJOR_MINOR_VERSIONS')
-    subprocess.check_output(['bash', '-c', 'source _initialization.sh &&  initialization::parameters_to_json', "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"])
-    subprocess.check_output(['bash', '-c', 'source _initialization.sh &&  initialization::ga_output', 'python-versions'])
+    subprocess.check_output(
+        [
+            'bash',
+            '-c',
+            'source _initialization.sh &&  initialization::parameters_to_json',
+            "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}",
+        ]
+    )
+    subprocess.check_output(
+        ['bash', '-c', 'source _initialization.sh &&  initialization::ga_output', 'python-versions']
+    )
+
 
 def set_outputs_run_everything_and_exit():
     needs_api_tests = True
@@ -68,9 +81,10 @@ def set_outputs_run_everything_and_exit():
     set_basic_checks_only = False
     set_docs_build = True
     set_image_build = True
-    set_upgrade_to_newer_dependencies =  upgrade_to_newer_dependencies
+    set_upgrade_to_newer_dependencies = upgrade_to_newer_dependencies
     needs_ui_tests = True
     needs_www_tests = True
+
 
 def set_outputs_run_all_python_tests():
     run_tests = True
@@ -79,6 +93,7 @@ def set_outputs_run_all_python_tests():
     set_basic_checks_only = False
     set_image_build = True
     kubernetes_tests_needed = True
+
 
 def set_output_skip_all_tests_and_docs_and_exit():
     needs_api_tests = False
@@ -96,6 +111,7 @@ def set_output_skip_all_tests_and_docs_and_exit():
     needs_ui_tests = False
     needs_www_tests = False
 
+
 def set_output_skip_tests_but_build_images_and_exit():
     needs_api_tests = False
     needs_api_codegen = False
@@ -112,6 +128,7 @@ def set_output_skip_tests_but_build_images_and_exit():
     needs_ui_tests = False
     needs_www_tests = False
 
+
 def get_regexp_from_patterns():
     """
     Converts array of patterns into single | pattern string
@@ -126,23 +143,25 @@ def get_regexp_from_patterns():
         separator = "|"
     print(test_triggering_regexp)
 
+
 def show_changed_files():
     """
     # Shows changed files in the commit vs. the target.
     # Input:
     #    pattern_array - array storing regexp patterns
     """
-    CHANGED_FILES = os.environ.get('CHANGED_FILES')    
+    CHANGED_FILES = os.environ.get('CHANGED_FILES')
     THE_REGEXP = get_regexp_from_patterns()
     print("")
     print(f"Changed files matching the ${THE_REGEXP} pattern:")
     print("")
     for file in CHANGED_FILES:
-        if file in  THE_REGEXP:
+        if file in THE_REGEXP:
             print(f"{CHANGED_FILES}")
         else:
             return True
     print("")
+
 
 def count_changed_files():
     """
@@ -152,7 +171,7 @@ def count_changed_files():
     Output:
         Count of changed files matching the patterns
     """
-    CHANGED_FILES = os.environ.get('CHANGED_FILES')    
+    CHANGED_FILES = os.environ.get('CHANGED_FILES')
 
     for file in CHANGED_FILES:
         if file in get_regexp_from_patterns():
@@ -160,32 +179,41 @@ def count_changed_files():
         else:
             return True
 
+
 def check_if_python_security_scans_should_be_run():
-    subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check Python security scans"])
-    pattern_array=["^airflow/.*\.py", "^setup.py"]
+    subprocess.check_output(
+        ['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check Python security scans"]
+    )
+    pattern_array = [r"^airflow/.*\.py", "^setup.py"]
     show_changed_files
 
     if count_changed_files == "0":
         needs_python_scans = False
     else:
         needs_python_scans = True
-    
+
     subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_end'])
 
+
 def check_if_setup_files_changed():
-    subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check setup.py/cfg changed"])
+    subprocess.check_output(
+        ['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check setup.py/cfg changed"]
+    )
     pattern_array = ["^setup.cfg", "^setup.py"]
 
     show_changed_files
 
     if count_changed_files != "0":
-        upgrade_to_newer_dependencies="${RANDOM}"
+        upgrade_to_newer_dependencies = "${RANDOM}"
 
     subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_end'])
 
+
 def check_if_javascript_security_scans_should_be_run():
-    subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check JavaScript security scans"])
-    pattern_array=["^airflow/.*\.[jt]sx?", "^airflow/.*\.lock"]
+    subprocess.check_output(
+        ['bash', '-c', 'source _start_end.sh &&  start_end::group_start', "Check JavaScript security scans"]
+    )
+    pattern_array = [r"^airflow/.*\.[jt]sx?", r"^airflow/.*\.lock"]
 
     show_changed_files
 
@@ -193,5 +221,6 @@ def check_if_javascript_security_scans_should_be_run():
         needs_javascript_scans = False
     else:
         needs_javascript_scans = True
-    
+
     subprocess.check_output(['bash', '-c', 'source _start_end.sh &&  start_end::group_end'])
+'''
