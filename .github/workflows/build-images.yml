@@ -119,7 +119,7 @@ jobs:
           dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
           PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-      - name: Selective checks
+      - name: Selective checks Test
         id: selective-checks
         env:
           PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
