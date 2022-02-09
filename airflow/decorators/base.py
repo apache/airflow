@@ -283,17 +283,15 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     def map(self, *args, **kwargs) -> XComArg:
         self._validate_arg_names("map", kwargs)
 
-        partial_kwargs: Dict[str, Any] = {
-            **self.kwargs,
-            "python_callable": self.function,
-            "multiple_outputs": self.multiple_outputs,
-        }
-
+        partial_kwargs = self.kwargs.copy()
         dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
 
-        operator = DecoratedMappedOperator(
+        # Unfortunately attrs's type hinting support does not work well with
+        # subclassing; it complains that arguments forwarded to the superclass
+        # are "unexpected" (they are fine at runtime).
+        operator = cast(Any, DecoratedMappedOperator)(
             operator_class=self.operator_class,
             partial_kwargs=partial_kwargs,
             mapped_kwargs={},
@@ -301,7 +299,10 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             dag=dag,
             task_group=task_group,
             deps=MappedOperator._deps(self.operator_class.deps),
+            multiple_outputs=self.multiple_outputs,
+            python_callable=self.function,
         )
+
         operator.mapped_kwargs["op_args"] = list(args)
         operator.mapped_kwargs["op_kwargs"] = kwargs
 
@@ -336,11 +337,12 @@ def _merge_kwargs(
     return {**kwargs1, **kwargs2}
 
 
+@attr.define(kw_only=True)
 class DecoratedMappedOperator(MappedOperator):
-    """MappedOperator implementation for @task-decorated task function.
+    """MappedOperator implementation for @task-decorated task function."""
 
-    This has special logic to merge op_args and op_kwargs.
-    """
+    multiple_outputs: bool
+    python_callable: Callable
 
     def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
         assert not isinstance(self.operator_class, str)
@@ -355,6 +357,8 @@ class DecoratedMappedOperator(MappedOperator):
             task_id=self.task_id,
             op_args=op_args,
             op_kwargs=op_kwargs,
+            multiple_outputs=self.multiple_outputs,
+            python_callable=self.python_callable,
             **self.partial_kwargs,
             **self.mapped_kwargs,
         )

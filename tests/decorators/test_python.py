@@ -532,20 +532,10 @@ def test_partial_mapped_decorator() -> None:
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, MappedOperator)
     assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
-    assert doubled.operator.partial_kwargs == {
-        "python_callable": product.function,
-        "multiple_outputs": False,
-        "op_args": [],
-        "op_kwargs": {"multiple": 2},
-    }
+    assert doubled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 2}}
 
     assert isinstance(trippled.operator, MappedOperator)  # For type-checking on partial_kwargs.
-    assert trippled.operator.partial_kwargs == {
-        "python_callable": product.function,
-        "multiple_outputs": False,
-        "op_args": [],
-        "op_kwargs": {"multiple": 3},
-    }
+    assert trippled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 3}}
 
     assert doubled.operator is not trippled.operator
 

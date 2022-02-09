@@ -1717,7 +1717,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @classmethod
     def get_serialized_fields(cls):
         if cls.__serialized_fields is None:
-            fields_dict = attr.fields_dict(cls)
+            fields_dict = attr.fields_dict(MappedOperator)
             cls.__serialized_fields = frozenset(
                 fields_dict.keys()
                 - {
