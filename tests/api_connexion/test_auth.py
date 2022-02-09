@@ -24,9 +24,10 @@ from parameterized import parameterized
 from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
+from tests.test_utils.www import client_with_login
 
 
-class TestBasicAuth:
+class BaseTestAuth:
     @pytest.fixture(autouse=True)
     def set_attrs(self, minimal_app_for_api):
         self.app = minimal_app_for_api
@@ -44,6 +45,8 @@ class TestBasicAuth:
                 password="test",
             )
 
+
+class TestBasicAuth(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
@@ -115,4 +118,47 @@ class TestBasicAuth:
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
+            assert_401(response)
+
+
+class TestSessionAuth(BaseTestAuth):
+    @pytest.fixture(autouse=True, scope="class")
+    def with_session_backend(self, minimal_app_for_api):
+        from airflow.www.extensions.init_security import init_api_experimental_auth
+
+        old_auth = getattr(minimal_app_for_api, 'api_auth')
+
+        try:
+            with conf_vars({("api", "auth_backend"): "airflow.api.auth.backend.session"}):
+                init_api_experimental_auth(minimal_app_for_api)
+                yield
+        finally:
+            setattr(minimal_app_for_api, 'api_auth', old_auth)
+
+    def test_success(self):
+        clear_db_pools()
+
+        admin_user = client_with_login(self.app, username="test", password="test")
+        response = admin_user.get("/api/v1/pools")
+        assert response.status_code == 200
+        assert response.json == {
+            "pools": [
+                {
+                    "name": "default_pool",
+                    "slots": 128,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "open_slots": 128,
+                    "description": "Default pool",
+                },
+            ],
+            "total_entries": 1,
+        }
+
+    def test_failure(self):
+        with self.app.test_client() as test_client:
+            response = test_client.get("/api/v1/pools")
+            assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
             assert_401(response)
