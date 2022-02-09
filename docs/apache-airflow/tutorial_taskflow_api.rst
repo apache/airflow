@@ -312,7 +312,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
 
 .. code-block:: python
 
-    @task
+    @task(retries=3)
     def create_queue():
         """This is a Python function that creates an SQS queue"""
         hook = SqsHook()
