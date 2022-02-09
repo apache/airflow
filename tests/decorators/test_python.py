@@ -555,3 +555,27 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
 
     unmapped = dag.get_task("task2").unmap()
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
+
+
+def test_mapped_decorator_unmap_converts_partial_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1(arg):
+            ...
+
+        @task_decorator(retry_delay=30)
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).map(arg2=task1.map(arg=[1, 2]))
+
+    # Arguments to the task decorator are stored in partial_kwargs, and
+    # converted into their intended form after the task is unmapped.
+    mapped_task2 = dag.get_task("task2")
+    assert mapped_task2.partial_kwargs["retry_delay"] == 30
+    assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
+
+    mapped_task1 = dag.get_task("task1")
+    assert "retry_delay" not in mapped_task1.partial_kwargs
+    mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
