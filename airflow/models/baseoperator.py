@@ -671,7 +671,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             )
 
         self.trigger_rule = trigger_rule
-        self.depends_on_past = depends_on_past
+        self.depends_on_past: bool = depends_on_past
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
@@ -714,7 +714,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             max_active_tis_per_dag = task_concurrency
-        self.max_active_tis_per_dag = max_active_tis_per_dag
+        self.max_active_tis_per_dag: Optional[int] = max_active_tis_per_dag
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
