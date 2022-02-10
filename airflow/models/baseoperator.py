@@ -58,7 +58,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.mappedoperator import OperatorPartial
+from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
@@ -238,7 +238,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
         return new_cls
 
-    # The class level partial function. This is what handles the actual mapping
+    # The class level partial function. This is what handles the actual mapping.
     def partial(
         cls,
         *,
@@ -247,17 +247,34 @@ class BaseOperatorMeta(abc.ABCMeta):
         task_group: Optional["TaskGroup"] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        max_active_tis_per_dag: Optional[int] = None,
+        subdag: Optional["DAG"] = None,
         **kwargs,
     ) -> OperatorPartial:
-        return OperatorPartial.from_baseoperator(
-            cast(Type[BaseOperator], cls),
-            task_id=task_id,
-            dag=dag,
-            task_group=task_group,
-            start_date=start_date,
-            end_date=end_date,
-            **kwargs,
-        )
+        from airflow.models.dag import DagContext
+        from airflow.utils.task_group import TaskGroupContext
+
+        operator_class = cast(Type[BaseOperator], cls)
+        validate_mapping_kwargs(operator_class, "partial", kwargs)
+
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        if task_group:
+            task_id = task_group.child_id(task_id)
+
+        # Reject deprecated option.
+        if "task_concurrency" in kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
+
+        # Store these in partial kwargs to exclude them from map().
+        kwargs["dag"] = dag or DagContext.get_current_dag()
+        kwargs["task_group"] = task_group
+        kwargs["task_id"] = task_id
+        kwargs["start_date"] = timezone.convert_to_utc(start_date)
+        kwargs["end_date"] = timezone.convert_to_utc(end_date)
+        kwargs["max_active_tis_per_dag"] = max_active_tis_per_dag
+        kwargs["subdag"] = subdag
+
+        return OperatorPartial(operator_class=operator_class, kwargs=kwargs)
 
 
 DEFAULT_QUEUE = conf.get("operators", "default_queue")
@@ -1214,15 +1231,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             .all()
         )
 
-    def get_flat_relatives(self, upstream: bool = False):
-        """Get a flat list of relatives, either upstream or downstream."""
-        if not self._dag:
-            return set()
-        from airflow.models.dag import DAG
-
-        dag: DAG = self._dag
-        return list(map(lambda task_id: dag.task_dict[task_id], self.get_flat_relative_ids(upstream)))
-
     @provide_session
     def run(
         self,
@@ -1495,40 +1503,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """:meta private:"""
         # Exists to make typing easier
         raise TypeError("Internal code error: Do not call unmap on BaseOperator!")
-
-
-def _validate_kwarg_names_for_mapping(
-    cls: Union[str, Type[BaseOperator]],
-    func_name: str,
-    value: Dict[str, Any],
-) -> None:
-    if isinstance(cls, str):
-        # Serialized version -- would have been validated at parse time
-        return
-
-    # use a dict so order of args is same as code order
-    unknown_args = value.copy()
-    for clazz in cls.mro():
-        # Mypy doesn't like doing `class.__init__`, Error is: Cannot access "__init__" directly
-        init = clazz.__init__  # type: ignore
-
-        if not hasattr(init, '_BaseOperatorMeta__param_names'):
-            continue
-
-        for name in init._BaseOperatorMeta__param_names:
-            unknown_args.pop(name, None)
-
-        if not unknown_args:
-            # If we have no args left ot check: stop looking at the MRO chian
-            return
-
-    if len(unknown_args) == 1:
-        raise TypeError(
-            f'{cls.__name__}.{func_name} got unexpected keyword argument {unknown_args.popitem()[0]!r}'
-        )
-    else:
-        names = ", ".join(repr(n) for n in unknown_args)
-        raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
 
 
 # TODO: Deprecate for Airflow 3.0

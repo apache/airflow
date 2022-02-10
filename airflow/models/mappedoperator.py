@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import datetime
 import unittest.mock
 import warnings
 from typing import (
@@ -44,7 +43,6 @@ from airflow.models.param import ParamsDict
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
-from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -55,7 +53,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-def _validate_mapping_kwargs(op: Type["BaseOperator"], func: str, value: Dict[str, Any]) -> None:
+def validate_mapping_kwargs(op: Type["BaseOperator"], func: str, value: Dict[str, Any]) -> None:
     # use a dict so order of args is same as code order
     unknown_args = value.copy()
     for klass in op.mro():
@@ -68,6 +66,7 @@ def _validate_mapping_kwargs(op: Type["BaseOperator"], func: str, value: Dict[st
             unknown_args.pop(name, None)
         if not unknown_args:
             return  # If we have no args left ot check: stop looking at the MRO chian.
+
     if len(unknown_args) == 1:
         error = f"unexpected keyword argument {unknown_args.popitem()[0]!r}"
     else:
@@ -99,37 +98,7 @@ class OperatorPartial:
     kwargs: Dict[str, Any]
 
     def __attrs_post_init__(self):
-        _validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
-
-    @classmethod
-    def from_baseoperator(
-        cls,
-        operator_class: Type["BaseOperator"],
-        *,
-        task_id: str,
-        dag: Optional["DAG"],
-        task_group: Optional["TaskGroup"],
-        start_date: Optional[datetime.datetime],
-        end_date: Optional[datetime.datetime],
-        **kwargs,
-    ) -> "OperatorPartial":
-        from airflow.models.dag import DagContext
-        from airflow.utils.task_group import TaskGroupContext
-
-        _validate_mapping_kwargs(operator_class, "partial", kwargs)
-
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-        if task_group:
-            task_id = task_group.child_id(task_id)
-
-        # Store these in kwargs so they are automatically excluded from map().
-        kwargs["dag"] = dag or DagContext.get_current_dag()
-        kwargs["task_group"] = task_group
-        kwargs["task_id"] = task_id
-        kwargs["start_date"] = timezone.convert_to_utc(start_date)
-        kwargs["end_date"] = timezone.convert_to_utc(end_date)
-
-        return cls(operator_class=operator_class, kwargs=kwargs)
+        validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
 
     def __repr__(self) -> str:
         args = ", ".join(f"{k}={v!r}" for k, v in self.kwargs.items())
@@ -142,7 +111,7 @@ class OperatorPartial:
     def map(self, **mapped_kwargs) -> "MappedOperator":
         from airflow.operators.dummy import DummyOperator
 
-        _validate_mapping_kwargs(self.operator_class, "map", mapped_kwargs)
+        validate_mapping_kwargs(self.operator_class, "map", mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
@@ -189,7 +158,6 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
 
-    # These need extra work on init time.
     dag: Optional["DAG"]
     task_group: Optional[TaskGroup]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
@@ -253,6 +221,14 @@ class MappedOperator(AbstractOperator):
     def leaves(self) -> Sequence[AbstractOperator]:
         """Implementing DAGNode."""
         return [self]
+
+    @property
+    def max_active_tis_per_dag(self) -> Optional[int]:
+        return self.partial_kwargs.get("max_active_tis_per_dag")
+
+    @property
+    def subdag(self) -> Optional["DAG"]:
+        return self.partial_kwargs.get("subdag")
 
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""

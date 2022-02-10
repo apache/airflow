@@ -27,6 +27,7 @@ from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -139,6 +140,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 relative_task.get_flat_relative_ids(upstream, found_descendants)
 
         return found_descendants
+
+    def get_flat_relatives(self, upstream: bool = False) -> Collection["Operator"]:
+        """Get a flat list of relatives, either upstream or downstream."""
+        dag = self.get_dag()
+        if not dag:
+            return set()
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
 
     @property
     def priority_weight_total(self) -> int:
