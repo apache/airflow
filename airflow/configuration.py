@@ -205,9 +205,7 @@ class AirflowConfigParser(ConfigParser):
         'logging': {
             'log_filename_template': (
                 re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
-                "dag={{ ti.dag_id }}/task_id={{ ti.task_id }}/run_id={{ ti.run_id }}/"
-                + "{%% if ti.map_index != -1 %%}map_index={{ ti.map_index }}/{%% endif %%}"
-                + " attempt={{ try_number }}.log",
+                "XX-set-after-default-config-loaded-XX",
                 3.0,
             ),
         },
@@ -238,6 +236,19 @@ class AirflowConfigParser(ConfigParser):
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
             self.airflow_defaults.read_string(default_config)
+            # Set the upgrade value based on the current loaded default
+            default = self.airflow_defaults.get('logging', 'log_filename_template', fallback=None, raw=True)
+            if default:
+                replacement = self.deprecated_values['logging']['log_filename_template']
+                self.deprecated_values['logging']['log_filename_template'] = (
+                    replacement[0],
+                    default,
+                    replacement[2],
+                )
+            else:
+                del self.deprecated_values['logging']['log_filename_template']
+        else:
+            del self.deprecated_values['logging']['log_filename_template']
 
         self.is_validated = False
 
