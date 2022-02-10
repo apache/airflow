@@ -33,7 +33,7 @@ down_revision = 'be2bfac3da23'
 branch_labels = None
 depends_on = None
 
-TABLE_NAME = 'sessions'
+TABLE_NAME = 'session'
 
 
 def upgrade():
