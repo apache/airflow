@@ -19,6 +19,7 @@
 from collections import Counter
 from typing import TYPE_CHECKING
 
+from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
@@ -39,15 +40,15 @@ class TriggerRuleDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @staticmethod
-    def _get_states_count_upstream_ti(ti, finished_tasks):
+    def _get_states_count_upstream_ti(ti, finished_tis):
         """
         This function returns the states of the upstream tis for a specific ti in order to determine
         whether this ti can run in this iteration
 
         :param ti: the ti that we want to calculate deps for
-        :param finished_tasks: all the finished tasks of the dag_run
+        :param finished_tis: all the finished tasks of the dag_run
         """
-        counter = Counter(task.state for task in finished_tasks if task.task_id in ti.task.upstream_task_ids)
+        counter = Counter(task.state for task in finished_tis if task.task_id in ti.task.upstream_task_ids)
         return (
             counter.get(State.SUCCESS, 0),
             counter.get(State.SKIPPED, 0),
@@ -57,7 +58,7 @@ class TriggerRuleDep(BaseTIDep):
         )
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti, session, dep_context: DepContext):
         # Checking that all upstream dependencies have succeeded
         if not ti.task.upstream_list:
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
@@ -68,7 +69,7 @@ class TriggerRuleDep(BaseTIDep):
             return
         # see if the task name is in the task upstream for our task
         successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
-            ti=ti, finished_tasks=dep_context.ensure_finished_tasks(ti.get_dagrun(session), session)
+            ti=ti, finished_tis=dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
         )
 
         yield from self._evaluate_trigger_rule(

@@ -662,7 +662,6 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: name of the bucket which will be deleted
         :param force: false not allow to delete non empty bucket, set force=True
             allows to delete non empty bucket
-        :type: bool
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)

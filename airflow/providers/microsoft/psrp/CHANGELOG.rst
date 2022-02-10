@@ -34,6 +34,7 @@ Features
    * ``Fixing MyPy issues inside providers/microsoft (#20409)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 1.0.1
 .....

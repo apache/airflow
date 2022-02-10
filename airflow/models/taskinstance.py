@@ -111,17 +111,9 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
-
-try:
-    from kubernetes.client.api_client import ApiClient
-
-    from airflow.kubernetes.kube_config import KubeConfig
-    from airflow.kubernetes.pod_generator import PodGenerator
-except ImportError:
-    ApiClient = None
 
 TR = TaskReschedule
 
@@ -1671,10 +1663,23 @@ class TaskInstance(Base, LoggingMixin):
         # Don't record reschedule request in test mode
         if test_mode:
             return
+
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
         self.refresh_from_db(session)
 
         self.end_date = timezone.utcnow()
         self.set_duration()
+
+        # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
+        # TaskReschedule which apparently also creates lock on corresponding DagRun entity
+        with_row_locks(
+            session.query(DagRun).filter_by(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+            ),
+            session=session,
+        ).one()
 
         # Log reschedule request
         session.add(
@@ -1708,7 +1713,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
-        session=NEW_SESSION,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
@@ -2019,7 +2024,11 @@ class TaskInstance(Base, LoggingMixin):
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
+        from kubernetes.client.api_client import ApiClient
+
+        from airflow.kubernetes.kube_config import KubeConfig
         from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
+        from airflow.kubernetes.pod_generator import PodGenerator
 
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(
