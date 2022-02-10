@@ -531,6 +531,15 @@
       type: string
       example: ~
       default: "INFO"
+    - name: celery_logging_level
+      description: |
+        Logging level for celery. If not set, it uses the value of logging_level
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ""
     - name: fab_logging_level
       description: |
         Logging level for Flask-appbuilder UI.
