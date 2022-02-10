@@ -37,7 +37,8 @@ from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink, MappedOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
@@ -1611,7 +1612,7 @@ def test_mapped_operator_serde():
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert isinstance(op, MappedOperator)
-    assert op.deps is MappedOperator.DEFAULT_DEPS
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
 
     assert op.operator_class == "airflow.operators.bash.BashOperator"
     assert op.mapped_kwargs['bash_command'] == literal
@@ -1641,7 +1642,7 @@ def test_mapped_operator_xcomarg_serde():
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
-    assert op.deps is MappedOperator.DEFAULT_DEPS
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'
@@ -1694,7 +1695,9 @@ def test_mapped_decorator_serde():
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
     assert isinstance(deserialized, MappedOperator)
-    assert deserialized.deps is MappedOperator.DEFAULT_DEPS
+    assert deserialized.deps is MappedOperator.deps_for(BaseOperator)
+    assert deserialized.upstream_task_ids == set()
+    assert deserialized.downstream_task_ids == set()
 
     assert deserialized.mapped_kwargs == {
         "op_args": [{"a": 1, "b": 2}],

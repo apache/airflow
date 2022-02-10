@@ -23,7 +23,8 @@ from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator, MappedOperator
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.mappedoperator import MappedOperator
 
 
 class XComArg(DependencyMixin):

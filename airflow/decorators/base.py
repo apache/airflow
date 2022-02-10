@@ -42,8 +42,10 @@ import typing_extensions
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator, MappedOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagContext
+from airflow.models.mappedoperator import MappedOperator
+from airflow.models.param import ParamsDict
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
 from airflow.utils.context import Context
@@ -287,24 +289,26 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+        params = ParamsDict(partial_kwargs.pop("params", None))
 
-        # Unfortunately attrs's type hinting support does not work well with
-        # subclassing; it complains that arguments forwarded to the superclass
-        # are "unexpected" (they are fine at runtime).
-        operator = cast(Any, DecoratedMappedOperator)(
+        operator = DecoratedMappedOperator(
             operator_class=self.operator_class,
+            mapped_kwargs={"op_args": list(args), "op_kwargs": kwargs},
             partial_kwargs=partial_kwargs,
-            mapped_kwargs={},
             task_id=task_id,
+            params=params,
+            deps=MappedOperator.deps_for(self.operator_class),
+            operator_extra_links=self.operator_class.operator_extra_links,
+            template_ext=self.operator_class.template_ext,
+            template_fields=self.operator_class.template_fields,
+            is_dummy=False,
+            task_module=self.operator_class.__module__,
+            task_type=self.operator_class.__name__,
             dag=dag,
             task_group=task_group,
-            deps=MappedOperator._deps(self.operator_class.deps),
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
         )
-
-        operator.mapped_kwargs["op_args"] = list(args)
-        operator.mapped_kwargs["op_kwargs"] = kwargs
 
         for arg in itertools.chain(args, kwargs.values()):
             XComArg.apply_upstream_relationship(operator, arg)
@@ -344,7 +348,7 @@ class DecoratedMappedOperator(MappedOperator):
     multiple_outputs: bool
     python_callable: Callable
 
-    def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
+    def create_unmapped_operator(self) -> BaseOperator:
         assert not isinstance(self.operator_class, str)
         op_args = self.partial_kwargs.pop("op_args", []) + self.mapped_kwargs.pop("op_args", [])
         op_kwargs = _merge_kwargs(
@@ -353,7 +357,7 @@ class DecoratedMappedOperator(MappedOperator):
             fail_reason="mapping already partial",
         )
         return self.operator_class(
-            dag=dag,
+            dag=self.dag,
             task_id=self.task_id,
             op_args=op_args,
             op_kwargs=op_kwargs,

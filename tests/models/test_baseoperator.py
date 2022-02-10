@@ -29,13 +29,8 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
-from airflow.models.baseoperator import (
-    BaseOperator,
-    BaseOperatorMeta,
-    MappedOperator,
-    chain,
-    cross_downstream,
-)
+from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
@@ -784,7 +779,7 @@ def test_partial_on_instance() -> None:
 def test_partial_on_class() -> None:
     # Test that we accept args for superclasses too
     op = MockOperator.partial(task_id='a', arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
-    assert op.partial_kwargs == {'arg1': 'a', 'trigger_rule': TriggerRule.ONE_FAILED}
+    assert op.kwargs == {'arg1': 'a', 'trigger_rule': TriggerRule.ONE_FAILED}
 
 
 def test_partial_on_class_invalid_ctor_args() -> None:

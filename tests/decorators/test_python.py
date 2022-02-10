@@ -26,7 +26,7 @@ import pytest
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.models.baseoperator import MappedOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State

@@ -33,9 +33,10 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink, MappedOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
@@ -567,7 +568,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        stock_deps = op.deps is MappedOperator.DEFAULT_DEPS
+        stock_deps = op.deps is MappedOperator.deps_for(BaseOperator)
         serialize_op = cls._serialize_node(op, include_deps=not stock_deps)
 
         # Simplify op_kwargs format. It must be a dict, so we flatten it.
@@ -580,11 +581,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
             serialize_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
 
-        # It must be a class at this point for it to work, not a string
-        assert isinstance(op.operator_class, type)
-        serialize_op['_task_type'] = op.operator_class.__name__
-        serialize_op['_task_module'] = op.operator_class.__module__
-        serialize_op['_is_mapped'] = True
+        serialize_op["_is_mapped"] = True
         return serialize_op
 
     @classmethod
@@ -595,8 +592,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _serialize_node(cls, op: Union[BaseOperator, MappedOperator], include_deps: bool) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
-        serialize_op['_task_type'] = type(op).__name__
-        serialize_op['_task_module'] = type(op).__module__
+        serialize_op['_task_type'] = getattr(op, "_task_type", type(op).__name__)
+        serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
 
         # Used to determine if an Operator is inherited from DummyOperator
         serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
@@ -644,19 +641,23 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Union[BaseOperator, MappedOperator]:
         """Deserializes an operator from a JSON object."""
         op: Union[BaseOperator, MappedOperator]
-        # Check if it's a mapped operator
         if encoded_op.get("_is_mapped", False):
+            # Most of these will be loaded later, these are just some stand-ins.
             op = MappedOperator(
-                task_id=encoded_op['task_id'],
-                dag=None,
                 operator_class=f"{encoded_op['_task_module']}.{encoded_op['_task_type']}",
-                # These are all re-set later
-                partial_kwargs={},
                 mapped_kwargs={},
-                deps=MappedOperator.DEFAULT_DEPS,
-                is_dummy=False,
-                template_fields=(),
-                template_ext=(),
+                partial_kwargs={},
+                task_id=encoded_op["task_id"],
+                params={},
+                deps=MappedOperator.deps_for(BaseOperator),
+                operator_extra_links=BaseOperator.operator_extra_links,
+                template_ext=BaseOperator.template_ext,
+                template_fields=BaseOperator.template_fields,
+                is_dummy=encoded_op["_is_dummy"],
+                task_module=encoded_op["_task_module"],
+                task_type=encoded_op["_task_type"],
+                dag=None,
+                task_group=None,
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])

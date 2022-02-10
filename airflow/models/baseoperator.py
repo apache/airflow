@@ -50,7 +50,6 @@ import attr
 import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -58,7 +57,8 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
-from airflow.models.base import Operator
+from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.mappedoperator import OperatorPartial
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
@@ -66,7 +66,6 @@ from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -74,10 +73,8 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.helpers import render_template_as_native, render_template_to_string, validate_key
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -101,8 +98,8 @@ class _PartialDescriptor:
 
     def __get__(
         self, obj: "BaseOperator", cls: "Optional[Type[BaseOperator]]" = None
-    ) -> Callable[..., "MappedOperator"]:
-        # Call this "partial" so it looks nicer in stack traces
+    ) -> Callable[..., OperatorPartial]:
+        # Call this "partial" so it looks nicer in stack traces.
         def partial(**kwargs):
             raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
 
@@ -242,17 +239,24 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
     # The class level partial function. This is what handles the actual mapping
-    def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs) -> "MappedOperator":
-        operator_class = cast("Type[BaseOperator]", cls)
-        # Validate that the args we passed are known -- at call/DAG parse time, not run time!
-        _validate_kwarg_names_for_mapping(operator_class, "partial", kwargs)
-        return MappedOperator(
+    def partial(
+        cls,
+        *,
+        task_id: str,
+        dag: Optional["DAG"] = None,
+        task_group: Optional["TaskGroup"] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        **kwargs,
+    ) -> OperatorPartial:
+        return OperatorPartial.from_baseoperator(
+            cast(Type[BaseOperator], cls),
             task_id=task_id,
-            operator_class=operator_class,
             dag=dag,
-            partial_kwargs=kwargs,
-            mapped_kwargs={},
-            deps=MappedOperator._deps(operator_class.deps),
+            task_group=task_group,
+            start_date=start_date,
+            end_date=end_date,
+            **kwargs,
         )
 
 
@@ -263,7 +267,7 @@ DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
 
 
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
+class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -465,12 +469,12 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     shallow_copy_attrs: Sequence[str] = ()
 
     # Defines the operator level extra links
-    operator_extra_links: Iterable['BaseOperatorLink'] = ()
+    operator_extra_links: Collection['BaseOperatorLink'] = ()
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
 
-    partial: Callable[..., "MappedOperator"] = _PartialDescriptor()  # type: ignore
+    partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
 
     _comps = {
         'task_id',
@@ -865,10 +869,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """:return: list of outlets defined for this operator"""
         return self._outlets
 
-    @property
-    def node_id(self):
-        return self.task_id
-
     def get_dag(self) -> "Optional[DAG]":
         return self._dag
 
@@ -906,7 +906,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """Returns True if the Operator has been assigned to a DAG."""
         return self._dag is not None
 
-    deps: Iterable[BaseTIDep] = frozenset(
+    deps: FrozenSet[BaseTIDep] = frozenset(
         {
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
@@ -1316,12 +1316,12 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
     @property
     def roots(self) -> List["BaseOperator"]:
-        """Required by TaskMixin"""
+        """Required by DAGNode."""
         return [self]
 
     @property
     def leaves(self) -> List["BaseOperator"]:
-        """Required by TaskMixin"""
+        """Required by DAGNode."""
         return [self]
 
     @property
@@ -1491,9 +1491,6 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def map(self, **kwargs) -> "MappedOperator":
-        return MappedOperator.from_operator(self, kwargs)
-
     def unmap(self) -> "BaseOperator":
         """:meta private:"""
         # Exists to make typing easier
@@ -1532,355 +1529,6 @@ def _validate_kwarg_names_for_mapping(
     else:
         names = ", ".join(repr(n) for n in unknown_args)
         raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
-
-
-@attr.define(kw_only=True)
-class MappedOperator(Operator, LoggingMixin, DAGNode):
-    """Object representing a mapped operator in a DAG"""
-
-    def __repr__(self) -> str:
-        return (
-            f'MappedOperator(task_type={self.task_type}, '
-            f'task_id={self.task_id!r}, partial_kwargs={self.partial_kwargs!r}, '
-            f'mapped_kwargs={self.mapped_kwargs!r}, dag={self.dag})'
-        )
-
-    operator_class: Union[Type[BaseOperator], str]
-    task_type: str = attr.ib()
-    task_id: str
-    partial_kwargs: Dict[str, Any]
-    mapped_kwargs: Dict[str, Any] = attr.ib(
-        validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
-    )
-    dag: Optional["DAG"] = None
-    upstream_task_ids: Set[str] = attr.ib(factory=set)
-    downstream_task_ids: Set[str] = attr.ib(factory=set)
-
-    task_group: Optional["TaskGroup"] = attr.ib()
-    # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
-    start_date: Optional[pendulum.DateTime] = attr.ib(default=None)
-    end_date: Optional[pendulum.DateTime] = attr.ib(default=None)
-    owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
-    max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
-
-    # Needed for SerializedBaseOperator
-    _is_dummy: bool = attr.ib()
-
-    deps: Iterable[BaseTIDep]
-    operator_extra_links: Iterable['BaseOperatorLink'] = ()
-    template_fields: Collection[str] = attr.ib()
-    template_ext: Collection[str] = attr.ib()
-
-    weight_rule: str = attr.ib()
-    priority_weight: int = attr.ib()
-    trigger_rule: str = attr.ib()
-
-    subdag: None = attr.ib(init=False)
-
-    DEFAULT_DEPS: ClassVar[FrozenSet[BaseTIDep]] = frozenset(BaseOperator.deps) | frozenset(
-        [MappedTaskIsExpanded()]
-    )
-
-    @_is_dummy.default
-    def _is_dummy_from_operator_class(self):
-        from airflow.operators.dummy import DummyOperator
-
-        return issubclass(self.operator_class, DummyOperator)
-
-    @template_fields.default
-    def _template_fields_from_operator_class(self):
-        return self.operator_class.template_fields
-
-    @template_ext.default
-    def _template_ext_from_operator_class(self):
-        return self.operator_class.template_ext
-
-    @task_type.default
-    def _task_type_from_operator_class(self):
-        # Can be a string if we are de-serialized
-        val = self.operator_class
-        if isinstance(val, str):
-            return val.rsplit('.', 1)[-1]
-        return val.__name__
-
-    @task_group.default
-    def _task_group_default(self):
-        from airflow.utils.task_group import TaskGroupContext
-
-        return TaskGroupContext.get_current_task_group(self.dag)
-
-    @weight_rule.default
-    def _weight_rule_from_kwargs(self) -> str:
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
-
-    @priority_weight.default
-    def _priority_weight_from_kwargs(self) -> int:
-        return self.partial_kwargs.get("priority_weight", 1)
-
-    @trigger_rule.default
-    def _trigger_rule_from_kwargs(self) -> int:
-        return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
-
-    @classmethod
-    def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
-        dag = operator.get_dag()
-        task_group = operator.task_group
-        if dag:
-            # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
-            # are mapped, we want to _remove_ that task from the dag
-            dag._remove_task(operator.task_id)
-
-        operator_init_kwargs: dict = operator._BaseOperator__init_kwargs  # type: ignore
-        return cls(
-            operator_class=type(operator),
-            task_id=operator.task_id,
-            task_group=task_group,
-            dag=dag,
-            upstream_task_ids=operator.upstream_task_ids,
-            downstream_task_ids=operator.downstream_task_ids,
-            start_date=operator.start_date,
-            end_date=operator.end_date,
-            partial_kwargs={k: v for k, v in operator_init_kwargs.items() if k != "task_id"},
-            mapped_kwargs=mapped_kwargs,
-            owner=operator.owner,
-            max_active_tis_per_dag=operator.max_active_tis_per_dag,
-            deps=cls._deps(operator.deps),
-        )
-
-    @classmethod
-    def _deps(cls, deps: Iterable[BaseTIDep]):
-        if deps is BaseOperator.deps:
-            return cls.DEFAULT_DEPS
-        else:
-            return frozenset(deps) | {MappedTaskIsExpanded()}
-
-    def __attrs_post_init__(self):
-        from airflow.models.xcom_arg import XComArg
-
-        if self.task_group:
-            self.task_id = self.task_group.child_id(self.task_id)
-            self.task_group.add(self)
-        if self.dag:
-            self.dag.add_task(self)
-
-        for arg in self.mapped_kwargs.values():
-            XComArg.apply_upstream_relationship(self, arg)
-
-    def get_dag(self) -> "Optional[DAG]":
-        return self.dag
-
-    @property
-    def node_id(self) -> str:
-        return self.task_id
-
-    def map(self, **kwargs) -> "MappedOperator":
-        """
-        Update the mapping parameters in place.
-
-        :return: ``self`` for easier method chaining
-        """
-        from airflow.models.xcom_arg import XComArg
-
-        if self.mapped_kwargs:
-            raise RuntimeError("Already a mapped task")
-        for arg in kwargs.values():
-            XComArg.apply_upstream_relationship(self, arg)
-        return attr.evolve(self, mapped_kwargs=kwargs)
-
-    @property
-    def roots(self) -> List["MappedOperator"]:
-        """Required by TaskMixin"""
-        return [self]
-
-    @property
-    def leaves(self) -> List["MappedOperator"]:
-        """Required by TaskMixin"""
-        return [self]
-
-    def has_dag(self):
-        return self.dag is not None
-
-    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
-        """Required by DAGNode."""
-        return DagAttributeTypes.OP, self.task_id
-
-    @property
-    def inherits_from_dummy_operator(self):
-        """Used to determine if an Operator is inherited from DummyOperator"""
-        return self._is_dummy
-
-    is_mapped: ClassVar[bool] = True
-
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: ClassVar[Optional[FrozenSet[str]]] = None
-
-    @classmethod
-    def get_serialized_fields(cls):
-        if cls.__serialized_fields is None:
-            fields_dict = attr.fields_dict(MappedOperator)
-            cls.__serialized_fields = frozenset(
-                fields_dict.keys()
-                - {
-                    'dag',
-                    'deps',
-                    'inherits_from_dummy_operator',
-                    'is_mapped',
-                    'operator_extra_links',
-                    'upstream_task_ids',
-                    'task_type',
-                    'task_group',
-                    # These are automatically populated from partial_kwargs. In
-                    # a perfect world, they should be properties like other
-                    # partial_kwargs-populated values e.g. 'queue' below, but we
-                    # must match BaseOperator's implementation and declare them
-                    # as writable attributes instead.
-                    'weight_rule',
-                    'priority_weight',
-                    'trigger_rule',
-                }
-                | {'template_fields'}
-            )
-        return cls.__serialized_fields
-
-    @property
-    def params(self) -> Union[dict, ParamsDict]:
-        return self.partial_kwargs.get("params", ParamsDict())
-
-    @property
-    def queue(self) -> str:
-        return self.partial_kwargs.get("queue", DEFAULT_QUEUE)
-
-    @property
-    def run_as_user(self) -> Optional[str]:
-        return self.partial_kwargs.get("run_as_user")
-
-    @property
-    def pool(self) -> str:
-        return self.partial_kwargs.get("pool") or Pool.DEFAULT_POOL_NAME
-
-    @property
-    def pool_slots(self) -> int:
-        return self.partial_kwargs.get("pool_slots", 1)
-
-    @property
-    def retries(self) -> Optional[int]:
-        return self.partial_kwargs.get("retries", DEFAULT_RETRIES)
-
-    @property
-    def executor_config(self) -> Optional[dict]:
-        return self.partial_kwargs.get("executor_config")
-
-    @property
-    def wait_for_downstream(self) -> bool:
-        return bool(self.partial_kwargs.get("wait_for_downstream"))
-
-    @property
-    def depends_on_past(self) -> bool:
-        return self.partial_kwargs.get("depends_on_past") or self.wait_for_downstream
-
-    def expand_mapped_task(
-        self, upstream_ti: "TaskInstance", session: "Session" = NEW_SESSION
-    ) -> Sequence[TaskInstance]:
-        """
-        Create the mapped TaskInstances for mapped task.
-
-        :return: The mapped TaskInstances
-        """
-        # TODO: support having multiuple mapped upstreams?
-        from airflow.models.taskmap import TaskMap
-        from airflow.settings import task_instance_mutation_hook
-
-        task_map_info_length: Optional[int] = (
-            session.query(TaskMap.length)
-            .filter_by(
-                dag_id=upstream_ti.dag_id,
-                task_id=upstream_ti.task_id,
-                run_id=upstream_ti.run_id,
-                map_index=upstream_ti.map_index,
-            )
-            .scalar()
-        )
-        if task_map_info_length is None:
-            # TODO: What would lead to this? How can this be better handled?
-            raise RuntimeError("mapped operator cannot be expanded; upstream not found")
-
-        state = None
-        unmapped_ti: Optional[TaskInstance] = (
-            session.query(TaskInstance)
-            .filter(
-                TaskInstance.dag_id == upstream_ti.dag_id,
-                TaskInstance.run_id == upstream_ti.run_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.map_index == -1,
-                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
-            )
-            .one_or_none()
-        )
-
-        ret: List[TaskInstance] = []
-
-        if unmapped_ti:
-            # The unmapped task instance still exists and is unfinished, i.e. we
-            # haven't tried to run it before.
-            if task_map_info_length < 1:
-                # If the upstream maps this to a zero-length value, simply marked the
-                # unmapped task instance as SKIPPED (if needed).
-                self.log.info("Marking %s as SKIPPED since the map has 0 values to expand", unmapped_ti)
-                unmapped_ti.state = TaskInstanceState.SKIPPED
-                session.flush()
-                return ret
-            # Otherwise convert this into the first mapped index, and create
-            # TaskInstance for other indexes.
-            unmapped_ti.map_index = 0
-            state = unmapped_ti.state
-            self.log.debug("Updated in place to become %s", unmapped_ti)
-            ret.append(unmapped_ti)
-            indexes_to_map = range(1, task_map_info_length)
-        else:
-            # Only create "missing" ones.
-            current_max_mapping = (
-                session.query(func.max(TaskInstance.map_index))
-                .filter(
-                    TaskInstance.dag_id == upstream_ti.dag_id,
-                    TaskInstance.task_id == self.task_id,
-                    TaskInstance.run_id == upstream_ti.run_id,
-                )
-                .scalar()
-            )
-            indexes_to_map = range(current_max_mapping + 1, task_map_info_length)
-
-        for index in indexes_to_map:
-            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
-            # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
-            ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index, state=state)  # type: ignore
-            self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti)
-            ret.append(session.merge(ti))
-
-        # Set to "REMOVED" any (old) TaskInstances with map indices greater
-        # than the current map value
-        session.query(TaskInstance).filter(
-            TaskInstance.dag_id == upstream_ti.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.run_id == upstream_ti.run_id,
-            TaskInstance.map_index >= task_map_info_length,
-        ).update({TaskInstance.state: TaskInstanceState.REMOVED})
-
-        session.flush()
-
-        return ret
-
-    def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
-        assert not isinstance(self.operator_class, str)
-        return self.operator_class(dag=dag, task_id=self.task_id, **self.partial_kwargs, **self.mapped_kwargs)
-
-    def unmap(self) -> BaseOperator:
-        """Get the "normal" Operator after applying the current mapping"""
-        dag = self.get_dag()
-        if not dag:
-            raise RuntimeError("Cannot unmap a task unless it has a DAG")
-        dag._remove_task(self.task_id)
-        return self.create_unmapped_operator(dag)
 
 
 # TODO: Deprecate for Airflow 3.0
