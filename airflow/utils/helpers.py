@@ -35,7 +35,6 @@ from typing import (
     Tuple,
     TypeVar,
 )
-from urllib import parse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -258,8 +257,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     import flask
 
     view = conf.get('webserver', 'dag_default_view').lower()
-    url = flask.url_for(f"Airflow.{view}")
-    return f"{url}?{parse.urlencode(query)}"
+    return flask.url_for(f"Airflow.{view}", **query)
 
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
