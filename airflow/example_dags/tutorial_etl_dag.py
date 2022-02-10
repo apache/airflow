@@ -19,9 +19,7 @@
 
 """
 ### ETL DAG Tutorial Documentation
-This ETL DAG is compatible with Airflow 1.10.x (specifically tested with 1.10.12) and is referenced
-as part of the documentation that goes along with the Airflow Functional DAG tutorial located
-[here](https://airflow.apache.org/tutorial_decorated_flows.html)
+This ETL DAG is demonstrating Extract -> Transform -> Load pipeline
 """
 # [START tutorial]
 # [START import_module]
