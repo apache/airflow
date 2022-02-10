@@ -180,12 +180,11 @@ def set_context(logger, value):
     _logger = logger
     while _logger:
         for handler in _logger.handlers:
-            try:
-                handler.set_context(value)
-            except AttributeError:
-                # Not all handlers need to have context passed in so we ignore
-                # the error when handlers do not have set_context defined.
-                pass
+            # Not all handlers need to have context passed in so we ignore
+            # the error when handlers do not have set_context defined.
+            set_context = getattr(handler, 'set_context', None)
+            if set_context:
+                set_context(value)
         if _logger.propagate is True:
             _logger = _logger.parent
         else:

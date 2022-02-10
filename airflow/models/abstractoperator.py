@@ -75,6 +75,9 @@ class AbstractOperator(LoggingMixin, DAGNode):
     owner: str
     task_id: str
 
+    inlets: list
+    outlets: list
+
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
 

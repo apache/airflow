@@ -196,6 +196,9 @@ class MappedOperator(AbstractOperator):
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
 
+    inlets: list = attr.ib(factory=list)
+    outlets: list = attr.ib(factory=list)
+
     is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
 
