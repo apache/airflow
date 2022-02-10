@@ -103,7 +103,7 @@ class S3KeySensor(BaseSensorOperator):
         self._resolve_bucket_and_key()
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
         if self.wildcard_match:
-            return self.get_hook().f(self.bucket_key, self.bucket_name)
+            return self.get_hook().check_for_wildcard_key(self.bucket_key, self.bucket_name)
         return self.get_hook().check_for_key(self.bucket_key, self.bucket_name)
 
     def get_hook(self) -> S3Hook:
