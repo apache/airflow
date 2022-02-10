@@ -280,30 +280,88 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in unknown_args)
             raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
 
-    def map(
-        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> XComArg:
+    def map(self, *args, **kwargs) -> XComArg:
         self._validate_arg_names("map", kwargs)
-        dag = dag or DagContext.get_current_dag()
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-        task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
 
-        operator = MappedOperator.from_decorator(
-            decorator=self,
+        partial_kwargs = self.kwargs.copy()
+        dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
+        task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
+        task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+
+        # Unfortunately attrs's type hinting support does not work well with
+        # subclassing; it complains that arguments forwarded to the superclass
+        # are "unexpected" (they are fine at runtime).
+        operator = cast(Any, DecoratedMappedOperator)(
+            operator_class=self.operator_class,
+            partial_kwargs=partial_kwargs,
+            mapped_kwargs={},
+            task_id=task_id,
             dag=dag,
             task_group=task_group,
-            task_id=task_id,
-            mapped_kwargs=kwargs,
+            deps=MappedOperator._deps(self.operator_class.deps),
+            multiple_outputs=self.multiple_outputs,
+            python_callable=self.function,
         )
+
+        operator.mapped_kwargs["op_args"] = list(args)
+        operator.mapped_kwargs["op_kwargs"] = kwargs
+
+        for arg in itertools.chain(args, kwargs.values()):
+            XComArg.apply_upstream_relationship(operator, arg)
         return XComArg(operator=operator)
 
-    def partial(
-        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "_TaskDecorator[Function, OperatorSubclass]":
-        self._validate_arg_names("partial", kwargs, {'task_id'})
-        partial_kwargs = self.kwargs.copy()
-        partial_kwargs.update(kwargs)
-        return attr.evolve(self, kwargs=partial_kwargs)
+    def partial(self, *args, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+        self._validate_arg_names("partial", kwargs)
+
+        op_args = self.kwargs.get("op_args", [])
+        op_args.extend(args)
+
+        op_kwargs = self.kwargs.get("op_kwargs", {})
+        op_kwargs = _merge_kwargs(op_kwargs, kwargs, fail_reason="duplicate partial")
+
+        return attr.evolve(self, kwargs={**self.kwargs, "op_args": op_args, "op_kwargs": op_kwargs})
+
+
+def _merge_kwargs(
+    kwargs1: Dict[str, XComArg],
+    kwargs2: Dict[str, XComArg],
+    *,
+    fail_reason: str,
+) -> Dict[str, XComArg]:
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    elif duplicated_keys:
+        duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+        raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+    return {**kwargs1, **kwargs2}
+
+
+@attr.define(kw_only=True)
+class DecoratedMappedOperator(MappedOperator):
+    """MappedOperator implementation for @task-decorated task function."""
+
+    multiple_outputs: bool
+    python_callable: Callable
+
+    def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
+        assert not isinstance(self.operator_class, str)
+        op_args = self.partial_kwargs.pop("op_args", []) + self.mapped_kwargs.pop("op_args", [])
+        op_kwargs = _merge_kwargs(
+            self.partial_kwargs.pop("op_kwargs", {}),
+            self.mapped_kwargs.pop("op_kwargs", {}),
+            fail_reason="mapping already partial",
+        )
+        return self.operator_class(
+            dag=dag,
+            task_id=self.task_id,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
+            multiple_outputs=self.multiple_outputs,
+            python_callable=self.python_callable,
+            **self.partial_kwargs,
+            **self.mapped_kwargs,
+        )
 
 
 class Task(Generic[Function]):

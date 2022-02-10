@@ -1713,7 +1713,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
-        session=NEW_SESSION,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:

@@ -16,6 +16,7 @@
 # under the License.
 
 """Serialized DAG and BaseOperator"""
+import contextlib
 import datetime
 import enum
 import logging
@@ -168,7 +169,7 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     return timetable_class.deserialize(var[Encoding.VAR])
 
 
-class _XcomRef(NamedTuple):
+class _XComRef(NamedTuple):
     """
     Used to store info needed to create XComArg when deserializing MappedOperator.
 
@@ -497,8 +498,8 @@ class BaseSerialization:
         return {"key": arg.key, "task_id": arg.operator.task_id}
 
     @classmethod
-    def _deserialize_xcomref(cls, encoded: dict) -> _XcomRef:
-        return _XcomRef(key=encoded['key'], task_id=encoded['task_id'])
+    def _deserialize_xcomref(cls, encoded: dict) -> _XComRef:
+        return _XComRef(key=encoded['key'], task_id=encoded['task_id'])
 
 
 class DependencyDetector:
@@ -566,9 +567,19 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-
         stock_deps = op.deps is MappedOperator.DEFAULT_DEPS
         serialize_op = cls._serialize_node(op, include_deps=not stock_deps)
+
+        # Simplify op_kwargs format. It must be a dict, so we flatten it.
+        with contextlib.suppress(KeyError):
+            op_kwargs = serialize_op["mapped_kwargs"]["op_kwargs"]
+            assert op_kwargs[Encoding.TYPE] == DAT.DICT
+            serialize_op["mapped_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
+        with contextlib.suppress(KeyError):
+            op_kwargs = serialize_op["partial_kwargs"]["op_kwargs"]
+            assert op_kwargs[Encoding.TYPE] == DAT.DICT
+            serialize_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
+
         # It must be a class at this point for it to work, not a string
         assert isinstance(op.operator_class, type)
         serialize_op['_task_type'] = op.operator_class.__name__
@@ -715,7 +726,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
             elif k in ("mapped_kwargs", "partial_kwargs"):
+                if "op_kwargs" not in v:
+                    op_kwargs: Optional[dict] = None
+                else:
+                    op_kwargs = {arg: cls._deserialize(value) for arg, value in v.pop("op_kwargs").items()}
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
+                if op_kwargs is not None:
+                    v["op_kwargs"] = op_kwargs
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
@@ -1002,7 +1019,7 @@ class SerializedDAG(DAG, BaseSerialization):
             if isinstance(task, MappedOperator):
                 for d in (task.mapped_kwargs, task.partial_kwargs):
                     for k, v in d.items():
-                        if not isinstance(v, _XcomRef):
+                        if not isinstance(v, _XComRef):
                             continue
 
                         d[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
