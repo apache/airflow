@@ -42,7 +42,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
-from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
 from airflow.settings import pod_mutation_hook
@@ -196,7 +195,7 @@ class KubernetesPodOperator(BaseOperator):
         do_xcom_push: bool = False,
         pod_template_file: Optional[str] = None,
         priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
+        pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
         **kwargs,

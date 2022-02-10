@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, U
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -40,7 +41,10 @@ class PostgresOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        'sql': 'postgresql' if 'postgresql' in wwwutils.get_attr_renderer() else 'sql'
+    }
     template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 

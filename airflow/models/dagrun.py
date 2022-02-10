@@ -69,8 +69,8 @@ class TISchedulingDecision(NamedTuple):
     tis: List[TI]
     schedulable_tis: List[TI]
     changed_tis: bool
-    unfinished_tasks: List[TI]
-    finished_tasks: List[TI]
+    unfinished_tis: List[TI]
+    finished_tis: List[TI]
 
 
 class DagRun(Base, LoggingMixin):
@@ -395,7 +395,7 @@ class DagRun(Base, LoggingMixin):
         self,
         state: Optional[Iterable[Optional[TaskInstanceState]]] = None,
         session: Session = NEW_SESSION,
-    ) -> Iterable[TI]:
+    ) -> List[TI]:
         """Returns the task instances for this dag run"""
         tis = (
             session.query(TI)
@@ -508,18 +508,18 @@ class DagRun(Base, LoggingMixin):
             tis = info.tis
             schedulable_tis = info.schedulable_tis
             changed_tis = info.changed_tis
-            finished_tasks = info.finished_tasks
-            unfinished_tasks = info.unfinished_tasks
+            finished_tis = info.finished_tis
+            unfinished_tis = info.unfinished_tis
 
-            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tasks)
-            none_deferred = all(t.state != State.DEFERRED for t in unfinished_tasks)
+            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tis)
+            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tis)
+            none_deferred = all(t.state != State.DEFERRED for t in unfinished_tis)
 
-            if unfinished_tasks and none_depends_on_past and none_task_concurrency and none_deferred:
+            if unfinished_tis and none_depends_on_past and none_task_concurrency and none_deferred:
                 # small speed up
                 are_runnable_tasks = (
                     schedulable_tis
-                    or self._are_premature_tis(unfinished_tasks, finished_tasks, session)
+                    or self._are_premature_tis(unfinished_tis, finished_tis, session)
                     or changed_tis
                 )
 
@@ -527,7 +527,7 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
         # if all roots finished and at least one failed, the run failed
-        if not unfinished_tasks and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
+        if not unfinished_tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error('Marking run %s failed', self)
             self.set_state(DagRunState.FAILED)
             if execute_callbacks:
@@ -542,7 +542,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
+        elif not unfinished_tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(DagRunState.SUCCESS)
             if execute_callbacks:
@@ -558,7 +558,7 @@ class DagRun(Base, LoggingMixin):
 
         # if *all tasks* are deadlocked, the run failed
         elif (
-            unfinished_tasks
+            unfinished_tis
             and none_depends_on_past
             and none_task_concurrency
             and none_deferred
@@ -606,7 +606,7 @@ class DagRun(Base, LoggingMixin):
                 self.dag_hash,
             )
 
-        self._emit_true_scheduling_delay_stats_for_finished_state(finished_tasks)
+        self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
 
         session.merge(self)
@@ -631,25 +631,25 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.REMOVED
                 session.flush()
 
-        unfinished_tasks = [t for t in tis if t.state in State.unfinished]
-        finished_tasks = [t for t in tis if t.state in State.finished]
-        if unfinished_tasks:
-            scheduleable_tasks = [ut for ut in unfinished_tasks if ut.state in SCHEDULEABLE_STATES]
-            self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(scheduleable_tasks))
-            schedulable_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
+        unfinished_tis = [t for t in tis if t.state in State.unfinished]
+        finished_tis = [t for t in tis if t.state in State.finished]
+        if unfinished_tis:
+            schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
+            self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
+            schedulable_tis, changed_tis = self._get_ready_tis(schedulable_tis, finished_tis, session)
 
         return TISchedulingDecision(
             tis=tis,
             schedulable_tis=schedulable_tis,
             changed_tis=changed_tis,
-            unfinished_tasks=unfinished_tasks,
-            finished_tasks=finished_tasks,
+            unfinished_tis=unfinished_tis,
+            finished_tis=finished_tis,
         )
 
     def _get_ready_tis(
         self,
         scheduleable_tasks: List[TI],
-        finished_tasks: List[TI],
+        finished_tis: List[TI],
         session: Session,
     ) -> Tuple[List[TI], bool]:
         old_states = {}
@@ -663,7 +663,7 @@ class DagRun(Base, LoggingMixin):
         for st in scheduleable_tasks:
             old_state = st.state
             if st.are_dependencies_met(
-                dep_context=DepContext(flag_upstream_failed=True, finished_tasks=finished_tasks),
+                dep_context=DepContext(flag_upstream_failed=True, finished_tis=finished_tis),
                 session=session,
             ):
                 ready_tis.append(st)
@@ -680,26 +680,26 @@ class DagRun(Base, LoggingMixin):
 
     def _are_premature_tis(
         self,
-        unfinished_tasks: List[TI],
-        finished_tasks: List[TI],
+        unfinished_tis: List[TI],
+        finished_tis: List[TI],
         session: Session,
     ) -> bool:
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
         # not ready yet so we set the flags to count them in
-        for ut in unfinished_tasks:
+        for ut in unfinished_tis:
             if ut.are_dependencies_met(
                 dep_context=DepContext(
                     flag_upstream_failed=True,
                     ignore_in_retry_period=True,
                     ignore_in_reschedule_period=True,
-                    finished_tasks=finished_tasks,
+                    finished_tis=finished_tis,
                 ),
                 session=session,
             ):
                 return True
         return False
 
-    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis):
+    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: List[TI]) -> None:
         """
         This is a helper method to emit the true scheduling delay stats, which is defined as
         the time when the first task in DAG starts minus the expected DAG run datetime.
@@ -723,7 +723,7 @@ class DagRun(Base, LoggingMixin):
         try:
             dag = self.get_dag()
 
-            if not self.dag.timetable.periodic:
+            if not dag.timetable.periodic:
                 # We can't emit this metric if there is no following schedule to calculate from!
                 return
 
@@ -809,7 +809,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti_mapping(task: "BaseOperator"):
                 created_counts[task.task_type] += 1
-                return TI.insert_mapping(self.run_id, task)
+                return TI.insert_mapping(self.run_id, task, map_index=-1)
 
         else:
 
@@ -830,9 +830,13 @@ class DagRun(Base, LoggingMixin):
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)
             session.flush()
-        except IntegrityError as err:
-            self.log.info(str(err))
-            self.log.info('Hit IntegrityError while creating the TIs for %s- %s', dag.dag_id, self.run_id)
+        except IntegrityError:
+            self.log.info(
+                'Hit IntegrityError while creating the TIs for %s- %s',
+                dag.dag_id,
+                self.run_id,
+                exc_info=True,
+            )
             self.log.info('Doing session rollback.')
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
@@ -916,37 +920,34 @@ class DagRun(Base, LoggingMixin):
         count = 0
 
         if schedulable_ti_ids:
-
-            count += with_row_locks(
-                session.query(TI).filter(
+            count += (
+                session.query(TI)
+                .filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(schedulable_ti_ids),
-                ),
-                of=TI,
-                session=session,
-                **skip_locked(session=session),
-            ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
+                )
+                .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+            )
 
         # Tasks using DummyOperator should not be executed, mark them as success
         if dummy_ti_ids:
-            count += with_row_locks(
-                session.query(TI).filter(
+            count += (
+                session.query(TI)
+                .filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
                     TI.task_id.in_(dummy_ti_ids),
-                ),
-                of=TI,
-                session=session,
-                **skip_locked(session=session),
-            ).update(
-                {
-                    TI.state: State.SUCCESS,
-                    TI.start_date: timezone.utcnow(),
-                    TI.end_date: timezone.utcnow(),
-                    TI.duration: 0,
-                },
-                synchronize_session=False,
+                )
+                .update(
+                    {
+                        TI.state: State.SUCCESS,
+                        TI.start_date: timezone.utcnow(),
+                        TI.end_date: timezone.utcnow(),
+                        TI.duration: 0,
+                    },
+                    synchronize_session=False,
+                )
             )
 
         return count

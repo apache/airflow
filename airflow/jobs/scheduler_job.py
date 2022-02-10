@@ -38,6 +38,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -123,6 +124,8 @@ class SchedulerJob(BaseJob):
             )
             scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
+        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
+        self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
@@ -534,7 +537,7 @@ class SchedulerJob(BaseJob):
         """Respond to executor events."""
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str], int] = {}
+        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str, int], int] = {}
         event_buffer = self.executor.get_event_buffer()
         tis_with_right_state: List[TaskInstanceKey] = []
 
@@ -737,6 +740,11 @@ class SchedulerJob(BaseJob):
         timers.call_regular_interval(
             conf.getfloat('scheduler', 'pool_metrics_interval', fallback=5.0),
             self._emit_pool_metrics,
+        )
+
+        timers.call_regular_interval(
+            conf.getfloat('scheduler', 'zombie_detection_interval', fallback=10.0),
+            self._find_zombies,
         )
 
         for loop_count in itertools.count(start=1):
@@ -1259,3 +1267,39 @@ class SchedulerJob(BaseJob):
         )
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def _find_zombies(self, session):
+        """
+        Find zombie task instances, which are tasks haven't heartbeated for too long
+        and update the current zombie list.
+        """
+        self.log.debug("Finding 'running' jobs without a recent heartbeat")
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
+
+        zombies = (
+            session.query(TaskInstance, DagModel.fileloc)
+            .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
+            .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
+            .filter(TaskInstance.state == State.RUNNING)
+            .filter(
+                or_(
+                    LocalTaskJob.state != State.RUNNING,
+                    LocalTaskJob.latest_heartbeat < limit_dttm,
+                )
+            )
+            .all()
+        )
+
+        if zombies:
+            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+
+        for ti, file_loc in zombies:
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                simple_task_instance=SimpleTaskInstance(ti),
+                msg=f"Detected {ti} as zombie",
+            )
+            self.log.error("Detected zombie job: %s", request)
+            self.processor_agent.send_callback_to_execute(request)
+            Stats.incr('zombies_killed')

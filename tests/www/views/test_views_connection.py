@@ -107,6 +107,21 @@ def test_process_form_extras():
 
     assert json.loads(mock_form.extra.data) == {"extra__test3__custom_field": "custom_field_val3"}
 
+    # Testing parameters set in both extra and custom fields (cunnection updates).
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test4",
+        "conn_id": "extras_test4",
+        "extra": '{"extra__test4__custom_field": "custom_field_val3"}',
+        "extra__test4__custom_field": "custom_field_val4",
+    }
+
+    cmv = ConnectionModelView()
+    cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
+
 
 def test_duplicate_connection(admin_client):
     """Test Duplicate multiple connection with suffix"""

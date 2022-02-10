@@ -930,6 +930,19 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         mock_query_job.from_api_repr.return_value.result.assert_called_once_with()
 
+    def test_dbapi_get_uri(self):
+        assert self.hook.get_uri().startswith('bigquery://')
+
+    def test_dbapi_get_sqlalchemy_engine(self):
+        with pytest.raises(
+            AirflowException,
+            match="For now, we only support instantiating SQLAlchemy engine by"
+            " using ADC"
+            ", extra__google_cloud_platform__key_path"
+            "and extra__google_cloud_platform__keyfile_dict",
+        ):
+            self.hook.get_sqlalchemy_engine()
+
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):

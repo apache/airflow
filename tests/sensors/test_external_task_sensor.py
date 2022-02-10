@@ -407,7 +407,7 @@ exit 0
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
-def test_external_task_sensor_templated(dag_maker):
+def test_external_task_sensor_templated(dag_maker, app):
     with dag_maker():
         ExternalTaskSensor(
             task_id='templated_task',
@@ -421,6 +421,13 @@ def test_external_task_sensor_templated(dag_maker):
 
     assert instance.task.external_dag_id == f"dag_{DEFAULT_DATE.date()}"
     assert instance.task.external_task_id == f"task_{DEFAULT_DATE.date()}"
+
+    # Verify that the operator link uses the rendered value of ``external_dag_id``.
+    app.config['SERVER_NAME'] = ""
+    with app.app_context():
+        url = instance.task.get_extra_links(DEFAULT_DATE, "External DAG")
+
+        assert f"tree?dag_id=dag_{DEFAULT_DATE.date()}" in url
 
 
 class TestExternalTaskMarker(unittest.TestCase):

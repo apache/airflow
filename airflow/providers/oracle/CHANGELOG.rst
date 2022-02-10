@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+* ``[Oracle] Oracle Hook - automatically set current_schema when defined in Connection (#19084)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Oracle Provider: Fix handling of bindvars with no parameters (#20720)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.1.0
 .....
 

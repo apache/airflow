@@ -105,8 +105,9 @@ automatically provided by default. All other arguments should be copied directly
 and we recommend adding a comment to explain what arguments are filled automatically by FooDecoratedOperator
 and thus not included.
 
-You should also add an overload that takes a single callable immediately after the "real" definition so mypy can recognize the function as
-a decorator:
+If the new decorator can be used without arguments (e.g. ``@task.python`` instead of ``@task.python()``),
+You should also add an overload that takes a single callable immediately after the "real" definition so mypy
+can recognize the function as a "bare decorator":
 
 .. exampleinclude:: ../../../airflow/decorators/__init__.pyi
     :language: python

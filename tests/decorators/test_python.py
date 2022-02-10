@@ -16,24 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
-import unittest.mock
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
 import pytest
-from parameterized import parameterized
 
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models import DAG
 from airflow.models.baseoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from tests.operators.test_python import Call, assert_calls_equal, build_recording_function
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -48,66 +48,19 @@ TI_CONTEXT_ENV_VARS = [
 ]
 
 
-class Call:
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
+class TestAirflowTaskDecorator:
+    def setup_class(self):
+        clear_db_runs()
 
-
-def build_recording_function(calls_collection):
-    """
-    We can not use a Mock instance as a PythonOperator callable function or some tests fail with a
-    TypeError: Object of type Mock is not JSON serializable
-    Then using this custom function recording custom Call objects for further testing
-    (replacing Mock.assert_called_with assertion method)
-    """
-
-    def recording_function(*args, **kwargs):
-        calls_collection.append(Call(*args, **kwargs))
-
-    return recording_function
-
-
-class TestPythonBase(unittest.TestCase):
-    """Base test class for TestPythonOperator and TestPythonSensor classes"""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def setUp(self):
-        super().setUp()
-        self.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
-        self.addCleanup(self.dag.clear)
-        self.clear_run()
-        self.addCleanup(self.clear_run)
-
-    def tearDown(self):
-        super().tearDown()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def clear_run(self):
+    def setup_method(self):
+        self.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
         self.run = False
 
-    def _assert_calls_equal(self, first, second):
-        assert isinstance(first, Call)
-        assert isinstance(second, Call)
-        assert first.args == second.args
-        # eliminate context (conf, dag_run, task_instance, etc.)
-        test_args = ["an_int", "a_date", "a_templated_string"]
-        first.kwargs = {key: value for (key, value) in first.kwargs.items() if key in test_args}
-        second.kwargs = {key: value for (key, value) in second.kwargs.items() if key in test_args}
-        assert first.kwargs == second.kwargs
+    def teardown_method(self):
+        self.dag.clear()
+        self.run = False
+        clear_db_runs()
 
-
-class TestAirflowTaskDecorator(TestPythonBase):
     def test_python_operator_python_callable_is_callable(self):
         """Tests that @task will only instantiate if
         the python_callable argument is callable."""
@@ -115,22 +68,34 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with pytest.raises(TypeError):
             task_decorator(not_callable, dag=self.dag)
 
-    @parameterized.expand([["dict"], ["dict[str, int]"], ["Dict"], ["Dict[str, int]"]])
-    def test_infer_multiple_outputs_using_dict_typing(self, test_return_annotation):
-        if sys.version_info < (3, 9) and test_return_annotation == "dict[str, int]":
-            raise pytest.skip("dict[...] not a supported typing prior to Python 3.9")
+    @pytest.mark.parametrize(
+        "resolve",
+        [
+            pytest.param(eval, id="eval"),
+            pytest.param(lambda t: t, id="stringify"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "annotation",
+        [
+            "dict",
+            pytest.param(
+                "dict[str, int]",
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 9),
+                    reason="PEP 585 is implemented in Python 3.9",
+                ),
+            ),
+            "Dict",
+            "Dict[str, int]",
+        ],
+    )
+    def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):
+        @task_decorator
+        def identity_dict(x: int, y: int) -> resolve(annotation):
+            return {"x": x, "y": y}
 
-            @task_decorator
-            def identity_dict(x: int, y: int) -> eval(test_return_annotation):
-                return {"x": x, "y": y}
-
-            assert identity_dict(5, 5).operator.multiple_outputs is True
-
-            @task_decorator
-            def identity_dict_stringified(x: int, y: int) -> test_return_annotation:
-                return {"x": x, "y": y}
-
-            assert identity_dict_stringified(5, 5).operator.multiple_outputs is True
+        assert identity_dict(5, 5).operator.multiple_outputs is True
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
@@ -288,7 +253,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         assert len(recorded_calls) == 1
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 4,
@@ -319,7 +284,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         assert len(recorded_calls) == 1
-        self._assert_calls_equal(
+        assert_calls_equal(
             recorded_calls[0],
             Call(
                 an_int=4,
@@ -525,7 +490,7 @@ def test_mapped_decorator() -> None:
     assert isinstance(doubled_0, XComArg)
     assert isinstance(doubled_0.operator, MappedOperator)
     assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_kwargs == {"number": literal}
+    assert doubled_0.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
 
     assert doubled_1.operator.task_id == "double__1"
 
@@ -549,25 +514,68 @@ def test_partial_mapped_decorator() -> None:
     def product(number: int, multiple: int):
         return number * multiple
 
+    literal = [1, 2, 3]
+
     with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        literal = [1, 2, 3]
-        quadrupled = product.partial(task_id='times_4', multiple=3).map(number=literal)
+        quadrupled = product.partial(multiple=3).map(number=literal)
         doubled = product.partial(multiple=2).map(number=literal)
         trippled = product.partial(multiple=3).map(number=literal)
 
-        product.partial(multiple=2)
+        product.partial(multiple=2)  # No operator is actually created.
+
+    assert dag.task_dict == {
+        "product": quadrupled.operator,
+        "product__1": doubled.operator,
+        "product__2": trippled.operator,
+    }
 
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, MappedOperator)
-    assert doubled.operator.task_id == "product"
-    assert doubled.operator.mapped_kwargs == {"number": literal}
-    assert doubled.operator.partial_kwargs == {"task_id": "product", "multiple": 2}
+    assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
+    assert doubled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 2}}
 
-    assert trippled.operator.task_id == "product__1"
-    assert trippled.operator.partial_kwargs == {"task_id": "product", "multiple": 3}
-
-    assert quadrupled.operator.task_id == "times_4"
+    assert isinstance(trippled.operator, MappedOperator)  # For type-checking on partial_kwargs.
+    assert trippled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 3}}
 
     assert doubled.operator is not trippled.operator
 
-    assert [quadrupled.operator, doubled.operator, trippled.operator] == dag.tasks
+
+def test_mapped_decorator_unmap_merge_op_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1():
+            ...
+
+        @task_decorator
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).map(arg2=task1())
+
+    unmapped = dag.get_task("task2").unmap()
+    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
+
+
+def test_mapped_decorator_unmap_converts_partial_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1(arg):
+            ...
+
+        @task_decorator(retry_delay=30)
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).map(arg2=task1.map(arg=[1, 2]))
+
+    # Arguments to the task decorator are stored in partial_kwargs, and
+    # converted into their intended form after the task is unmapped.
+    mapped_task2 = dag.get_task("task2")
+    assert mapped_task2.partial_kwargs["retry_delay"] == 30
+    assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
+
+    mapped_task1 = dag.get_task("task1")
+    assert "retry_delay" not in mapped_task1.partial_kwargs
+    mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.

@@ -21,11 +21,7 @@
 """Exceptions used by Airflow"""
 import datetime
 import warnings
-from typing import Any, Dict, List, NamedTuple, Optional
-
-from airflow.api_connexion.exceptions import NotFound as ApiConnexionNotFound
-from airflow.utils.code_utils import prepare_code_snippet
-from airflow.utils.platform import is_tty
+from typing import Any, Dict, List, NamedTuple, Optional, Sized
 
 
 class AirflowException(Exception):
@@ -44,7 +40,7 @@ class AirflowBadRequest(AirflowException):
     status_code = 400
 
 
-class AirflowNotFoundException(AirflowException, ApiConnexionNotFound):
+class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
     status_code = 404
@@ -98,8 +94,12 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
-class UnmappableXComPushed(AirflowException):
-    """Raise when an unmappable value is pushed as a mapped downstream's dependency."""
+class AirflowOptionalProviderFeatureException(AirflowException):
+    """Raise by providers when imports are missing for optional provider features."""
+
+
+class UnmappableXComTypePushed(AirflowException):
+    """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
 
     def __init__(self, value: Any) -> None:
         super().__init__(value)
@@ -107,6 +107,18 @@ class UnmappableXComPushed(AirflowException):
 
     def __str__(self) -> str:
         return f"unmappable return type {type(self.value).__qualname__!r}"
+
+
+class UnmappableXComLengthPushed(AirflowException):
+    """Raise when the pushed value is too large to map as a downstream's dependency."""
+
+    def __init__(self, value: Sized, max_length: int) -> None:
+        super().__init__(value)
+        self.value = value
+        self.max_length = max_length
+
+    def __str__(self) -> str:
+        return f"unmappable return value length: {len(self.value)} > {self.max_length}"
 
 
 class AirflowDagCycleException(AirflowException):
@@ -233,6 +245,9 @@ class AirflowFileParseException(AirflowException):
         self.parse_errors = parse_errors
 
     def __str__(self):
+        from airflow.utils.code_utils import prepare_code_snippet
+        from airflow.utils.platform import is_tty
+
         result = f"{self.msg}\nFilename: {self.file_path}\n\n"
 
         for error_no, parse_error in enumerate(self.parse_errors, 1):

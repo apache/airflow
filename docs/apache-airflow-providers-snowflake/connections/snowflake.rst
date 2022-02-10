@@ -59,13 +59,10 @@ Extra (optional)
     * ``region``: Warehouse region.
     * ``warehouse``: Snowflake warehouse name.
     * ``role``: Snowflake role.
-    * ``authenticator``: To connect using OAuth set this parameter ``oath``
+    * ``authenticator``: To connect using OAuth set this parameter ``oath``.
     * ``private_key_file``: Specify the path to the private key file.
-    * ``session_parameters``: Specify `session level parameters
-      <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_
-    * ``insecure_mode``: Turn off OCSP certificate checks
-        For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community
-        <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`__.
+    * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.
+    * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

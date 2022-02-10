@@ -583,7 +583,9 @@ class TestEksHooks:
             **dict(deepcopy(NodegroupInputs.REQUIRED)),
         )[ResponseAttributes.NODEGROUP]
 
-        assert created_nodegroup.get(NodegroupAttributes.TAGS).get(ownership_tag_key) == provided_tag_value
+        tags = created_nodegroup.get(NodegroupAttributes.TAGS)
+        assert tags is not None
+        assert tags.get(ownership_tag_key) == provided_tag_value
 
     def test_describe_nodegroup_throws_exception_when_cluster_not_found(self, nodegroup_builder) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
@@ -1269,7 +1271,7 @@ class TestEksHook:
                                 'apiVersion': 'client.authentication.k8s.io/v1alpha1',
                                 'args': expected_args,
                                 'command': sys.executable,
-                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'fatal'}],
+                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'FATAL'}],
                                 'interactiveMode': 'Never',
                             }
                         },

@@ -24,6 +24,7 @@ import pytest
 from airflow import settings
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import TaskFail, TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -49,6 +50,21 @@ class TestCore:
             op = BashOperator(task_id='test_dryrun', bash_command="echo success")
         dag_maker.create_dagrun()
         op.dry_run()
+
+    def test_dryrun_with_invalid_template_field(self, dag_maker):
+        class InvalidTemplateFieldOperator(BaseOperator):
+            template_fields = ["missing_field"]
+
+        with dag_maker():
+            op = InvalidTemplateFieldOperator(task_id='test_dryrun_invalid_template_field')
+        dag_maker.create_dagrun()
+
+        error_message = (
+            "'missing_field' is configured as a template field but InvalidTemplateFieldOperator does not "
+            "have this attribute."
+        )
+        with pytest.raises(AttributeError, match=error_message):
+            op.dry_run()
 
     def test_timeout(self, dag_maker):
         with dag_maker():

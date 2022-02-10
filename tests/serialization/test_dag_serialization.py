@@ -488,6 +488,9 @@ class TestStringifiedDAGs:
         assert not isinstance(task, SerializedBaseOperator)
         assert isinstance(task, BaseOperator)
 
+        # Every task should have a task_group property -- even if it's the DAG's root task group
+        assert serialized_task.task_group
+
         fields_to_check = task.get_serialized_fields() - {
             # Checked separately
             '_task_type',
@@ -1603,10 +1606,12 @@ def test_mapped_operator_serde():
         },
         'task_id': 'a',
         'template_fields': ['bash_command', 'env'],
+        'template_ext': ['.sh', '.bash'],
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert isinstance(op, MappedOperator)
+    assert op.deps is MappedOperator.DEFAULT_DEPS
 
     assert op.operator_class == "airflow.operators.bash.BashOperator"
     assert op.mapped_kwargs['bash_command'] == literal
@@ -1632,9 +1637,11 @@ def test_mapped_operator_xcomarg_serde():
         'partial_kwargs': {},
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
+        'template_ext': [],
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.DEFAULT_DEPS
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'
@@ -1645,6 +1652,59 @@ def test_mapped_operator_xcomarg_serde():
     xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
     assert isinstance(xcom_arg, XComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
+
+
+def test_mapped_decorator_serde():
+    from airflow.decorators import task
+    from airflow.models.xcom_arg import XComArg
+    from airflow.serialization.serialized_objects import _XComRef
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        op1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(op1, "my_key")
+
+        @task(retry_delay=30)
+        def x(arg1, arg2, arg3, arg4):
+            print(arg1, arg2, arg3, arg4)
+
+        x.partial("foo", arg3=[1, 2, {"a": "b"}]).map({"a": 1, "b": 2}, arg4=xcomarg)
+
+    original = dag.get_task("x")
+
+    serialized = SerializedBaseOperator._serialize(original)
+    assert serialized == {
+        '_is_dummy': False,
+        '_is_mapped': True,
+        '_task_module': 'airflow.decorators.python',
+        '_task_type': '_PythonDecoratedOperator',
+        'downstream_task_ids': [],
+        'partial_kwargs': {
+            'op_args': ["foo"],
+            'op_kwargs': {'arg3': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            'retry_delay': 30,
+        },
+        'mapped_kwargs': {
+            'op_args': [{"__type": "dict", "__var": {'a': 1, 'b': 2}}],
+            'op_kwargs': {'arg4': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}}},
+        },
+        'task_id': 'x',
+        'template_ext': [],
+        'template_fields': ['op_args', 'op_kwargs'],
+    }
+
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    assert isinstance(deserialized, MappedOperator)
+    assert deserialized.deps is MappedOperator.DEFAULT_DEPS
+
+    assert deserialized.mapped_kwargs == {
+        "op_args": [{"a": 1, "b": 2}],
+        "op_kwargs": {"arg4": _XComRef("op1", "my_key")},
+    }
+    assert deserialized.partial_kwargs == {
+        "retry_delay": 30,
+        "op_args": ["foo"],
+        "op_kwargs": {"arg3": [1, 2, {"a": "b"}]},
+    }
 
 
 def test_mapped_task_group_serde():

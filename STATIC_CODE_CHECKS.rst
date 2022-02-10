@@ -136,17 +136,11 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``base-operator``                      Checks that BaseOperator is imported properly
 ------------------------------------ ---------------------------------------------------------------- ------------
-``bats-tests``                         Runs BATS bash unit tests
------------------------------------- ---------------------------------------------------------------- ------------
-``bats-in-container-tests``            Run in Breeze container bats tests                                   *
------------------------------------- ---------------------------------------------------------------- ------------
 ``black``                              Runs Black (the uncompromising Python code formatter)
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``blacken-docs``                       Run black on python code blocks in documentation files
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``boring-cyborg``                      Checks for Boring Cyborg configuration consistency
------------------------------------- ---------------------------------------------------------------- ------------
-``build``                              Builds image for mypy, flake8                                        *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``       Regenerates the JSON file with cross-provider dependencies
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -177,6 +171,8 @@ require Breeze Docker images to be installed locally.
 ``debug-statements``                   Detects accidentally committed debug statements
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``detect-private-key``                 Detects if private key is added to the repository
+------------------------------------ ---------------------------------------------------------------- ------------
+``docstring-params``                   Checks that param types not specified in docstring
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``doctoc``                             Refreshes the table of contents for MD files
 ------------------------------------ ---------------------------------------------------------------- ------------

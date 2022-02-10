@@ -453,6 +453,15 @@
       type: string
       example: ~
       default: "128"
+    - name: max_map_length
+      description: |
+        The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
+        length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
+        mapped tasks from clogging the scheduler.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "1024"
 
 - name: logging
   description: ~
@@ -1379,7 +1388,7 @@
       description: |
         Email address that will be used as sender address.
         It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
@@ -1703,7 +1712,7 @@
     - name: stuck_queued_task_check_interval
       description: |
         How often to check for stuck queued task (in seconds)
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: integer
       example: ~
       default: "300"
@@ -1856,6 +1865,13 @@
       type: string
       example: ~
       default: "300"
+    - name: zombie_detection_interval
+      description: |
+        How often (in seconds) should the scheduler check for zombie tasks.
+      version_added: 2.3.0
+      type: float
+      example: ~
+      default: "10.0"
     - name: catchup_by_default
       description: |
         Turn off scheduler catchup by setting this to ``False``.

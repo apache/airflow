@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from pathlib import Path
+from typing import List
 
+from airflow_breeze.utils.path_utils import get_airflow_sources_root
 
 AIRFLOW_SOURCES = ""
 
 FORCE_PULL_IMAGES = False
 CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
 FORCE_BUILD_IMAGES = False
-# LAST_FORCE_ANSWER_FILE = f"{BUILD_CACHE_DIR}/last_force_answer.sh"
 FORCE_ANSWER_TO_QUESTION = ""
 SKIP_CHECK_REMOTE_IMAGE = False
 PUSH_PYTHON_BASE_IMAGE = False
@@ -37,12 +39,9 @@ ALLOWED_STATIC_CHECKS = [
     "airflow-providers-available",
     "airflow-provider-yaml-files-ok",
     "base-operator",
-    "bats-tests",
-    "bats-in-container-tests",
     "black",
     "blacken-docs",
     "boring-cyborg",
-    "build",
     "build-providers-dependencies",
     "chart-schema-lint",
     "capitalized-breeze",
@@ -188,3 +187,21 @@ MYSQL_HOST_PORT = "23306"
 MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
+
+EXCLUDE_DOCS_PACKAGE_FOLDER = [
+    'exts',
+    'integration-logos',
+    'rtd-deprecation',
+    '_build',
+    '_doctrees',
+    '_inventory_cache',
+]
+
+
+def get_available_packages() -> List[str]:
+    docs_path_content = Path(get_airflow_sources_root(), 'docs').glob('*/')
+    available_packages = [x.name for x in docs_path_content if x.is_dir()]
+    return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+
+
+EXTRA_STATIC_CHECK_OPTIONS = "--show-diff-on-failure"

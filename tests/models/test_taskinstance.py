@@ -37,7 +37,8 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
-    UnmappableXComPushed,
+    UnmappableXComLengthPushed,
+    UnmappableXComTypePushed,
 )
 from airflow.models import (
     DAG,
@@ -1946,7 +1947,7 @@ class TestTaskInstance:
 
         with dag_maker('test-dag', session=session) as dag:
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
-        dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
+        dag.fileloc = TEST_DAGS_FOLDER / 'test_get_k8s_pod_yaml.py'
         ti = dag_maker.create_dagrun().task_instances[0]
         ti.task = task
 
@@ -2160,6 +2161,12 @@ def test_refresh_from_task(pool_override):
     assert ti.executor_config == task.executor_config
     assert ti.operator == DummyOperator.__name__
 
+    # Test that refresh_from_task does not reset ti.max_tries
+    expected_max_tries = task.retries + 10
+    ti.max_tries = expected_max_tries
+    ti.refresh_from_task(task)
+    assert ti.max_tries == expected_max_tries
+
 
 class TestRunRawTaskQueriesCount:
     """
@@ -2253,13 +2260,6 @@ class TestTaskInstanceRecordTaskMapXComPush:
         with create_session() as session:
             session.query(TaskMap).delete()
 
-    def _run_ti_with_faked_mapped_dependants(self, ti):
-        # TODO: We can't actually put a MappedOperator in a DAG yet due to it
-        # lacking some functions we expect from BaseOperator, so we mock this
-        # instead to test what effect it has to TaskMap recording.
-        with mock.patch.object(ti.task, "has_mapped_dependants", new=lambda: True):
-            ti.run()
-
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_for_unused(self, dag_maker, xcom_value):
         """A value not used for task-mapping should not be recorded."""
@@ -2271,12 +2271,12 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
             push_something()
 
-        ti = dag_maker.create_dagrun().task_instances[0]
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    def test_error_if_unmappable(self, caplog, dag_maker):
+    def test_error_if_unmappable_type(self, dag_maker):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
@@ -2284,15 +2284,42 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def push_something():
                 return "abc"
 
-            push_something()
+            @dag.task()
+            def pull_something(value):
+                print(value)
 
-        ti = dag_maker.create_dagrun().task_instances[0]
-        with pytest.raises(UnmappableXComPushed) as ctx:
-            self._run_ti_with_faked_mapped_dependants(ti)
+            pull_something.map(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(UnmappableXComTypePushed) as ctx:
+            ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == "unmappable return type 'str'"
+
+    @conf_vars({("core", "max_map_length"): "1"})
+    def test_error_if_unmappable_length(self, dag_maker):
+        """If an unmappable return value is used to map, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return [1, 2]
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.map(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(UnmappableXComLengthPushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "unmappable return value length: 2 > 1"
 
     @pytest.mark.parametrize(
         "xcom_value, expected_length, expected_keys",
@@ -2309,11 +2336,15 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def push_something():
                 return xcom_value
 
-            push_something()
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.map(value=push_something())
 
         dag_run = dag_maker.create_dagrun()
         ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
-        self._run_ti_with_faked_mapped_dependants(ti)
+        ti.run()
 
         task_map = dag_maker.session.query(TaskMap).one()
         assert task_map.dag_id == "test_written_task_map"

@@ -53,15 +53,17 @@ and screencasts all its uses.
 Prerequisites
 =============
 
-Docker Community Edition
-------------------------
+Docker Desktop
+--------------
 
-- **Version**: Install the latest stable Docker Community Edition and add it to the PATH.
+- **Version**: Install the latest stable `Docker Desktop <https://docs.docker.com/get-docker/>`_
+  and add make sure it is in your PATH. ``Breeze`` detects if you are using version that is too
+  old and warns you to upgrade.
 - **Permissions**: Configure to run the ``docker`` commands directly and not only via root user.
   Your user should be in the ``docker`` group.
   See `Docker installation guide <https://docs.docker.com/install/>`_ for details.
 - **Disk space**: On macOS, increase your available disk space before starting to work with
-  the environment. At least 128 GB of free disk space is recommended. You can also get by with a
+  the environment. At least 20 GB of free disk space is recommended. You can also get by with a
   smaller space but make sure to clean up the Docker disk space periodically.
   See also `Docker for Mac - Space <https://docs.docker.com/docker-for-mac/space>`_ for details
   on increasing disk space available for Docker on Mac.
@@ -81,10 +83,9 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Docker Compose
 --------------
 
-- **Version**: Install the latest stable Docker Compose and add it to the PATH.
-  See `Docker Compose Installation Guide <https://docs.docker.com/compose/install/>`_ for details.
-
-- **Permissions**: Configure permission to run the ``docker-compose`` command.
+- **Version**: Install the latest stable `Docker Compose<https://docs.docker.com/compose/install/>`_
+  and add it to the PATH. ``Breeze`` detects if you are using version that is too old and warns you to upgrade.
+- **Permissions**: Configure permission to be able to run the ``docker-compose`` command by your user.
 
 Docker in WSL 2
 ---------------
@@ -143,8 +144,11 @@ Getopt and gstat
 * For Linux, run ``apt install util-linux coreutils`` or an equivalent if your system is not Debian-based.
 * For macOS, install GNU ``getopt`` and ``gstat`` utilities to get Airflow Breeze running.
 
-  Run ``brew install gnu-getopt coreutils`` and then follow instructions to link the gnu-getopt version to
-  become the first on the PATH. Make sure to re-login after you make the suggested changes.
+  Run ``brew install gnu-getopt coreutils``.
+
+.. warning::
+  Pay attention to the ``brew install`` command and follow instructions to link the gnu-getopt version
+  to become the first one on the PATH. Make sure to re-login after you make the suggested changes.
 
 **Examples:**
 
@@ -164,7 +168,7 @@ If you use zsh, run this command and re-login:
     . ~/.zprofile
 
 
-Let's confirm that ``getopt`` and ``gstat`` utilities are successfully installed
+Confirm that ``getopt`` and ``gstat`` utilities are successfully installed
 
 .. code-block:: bash
 
@@ -317,19 +321,19 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI.
 
-For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
+For example, you can choose to run Python 3.7 tests with MySQL as backend and in the Docker environment as
 follows:
 
 .. code-block:: bash
 
-    ./breeze --python 3.6 --backend mysql
+    ./breeze --python 3.7 --backend mysql
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
 default settings.
 
-The defaults when you run the Breeze environment are Python 3.6 version and SQLite database.
+The defaults when you run the Breeze environment are Python 3.7 version and SQLite database.
 
 .. raw:: html
 
@@ -366,73 +370,61 @@ Then run the failed command, copy-and-paste the output from your terminal to the
 `Airflow Slack <https://s.apache.org/airflow-slack>`_  #airflow-breeze channel and
 describe your problem.
 
-Other uses of the Airflow Breeze environment
-============================================
+Uses of the Airflow Breeze environment
+======================================
 
 Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
-environment.
+environment. Breeze script allows performing the following tasks:
 
-Breeze script allows performing the following tasks:
+Airflow developers tasks
+------------------------
 
-Managing CI environment:
+Regular development tasks:
 
-    * Build CI docker image with ``breeze build-image`` command
-    * Enter interactive shell in CI container when ``shell`` (or no command) is specified
-    * Join running interactive shell with ``breeze exec`` command
-    * Stop running interactive environment with ``breeze stop`` command
-    * Restart running interactive environment with ``breeze restart`` command
-    * Run test specified with ``breeze tests`` command
-    * Generate constraints with ``breeze generate-constraints``
-    * Execute arbitrary command in the test environment with ``breeze shell`` command
-    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
+* Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
+* Enter interactive shell in CI container when ``shell`` (or no command) is specified
+* Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
+* Build documentation with ``breeze build-docs`` command
+* Initialize local virtualenv with ``breeze initialize-local-virtualenv`` command
+* Build CI docker image with ``breeze build-image`` command
+* Cleanup CI docker image with ``breeze cleanup-image`` command
+* Run static checks with autocomplete support ``breeze static-check`` command
+* Run test specified with ``breeze tests`` command
 
-You can optionally reset the Airflow metadata database if specified as extra ``--db-reset`` flag and for CI image
-you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
-chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+Additional management tasks:
 
-You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with three panes:
+* Join running interactive shell with ``breeze exec`` command
+* Stop running interactive environment with ``breeze stop`` command
+* Restart running interactive environment with ``breeze restart`` command
+* Execute arbitrary command in the test environment with ``breeze shell`` command
+* Execute arbitrary docker-compose command with ``breeze docker-compose`` command
 
-   - one to monitor the scheduler,
-   - one for the webserver,
-   - one with a shell for additional commands.
+Kubernetes tests related:
 
-Managing Prod environment (with ``--production-image`` flag):
+* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
+* Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
+* Enter the interactive kubernetes test environment with ``breeze kind-cluster shell`` command
 
-    * Build CI docker image with ``breeze build-image`` command
-    * Enter interactive shell in PROD container when ``shell`` (or no command) is specified
-    * Join running interactive shell with ``breeze exec`` command
-    * Stop running interactive environment with ``breeze stop`` command
-    * Restart running interactive environment with ``breeze restart`` command
-    * Execute arbitrary command in the test environment with ``breeze shell`` command
-    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
+Airflow can also be used for managing Production images (with ``--production-image`` flag added for image
+related command) - this is a development-only feature, regular users of Airflow should use ``docker build``
+commands to manage the images as described in the user documentation about
+`building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
 
-You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
-chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+Maintainer tasks
+----------------
 
+Maintainers also can use Breeze for other purposes (those are commands that regular contributors likely
+do not need):
 
-Manage and Interact with Kubernetes tests environment:
+* Prepare cache for CI: ``breeze prepare-build-cache`` (needs buildx plugin and write access to cache ghcr.io)
+* Generate constraints with ``breeze generate-constraints`` (needed when conflicting changes are merged)
+* Prepare airflow packages: ``breeze prepare-airflow-packages`` (when releasing Airflow)
+* Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
+  ``breeze prepare-provider-packages`` (when releasing provider packages)
 
-    * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
-    * Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
-    * Enter the interactive kubernetes test environment with ``breeze kind-cluster shell`` command
-
-Run static checks:
-
-    * Run static checks - either for currently staged change or for all files with
-      ``breeze static-check`` command
-
-Build documentation:
-
-    * Build documentation with ``breeze build-docs`` command
-
-Set up local development environment:
-
-    * Setup local virtualenv with ``breeze setup-virtualenv`` command
-    * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
+Details of Breeze usage
+=======================
 
 Database volumes in Breeze
 --------------------------
@@ -834,8 +826,6 @@ To use your host IDE with Breeze:
    `pyenv <https://github.com/pyenv/pyenv>`_, `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv>`_,
    or `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_.
 
-   Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.5, 3.6, 3.7)
-
 2. Use the right command to activate the virtualenv (``workon`` if you use virtualenvwrapper or
    ``pyenv activate`` if you use pyenv.
 
@@ -844,6 +834,10 @@ To use your host IDE with Breeze:
 .. code-block:: bash
 
   ./breeze initialize-local-virtualenv --python 3.8
+
+.. warning::
+   Make sure that you use the right Python version in this command - matching the Python version you have
+   in your local virtualenv. If you don't, you will get strange conflicts.
 
 4. Select the virtualenv you created as the project's default virtualenv in your IDE.
 
@@ -1038,23 +1032,28 @@ Port Forwarding
 
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
+* 12322 -> forwarded to Airflow ssh server -> airflow:22
 * 28080 -> forwarded to Airflow webserver -> airflow:8080
 * 25555 -> forwarded to Flower dashboard -> airflow:5555
 * 25433 -> forwarded to Postgres database -> postgres:5432
 * 23306 -> forwarded to MySQL database  -> mysql:3306
+* 21433 -> forwarded to MSSQL database  -> mssql:1443
 * 26379 -> forwarded to Redis broker -> redis:6379
+
 
 You can connect to these ports/databases using:
 
-* Webserver: ``http://127.0.0.1:28080``
-* Flower: ``http://127.0.0.1:25555``
-* Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
-* Mysql: ``jdbc:mysql://127.0.0.1:23306/airflow?user=root``
-* Redis: ``redis://127.0.0.1:26379/0```
+* ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+* Webserver: http://127.0.0.1:28080
+* Flower:    http://127.0.0.1:25555
+* Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
+* Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+* Redis:     redis://127.0.0.1:26379/0
 
-Start the webserver manually with the ``airflow webserver`` command if you want to connect
-to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to
-running the webserver in order to log in. This can be done with the following command:
+If you do not use ``start-airflow`` command, you can start the webserver manually with
+the ``airflow webserver`` command if you want to run it. You can use ``tmux`` to multiply terminals.
+You may need to create a user prior to running the webserver in order to log in.
+This can be done with the following command:
 
 .. code-block:: bash
 
@@ -1078,6 +1077,9 @@ You can change the used host port numbers by setting appropriate environment var
 * ``WEBSERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
+* ``MSSQL_HOST_PORT``
+* ``FLOWER_HOST_PORT``
+* ``REDIS_HOST_PORT``
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
 
@@ -2181,18 +2183,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
-                 autoflake base-operator bats-tests bats-in-container-tests black blacken-docs
-                 boring-cyborg build build-providers-dependencies chart-schema-lint
-                 capitalized-breeze changelog-duplicates check-apache-license check-builtin-literals
+                 autoflake base-operator black blacken-docs boring-cyborg build
+                 build-providers-dependencies chart-schema-lint capitalized-breeze
+                 changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
-                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
-                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
-                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
-                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
-                 provide-create-sessions providers-changelogs providers-init-file
+                 debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
+                 end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
+                 identity incorrect-use-of-LoggingMixin insert-license isort json-schema
+                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
+                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
+                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
+                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
                  providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace

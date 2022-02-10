@@ -52,21 +52,6 @@ env:
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
 
-  # You can switch between building the image in "Build Images" workflow or building them in CI workflow
-  # Separately for each job.
-  #
-  # a) Using images build in the separate "Build Images" workflow:
-  #
-  #  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
-  #
-  # b) Building images in CI workflow - separately for each job:
-  #
-  #  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
-  #
-  # You can also switch back to building images locally and disabling the "Build Images" workflow
-  # by defining AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE secret with value set to "false"
-  GITHUB_REGISTRY_WAIT_FOR_IMAGE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
-
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -141,7 +126,6 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
-      waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
@@ -191,14 +175,6 @@ jobs:
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set wait for image
-        id: wait-for-image
-        run: |
-          if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == 'true' ]]; then
-              echo "::set-output name=wait-for-image::true"
-          else
-              echo "::set-output name=wait-for-image::false"
-          fi
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v2
         with:
@@ -346,15 +322,16 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
-      - name: "Cache virtualenv environmnent"
+      - name: "Cache virtualenv environment"
         uses: actions/cache@v2
         with:
           path: '.build/.docker_venv'
           key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: "Test examples of PROD image building"
-        run: ./scripts/ci/images/ci_test_examples_of_prod_image_building.sh
+        working-directory: docs/docker-stack/docker-examples
+        run: >
+          python -m pytest ../../../docker_tests/test_examples_of_prod_image_building.py
+          -n auto --color=yes
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
@@ -377,9 +354,7 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
-      - name: "Cache virtualenv environmnent"
+      - name: "Cache virtualenv environment"
         uses: actions/cache@v2
         with:
           path: '.build/.docker_venv'
@@ -397,11 +372,9 @@ jobs:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      WAIT_FOR_IMAGE: ${{ needs.build-info.outputs.waitForImage }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-        if: needs.build-info.outputs.waitForImage == 'true'
         with:
           persist-credentials: false
       - name: "Setup python"
@@ -410,13 +383,10 @@ jobs:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-        if: needs.build-info.outputs.waitForImage == 'true'
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
-      - name: "Cache virtualenv environmnent"
+      - name: "Cache virtualenv environment"
         uses: actions/cache@v2
         with:
           path: '.build/.docker_venv'
@@ -425,11 +395,9 @@ jobs:
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         id: wait-for-images
-        # We wait for the images to be available either from the build-ci-image step or from
-        # "build-images-workflow-run.yml' run as pull_request_target.
+        # We wait for the images to be available either from the build-images workflow
         # We are utilising single job to wait for all images because this job merely waits
-        # for the images to be available.
-        # The test jobs wait for it to complete if WAIT_FOR_IMAGE is 'true'!
+        # for the images to be available and run tests with the images.
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
@@ -461,8 +429,8 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Get Python version"
         run: "echo \"::set-output name=host-python-version::$(python -c
  'import platform; print(platform.python_version())')\""
@@ -488,17 +456,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
-      - name: "Static checks (no mypy)"
+      - name: "Static checks"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
           VERBOSE: false
-          SKIP: "identity,mypy"
-      - name: "MyPy static checks"
-        run: ./scripts/ci/static_checks/run_static_checks.sh mypy
-        env:
-          VERBOSE: false
-          DO_NOT_FAIL_ON_ERROR: "true"
-          COLUMNS: 300
+          SKIP: "identity"
+          COLUMNS: 250
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -510,7 +473,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,mypy,flake8,bats-in-container-tests,identity"
+      SKIP: "build,mypy,flake8,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
@@ -575,8 +538,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Fetch inventory versions"
         run: ./scripts/ci/docs/ci_docs_prepare.sh
       - uses: actions/cache@v2
@@ -632,8 +595,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Prepare provider documentation"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: wheel"
@@ -684,8 +647,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Prepare provider packages: sdist"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
         env:
@@ -736,8 +699,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Tests: Helm"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
@@ -800,8 +763,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
@@ -863,8 +826,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
@@ -925,8 +888,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
@@ -985,8 +948,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
@@ -1054,8 +1017,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Tests: Quarantined"
         run: ./scripts/ci/testing/ci_run_quarantined_tests.sh
         env:
@@ -1136,7 +1099,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-        if: needs.build-info.outputs.waitForImage == 'true'
         with:
           persist-credentials: false
       - name: "Setup python"
@@ -1145,13 +1107,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-        if: needs.build-info.outputs.waitForImage == 'true'
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
-      - name: "Cache virtualenv environmnent"
+      - name: "Cache virtualenv environment"
         uses: actions/cache@v2
         with:
           path: '.build/.docker_venv'
@@ -1159,10 +1118,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: >
           Wait for PROD images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
-        # We wait for the images to be available either from the build-ci-image step or from
-        # "build-images-workflow-run.yml' run as pull_request_target.
+        # We wait for the images to be available either from "build-images.yml' run as pull_request_target.
         # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available. The test jobs wait for it to complete!
+        # For the images to be available and test them.
         #
         id: wait-for-images
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
@@ -1417,15 +1375,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       # Rebuild images before push using the latest constraints (just pushed) without
-      # eager upgrade. Do not wait for images, but rebuild them, but always check if
-      # there is a new Python base image to pull and rebuild. This way, when latest python
-      # is not pushed, we will re-use the last cache to start from and when there is
-      # a new python image, we will rebuild it from scratch (same as during the "build-images.ci")
-      GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-      GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-      GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+      # eager upgrade. Do not wait for images, but rebuild them
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-      PREPARE_BUILDX_CACHE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1440,9 +1391,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:latest"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:latest"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+      - name: "Build CI image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
+        run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
+        env:
+          PREPARE_BUILDX_CACHE: "true"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+      - name: "Build CI image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
+        run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
         env:
           VERSION_SUFFIX_FOR_PYPI: ".dev0"
+          PREPARE_BUILDX_CACHE: "true"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"

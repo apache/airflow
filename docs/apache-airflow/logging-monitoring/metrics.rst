@@ -50,7 +50,7 @@ the metrics that start with the elements of the list:
     statsd_allow_list = scheduler,executor,dagrun
 
 If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
-in ``[scheduler]`` section.  It should point to a function that validates the StatsD stat name, applies changes
+in ``[metrics]`` section.  It should point to a function that validates the StatsD stat name, applies changes
 to the stat name if necessary, and returns the transformed stat name. The function may looks as follow:
 
 .. code-block:: python
@@ -100,6 +100,7 @@ Name                                        Description
 ``scheduler.critical_section_busy``         Count of times a scheduler process tried to get a lock on the critical
                                             section (needed to send tasks to the executor) and found it locked by
                                             another process.
+``sla_callback_notification_failure``       Number of failed SLA miss callback notification attempts
 ``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
 ``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
 ``ti.finish.<dag_id>.<task_id>.<state>``    Number of completed task in a given dag. Similar to <job_name>_end but for task

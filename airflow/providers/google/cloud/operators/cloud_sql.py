@@ -864,7 +864,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :param body: The request body, as described in
-        https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
+        https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
@@ -963,6 +963,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     # [START gcp_sql_query_template_fields]
     template_fields: Sequence[str] = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     # [END gcp_sql_query_template_fields]
 
     def __init__(

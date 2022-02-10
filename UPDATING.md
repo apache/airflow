@@ -80,15 +80,49 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Passing ``execution_date`` to ``XCom.set()``, ``XCom.clear()``, ``XCom.get_one()``, and ``XCom.get_many()`` is deprecated
+### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
+
+When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
+In the previous versions of SQLAlchemy it was possible to use `postgres://`, but using it in
+SQLAlchemy 1.4.0+ results in:
+
+```
+>       raise exc.NoSuchModuleError(
+            "Can't load plugin: %s:%s" % (self.group, name)
+        )
+E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+```
+
+If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+Details in the [SQLAlchemy Changelog](https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b).
+
+### Passing `execution_date` to `XCom.set()`, `XCom.clear()`, `XCom.get_one()`, and `XCom.get_many()` is deprecated
 
 Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
+
+### Non-JSON-serializable params deprecated.
+
+It was previously possible to use dag or task param defaults that were not JSON-serializable.
+
+For example this worked previously:
+
+```python
+@dag.task(params={"a": {1, 2, 3}, "b": pendulum.now()})
+def datetime_param(value):
+    print(value)
+
+
+datetime_param("{{ params.a }} | {{ params.b }}")
+```
+
+Note the use of `set` and `datetime` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time.
 
 ### Smart sensors deprecated
 
 Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
 
-See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.3.0/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
+See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
 ### Task log templates are now read from the metadatabase instead of `airflow.cfg`
 
@@ -1381,7 +1415,7 @@ delete this option.
 
 #### `airflow.models.dagbag.DagBag`
 
-Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+Passing `store_serialized_dags` argument to `DagBag.__init__` and accessing `DagBag.store_serialized_dags` property
 are deprecated and will be removed in future versions.
 
 

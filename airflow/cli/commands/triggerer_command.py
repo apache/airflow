@@ -30,6 +30,7 @@ from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, si
 @cli_utils.action_cli
 def triggerer(args):
     """Starts Airflow Triggerer"""
+    settings.MASK_SECRETS_IN_LOGS = True
     print(settings.HEADER)
     job = TriggererJob(capacity=args.capacity)
 
