@@ -156,6 +156,6 @@ class ElasticsearchSecretTest(unittest.TestCase):
         )
 
         if not expected_user_info:
-            assert f"http://elastichostname:8080" == connection
+            assert "http://elastichostname:8080" == connection
         else:
             assert f"http://{expected_user_info}@elastichostname:8080" == connection
