@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-08T21:26:02Z
+# This constraints file was automatically generated on 2022-02-10T15:32:44Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -143,7 +143,7 @@ attrs==20.3.0
 aws-xray-sdk==2.9.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.22.0
+azure-core==1.22.1
 azure-cosmos==4.2.0
 azure-datalake-store==0.0.52
 azure-identity==1.7.1
@@ -196,7 +196,7 @@ cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-connexion==2.11.0
+connexion==2.11.1
 coverage==6.3.1
 crcmod==1.7
 croniter==1.2.0
@@ -215,7 +215,7 @@ docker==5.0.3
 docopt==0.6.2
 docutils==0.16
 ecdsa==0.17.0
-elasticsearch-dbapi==0.2.7
+elasticsearch-dbapi==0.2.8
 elasticsearch-dsl==7.4.0
 elasticsearch==7.13.4
 email-validator==1.1.3
@@ -278,7 +278,7 @@ google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
 google-cloud-workflows==1.5.0
 google-crc32c==1.3.0
-google-resumable-media==2.2.0
+google-resumable-media==2.2.1
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
@@ -295,7 +295,7 @@ httplib2==0.19.1
 httpx==0.22.0
 humanize==3.14.0
 hvac==0.11.2
-identify==2.4.8
+identify==2.4.9
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
@@ -386,7 +386,7 @@ pickleshare==0.7.5
 pinotdb==0.3.8
 pipdeptree==2.2.1
 pkginfo==1.8.2
-platformdirs==2.4.1
+platformdirs==2.5.0
 pluggy==1.0.0
 ply==3.11
 plyvel==1.4.0
@@ -429,7 +429,7 @@ pyrsistent==0.16.1
 pysftp==0.2.9
 pyspark==3.2.1
 pyspnego==0.3.1
-pytest-asyncio==0.18.0
+pytest-asyncio==0.18.1
 pytest-cov==3.0.0
 pytest-forked==1.4.0
 pytest-httpx==0.20.0
@@ -440,7 +440,7 @@ pytest-xdist==2.5.0
 pytest==6.2.5
 python-daemon==2.3.0
 python-dateutil==2.8.2
-python-http-client==3.3.5
+python-http-client==3.3.6
 python-jenkins==1.7.0
 python-jose==3.3.0
 python-ldap==3.4.0
@@ -473,7 +473,7 @@ sasl==0.3.1
 scramp==1.4.1
 scrapbook==0.5.0
 semver==2.13.0
-sendgrid==6.9.5
+sendgrid==6.9.6
 sentinels==1.0.0
 sentry-sdk==1.5.4
 setproctitle==1.2.2
