@@ -24,6 +24,7 @@ from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
@@ -243,6 +244,9 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.commit()
                 log.info(c.LOGMSG_INF_SEC_ADD_ROLE.format(name))
                 return role
+            except IntegrityError:
+                log.warning(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
+                self.get_session.rollback()
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
                 self.get_session.rollback()
@@ -416,6 +420,9 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.add(resource)
                 self.get_session.commit()
                 return resource
+            except IntegrityError:
+                log.warning(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
+                self.get_session.rollback()
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
                 self.get_session.rollback()
@@ -444,6 +451,10 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.delete(resource)
             self.get_session.commit()
             return True
+        except IntegrityError:
+            log.warning(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            self.get_session.rollback()
+            return False
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
             self.get_session.rollback()
@@ -507,6 +518,10 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.commit()
             log.info(c.LOGMSG_INF_SEC_ADD_PERMVIEW.format(str(perm)))
             return perm
+        except IntegrityError:
+            log.warning(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
+            self.get_session.rollback()
+            return None
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
             self.get_session.rollback()
@@ -566,6 +581,9 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.merge(role)
                 self.get_session.commit()
                 log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))
+            except IntegrityError:
+                log.warning(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
+                self.get_session.rollback()
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
                 self.get_session.rollback()
