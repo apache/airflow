@@ -101,14 +101,14 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 class DatabricksSubmitRunOperator(BaseOperator):
     """
     Submits a Spark job run to Databricks using the
-    `api/2.0/jobs/runs/submit
-    <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
+    `api/2.1/jobs/runs/submit
+    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
     API endpoint.
 
     There are two ways to instantiate this operator.
 
     In the first way, you can take the JSON payload that you typically use
-    to call the ``api/2.0/jobs/runs/submit`` endpoint and pass it directly
+    to call the ``api/2.1/jobs/runs/submit`` endpoint and pass it directly
     to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
     For example ::
 
@@ -162,7 +162,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         :ref:`howto/operator:DatabricksSubmitRunOperator`
 
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
+        directly to the ``api/2.1/jobs/runs/submit`` endpoint. The other named parameters
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -170,7 +170,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
-            https://docs.databricks.com/api/latest/jobs.html#runs-submit
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
@@ -178,28 +178,28 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparkjartask
     :param notebook_task: The notebook path and parameters for the notebook task.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
         *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobsnotebooktask
     :param spark_python_task: The python file path and parameters to run the python file with.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
         *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobssparkpythontask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparkpythontask
     :param spark_submit_task: Parameters needed to run a spark-submit command.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
         *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobssparksubmittask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparksubmittask
     :param pipeline_task: Parameters needed to execute a Delta Live Tables pipeline task.
         The provided dictionary must contain at least ``pipeline_id`` field!
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
@@ -214,7 +214,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobsclusterspecnewcluster
     :param existing_cluster_id: ID for existing cluster on which to run this task.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified
         (except when ``pipeline_task`` is used).
@@ -223,7 +223,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#managedlibrarieslibrary
     :param run_name: The run name used for this task.
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
@@ -343,14 +343,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
 class DatabricksRunNowOperator(BaseOperator):
     """
     Runs an existing Spark job run to Databricks using the
-    `api/2.0/jobs/run-now
-    <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
+    `api/2.1/jobs/run-now
+    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_
     API endpoint.
 
     There are two ways to instantiate this operator.
 
     In the first way, you can take the JSON payload that you typically use
-    to call the ``api/2.0/jobs/run-now`` endpoint and pass it directly
+    to call the ``api/2.1/jobs/run-now`` endpoint and pass it directly
     to our ``DatabricksRunNowOperator`` through the ``json`` parameter.
     For example ::
 
@@ -407,9 +407,9 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
+        directly to the ``api/2.1/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -417,7 +417,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
     :param notebook_params: A dict from keys to values for jobs with notebook task,
         e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
         The map is passed to the notebook and will be accessible through the
@@ -441,7 +441,7 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
     :param jar_params: A list of parameters for jobs with JAR tasks,
         e.g. "jar_params": ["john doe", "35"].
         The parameters will be passed to JAR file as command line parameters.
@@ -452,7 +452,7 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
     :param spark_submit_params: A list of parameters for jobs with spark submit task,
         e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
         The parameters will be passed to spark-submit script as command line parameters.
@@ -462,7 +462,7 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.

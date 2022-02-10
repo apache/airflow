@@ -24,14 +24,14 @@ DatabricksSubmitRunOperator
 ===========================
 
 Use the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` to submit
-a new Databricks job via Databricks `api/2.0/jobs/runs/submit <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_ API endpoint.
+a new Databricks job via Databricks `api/2.1/jobs/runs/submit <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_ API endpoint.
 
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
 There are two ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
-to call the ``api/2.0/jobs/runs/submit`` endpoint and pass it directly to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
+to call the ``api/2.1/jobs/runs/submit`` endpoint and pass it directly to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
 
 Another way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
 one named parameter for each top level parameter in the ``runs/submit`` endpoint.
@@ -92,14 +92,14 @@ DatabricksRunNowOperator
 ===========================
 
 Use the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` to trigger run of existing Databricks job
-via `api/2.0/jobs/runs/run-now <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now>`_ API endpoint.
+via `api/2.1/jobs/run-now <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_ API endpoint.
 
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
 There are two ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
-to call the ``api/2.0/jobs/run-now`` endpoint and pass it directly to our ``DatabricksRunNowOperator`` through the ``json`` parameter.
+to call the ``api/2.1/jobs/run-now`` endpoint and pass it directly to our ``DatabricksRunNowOperator`` through the ``json`` parameter.
 
 Another way to accomplish the same thing is to use the named parameters of the ``DatabricksRunNowOperator`` directly.
 Note that there is exactly one named parameter for each top level parameter in the ``jobs/run-now`` endpoint.

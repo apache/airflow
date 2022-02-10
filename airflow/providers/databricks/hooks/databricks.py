@@ -19,8 +19,11 @@
 Databricks hook.
 
 This hook enable the submitting and running of jobs to the Databricks platform. Internally the
-operators talk to the ``api/2.0/jobs/runs/submit``
-`endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+operators talk to the 
+``api/2.1/jobs/run-now``
+`endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>_`
+or ``api/2.1/jobs/runs/submit``
+`endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
 import sys
 import time
@@ -380,7 +383,7 @@ class DatabricksHook(BaseHook):
 
     def run_now(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -391,7 +394,7 @@ class DatabricksHook(BaseHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
+        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
