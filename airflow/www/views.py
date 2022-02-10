@@ -491,6 +491,31 @@ def dag_edges(dag):
     return result
 
 
+def get_task_stats_from_query(qry):
+    """
+    Return a dict of the task quantity, grouped by dag id and task status.
+
+    :param qry: The data in the format (<dag id>, <task state>, <is dag running>, <task count>),
+        ordered by <dag id> and <is dag running>
+    """
+    data = {}
+    last_dag_id = None
+    has_running_dags = False
+    for dag_id, state, is_dag_running, count in qry:
+        if last_dag_id != dag_id:
+            last_dag_id = dag_id
+            has_running_dags = False
+        elif not is_dag_running and has_running_dags:
+            continue
+
+        if is_dag_running:
+            has_running_dags = True
+        if dag_id not in data:
+            data[dag_id] = {}
+        data[dag_id][state] = count
+    return data
+
+
 ######################################################################################
 #                                    Error handlers
 ######################################################################################
@@ -981,20 +1006,13 @@ class Airflow(AirflowBaseView):
                 final_task_instance_query_result.c.state,
                 final_task_instance_query_result.c.is_dag_running,
             )
-            .order_by(final_task_instance_query_result.c.is_dag_running.desc())
+            .order_by(
+                final_task_instance_query_result.c.dag_id,
+                final_task_instance_query_result.c.is_dag_running.desc(),
+            )
         )
 
-        data = {}
-        has_running_dags = False
-        for dag_id, state, is_dag_running, count in qry:
-            if is_dag_running:
-                has_running_dags = True
-            elif has_running_dags:
-                break
-            if dag_id not in data:
-                data[dag_id] = {}
-            data[dag_id][state] = count
-
+        data = get_task_stats_from_query(qry)
         payload = {}
         for dag_id in filter_dag_ids:
             payload[dag_id] = []
