@@ -34,6 +34,7 @@ from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
+from airflow.callbacks.pipe_callbacks_sink import PipeCallbacksSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
@@ -48,7 +49,12 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.utils.callback_requests import (
+    CallbackRequest,
+    DagCallbackRequest,
+    SlaCallbackRequest,
+    TaskCallbackRequest,
+)
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -633,7 +639,7 @@ class SchedulerJob(BaseJob):
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.processor_agent.send_callback_to_execute(request)
+                    self.executor.send_callback_to_execute(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -664,6 +670,10 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
+            self.executor.callbacks_sink = PipeCallbacksSink(
+                get_sink_pipe=self.processor_agent.get_callbacks_pipe
+            )
+
             self.executor.start()
 
             self.register_signals()
@@ -1120,11 +1130,9 @@ class SchedulerJob(BaseJob):
         dag_run.verify_integrity(session=session)
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.processor_agent.send_callback_to_execute(callback)
+            self.executor.send_callback_to_execute(callback)
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
@@ -1135,12 +1143,8 @@ class SchedulerJob(BaseJob):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
-
-        self.processor_agent.send_sla_callback_request_to_execute(
-            full_filepath=dag.fileloc, dag_id=dag.dag_id
-        )
+        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+        self.executor.send_callback_to_execute(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
@@ -1301,5 +1305,5 @@ class SchedulerJob(BaseJob):
                 msg=f"Detected {ti} as zombie",
             )
             self.log.error("Detected zombie job: %s", request)
-            self.processor_agent.send_callback_to_execute(request)
+            self.executor.send_callback_to_execute(request)
             Stats.incr('zombies_killed')
