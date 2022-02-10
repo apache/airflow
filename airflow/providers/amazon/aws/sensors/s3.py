@@ -21,7 +21,7 @@ import os
 import re
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
@@ -77,39 +77,33 @@ class S3KeySensor(BaseSensorOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.bucket_key = bucket_key
+        self.bucket_name = bucket_name
         self.wildcard_match = wildcard_match
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.hook: Optional[S3Hook] = None
-        if bucket_name is None:
-            self.bucket_name, self.bucket_key = self._parse_object_from_uri(bucket_key)
+
+    def _resolve_bucket_and_key(self):
+        """
+        If key is URI we should parse the bucket and leave only key portion under
+        the ``bucket_key`` attr.
+        """
+        if self.bucket_name is None:
+            self.bucket_name, self.bucket_key = S3Hook.parse_s3_url(self.bucket_key)
         else:
-            self.bucket_name = bucket_name
-            self._validate_key(bucket_key)
-            self.bucket_key = bucket_key
-
-    @staticmethod
-    def _parse_object_from_uri(uri) -> Tuple[str, str]:
-        parsed = urlparse(uri)
-        if parsed.netloc == '':
-            raise AirflowException('If key is a relative path from root, please provide a bucket_name')
-        bucket = parsed.netloc
-        key = parsed.path.lstrip('/')
-        return bucket, key
-
-    @staticmethod
-    def _validate_key(key):
-        parsed = urlparse(key)
-        if parsed.scheme != '' or parsed.netloc != '':
-            raise AirflowException(
-                'If bucket_name is provided, bucket_key should be relative path from root level, '
-                'rather than a full s3:// url'
-            )
+            parsed = urlparse(self.bucket_key)
+            if parsed.scheme != '' or parsed.netloc != '':
+                raise AirflowException(
+                    'If bucket_name is provided, bucket_key should be relative path from root level, '
+                    'rather than a full s3:// url'
+                )
 
     def poke(self, context: 'Context'):
+        self._resolve_bucket_and_key()
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
         if self.wildcard_match:
-            return self.get_hook().check_for_wildcard_key(self.bucket_key, self.bucket_name)
+            return self.get_hook().f(self.bucket_key, self.bucket_name)
         return self.get_hook().check_for_key(self.bucket_key, self.bucket_name)
 
     def get_hook(self) -> S3Hook:
