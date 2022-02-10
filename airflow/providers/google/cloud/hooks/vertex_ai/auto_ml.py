@@ -16,7 +16,33 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google Cloud Vertex AI hook."""
+"""
+This module contains a Google Cloud Vertex AI hook.
+
+.. spelling::
+
+    aiplatform
+    au
+    codepoints
+    milli
+    mae
+    quantile
+    quantiles
+    Quantiles
+    rmse
+    rmsle
+    rmspe
+    wape
+    prc
+    roc
+    Jetson
+    forecasted
+    Struct
+    sentimentMax
+    TrainingPipeline
+    targetColumn
+    optimizationObjective
+"""
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -297,13 +323,13 @@ class AutoMLHook(GoogleBaseHook):
             over the validation set.
 
             The supported optimization objectives depend on the prediction type, and in the case of
-            classification also the number of distinct values in the target column (two distint values
+            classification also the number of distinct values in the target column (two distinct values
             -> binary, 3 or more distinct values -> multi class). If the field is not set, the default
             objective function is used.
 
             Classification (binary):
             "maximize-au-roc" (default) - Maximize the area under the receiver operating characteristic (ROC)
-                                        curve.
+            curve.
             "minimize-log-loss" - Minimize log loss.
             "maximize-au-prc" - Maximize the area under the precision-recall curve.
             "maximize-precision-at-recall" - Maximize precision for a specified recall value.
@@ -531,9 +557,9 @@ class AutoMLHook(GoogleBaseHook):
             "minimize-rmsle" - Minimize root-mean-squared log error (RMSLE).
             "minimize-rmspe" - Minimize root-mean-squared percentage error (RMSPE).
             "minimize-wape-mae" - Minimize the combination of weighted absolute percentage error (WAPE) and
-                mean-absolute-error (MAE).
+            mean-absolute-error (MAE).
             "minimize-quantile-loss" - Minimize the quantile loss at the defined quantiles. (Set this
-                objective to build quantile forecasts.)
+            objective to build quantile forecasts.)
         :param column_specs: Optional. Alternative to column_transformations where the keys of the dict are
             column names and their respective values are one of AutoMLTabularTrainingJob.column_data_types.
             When creating transformation for BigQuery Struct column, the column should be flattened using "."
@@ -716,39 +742,32 @@ class AutoMLHook(GoogleBaseHook):
         :param prediction_type: The type of prediction the Model is to produce, one of:
             "classification" - Predict one out of multiple target values is picked for each row.
             "object_detection" - Predict a value based on its relation to other values. This type is
-                available only to columns that contain semantically numeric values, i.e. integers or floating
-                point number, even if stored as e.g. strings.
+            available only to columns that contain semantically numeric values, i.e. integers or floating
+            point number, even if stored as e.g. strings.
         :param multi_label: Required. Default is False. If false, a single-label (multi-class) Model will be
             trained (i.e. assuming that for each image just up to one annotation may be applicable). If true,
             a multi-label Model will be trained (i.e. assuming that for each image multiple annotations may
             be applicable).
             This is only applicable for the "classification" prediction_type and will be ignored otherwise.
         :param model_type: Required. One of the following:
-            "CLOUD" - Default for Image Classification.
-                A Model best tailored to be used within Google Cloud, and
-                which cannot be exported.
-            "CLOUD_HIGH_ACCURACY_1" - Default for Image Object Detection.
-                A model best tailored to be used within Google Cloud, and
-                which cannot be exported. Expected to have a higher latency,
-                but should also have a higher prediction quality than other
-                cloud models.
-            "CLOUD_LOW_LATENCY_1" - A model best tailored to be used within
-                Google Cloud, and which cannot be exported. Expected to have a
-                low latency, but may have lower prediction quality than other
-                cloud models.
-            "MOBILE_TF_LOW_LATENCY_1" - A model that, in addition to being
-                available within Google Cloud, can also be exported as TensorFlow
-                or Core ML model and used on a mobile or edge device afterwards.
-                Expected to have low latency, but may have lower prediction
-                quality than other mobile models.
-            "MOBILE_TF_VERSATILE_1" - A model that, in addition to being
-                available within Google Cloud, can also be exported as TensorFlow
-                or Core ML model and used on a mobile or edge device with afterwards.
-            "MOBILE_TF_HIGH_ACCURACY_1" - A model that, in addition to being
-                available within Google Cloud, can also be exported as TensorFlow
-                or Core ML model and used on a mobile or edge device afterwards.
-                Expected to have a higher latency, but should also have a higher
-                prediction quality than other mobile models.
+            "CLOUD" - Default for Image Classification. A Model best tailored to be used within Google Cloud,
+            and which cannot be exported.
+            "CLOUD_HIGH_ACCURACY_1" - Default for Image Object Detection. A model best tailored to be used
+            within Google Cloud, and which cannot be exported. Expected to have a higher latency, but should
+            also have a higher prediction quality than other cloud models.
+            "CLOUD_LOW_LATENCY_1" - A model best tailored to be used within Google Cloud, and which cannot be
+            exported. Expected to have a low latency, but may have lower prediction quality than other cloud
+            models.
+            "MOBILE_TF_LOW_LATENCY_1" - A model that, in addition to being available within Google Cloud, can
+            also be exported as TensorFlow or Core ML model and used on a mobile or edge device afterwards.
+            Expected to have low latency, but may have lower prediction quality than other mobile models.
+            "MOBILE_TF_VERSATILE_1" - A model that, in addition to being available within Google Cloud, can
+            also be exported as TensorFlow or Core ML model and used on a mobile or edge device with
+            afterwards.
+            "MOBILE_TF_HIGH_ACCURACY_1" - A model that, in addition to being available within Google Cloud,
+            can also be exported as TensorFlow or Core ML model and used on a mobile or edge device
+            afterwards. Expected to have a higher latency, but should also have a higher prediction quality
+            than other mobile models.
         :param base_model: Optional. Only permitted for Image Classification models. If it is specified, the
             new model will be trained based on the `base` model. Otherwise, the new model will be trained
             from scratch. The `base` model must be in the same Project and Location as the new Model to
@@ -793,12 +812,12 @@ class AutoMLHook(GoogleBaseHook):
         :param budget_milli_node_hours: Optional. The train budget of creating this Model, expressed in milli
             node hours i.e. 1,000 value in this field means 1 node hour.
             Defaults by `prediction_type`:
-                `classification` - For Cloud models the budget must be: 8,000 - 800,000 milli node hours
-                    (inclusive). The default value is 192,000 which represents one day in wall time, assuming
-                    8 nodes are used.
-                `object_detection` - For Cloud models the budget must be: 20,000 - 900,000 milli node hours
-                    (inclusive). The default value is 216,000 which represents one day in wall time, assuming
-                    9 nodes are used.
+            `classification` - For Cloud models the budget must be: 8,000 - 800,000 milli node hours
+            (inclusive). The default value is 192,000 which represents one day in wall time, assuming 8 nodes
+            are used.
+            `object_detection` - For Cloud models the budget must be: 20,000 - 900,000 milli node hours
+            (inclusive). The default value is 216,000 which represents one day in wall time, assuming 9 nodes
+            are used.
             The training cost of the model will not exceed this budget. The final cost will be attempted to
             be close to the budget, though may end up being (even) noticeably smaller - at the backend's
             discretion. This especially may happen when further model training ceases to provide any
@@ -888,13 +907,13 @@ class AutoMLHook(GoogleBaseHook):
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition].
         :param prediction_type: The type of prediction the Model is to produce, one of:
             "classification" - A classification model analyzes text data and returns a list of categories
-                that apply to the text found in the data. Vertex AI offers both single-label and multi-label
-                text classification models.
+            that apply to the text found in the data. Vertex AI offers both single-label and multi-label text
+            classification models.
             "extraction" - An entity extraction model inspects text data for known entities referenced in the
-                data and labels those entities in the text.
+            data and labels those entities in the text.
             "sentiment" - A sentiment analysis model inspects text data and identifies the prevailing
-                emotional opinion within it, especially to determine a writer's attitude as positive,
-                negative, or neutral.
+            emotional opinion within it, especially to determine a writer's attitude as positive, negative,
+            or neutral.
         :param multi_label: Required and only applicable for text classification task. If false, a
             single-label (multi-class) Model will be trained (i.e. assuming that for each text snippet just
             up to one annotation may be applicable). If true, a multi-label Model will be trained (i.e.
@@ -1017,35 +1036,29 @@ class AutoMLHook(GoogleBaseHook):
             Datasets, all their data is exported to training, to pick and choose from.
         :param prediction_type: The type of prediction the Model is to produce, one of:
             "classification" - A video classification model classifies shots and segments in your videos
-                according to your own defined labels.
+            according to your own defined labels.
             "object_tracking" - A video object tracking model detects and tracks multiple objects in shots
-                and segments. You can use these models to track objects in your videos according to your own
-                pre-defined, custom labels.
-            "action_recognition" - A video action reconition model pinpoints the location of actions with
-                short temporal durations (~1 second).
+            and segments. You can use these models to track objects in your videos according to your own
+            pre-defined, custom labels.
+            "action_recognition" - A video action recognition model pinpoints the location of actions with
+            short temporal durations (~1 second).
         :param model_type: Required. One of the following:
-            "CLOUD" - available for "classification", "object_tracking" and "action_recognition"
-                A Model best tailored to be used within Google Cloud,
-                and which cannot be exported.
+            "CLOUD" - available for "classification", "object_tracking" and "action_recognition" A Model best
+            tailored to be used within Google Cloud, and which cannot be exported.
             "MOBILE_VERSATILE_1" - available for "classification", "object_tracking" and "action_recognition"
-                A model that, in addition to being available within Google
-                Cloud, can also be exported (see ModelService.ExportModel)
-                as a TensorFlow or TensorFlow Lite model and used on a
-                mobile or edge device with afterwards.
-            "MOBILE_CORAL_VERSATILE_1" - available only for "object_tracking"
-                A versatile model that is meant to be exported (see
-                ModelService.ExportModel) and used on a Google Coral device.
-            "MOBILE_CORAL_LOW_LATENCY_1" - available only for "object_tracking"
-                A model that trades off quality for low latency, to be
-                exported (see ModelService.ExportModel) and used on a
-                Google Coral device.
-            "MOBILE_JETSON_VERSATILE_1" - available only for "object_tracking"
-                A versatile model that is meant to be exported (see
-                ModelService.ExportModel) and used on an NVIDIA Jetson device.
-            "MOBILE_JETSON_LOW_LATENCY_1" - available only for "object_tracking"
-                A model that trades off quality for low latency, to be
-                exported (see ModelService.ExportModel) and used on an
-                NVIDIA Jetson device.
+            A model that, in addition to being available within Google Cloud, can also be exported (see
+            ModelService.ExportModel) as a TensorFlow or TensorFlow Lite model and used on a mobile or edge
+            device with afterwards.
+            "MOBILE_CORAL_VERSATILE_1" - available only for "object_tracking" A versatile model that is meant
+            to be exported (see ModelService.ExportModel) and used on a Google Coral device.
+            "MOBILE_CORAL_LOW_LATENCY_1" - available only for "object_tracking" A model that trades off
+            quality for low latency, to be exported (see ModelService.ExportModel) and used on a Google Coral
+            device.
+            "MOBILE_JETSON_VERSATILE_1" - available only for "object_tracking" A versatile model that is
+            meant to be exported (see ModelService.ExportModel) and used on an NVIDIA Jetson device.
+            "MOBILE_JETSON_LOW_LATENCY_1" - available only for "object_tracking" A model that trades off
+            quality for low latency, to be exported (see ModelService.ExportModel) and used on an NVIDIA
+            Jetson device.
         :param labels: Optional. The labels with user-defined metadata to organize TrainingPipelines. Label
             keys and values can be no longer than 64 characters (Unicode codepoints), can only contain
             lowercase letters, numeric characters, underscores and dashes. International characters are
