@@ -55,9 +55,6 @@ from airflow.models import (  # noqa: F401
 
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
-
-# Alias this to WebSession so it doesn't conflict with sqla.orm.session.Session
-from airflow.models.session import Session as WebSession  # noqa: F401
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
@@ -1068,9 +1065,12 @@ def drop_airflow_models(connection):
     users.drop(settings.engine, checkfirst=True)
     dag_stats = Table('dag_stats', Base.metadata)
     dag_stats.drop(settings.engine, checkfirst=True)
+    sessions = Table('sessions', Base.metadata)
+    sessions.drop(settings.engine, checkfirst=True)
 
     Base.metadata.drop_all(connection)
     # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
+    Base.metadata.remove(sessions)
     Base.metadata.remove(dag_stats)
     Base.metadata.remove(users)
     Base.metadata.remove(user)
