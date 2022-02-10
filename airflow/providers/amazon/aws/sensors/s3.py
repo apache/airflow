@@ -77,27 +77,21 @@ class S3KeySensor(BaseSensorOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.bucket_key = bucket_key
         self.bucket_name = bucket_name
+        self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.hook: Optional[S3Hook] = None
 
     def _resolve_bucket_and_key(self):
-        """
-        If key is URI we should parse the bucket and leave only key portion under
-        the ``bucket_key`` attr.
-        """
+        """If key is URI, parse bucket"""
         if self.bucket_name is None:
             self.bucket_name, self.bucket_key = S3Hook.parse_s3_url(self.bucket_key)
         else:
-            parsed = urlparse(self.bucket_key)
-            if parsed.scheme != '' or parsed.netloc != '':
-                raise AirflowException(
-                    'If bucket_name is provided, bucket_key should be relative path from root level, '
-                    'rather than a full s3:// url'
-                )
+            parsed_url = urlparse(self.bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If bucket_name provided, bucket_key must be relative path, not URI.')
 
     def poke(self, context: 'Context'):
         self._resolve_bucket_and_key()
