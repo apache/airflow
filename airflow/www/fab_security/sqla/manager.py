@@ -244,7 +244,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.commit()
                 log.info(c.LOGMSG_INF_SEC_ADD_ROLE.format(name))
                 return role
-            except IntegrityError:
+            except IntegrityError as e:
                 log.warning(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
                 self.get_session.rollback()
             except Exception as e:
@@ -420,7 +420,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.add(resource)
                 self.get_session.commit()
                 return resource
-            except IntegrityError:
+            except IntegrityError as e:
                 log.warning(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
                 self.get_session.rollback()
             except Exception as e:
@@ -451,7 +451,7 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.delete(resource)
             self.get_session.commit()
             return True
-        except IntegrityError:
+        except IntegrityError as e:
             log.warning(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
             self.get_session.rollback()
             return False
@@ -518,7 +518,7 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.commit()
             log.info(c.LOGMSG_INF_SEC_ADD_PERMVIEW.format(str(perm)))
             return perm
-        except IntegrityError:
+        except IntegrityError as e:
             log.warning(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
             self.get_session.rollback()
             return None
@@ -581,7 +581,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.merge(role)
                 self.get_session.commit()
                 log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))
-            except IntegrityError:
+            except IntegrityError as e:
                 log.warning(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
                 self.get_session.rollback()
             except Exception as e:
