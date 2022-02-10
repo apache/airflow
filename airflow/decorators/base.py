@@ -291,7 +291,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         params = ParamsDict(partial_kwargs.pop("params", None))
 
-        operator = DecoratedMappedOperator(
+        # Mypy does not work well with a subclassed attrs class :(
+        operator = cast(Any, DecoratedMappedOperator)(
             operator_class=self.operator_class,
             mapped_kwargs={"op_args": list(args), "op_kwargs": kwargs},
             partial_kwargs=partial_kwargs,
@@ -301,6 +302,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
+            ui_color=self.operator_class.ui_color,
+            ui_fgcolor=self.operator_class.ui_fgcolor,
             is_dummy=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,

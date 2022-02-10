@@ -59,8 +59,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
 
 
 class TISchedulingDecision(NamedTuple):
@@ -621,9 +621,10 @@ class DagRun(Base, LoggingMixin):
 
         tis = list(self.get_task_instances(session=session, state=State.task_states))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
+        dag = self.get_dag()
         for ti in tis:
             try:
-                ti.task = self.get_dag().get_task(ti.task_id)
+                ti.task = dag.get_task(ti.task_id)  # type: ignore[assignment]  # TODO: Fix task: Operator
             except TaskNotFound:
                 self.log.warning(
                     "Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, ti.dag_id
@@ -795,7 +796,7 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
             session.merge(ti)
 
-        def task_filter(task: "BaseOperator"):
+        def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill or task.start_date <= self.execution_date
             )
@@ -807,13 +808,13 @@ class DagRun(Base, LoggingMixin):
 
         if hook_is_noop:
 
-            def create_ti_mapping(task: "BaseOperator"):
+            def create_ti_mapping(task: "Operator") -> dict:
                 created_counts[task.task_type] += 1
                 return TI.insert_mapping(self.run_id, task, map_index=-1)
 
         else:
 
-            def create_ti(task: "BaseOperator") -> TI:
+            def create_ti(task: "Operator") -> TI:
                 ti = TI(task, run_id=self.run_id)
                 task_instance_mutation_hook(ti)
                 created_counts[ti.operator] += 1

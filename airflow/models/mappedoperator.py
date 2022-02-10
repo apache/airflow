@@ -16,14 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import unittest.mock
 import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Collection,
     Dict,
     FrozenSet,
+    Iterable,
     List,
     Optional,
     Sequence,
@@ -38,14 +41,27 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow.compat.functools import cache
-from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.abstractoperator import (
+    DEFAULT_OWNER,
+    DEFAULT_POOL_SLOTS,
+    DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_QUEUE,
+    DEFAULT_RETRIES,
+    DEFAULT_RETRY_DELAY,
+    DEFAULT_TRIGGER_RULE,
+    DEFAULT_WEIGHT_RULE,
+    AbstractOperator,
+    TaskStateChangeCallback,
+)
 from airflow.models.param import ParamsDict
+from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
@@ -129,6 +145,8 @@ class OperatorPartial:
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
+            ui_color=self.operator_class.ui_color,
+            ui_fgcolor=self.operator_class.ui_fgcolor,
             is_dummy=issubclass(self.operator_class, DummyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
@@ -154,6 +172,8 @@ class MappedOperator(AbstractOperator):
     operator_extra_links: Collection["BaseOperatorLink"]
     template_ext: Collection[str]
     template_fields: Collection[str]
+    ui_color: str
+    ui_fgcolor: str
     _is_dummy: bool
     _task_module: str
     _task_type: str
@@ -162,6 +182,8 @@ class MappedOperator(AbstractOperator):
     task_group: Optional[TaskGroup]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
+
+    is_mapped: ClassVar[bool] = True
 
     def __attrs_post_init__(self):
         prevent_duplicates(self.partial_kwargs, self.mapped_kwargs, fail_reason="mapping already partial")
@@ -175,6 +197,7 @@ class MappedOperator(AbstractOperator):
         return frozenset(attr.fields_dict(cls)) - {
             "dag",
             "deps",
+            "is_mapped",
             "task_group",
             "upstream_task_ids",
         }
@@ -223,8 +246,92 @@ class MappedOperator(AbstractOperator):
         return [self]
 
     @property
+    def owner(self) -> str:  # type: ignore[override]
+        return self.partial_kwargs.get("owner", DEFAULT_OWNER)
+
+    @property
+    def email(self) -> Union[None, str, Iterable[str]]:
+        return self.partial_kwargs.get("email")
+
+    @property
+    def trigger_rule(self) -> TriggerRule:
+        return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
+
+    @property
+    def depends_on_past(self) -> bool:
+        return bool(self.partial_kwargs.get("depends_on_past"))
+
+    @property
+    def wait_for_downstream(self) -> bool:
+        return bool(self.partial_kwargs.get("wait_for_downstream"))
+
+    @property
+    def retries(self) -> Optional[int]:
+        return self.partial_kwargs.get("retries", DEFAULT_RETRIES)
+
+    @property
+    def queue(self) -> str:
+        return self.partial_kwargs.get("queue", DEFAULT_QUEUE)
+
+    @property
+    def pool(self) -> str:
+        return self.partial_kwargs.get("pool", Pool.DEFAULT_POOL_NAME)
+
+    @property
+    def pool_slots(self) -> Optional[str]:
+        return self.partial_kwargs.get("pool_slots", DEFAULT_POOL_SLOTS)
+
+    @property
+    def execution_timeout(self) -> Optional[datetime.timedelta]:
+        return self.partial_kwargs.get("execution_timeout")
+
+    @property
+    def retry_delay(self) -> datetime.timedelta:
+        return self.partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY)
+
+    @property
+    def retry_exponential_backoff(self) -> bool:
+        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+
+    @property
+    def priority_weight(self) -> int:  # type: ignore[override]
+        return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
+
+    @property
+    def weight_rule(self) -> int:  # type: ignore[override]
+        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+
+    @property
+    def sla(self) -> Optional[datetime.timedelta]:
+        return self.partial_kwargs.get("sla")
+
+    @property
     def max_active_tis_per_dag(self) -> Optional[int]:
         return self.partial_kwargs.get("max_active_tis_per_dag")
+
+    @property
+    def on_execute_callback(self) -> Optional[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_execute_callback")
+
+    @property
+    def on_failure_callback(self) -> Optional[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_failure_callback")
+
+    @property
+    def on_retry_callback(self) -> Optional[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_retry_callback")
+
+    @property
+    def on_success_callback(self) -> Optional[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_success_callback")
+
+    @property
+    def run_as_user(self) -> Optional[str]:
+        return self.partial_kwargs.get("run_as_user")
+
+    @property
+    def executor_config(self) -> dict:
+        return self.partial_kwargs.get("run_as_user", {})
 
     @property
     def subdag(self) -> Optional["DAG"]:

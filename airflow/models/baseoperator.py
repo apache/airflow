@@ -53,15 +53,25 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
-from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.abstractoperator import (
+    DEFAULT_OWNER,
+    DEFAULT_POOL_SLOTS,
+    DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_QUEUE,
+    DEFAULT_RETRIES,
+    DEFAULT_RETRY_DELAY,
+    DEFAULT_TRIGGER_RULE,
+    DEFAULT_WEIGHT_RULE,
+    AbstractOperator,
+    TaskStateChangeCallback,
+)
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
@@ -72,6 +82,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string, validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -84,11 +95,30 @@ if TYPE_CHECKING:
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
-TaskStateChangeCallback = Callable[[Context], None]
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=FunctionType)
+
+logger = logging.getLogger("airflow.task.operators")
+
+
+def parse_retries(retries: Any) -> Optional[int]:
+    if retries is None or isinstance(retries, int):
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+    warnings.warn(f"Implicitly converting 'retries' from {retries!r} to int", UserWarning, stacklevel=2)
+    return parsed_retries
+
+
+def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
+    if isinstance(retry_delay, timedelta):
+        return retry_delay
+    logger.debug("Retry_delay isn't timedelta object, assuming secs")
+    return timedelta(seconds=retry_delay)
 
 
 class _PartialDescriptor:
@@ -247,7 +277,28 @@ class BaseOperatorMeta(abc.ABCMeta):
         task_group: Optional["TaskGroup"] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        owner: str = DEFAULT_OWNER,
+        email: Union[None, str, Iterable[str]] = None,
+        trigger_rule: str = DEFAULT_TRIGGER_RULE,
+        depends_on_past: bool = False,
+        wait_for_downstream: bool = False,
+        retries: Optional[int] = DEFAULT_RETRIES,
+        queue: str = DEFAULT_QUEUE,
+        pool: Optional[str] = None,
+        pool_slots: int = DEFAULT_POOL_SLOTS,
+        execution_timeout: Optional[timedelta] = None,
+        retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
+        retry_exponential_backoff: bool = False,
+        priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
+        weight_rule: str = DEFAULT_WEIGHT_RULE,
+        sla: Optional[timedelta] = None,
         max_active_tis_per_dag: Optional[int] = None,
+        on_execute_callback: Optional[TaskStateChangeCallback] = None,
+        on_failure_callback: Optional[TaskStateChangeCallback] = None,
+        on_success_callback: Optional[TaskStateChangeCallback] = None,
+        on_retry_callback: Optional[TaskStateChangeCallback] = None,
+        run_as_user: Optional[str] = None,
+        executor_config: Optional[Dict] = None,
         subdag: Optional["DAG"] = None,
         **kwargs,
     ) -> OperatorPartial:
@@ -265,22 +316,48 @@ class BaseOperatorMeta(abc.ABCMeta):
         if "task_concurrency" in kwargs:
             raise TypeError("unexpected argument: task_concurrency")
 
+        if not TriggerRule.is_valid(trigger_rule):
+            raise ValueError(
+                f"trigger_rule must be one of {TriggerRule.all_triggers()}, not {trigger_rule!r}.",
+            )
+        if not WeightRule.is_valid(weight_rule):
+            raise ValueError(
+                f"weight_rule must be one of {WeightRule.all_weight_rules}, not {weight_rule!r}.",
+            )
+        if wait_for_downstream:
+            depends_on_past = True
+
         # Store these in partial kwargs to exclude them from map().
         kwargs["dag"] = dag or DagContext.get_current_dag()
         kwargs["task_group"] = task_group
         kwargs["task_id"] = task_id
         kwargs["start_date"] = timezone.convert_to_utc(start_date)
         kwargs["end_date"] = timezone.convert_to_utc(end_date)
+        kwargs["owner"] = owner
+        kwargs["email"] = email
+        kwargs["trigger_rule"] = trigger_rule
+        kwargs["depends_on_past"] = depends_on_past
+        kwargs["wait_for_downstream"] = wait_for_downstream
+        kwargs["retries"] = parse_retries(retries)
+        kwargs["queue"] = queue
+        kwargs["pool"] = Pool.DEFAULT_POOL_NAME if pool is None else pool
+        kwargs["pool_slots"] = pool_slots
+        kwargs["execution_timeout"] = execution_timeout
+        kwargs["retry_delay"] = coerce_retry_delay(retry_delay)
+        kwargs["retry_exponential_backoff"] = retry_exponential_backoff
+        kwargs["priority_weight"] = priority_weight
+        kwargs["weight_rule"] = weight_rule
+        kwargs["sla"] = sla
         kwargs["max_active_tis_per_dag"] = max_active_tis_per_dag
+        kwargs["on_execute_callback"] = on_execute_callback
+        kwargs["on_failure_callback"] = on_failure_callback
+        kwargs["on_retry_callback"] = on_retry_callback
+        kwargs["on_success_callback"] = on_success_callback
+        kwargs["run_as_user"] = run_as_user
+        kwargs["executor_config"] = executor_config or {}
         kwargs["subdag"] = subdag
 
         return OperatorPartial(operator_class=operator_class, kwargs=kwargs)
-
-
-DEFAULT_QUEUE = conf.get("operators", "default_queue")
-DEFAULT_RETRIES = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_WEIGHT_RULE = conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
-DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
 
 
 @functools.total_ordering
@@ -469,10 +546,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_fields_renderers: Dict[str, str] = {}
 
     # Defines the color in the UI
-    ui_color = '#fff'  # type: str
-    ui_fgcolor = '#000'  # type: str
+    ui_color: str = '#fff'
+    ui_fgcolor: str = '#000'
 
-    pool = ""  # type: str
+    pool: str = ""
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Tuple[str, ...] = (
@@ -554,12 +631,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __init__(
         self,
         task_id: str,
-        owner: str = conf.get('operators', 'DEFAULT_OWNER'),
+        owner: str = DEFAULT_OWNER,
         email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
         email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
         retries: Optional[int] = DEFAULT_RETRIES,
-        retry_delay: Union[timedelta, float] = timedelta(seconds=300),
+        retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[Union[timedelta, float]] = None,
         start_date: Optional[datetime] = None,
@@ -569,11 +646,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag: Optional['DAG'] = None,
         params: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
-        priority_weight: int = 1,
+        priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
         pool: Optional[str] = None,
-        pool_slots: int = 1,
+        pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
@@ -645,20 +722,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
 
-        if retries is not None and not isinstance(retries, int):
-            try:
-                parsed_retries = int(retries)
-            except (TypeError, ValueError):
-                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-            id = task_id
-            if dag:
-                id = f'{dag.dag_id}.{id}'
-            self.log.warning("Implicitly converting 'retries' for task %s from %r to int", id, retries)
-            retries = parsed_retries
-
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user
-        self.retries = retries
+        self.retries = parse_retries(retries)
         self.queue = queue
         self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
         self.pool_slots = pool_slots
@@ -696,11 +762,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if wait_for_downstream:
             self.depends_on_past = True
 
-        if isinstance(retry_delay, timedelta):
-            self.retry_delay = retry_delay
-        else:
-            self.log.debug("Retry_delay isn't timedelta object, assuming secs")
-            self.retry_delay = timedelta(seconds=retry_delay)
+        self.retry_delay = coerce_retry_delay(retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
         if max_retry_delay:
@@ -973,35 +1035,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             if hasattr(self, field):
                 arg = getattr(self, field)
                 XComArg.apply_upstream_relationship(self, arg)
-
-    @cached_property
-    def operator_extra_link_dict(self) -> Dict[str, Any]:
-        """Returns dictionary of all extra links for the operator"""
-        op_extra_links_from_plugin: Dict[str, Any] = {}
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        for ope in plugins_manager.operator_extra_links:
-            if ope.operators and self.__class__ in ope.operators:
-                op_extra_links_from_plugin.update({ope.name: ope})
-
-        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
-        # Extra links defined in Plugins overrides operator links defined in operator
-        operator_extra_links_all.update(op_extra_links_from_plugin)
-
-        return operator_extra_links_all
-
-    @cached_property
-    def global_operator_extra_link_dict(self) -> Dict[str, Any]:
-        """Returns dictionary of all global extra links"""
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
 
     @prepare_lineage
     def pre_execute(self, context: Any):
@@ -1318,6 +1351,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return "<Task({self.task_type}): {self.task_id}>".format(self=self)
 
     @property
+    def operator_class(self) -> Type["BaseOperator"]:  # type: ignore[override]
+        return self.__class__
+
+    @property
     def task_type(self) -> str:
         """@property: type of the task"""
         return self.__class__.__name__
@@ -1396,32 +1433,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return context['ti'].xcom_pull(
             key=key, task_ids=task_ids, dag_id=dag_id, include_prior_dates=include_prior_dates
         )
-
-    @cached_property
-    def extra_links(self) -> List[str]:
-        """@property: extra links for the task"""
-        return list(
-            set(self.operator_extra_link_dict.keys()).union(self.global_operator_extra_link_dict.keys())
-        )
-
-    def get_extra_links(self, dttm: datetime, link_name: str) -> Optional[Dict[str, Any]]:
-        """
-        For an operator, gets the URL that the external links specified in
-        `extra_links` should point to.
-
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link
-        :param dttm: The datetime parsed execution date for the URL being searched for
-        :param link_name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in `extra_links`
-        :return: A URL
-        """
-        if link_name in self.operator_extra_link_dict:
-            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
-        elif link_name in self.global_operator_extra_link_dict:
-            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
-        else:
-            return None
 
     @classmethod
     def get_serialized_fields(cls):

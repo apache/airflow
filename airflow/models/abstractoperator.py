@@ -16,18 +16,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Collection, Optional, Set
+import datetime
+from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, List, Optional, Set, Type, Union
 
 import jinja2
 
+from airflow.compat.functools import cached_property
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models.taskmixin import DAGNode
 from airflow.templates import SandboxedEnvironment
+from airflow.utils.context import Context
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+
+DEFAULT_OWNER = conf.get("operators", "default_owner")
+DEFAULT_POOL_SLOTS = 1
+DEFAULT_PRIORITY_WEIGHT = 1
+DEFAULT_QUEUE = conf.get("operators", "default_queue")
+DEFAULT_RETRIES = conf.getint("core", "default_task_retries", fallback=0)
+DEFAULT_RETRY_DELAY = datetime.timedelta(seconds=300)
+DEFAULT_WEIGHT_RULE = conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
+
+TaskStateChangeCallback = Callable[[Context], None]
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -43,13 +61,18 @@ class AbstractOperator(LoggingMixin, DAGNode):
     :meta private:
     """
 
+    operator_class: Union[str, Type["BaseOperator"]]
+
     weight_rule: str
     priority_weight: int
 
+    # Defines the operator level extra links.
+    operator_extra_links: Collection["BaseOperatorLink"]
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
     template_ext: Collection[str]
+
     owner: str
     task_id: str
 
@@ -174,3 +197,51 @@ class AbstractOperator(LoggingMixin, DAGNode):
             dag.task_dict[task_id].priority_weight
             for task_id in self.get_flat_relative_ids(upstream=upstream)
         )
+
+    @cached_property
+    def operator_extra_link_dict(self) -> Dict[str, Any]:
+        """Returns dictionary of all extra links for the operator"""
+        op_extra_links_from_plugin: Dict[str, Any] = {}
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        for ope in plugins_manager.operator_extra_links:
+            if ope.operators and self.operator_class in ope.operators:
+                op_extra_links_from_plugin.update({ope.name: ope})
+
+        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
+        # Extra links defined in Plugins overrides operator links defined in operator
+        operator_extra_links_all.update(op_extra_links_from_plugin)
+
+        return operator_extra_links_all
+
+    @cached_property
+    def global_operator_extra_link_dict(self) -> Dict[str, Any]:
+        """Returns dictionary of all global extra links"""
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.global_operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+
+    @cached_property
+    def extra_links(self) -> List[str]:
+        return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+
+    def get_extra_links(self, dttm: datetime.datetime, link_name: str) -> Optional[Dict[str, Any]]:
+        """For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :raise ValueError: The error message of a ValueError will be passed on through to
+            the fronted to show up as a tooltip on the disabled link.
+        :param dttm: The datetime parsed execution date for the URL being searched for.
+        :param link_name: The name of the link we're looking for the URL for. Should be
+            one of the options specified in ``extra_links``.
+        """
+        if link_name in self.operator_extra_link_dict:
+            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
+        elif link_name in self.global_operator_extra_link_dict:
+            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
+        return None

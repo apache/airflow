@@ -154,17 +154,19 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: Optional["EdgeModifier"] = None,
     ) -> None:
         """Sets relatives for the task or task list."""
-        from airflow.models.base import Operator
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.models.operator import Operator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
-        task_list: List[DAGNode] = []
+        task_list: List[Operator] = []
         for task_object in task_or_task_list:
             task_object.update_relative(self, not upstream)
             relatives = task_object.leaves if upstream else task_object.roots
             for task in relatives:
-                if not isinstance(task, Operator):
+                if not isinstance(task, (BaseOperator, MappedOperator)):
                     raise AirflowException(
                         f"Relationships can only be set between Operators; received {task.__class__.__name__}"
                     )

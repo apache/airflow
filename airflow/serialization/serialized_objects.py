@@ -37,6 +37,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
 from airflow.models.mappedoperator import MappedOperator
+from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
@@ -507,7 +508,7 @@ class DependencyDetector:
     """Detects dependencies between DAGs."""
 
     @staticmethod
-    def detect_task_dependencies(task: BaseOperator) -> Optional['DagDependency']:
+    def detect_task_dependencies(task: Operator) -> Optional['DagDependency']:
         """Detects dependencies caused by tasks"""
         if task.task_type == "TriggerDagRunOperator":
             return DagDependency(
@@ -568,21 +569,31 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        stock_deps = op.deps is MappedOperator.deps_for(BaseOperator)
-        serialize_op = cls._serialize_node(op, include_deps=not stock_deps)
+        serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
+
+        # Simplify partial_kwargs by comparing it to the most barebone object.
+        # Remove all entries that are simply default values.
+        default_partial_kwargs = cls._serialize(BaseOperator.partial(task_id="").map().partial_kwargs)
+        for k, default in default_partial_kwargs.items():
+            try:
+                v = serialized_op["partial_kwargs"][k]
+            except KeyError:
+                continue
+            if v == default:
+                del serialized_op["partial_kwargs"][k]
 
         # Simplify op_kwargs format. It must be a dict, so we flatten it.
         with contextlib.suppress(KeyError):
-            op_kwargs = serialize_op["mapped_kwargs"]["op_kwargs"]
+            op_kwargs = serialized_op["mapped_kwargs"]["op_kwargs"]
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialize_op["mapped_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
+            serialized_op["mapped_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
         with contextlib.suppress(KeyError):
-            op_kwargs = serialize_op["partial_kwargs"]["op_kwargs"]
+            op_kwargs = serialized_op["partial_kwargs"]["op_kwargs"]
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialize_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
+            serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
 
-        serialize_op["_is_mapped"] = True
-        return serialize_op
+        serialized_op["_is_mapped"] = True
+        return serialized_op
 
     @classmethod
     def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
@@ -653,7 +664,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 operator_extra_links=BaseOperator.operator_extra_links,
                 template_ext=BaseOperator.template_ext,
                 template_fields=BaseOperator.template_fields,
-                is_dummy=encoded_op["_is_dummy"],
+                ui_color=BaseOperator.ui_color,
+                ui_fgcolor=BaseOperator.ui_fgcolor,
+                is_dummy=False,
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["_task_type"],
                 dag=None,
@@ -757,7 +770,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return op
 
     @classmethod
-    def detect_dependencies(cls, op: BaseOperator) -> Optional['DagDependency']:
+    def detect_dependencies(cls, op: Operator) -> Optional['DagDependency']:
         """Detects between DAG dependencies for the operator."""
         return cls.dependency_detector.detect_task_dependencies(op)
 
@@ -1008,14 +1021,13 @@ class SerializedDAG(DAG, BaseSerialization):
 
         for task in dag.task_dict.values():
             task.dag = dag
-            serializable_task: BaseOperator = task
 
             for date_attr in ["start_date", "end_date"]:
-                if getattr(serializable_task, date_attr) is None:
-                    setattr(serializable_task, date_attr, getattr(dag, date_attr))
+                if getattr(task, date_attr) is None:
+                    setattr(task, date_attr, getattr(dag, date_attr))
 
-            if serializable_task.subdag is not None:
-                setattr(serializable_task.subdag, 'parent_dag', dag)
+            if task.subdag is not None:
+                setattr(task.subdag, 'parent_dag', dag)
 
             if isinstance(task, MappedOperator):
                 for d in (task.mapped_kwargs, task.partial_kwargs):
@@ -1025,9 +1037,9 @@ class SerializedDAG(DAG, BaseSerialization):
 
                         d[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
 
-            for task_id in serializable_task.downstream_task_ids:
+            for task_id in task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
-                dag.task_dict[task_id].upstream_task_ids.add(serializable_task.task_id)
+                dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
         return dag
 
@@ -1091,7 +1103,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         cls,
         encoded_group: Dict[str, Any],
         parent_group: Optional[TaskGroup],
-        task_dict: Dict[str, BaseOperator],
+        task_dict: Dict[str, Operator],
     ) -> Optional[TaskGroup]:
         """Deserializes a TaskGroup from a JSON object."""
         if not encoded_group:
@@ -1104,7 +1116,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
 
-        def set_ref(task: BaseOperator) -> BaseOperator:
+        def set_ref(task: Operator) -> Operator:
             task.task_group = weakref.proxy(group)
             return task
 
