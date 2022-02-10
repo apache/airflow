@@ -32,21 +32,24 @@ import { MdPlayArrow } from 'react-icons/md';
 import DagRunTooltip from './Tooltip';
 import { callModalDag } from '../../dag';
 
+const BAR_HEIGHT = 100;
+
 const DagRunBar = ({
   run, max, index, totalRuns, containerRef,
 }) => {
   let highlightHeight = '100%';
   if (containerRef && containerRef.current) {
-    const table = containerRef.current.getElementsByTagName('table')[0];
-    highlightHeight = table.offsetHeight - 53; // subtract the height of the duration axis labels
+    const table = containerRef.current.getElementsByTagName('tbody')[0];
+    highlightHeight = table.offsetHeight + BAR_HEIGHT;
   }
   return (
     <Box position="relative">
       <Flex
-        height="102px"
+        height={BAR_HEIGHT}
         alignItems="flex-end"
         justifyContent="center"
-        pb="2px"
+        mb="2px"
+        // py="2px"
         px="2px"
         mx="1px"
         cursor="pointer"
@@ -67,7 +70,7 @@ const DagRunBar = ({
         >
           <Flex
             width="10px"
-            height={`${(run.duration / max) * 100}px`}
+            height={`${(run.duration / max) * BAR_HEIGHT}px`}
             minHeight="12px"
             backgroundColor={stateColors[run.state]}
             borderRadius={2}

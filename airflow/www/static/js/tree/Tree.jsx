@@ -27,6 +27,7 @@ import {
   FormLabel,
   Spinner,
   Text,
+  Thead,
 } from '@chakra-ui/react';
 
 import useTreeData from './useTreeData';
@@ -60,8 +61,10 @@ const Tree = () => {
       <Box px="24px">
         <Box position="relative" width="100%" overflowX="auto" ref={scrollRef}>
           <Table>
-            <Tbody>
+            <Thead>
               <DagRuns containerRef={containerRef} />
+            </Thead>
+            <Tbody>
               {renderTaskRows({ task: groups, containerRef })}
             </Tbody>
           </Table>
