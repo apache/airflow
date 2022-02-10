@@ -104,36 +104,36 @@ class TestS3KeySensor(unittest.TestCase):
         op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
 
         mock_check.return_value = False
-        assert not op.poke(None)
+        assert op.poke(None) is False
         mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
 
         mock_check.return_value = True
-        assert op.poke(None)
+        assert op.poke(None) is True
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_wildcard_key')
     def test_poke_wildcard(self, mock_check):
         op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', wildcard_match=True)
 
         mock_check.return_value = False
-        assert not op.poke(None)
+        assert op.poke(None) is False
         mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
 
         mock_check.return_value = True
-        assert op.poke(None)
+        assert op.poke(None) is True
 
 
 class TestS3KeySizeSensor(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key', return_value=False)
     def test_poke_check_for_key_false(self, mock_check_for_key):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
-        assert not op.poke(None)
+        assert op.poke(None) is False
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor.get_files', return_value=[])
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key', return_value=True)
     def test_poke_get_files_false(self, mock_check_for_key, mock_get_files):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
-        assert not op.poke(None)
+        assert op.poke(None) is False
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
         mock_get_files.assert_called_once_with(s3_hook=op.get_hook())
 
@@ -167,5 +167,5 @@ class TestS3KeySizeSensor(unittest.TestCase):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', wildcard_match=True)
 
         mock_check.return_value = False
-        assert not op.poke(None)
+        assert op.poke(None) is False
         mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
