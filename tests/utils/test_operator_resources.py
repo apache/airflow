@@ -23,13 +23,13 @@ from airflow.utils.operator_resources import Resources
 
 class TestResources(unittest.TestCase):
     def test_resource_eq(self):
-        r = Resources(**{"cpus": 0.1, "ram": 2048})
+        r = Resources(cpus=0.1, ram=2048)
         assert r not in [{}, [], None]
         assert r == r
 
-        r2 = Resources(**{"cpus": 0.1, "ram": 2048})
+        r2 = Resources(cpus=0.1, ram=2048)
         assert r == r2
         assert r2 == r
 
-        r3 = Resources(**{"cpus": 0.2, "ram": 2048})
+        r3 = Resources(cpus=0.2, ram=2048)
         assert r != r3
