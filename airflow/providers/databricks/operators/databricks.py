@@ -129,7 +129,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     endpoint. In this method, your code would look like this: ::
 
         new_cluster = {
-          'spark_version': '2.1.0-db3-scala2.11',
+          'spark_version': '10.1.x-scala2.12',
           'num_workers': 2
         }
         notebook_task = {

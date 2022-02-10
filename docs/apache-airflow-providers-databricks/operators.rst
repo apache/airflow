@@ -91,7 +91,7 @@ You can also use named parameters to initialize the operator and run the job.
 DatabricksRunNowOperator
 ===========================
 
-Use the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` to trigger run of existing Databricks job
+Use the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` to trigger a run of an existing Databricks job
 via `api/2.1/jobs/run-now <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_ API endpoint.
 
 
