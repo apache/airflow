@@ -202,6 +202,15 @@ class AirflowConfigParser(ConfigParser):
                 '2.1',
             ),
         },
+        'logging': {
+            'log_filename_template': (
+                re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                "dag={{ ti.dag_id }}/task_id={{ ti.task_id }}/run_id={{ ti.run_id }}/"
+                + "{%% if ti.map_index != -1 %%}map_index={{ ti.map_index }}/{%% endif %%}"
+                + " attempt={{ try_number }}.log",
+                3.0,
+            ),
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
@@ -213,6 +222,9 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
     }
 
+    upgraded_values: Dict[Tuple[str, str], str]
+    """Mapping of (section,option) to the old value that was upgraded"""
+
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
     # to instead be case-preserving
@@ -221,6 +233,7 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.upgraded_values = {}
 
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
@@ -239,6 +252,7 @@ class AirflowConfigParser(ConfigParser):
                 old, new, version = info
                 current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
+                    self.upgraded_values[(section, name)] = current_value
                     new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
