@@ -88,8 +88,6 @@ class DagBag(LoggingMixin):
         are not loaded to not run User code in Scheduler.
     """
 
-    DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
-
     def __init__(
         self,
         dag_folder: Union[str, "pathlib.Path", None] = None,
@@ -310,13 +308,7 @@ class DagBag(LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        timeout_msg = (
-            f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s.\n"
-            "Please take a look at these docs to improve your DAG import time:\n"
-            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
-            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
-        )
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
+        def parse(mod_name, filepath):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
@@ -332,7 +324,26 @@ class DagBag(LoggingMixin):
                     )
                 else:
                     self.import_errors[filepath] = str(e)
-        return []
+                return []
+
+        dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
+
+        if not isinstance(dagbag_import_timeout, (int, float)):
+            raise TypeError(
+                f'Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float'
+            )
+
+        if dagbag_import_timeout <= 0:  # no parsing timeout
+            return parse(mod_name, filepath)
+
+        timeout_msg = (
+            f"DagBag import timeout for {filepath} after {dagbag_import_timeout}s.\n"
+            "Please take a look at these docs to improve your DAG import time:\n"
+            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
+            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
+        )
+        with timeout(dagbag_import_timeout, error_message=timeout_msg):
+            return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
         mods = []

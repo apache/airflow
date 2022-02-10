@@ -119,6 +119,35 @@ How do I trigger tasks based on another task's failure?
 
 You can achieve this with :ref:`concepts:trigger-rules`.
 
+How to control DAG file parsing timeout for different DAG files?
+----------------------------------------------------------------
+
+(only valid for Airflow >= 2.3.0)
+
+You can add a ``get_dagbag_import_timeout`` function in your ``airflow_local_settings.py`` which gets
+called right before a DAG file is parsed. You can return different timeout value based on the DAG file.
+When the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+
+.. code-block:: python
+   :caption: airflow_local_settings.py
+   :name: airflow_local_settings.py
+
+    def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+        """
+        This setting allows to dynamically control the DAG file parsing timeout.
+
+        It is useful when there are a few DAG files requiring longer parsing times, while others do not.
+        You can control them separately instead of having one value for all DAG files.
+
+        If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+        """
+        if "slow" in dag_file_path:
+            return 90
+        if "no-timeout" in dag_file_path:
+            return 0
+        return conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
+
+
 When there are a lot (>1000) of dags files, how to speed up parsing of new files?
 ---------------------------------------------------------------------------------
 
