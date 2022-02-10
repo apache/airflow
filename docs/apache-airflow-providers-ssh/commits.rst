@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.4.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-05
 
 ================================================================================================  ===========  =========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `ab762a5a8 <https://github.com/apache/airflow/commit/ab762a5a8ae147ae33500ee3c7e7a73d25d03ad7>`_  2022-02-04   ``Refactor SSH tests to not use SSH server in operator tests (#21326)``
 `d353f023f <https://github.com/apache/airflow/commit/d353f023ff8856c00b9f054526cb2e40ff0116ae>`_  2022-02-02   ``Add banner_timeout feature to SSH Hook/Operator (#21262)``
 `b6edc3bfa <https://github.com/apache/airflow/commit/b6edc3bfa1ed46bed2ae23bb2baeefde3f9a59d3>`_  2022-02-01   ``Add a retry with wait interval for SSH operator #14489 (#19981)``

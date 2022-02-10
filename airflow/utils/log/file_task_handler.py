@@ -21,7 +21,6 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-import httpx
 from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
@@ -159,6 +158,8 @@ class FileTaskHandler(logging.Handler):
             except Exception as f:
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
+            import httpx
+
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
                 ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )

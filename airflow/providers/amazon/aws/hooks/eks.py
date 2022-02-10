@@ -577,7 +577,7 @@ class EksHook(AwsBaseHook):
                             "env": [
                                 {
                                     "name": "AIRFLOW__LOGGING__LOGGING_LEVEL",
-                                    "value": "fatal",
+                                    "value": "FATAL",
                                 }
                             ],
                             "interactiveMode": "Never",

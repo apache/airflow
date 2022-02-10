@@ -18,12 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-function import_all_provider_classes() {
-    group_start "Importing all classes"
-    python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
-    group_end
-}
-
 function verify_provider_packages_named_properly() {
     python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
         verify-provider-classes
@@ -142,7 +136,6 @@ function run_prepare_documentation() {
     fi
 }
 
-
 setup_provider_packages
 
 cd "${AIRFLOW_SOURCES}" || exit 1
@@ -150,7 +143,11 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 install_supported_pip_version
-import_all_provider_classes
+
+group_start "Importing all classes"
+python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
+group_end
+
 verify_provider_packages_named_properly
 
 OPTIONAL_RELEASE_VERSION_ARGUMENT=()

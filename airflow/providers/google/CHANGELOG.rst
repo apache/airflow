@@ -29,11 +29,15 @@ Features
 * ``batch as templated field in DataprocCreateBatchOperator (#20905)``
 * ``Make timeout Optional for wait_for_operation (#20981)``
 * ``Add more SQL template fields renderers (#21237)``
+* ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
+* ``Support to upload file to Google Shared Drive (#21319)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Cloudsql import links fix. (#21199)``
+* ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
+* ``:bug: (BigQueryHook) fix compatibility with sqlalchemy engine (#19508)``
 
 Misc
 ~~~~
@@ -51,8 +55,7 @@ Misc
    * ``Remove a few stray ':type's in docs (#21014)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Fix BigQuery system test (#21320)``
-
-.. Review and move the new changes to one of the sections above:
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 6.3.0
 .....

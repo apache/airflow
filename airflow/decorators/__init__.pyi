@@ -20,9 +20,9 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TypeVar, Union, overload
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, overload
 
-from airflow.decorators.base import TaskDecorator
+from airflow.decorators.base import Function, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -40,8 +40,6 @@ __all__ = [
     "virtualenv_task",
     "branch_task",
 ]
-
-Function = TypeVar("Function", bound=Callable)
 
 class TaskDecoratorCollection:
     @overload
@@ -72,7 +70,7 @@ class TaskDecoratorCollection:
         """
     # [START mixin_for_typing]
     @overload
-    def python(self, python_callable: Function) -> Function: ...
+    def python(self, python_callable: Function) -> Task[Function]: ...
     # [END mixin_for_typing]
     @overload
     def __call__(
@@ -85,7 +83,7 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Aliasing ``python``; signature should match exactly."""
     @overload
-    def __call__(self, python_callable: Function) -> Function:
+    def __call__(self, python_callable: Function) -> Task[Function]:
         """Aliasing ``python``; signature should match exactly."""
     @overload
     def virtualenv(
@@ -128,7 +126,7 @@ class TaskDecoratorCollection:
             such as transmission a large amount of XCom to TaskAPI.
         """
     @overload
-    def virtualenv(self, python_callable: Function) -> Function: ...
+    def virtualenv(self, python_callable: Function) -> Task[Function]: ...
     @overload
     def branch(
         self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
@@ -146,7 +144,7 @@ class TaskDecoratorCollection:
         :type multiple_outputs: bool
         """
     @overload
-    def branch(self, python_callable: F) -> F: ...
+    def branch(self, python_callable: Function) -> Task[Function]: ...
     # [START decorator_signature]
     def docker(
         self,
