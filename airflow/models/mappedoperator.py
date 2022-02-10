@@ -345,7 +345,7 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def create_unmapped_operator(self) -> BaseOperator:
+    def create_unmapped_operator(self) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
         return self.operator_class(
             dag=self.dag,
@@ -354,7 +354,7 @@ class MappedOperator(AbstractOperator):
             **self.mapped_kwargs,
         )
 
-    def unmap(self) -> BaseOperator:
+    def unmap(self) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping"""
         dag = self.dag
         if not dag:
