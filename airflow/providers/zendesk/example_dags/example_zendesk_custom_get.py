@@ -19,11 +19,12 @@ from datetime import datetime
 from typing import Dict, List
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 
 
-def zendesk_custom_get_request() -> List[Dict]:
+@task
+def fetch_organizations() -> List[Dict]:
     hook = ZendeskHook()
     response = hook.get(
         url="https://yourdomain.zendesk.com/api/v2/organizations.json",
@@ -37,7 +38,4 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    fetch_organizations = PythonOperator(
-        task_id="trigger_zendesk_hook",
-        python_callable=zendesk_custom_get_request,
-    )
+    fetch_organizations()
