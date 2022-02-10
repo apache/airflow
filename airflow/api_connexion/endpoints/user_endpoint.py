@@ -58,6 +58,9 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
+        'id',
+        "first_name",
+        "last_name",
         "user_name",
         "email",
         "is_active",
