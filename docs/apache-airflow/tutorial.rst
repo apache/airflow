@@ -413,7 +413,7 @@ Let's break this down into 2 steps: get data & merge data:
 
   import requests
   from airflow.decorators import task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @task
@@ -478,7 +478,7 @@ Lets look at our DAG:
 
   import requests
   from airflow.decorators import dag, task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @dag(
