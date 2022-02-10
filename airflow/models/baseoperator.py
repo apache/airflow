@@ -82,7 +82,6 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
-    from airflow.decorators.base import _TaskDecorator
     from airflow.models.dag import DAG
     from airflow.utils.task_group import TaskGroup
 
@@ -243,7 +242,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
     # The class level partial function. This is what handles the actual mapping
-    def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs):
+    def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs) -> "MappedOperator":
         operator_class = cast("Type[BaseOperator]", cls)
         # Validate that the args we passed are known -- at call/DAG parse time, not run time!
         _validate_kwarg_names_for_mapping(operator_class, "partial", kwargs)
@@ -1632,7 +1631,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             dag._remove_task(operator.task_id)
 
         operator_init_kwargs: dict = operator._BaseOperator__init_kwargs  # type: ignore
-        return MappedOperator(
+        return cls(
             operator_class=type(operator),
             task_id=operator.task_id,
             task_group=task_group,
@@ -1647,37 +1646,6 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
             max_active_tis_per_dag=operator.max_active_tis_per_dag,
             deps=cls._deps(operator.deps),
         )
-
-    @classmethod
-    def from_decorator(
-        cls,
-        *,
-        decorator: "_TaskDecorator",
-        dag: Optional["DAG"],
-        task_group: Optional["TaskGroup"],
-        task_id: str,
-        mapped_kwargs: Dict[str, Any],
-    ) -> "MappedOperator":
-        """Create a mapped operator from a task decorator.
-
-        Different from ``from_operator``, this DOES NOT validate ``mapped_kwargs``.
-        The task decorator calling this should be responsible for validation.
-        """
-        from airflow.models.xcom_arg import XComArg
-
-        operator = MappedOperator(
-            operator_class=decorator.operator_class,
-            partial_kwargs=decorator.kwargs,
-            mapped_kwargs={},
-            task_id=task_id,
-            dag=dag,
-            task_group=task_group,
-            deps=cls._deps(decorator.operator_class.deps),
-        )
-        operator.mapped_kwargs.update(mapped_kwargs)
-        for arg in mapped_kwargs.values():
-            XComArg.apply_upstream_relationship(operator, arg)
-        return operator
 
     @classmethod
     def _deps(cls, deps: Iterable[BaseTIDep]):
@@ -1749,7 +1717,7 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
     @classmethod
     def get_serialized_fields(cls):
         if cls.__serialized_fields is None:
-            fields_dict = attr.fields_dict(cls)
+            fields_dict = attr.fields_dict(MappedOperator)
             cls.__serialized_fields = frozenset(
                 fields_dict.keys()
                 - {
@@ -1902,22 +1870,17 @@ class MappedOperator(Operator, LoggingMixin, DAGNode):
 
         return ret
 
+    def create_unmapped_operator(self, dag: "DAG") -> BaseOperator:
+        assert not isinstance(self.operator_class, str)
+        return self.operator_class(dag=dag, task_id=self.task_id, **self.partial_kwargs, **self.mapped_kwargs)
+
     def unmap(self) -> BaseOperator:
         """Get the "normal" Operator after applying the current mapping"""
-        assert not isinstance(self.operator_class, str)
-
         dag = self.get_dag()
         if not dag:
-            raise RuntimeError("Cannot unmapp a task unless it has a dag")
-
-        args = {
-            **self.partial_kwargs,
-            **self.mapped_kwargs,
-        }
+            raise RuntimeError("Cannot unmap a task unless it has a DAG")
         dag._remove_task(self.task_id)
-        task = self.operator_class(task_id=self.task_id, dag=self.dag, **args)
-
-        return task
+        return self.create_unmapped_operator(dag)
 
 
 # TODO: Deprecate for Airflow 3.0

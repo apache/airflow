@@ -17,7 +17,7 @@
 # under the License.
 import sys
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
@@ -490,7 +490,7 @@ def test_mapped_decorator() -> None:
     assert isinstance(doubled_0, XComArg)
     assert isinstance(doubled_0.operator, MappedOperator)
     assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_kwargs == {"number": literal}
+    assert doubled_0.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
 
     assert doubled_1.operator.task_id == "double__1"
 
@@ -514,25 +514,68 @@ def test_partial_mapped_decorator() -> None:
     def product(number: int, multiple: int):
         return number * multiple
 
+    literal = [1, 2, 3]
+
     with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        literal = [1, 2, 3]
-        quadrupled = product.partial(task_id='times_4', multiple=3).map(number=literal)
+        quadrupled = product.partial(multiple=3).map(number=literal)
         doubled = product.partial(multiple=2).map(number=literal)
         trippled = product.partial(multiple=3).map(number=literal)
 
-        product.partial(multiple=2)
+        product.partial(multiple=2)  # No operator is actually created.
+
+    assert dag.task_dict == {
+        "product": quadrupled.operator,
+        "product__1": doubled.operator,
+        "product__2": trippled.operator,
+    }
 
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, MappedOperator)
-    assert doubled.operator.task_id == "product"
-    assert doubled.operator.mapped_kwargs == {"number": literal}
-    assert doubled.operator.partial_kwargs == {"task_id": "product", "multiple": 2}
+    assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
+    assert doubled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 2}}
 
-    assert trippled.operator.task_id == "product__1"
-    assert trippled.operator.partial_kwargs == {"task_id": "product", "multiple": 3}
-
-    assert quadrupled.operator.task_id == "times_4"
+    assert isinstance(trippled.operator, MappedOperator)  # For type-checking on partial_kwargs.
+    assert trippled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 3}}
 
     assert doubled.operator is not trippled.operator
 
-    assert [quadrupled.operator, doubled.operator, trippled.operator] == dag.tasks
+
+def test_mapped_decorator_unmap_merge_op_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1():
+            ...
+
+        @task_decorator
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).map(arg2=task1())
+
+    unmapped = dag.get_task("task2").unmap()
+    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
+
+
+def test_mapped_decorator_unmap_converts_partial_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1(arg):
+            ...
+
+        @task_decorator(retry_delay=30)
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).map(arg2=task1.map(arg=[1, 2]))
+
+    # Arguments to the task decorator are stored in partial_kwargs, and
+    # converted into their intended form after the task is unmapped.
+    mapped_task2 = dag.get_task("task2")
+    assert mapped_task2.partial_kwargs["retry_delay"] == 30
+    assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
+
+    mapped_task1 = dag.get_task("task1")
+    assert "retry_delay" not in mapped_task1.partial_kwargs
+    mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
