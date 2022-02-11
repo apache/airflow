@@ -671,6 +671,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_type=encoded_op["_task_type"],
                 dag=None,
                 task_group=None,
+                start_date=None,
+                end_date=None,
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])

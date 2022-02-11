@@ -222,10 +222,12 @@ class BaseOperatorMeta(abc.ABCMeta):
                 if arg not in kwargs and arg in default_args:
                     kwargs[arg] = default_args[arg]
 
-            missing_args = list(non_optional_args - set(kwargs))
-            if missing_args:
-                msg = f"Argument {missing_args} is required"
-                raise AirflowException(msg)
+            missing_args = non_optional_args - set(kwargs)
+            if len(missing_args) == 1:
+                raise AirflowException(f"missing keyword argument {missing_args.pop()!r}")
+            elif missing_args:
+                display = ", ".join(repr(a) for a in sorted(missing_args))
+                raise AirflowException(f"missing keyword arguments {display}")
 
             if dag_params:
                 kwargs['params'] = dag_params
@@ -299,7 +301,6 @@ class BaseOperatorMeta(abc.ABCMeta):
         on_retry_callback: Optional[TaskStateChangeCallback] = None,
         run_as_user: Optional[str] = None,
         executor_config: Optional[Dict] = None,
-        subdag: Optional["DAG"] = None,
         **kwargs,
     ) -> OperatorPartial:
         from airflow.models.dag import DagContext
@@ -312,38 +313,36 @@ class BaseOperatorMeta(abc.ABCMeta):
         if task_group:
             task_id = task_group.child_id(task_id)
 
-        # Reject deprecated option.
-        if "task_concurrency" in kwargs:
+        # Logic here should be kept in sync with _TaskDecorator.map().
+        if "task_concurrency" in kwargs:  # Reject deprecated option.
             raise TypeError("unexpected argument: task_concurrency")
-
-        if not TriggerRule.is_valid(trigger_rule):
-            raise ValueError(
-                f"trigger_rule must be one of {TriggerRule.all_triggers()}, not {trigger_rule!r}.",
-            )
-        if not WeightRule.is_valid(weight_rule):
-            raise ValueError(
-                f"weight_rule must be one of {WeightRule.all_weight_rules}, not {weight_rule!r}.",
-            )
         if wait_for_downstream:
             depends_on_past = True
+        start_date = timezone.convert_to_utc(start_date)
+        end_date = timezone.convert_to_utc(end_date)
+        if pool is None:
+            pool = Pool.DEFAULT_POOL_NAME
+        retries = parse_retries(retries)
+        retry_delay = coerce_retry_delay(retry_delay)
+        executor_config = executor_config or {}
 
         # Store these in partial kwargs to exclude them from map().
         kwargs["dag"] = dag or DagContext.get_current_dag()
         kwargs["task_group"] = task_group
         kwargs["task_id"] = task_id
-        kwargs["start_date"] = timezone.convert_to_utc(start_date)
-        kwargs["end_date"] = timezone.convert_to_utc(end_date)
+        kwargs["start_date"] = start_date
+        kwargs["end_date"] = end_date
         kwargs["owner"] = owner
         kwargs["email"] = email
         kwargs["trigger_rule"] = trigger_rule
         kwargs["depends_on_past"] = depends_on_past
         kwargs["wait_for_downstream"] = wait_for_downstream
-        kwargs["retries"] = parse_retries(retries)
+        kwargs["retries"] = retries
         kwargs["queue"] = queue
-        kwargs["pool"] = Pool.DEFAULT_POOL_NAME if pool is None else pool
+        kwargs["pool"] = pool
         kwargs["pool_slots"] = pool_slots
         kwargs["execution_timeout"] = execution_timeout
-        kwargs["retry_delay"] = coerce_retry_delay(retry_delay)
+        kwargs["retry_delay"] = retry_delay
         kwargs["retry_exponential_backoff"] = retry_exponential_backoff
         kwargs["priority_weight"] = priority_weight
         kwargs["weight_rule"] = weight_rule
@@ -354,8 +353,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         kwargs["on_retry_callback"] = on_retry_callback
         kwargs["on_success_callback"] = on_success_callback
         kwargs["run_as_user"] = run_as_user
-        kwargs["executor_config"] = executor_config or {}
-        kwargs["subdag"] = subdag
+        kwargs["executor_config"] = executor_config
 
         return OperatorPartial(operator_class=operator_class, kwargs=kwargs)
 

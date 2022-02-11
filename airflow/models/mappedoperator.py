@@ -37,6 +37,7 @@ from typing import (
 )
 
 import attr
+import pendulum
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
@@ -53,7 +54,6 @@ from airflow.models.abstractoperator import (
     AbstractOperator,
     TaskStateChangeCallback,
 )
-from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -113,7 +113,13 @@ class OperatorPartial:
     operator_class: Type["BaseOperator"]
     kwargs: Dict[str, Any]
 
+    _map_called: bool = False  # Set when map() is called to ease user debugging.
+
     def __attrs_post_init__(self):
+        from airflow.operators.subdag import SubDagOperator
+
+        if issubclass(self.operator_class, SubDagOperator):
+            raise TypeError("Mapping over deprecated SubDagOperator is not supported")
         validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
 
     def __repr__(self) -> str:
@@ -121,7 +127,7 @@ class OperatorPartial:
         return f"{self.operator_class.__name__}.partial({args})"
 
     def __del__(self):
-        if "__map_called" not in self.__dict__:
+        if not self._map_called:
             warnings.warn(f"{self!r} was never mapped!")
 
     def map(self, **mapped_kwargs) -> "MappedOperator":
@@ -131,9 +137,11 @@ class OperatorPartial:
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
-        params = partial_kwargs.pop("params", {})
+        params = partial_kwargs.pop("params")
         dag = partial_kwargs.pop("dag")
         task_group = partial_kwargs.pop("task_group")
+        start_date = partial_kwargs.pop("start_date")
+        end_date = partial_kwargs.pop("end_date")
 
         operator = MappedOperator(
             operator_class=self.operator_class,
@@ -152,8 +160,10 @@ class OperatorPartial:
             task_type=self.operator_class.__name__,
             dag=dag,
             task_group=task_group,
+            start_date=start_date,
+            end_date=end_date,
         )
-        self.__dict__["__map_called"] = True
+        self._map_called = True
         return operator
 
 
@@ -167,7 +177,7 @@ class MappedOperator(AbstractOperator):
 
     # Needed for serialization.
     task_id: str
-    params: Union[dict, ParamsDict]
+    params: Optional[dict]
     deps: FrozenSet[BaseTIDep]
     operator_extra_links: Collection["BaseOperatorLink"]
     template_ext: Collection[str]
@@ -180,16 +190,24 @@ class MappedOperator(AbstractOperator):
 
     dag: Optional["DAG"]
     task_group: Optional[TaskGroup]
+    start_date: Optional[pendulum.DateTime]
+    end_date: Optional[pendulum.DateTime]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
 
     is_mapped: ClassVar[bool] = True
+    subdag: None = None  # Since we don't support SubDagOperator, this is always None.
+
+    def __repr__(self):
+        return f"<Mapped({self._task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
         prevent_duplicates(self.partial_kwargs, self.mapped_kwargs, fail_reason="mapping already partial")
         self._validate_argument_count()
         if self.task_group:
             self.task_group.add(self)
+        if self.dag:
+            self.dag.add_task(self)
 
     @classmethod
     @cache
@@ -198,6 +216,7 @@ class MappedOperator(AbstractOperator):
             "dag",
             "deps",
             "is_mapped",
+            "subdag",
             "task_group",
             "upstream_task_ids",
         }
@@ -217,13 +236,14 @@ class MappedOperator(AbstractOperator):
         """
         if isinstance(self.operator_class, str):
             return  # No need to validate deserialized operator.
-        mapped_kwargs = {k: unittest.mock.Mock() for k in self.mapped_kwargs}
-        self.operator_class(
-            dag=None,  # Intentionally omitting so this doesn't get added.
-            task_group=None,  # Intentionally omitting so this doesn't get added.
-            **self.partial_kwargs,
-            **mapped_kwargs,
+        operator = self._create_unmapped_operator(
+            mapped_kwargs={k: unittest.mock.MagicMock(name=k) for k in self.mapped_kwargs},
+            partial_kwargs=self.partial_kwargs,
         )
+        if operator.task_group:
+            operator.task_group._remove(operator)
+        if operator.dag:
+            operator.dag._remove_task(operator.task_id)
 
     @property
     def task_type(self) -> str:
@@ -333,10 +353,6 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("run_as_user", {})
 
-    @property
-    def subdag(self) -> Optional["DAG"]:
-        return self.partial_kwargs.get("subdag")
-
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""
         return self.dag
@@ -345,13 +361,22 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def create_unmapped_operator(self) -> "BaseOperator":
+    def _create_unmapped_operator(
+        self,
+        *,
+        mapped_kwargs: Dict[str, Any],
+        partial_kwargs: Dict[str, Any],
+    ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
         return self.operator_class(
-            dag=self.dag,
             task_id=self.task_id,
-            **self.partial_kwargs,
-            **self.mapped_kwargs,
+            dag=self.dag,
+            task_group=self.task_group,
+            params=self.params,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            **mapped_kwargs,
+            **partial_kwargs,
         )
 
     def unmap(self) -> "BaseOperator":
@@ -360,7 +385,10 @@ class MappedOperator(AbstractOperator):
         if not dag:
             raise RuntimeError("Cannot unmap a task without a DAG")
         dag._remove_task(self.task_id)
-        return self.create_unmapped_operator()
+        return self._create_unmapped_operator(
+            mapped_kwargs=self.mapped_kwargs,
+            partial_kwargs=self.partial_kwargs,
+        )
 
     def expand_mapped_task(
         self,

@@ -42,12 +42,14 @@ import typing_extensions
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
+from airflow.models.baseoperator import BaseOperator, coerce_retry_delay, parse_retries
 from airflow.models.dag import DAG, DagContext
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.param import ParamsDict
+from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
+from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
@@ -286,13 +288,30 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         self._validate_arg_names("map", kwargs)
 
         partial_kwargs = self.kwargs.copy()
+
         dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
-        params = ParamsDict(partial_kwargs.pop("params", None))
+        params = partial_kwargs.pop("params", None)
+
+        # Logic here should be kept in sync with BaseOperatorMeta.partial().
+        if "task_concurrency" in partial_kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
+        if partial_kwargs.get("wait_for_downstream"):
+            partial_kwargs["depends_on_past"] = True
+        start_date = timezone.convert_to_utc(partial_kwargs.pop("start_date", None))
+        end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
+        if partial_kwargs.get("pool") is None:
+            partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+        partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
+        partial_kwargs["retry_delay"] = coerce_retry_delay(
+            partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
+        )
+        partial_kwargs.setdefault("executor_config", {})
 
         # Mypy does not work well with a subclassed attrs class :(
-        operator = cast(Any, DecoratedMappedOperator)(
+        _MappedOperator = cast(Any, DecoratedMappedOperator)
+        operator = _MappedOperator(
             operator_class=self.operator_class,
             mapped_kwargs={"op_args": list(args), "op_kwargs": kwargs},
             partial_kwargs=partial_kwargs,
@@ -309,12 +328,12 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             task_type=self.operator_class.__name__,
             dag=dag,
             task_group=task_group,
+            start_date=start_date,
+            end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
         )
 
-        for arg in itertools.chain(args, kwargs.values()):
-            XComArg.apply_upstream_relationship(operator, arg)
         return XComArg(operator=operator)
 
     def partial(self, *args, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
@@ -351,23 +370,33 @@ class DecoratedMappedOperator(MappedOperator):
     multiple_outputs: bool
     python_callable: Callable
 
-    def create_unmapped_operator(self) -> BaseOperator:
+    def _create_unmapped_operator(
+        self,
+        *,
+        mapped_kwargs: Dict[str, Any],
+        partial_kwargs: Dict[str, Any],
+    ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
-        op_args = self.partial_kwargs.pop("op_args", []) + self.mapped_kwargs.pop("op_args", [])
+        mapped_kwargs = self.mapped_kwargs.copy()
+        partial_kwargs = self.partial_kwargs.copy()
+
+        op_args = partial_kwargs.pop("op_args", []) + mapped_kwargs.pop("op_args", [])
         op_kwargs = _merge_kwargs(
-            self.partial_kwargs.pop("op_kwargs", {}),
-            self.mapped_kwargs.pop("op_kwargs", {}),
+            partial_kwargs.pop("op_kwargs", {}),
+            mapped_kwargs.pop("op_kwargs", {}),
             fail_reason="mapping already partial",
         )
+
         return self.operator_class(
             dag=self.dag,
+            task_group=self.task_group,
             task_id=self.task_id,
             op_args=op_args,
             op_kwargs=op_kwargs,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.python_callable,
-            **self.partial_kwargs,
-            **self.mapped_kwargs,
+            **partial_kwargs,
+            **mapped_kwargs,
         )
 
 
