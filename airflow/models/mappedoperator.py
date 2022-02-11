@@ -55,6 +55,7 @@ from airflow.models.abstractoperator import (
     TaskStateChangeCallback,
 )
 from airflow.models.pool import Pool
+from airflow.models.xcom_arg import XComArg
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
@@ -208,6 +209,8 @@ class MappedOperator(AbstractOperator):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
+        XComArg.apply_upstream_relationship(self, self.mapped_kwargs)
+        XComArg.apply_upstream_relationship(self, self.partial_kwargs)
 
     @classmethod
     @cache

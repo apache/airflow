@@ -361,11 +361,12 @@ class BaseOperatorMeta(abc.ABCMeta):
             # Store the args passed to init -- we need them to support task.map serialzation!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
-            # Here we set upstream task defined by XComArgs passed to template fields of the operator
-            self.set_xcomargs_dependencies()
+            if not kwargs.get("_airflow_map_validation"):
+                # Set upstream task defined by XComArgs passed to template fields of the operator.
+                self.set_xcomargs_dependencies()
+                # Mark instance as instantiated.
+                self._BaseOperator__instantiated = True
 
-            # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
-            self._BaseOperator__instantiated = True
             return result
 
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
@@ -715,7 +716,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         super().__init__()
 
         # This keyword is used internally to signify whether the operator is
-        # instantiated to validate a MappedOperator; only accessed in __new__.
+        # instantiated to validate a MappedOperator.
         kwargs.pop("_airflow_map_validation", None)
 
         if kwargs:

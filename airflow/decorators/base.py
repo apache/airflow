@@ -335,9 +335,6 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             python_callable=self.function,
             partial_op_kwargs=partial_op_kwargs,
         )
-
-        for arg in kwargs.values():
-            XComArg.apply_upstream_relationship(operator, arg)
         return XComArg(operator=operator)
 
     def partial(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
