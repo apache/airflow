@@ -280,6 +280,15 @@ RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not v
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
+# The PATH is needed for PIPX to find the tools installed
+ENV PATH="/root/.local/bin:${PATH}"
+
+COPY scripts/docker/install_pipx_tools.sh /scripts/docker/
+
+# Install useful command line tools in their own virtualenv so that they do not clash with
+# dependencies installed in Airflow
+RUN bash /scripts/docker/install_pipx_tools.sh
+
 # Copy package.json and yarn.lock to install node modules
 # this way even if other static check files change, node modules will not need to be installed
 # we want to keep node_modules so we can do this step separately from compiling assets
