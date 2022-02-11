@@ -736,11 +736,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     def check_templates(filename, elasticsearch_id):
         stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
 
-        if (
-            not stored
-            or stored.filename != filename
-            or stored.elasticsearch_id != elasticsearch_id
-        ):
+        if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
             session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
     filename = conf.get("logging", "log_filename_template")
@@ -750,7 +746,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # place exists!
     pre_upgrade_filename = conf.upgraded_values.get(('logging', 'log_filename_template'), None)
     if pre_upgrade_filename is not None:
-        check_templates(pre_upgrade_filename, task_prefix, elasticsearch_id)
+        check_templates(pre_upgrade_filename, elasticsearch_id)
         session.flush()
 
     check_templates(filename, elasticsearch_id)

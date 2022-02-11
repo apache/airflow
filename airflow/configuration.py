@@ -31,6 +31,7 @@ from collections import OrderedDict
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from contextlib import suppress
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -246,9 +247,12 @@ class AirflowConfigParser(ConfigParser):
                     replacement[2],
                 )
             else:
-                del self.deprecated_values['logging']['log_filename_template']
+                # In case of tests it might not exist
+                with suppress(KeyError):
+                    del self.deprecated_values['logging']['log_filename_template']
         else:
-            del self.deprecated_values['logging']['log_filename_template']
+            with suppress(KeyError):
+                del self.deprecated_values['logging']['log_filename_template']
 
         self.is_validated = False
 
