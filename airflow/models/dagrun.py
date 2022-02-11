@@ -965,16 +965,3 @@ class DagRun(Base, LoggingMixin):
                 f"Please make sure you set up the metadatabase correctly."
             )
         return template
-
-    @provide_session
-    def get_task_prefix_template(self, *, session: Session = NEW_SESSION) -> str:
-        if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.query(LogTemplate.task_prefix).order_by(LogTemplate.id).limit(1).scalar()
-        else:
-            template = session.query(LogTemplate.task_prefix).filter_by(id=self.log_template_id).scalar()
-        if template is None:
-            raise AirflowException(
-                f"No log_template entry found for ID {self.log_template_id!r}. "
-                f"Please make sure you set up the metadatabase correctly."
-            )
-        return template

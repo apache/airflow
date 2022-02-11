@@ -734,16 +734,10 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """
     stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
     filename = conf.get("logging", "log_filename_template")
-    task_prefix = conf.get("logging", "task_log_prefix_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
-    if (
-        stored
-        and stored.filename == filename
-        and stored.task_prefix == task_prefix
-        and stored.elasticsearch_id == elasticsearch_id
-    ):
+    if stored and stored.filename == filename and stored.elasticsearch_id == elasticsearch_id:
         return
-    session.merge(LogTemplate(filename=filename, task_prefix=task_prefix, elasticsearch_id=elasticsearch_id))
+    session.merge(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:

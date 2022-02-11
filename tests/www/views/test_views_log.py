@@ -268,7 +268,6 @@ def dag_run_with_log_filename():
         log_template = session.merge(
             LogTemplate(
                 filename=DIFFERENT_LOG_FILENAME,
-                task_prefix="irrelevant",
                 elasticsearch_id="irrelevant",
             ),
         )
