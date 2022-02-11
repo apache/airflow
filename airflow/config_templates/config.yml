@@ -1542,6 +1542,15 @@
       type: integer
       example: "1"
       default: ~
+    - name: worker_enable_remote_control
+      description: |
+        Specify if remote control of the workers is enabled.
+        When using SQS as the broker, Celery creates lots of .*reply-celery-pidbox queues. You can turn off
+        this by setting this value as false. However, if the value is false, the flower won't work.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "true"
     - name: worker_umask
       description: |
         Umask that will be used when starting workers with the ``airflow celery worker``
