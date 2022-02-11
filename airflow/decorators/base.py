@@ -392,10 +392,12 @@ class DecoratedMappedOperator(MappedOperator):
         real: bool,
     ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
-        op_args = self.partial_op_args + mapped_kwargs.pop("op_args", [])
+        del mapped_kwargs["op_args"]
+        del mapped_kwargs["op_kwargs"]
+        op_args = self.partial_op_args + self.mapped_kwargs["op_args"]
         op_kwargs = _merge_kwargs(
             self.partial_op_kwargs,
-            mapped_kwargs.pop("op_kwargs", {}),
+            self.mapped_kwargs["op_kwargs"],
             fail_reason="mapping already partial",
         )
         return self.operator_class(

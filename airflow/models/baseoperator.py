@@ -17,6 +17,7 @@
 # under the License.
 """Base operator for all operators."""
 import abc
+import contextlib
 import copy
 import functools
 import logging
@@ -100,7 +101,7 @@ TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=FunctionType)
 
-logger = logging.getLogger("airflow.models.baseoperator.BaseOperato")
+logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> Optional[int]:
@@ -121,6 +122,30 @@ def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
     return timedelta(seconds=retry_delay)
 
 
+def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
+    if not dag:
+        return {}, ParamsDict()
+    dag_args = copy.copy(dag.default_args)
+    dag_params = copy.deepcopy(dag.params)
+    if task_group:
+        dag_args.update(task_group.default_args)
+    return dag_args, dag_params
+
+
+def _merge_defaults(
+    dag_args: dict,
+    dag_params: ParamsDict,
+    task_params: Optional[dict],
+    task_default_args: dict,
+) -> Tuple[dict, ParamsDict]:
+    if task_params:
+        dag_params.update(task_params)
+    with contextlib.suppress(KeyError):
+        dag_params.update(task_default_args.pop("params"))
+    dag_args.update(task_default_args)
+    return dag_args, dag_params
+
+
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
@@ -136,6 +161,107 @@ class _PartialDescriptor:
         if obj is not None:
             return partial
         return self.class_method.__get__(cls, cls)
+
+
+# This is what handles the actual mapping.
+def partial(
+    operator_class: Type["BaseOperator"],
+    *,
+    task_id: str,
+    dag: Optional["DAG"] = None,
+    task_group: Optional["TaskGroup"] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    owner: str = DEFAULT_OWNER,
+    email: Union[None, str, Iterable[str]] = None,
+    params: Optional[dict] = None,
+    trigger_rule: str = DEFAULT_TRIGGER_RULE,
+    depends_on_past: bool = False,
+    wait_for_downstream: bool = False,
+    retries: Optional[int] = DEFAULT_RETRIES,
+    queue: str = DEFAULT_QUEUE,
+    pool: Optional[str] = None,
+    pool_slots: int = DEFAULT_POOL_SLOTS,
+    execution_timeout: Optional[timedelta] = None,
+    retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
+    retry_exponential_backoff: bool = False,
+    priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
+    weight_rule: str = DEFAULT_WEIGHT_RULE,
+    sla: Optional[timedelta] = None,
+    max_active_tis_per_dag: Optional[int] = None,
+    on_execute_callback: Optional[TaskStateChangeCallback] = None,
+    on_failure_callback: Optional[TaskStateChangeCallback] = None,
+    on_success_callback: Optional[TaskStateChangeCallback] = None,
+    on_retry_callback: Optional[TaskStateChangeCallback] = None,
+    run_as_user: Optional[str] = None,
+    executor_config: Optional[Dict] = None,
+    **kwargs,
+) -> OperatorPartial:
+    from airflow.models.dag import DagContext
+    from airflow.utils.task_group import TaskGroupContext
+
+    validate_mapping_kwargs(operator_class, "partial", kwargs)
+
+    dag = dag or DagContext.get_current_dag()
+    if dag:
+        task_group = TaskGroupContext.get_current_task_group(dag)
+    if task_group:
+        task_id = task_group.child_id(task_id)
+
+    # Merge DAG and task group level defaults into user-supplied values.
+    dag_args, dag_params = _get_dag_defaults(dag, task_group)
+    partial_kwargs, default_params = _merge_defaults(
+        dag_args=dag_args,
+        dag_params=dag_params,
+        task_params=params,
+        task_default_args=kwargs.pop("default_args", {}),
+    )
+    partial_kwargs.update(kwargs)
+
+    # Always fully populate partial kwargs to exclude them from map().
+    partial_kwargs.setdefault("dag", dag)
+    partial_kwargs.setdefault("task_group", task_group)
+    partial_kwargs.setdefault("task_id", task_id)
+    partial_kwargs.setdefault("start_date", start_date)
+    partial_kwargs.setdefault("end_date", end_date)
+    partial_kwargs.setdefault("owner", owner)
+    partial_kwargs.setdefault("email", email)
+    partial_kwargs.setdefault("params", default_params)
+    partial_kwargs.setdefault("trigger_rule", trigger_rule)
+    partial_kwargs.setdefault("depends_on_past", depends_on_past)
+    partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
+    partial_kwargs.setdefault("retries", retries)
+    partial_kwargs.setdefault("queue", queue)
+    partial_kwargs.setdefault("pool", pool)
+    partial_kwargs.setdefault("pool_slots", pool_slots)
+    partial_kwargs.setdefault("execution_timeout", execution_timeout)
+    partial_kwargs.setdefault("retry_delay", retry_delay)
+    partial_kwargs.setdefault("retry_exponential_backoff", retry_exponential_backoff)
+    partial_kwargs.setdefault("priority_weight", priority_weight)
+    partial_kwargs.setdefault("weight_rule", weight_rule)
+    partial_kwargs.setdefault("sla", sla)
+    partial_kwargs.setdefault("max_active_tis_per_dag", max_active_tis_per_dag)
+    partial_kwargs.setdefault("on_execute_callback", on_execute_callback)
+    partial_kwargs.setdefault("on_failure_callback", on_failure_callback)
+    partial_kwargs.setdefault("on_retry_callback", on_retry_callback)
+    partial_kwargs.setdefault("on_success_callback", on_success_callback)
+    partial_kwargs.setdefault("run_as_user", run_as_user)
+    partial_kwargs.setdefault("executor_config", executor_config)
+
+    # Post-process arguments. Should be kept in sync with _TaskDecorator.map().
+    if "task_concurrency" in kwargs:  # Reject deprecated option.
+        raise TypeError("unexpected argument: task_concurrency")
+    if partial_kwargs["wait_for_downstream"]:
+        partial_kwargs["depends_on_past"] = True
+    partial_kwargs["start_date"] = timezone.convert_to_utc(partial_kwargs["start_date"])
+    partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])
+    if partial_kwargs["pool"] is None:
+        partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+    partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
+    partial_kwargs["retry_delay"] = coerce_retry_delay(partial_kwargs["retry_delay"])
+    partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
+
+    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -195,28 +321,19 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
-            dag_args: Dict[str, Any] = {}
-            dag_params = ParamsDict()
 
             dag: Optional[DAG] = kwargs.get('dag') or DagContext.get_current_dag()
-            if dag:
-                dag_args = copy.copy(dag.default_args) or dag_args
-                dag_params = copy.deepcopy(dag.params) or dag_params
+            task_group: Optional[TaskGroup] = kwargs.get('task_group')
+            if dag and not task_group:
                 task_group = TaskGroupContext.get_current_task_group(dag)
-                if task_group:
-                    dag_args.update(task_group.default_args)
 
-            params = kwargs.get('params', {}) or {}
-            dag_params.update(params)
-
-            default_args = kwargs.pop('default_args', {})
-            if default_args:
-                if 'params' in default_args:
-                    dag_params.update(default_args['params'])
-                    del default_args['params']
-
-            dag_args.update(default_args)
-            default_args = dag_args
+            dag_args, dag_params = _get_dag_defaults(dag, task_group)
+            default_args, merged_params = _merge_defaults(
+                dag_args=dag_args,
+                dag_params=dag_params,
+                task_params=kwargs.pop("params", None),
+                task_default_args=kwargs.pop("default_args", {}),
+            )
 
             for arg in sig_cache.parameters:
                 if arg not in kwargs and arg in default_args:
@@ -229,8 +346,8 @@ class BaseOperatorMeta(abc.ABCMeta):
                 display = ", ".join(repr(a) for a in sorted(missing_args))
                 raise AirflowException(f"missing keyword arguments {display}")
 
-            if dag_params:
-                kwargs['params'] = dag_params
+            if merged_params:
+                kwargs["params"] = merged_params
 
             hook = getattr(self, '_hook_apply_defaults', None)
             if hook:
@@ -258,106 +375,14 @@ class BaseOperatorMeta(abc.ABCMeta):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
-        try:
+        with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method so it call call the actual function (but let
             # subclasses override it if they need to)
-            partial_desc = vars(new_cls)['partial']
+            partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
-                actual_partial = cls.partial
-                partial_desc.class_method = classmethod(actual_partial)
-        except KeyError:
-            pass
+                partial_desc.class_method = classmethod(partial)
         new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
         return new_cls
-
-    # The class level partial function. This is what handles the actual mapping.
-    def partial(
-        cls,
-        *,
-        task_id: str,
-        dag: Optional["DAG"] = None,
-        task_group: Optional["TaskGroup"] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        owner: str = DEFAULT_OWNER,
-        email: Union[None, str, Iterable[str]] = None,
-        params: Optional[dict] = None,
-        trigger_rule: str = DEFAULT_TRIGGER_RULE,
-        depends_on_past: bool = False,
-        wait_for_downstream: bool = False,
-        retries: Optional[int] = DEFAULT_RETRIES,
-        queue: str = DEFAULT_QUEUE,
-        pool: Optional[str] = None,
-        pool_slots: int = DEFAULT_POOL_SLOTS,
-        execution_timeout: Optional[timedelta] = None,
-        retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
-        retry_exponential_backoff: bool = False,
-        priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str = DEFAULT_WEIGHT_RULE,
-        sla: Optional[timedelta] = None,
-        max_active_tis_per_dag: Optional[int] = None,
-        on_execute_callback: Optional[TaskStateChangeCallback] = None,
-        on_failure_callback: Optional[TaskStateChangeCallback] = None,
-        on_success_callback: Optional[TaskStateChangeCallback] = None,
-        on_retry_callback: Optional[TaskStateChangeCallback] = None,
-        run_as_user: Optional[str] = None,
-        executor_config: Optional[Dict] = None,
-        **kwargs,
-    ) -> OperatorPartial:
-        from airflow.models.dag import DagContext
-        from airflow.utils.task_group import TaskGroupContext
-
-        operator_class = cast(Type[BaseOperator], cls)
-        validate_mapping_kwargs(operator_class, "partial", kwargs)
-
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-        if task_group:
-            task_id = task_group.child_id(task_id)
-
-        # Logic here should be kept in sync with _TaskDecorator.map().
-        if "task_concurrency" in kwargs:  # Reject deprecated option.
-            raise TypeError("unexpected argument: task_concurrency")
-        if wait_for_downstream:
-            depends_on_past = True
-        start_date = timezone.convert_to_utc(start_date)
-        end_date = timezone.convert_to_utc(end_date)
-        if pool is None:
-            pool = Pool.DEFAULT_POOL_NAME
-        retries = parse_retries(retries)
-        retry_delay = coerce_retry_delay(retry_delay)
-        executor_config = executor_config or {}
-
-        # Store these in partial kwargs to exclude them from map().
-        kwargs["dag"] = dag or DagContext.get_current_dag()
-        kwargs["task_group"] = task_group
-        kwargs["task_id"] = task_id
-        kwargs["start_date"] = start_date
-        kwargs["end_date"] = end_date
-        kwargs["owner"] = owner
-        kwargs["email"] = email
-        kwargs["params"] = params
-        kwargs["trigger_rule"] = trigger_rule
-        kwargs["depends_on_past"] = depends_on_past
-        kwargs["wait_for_downstream"] = wait_for_downstream
-        kwargs["retries"] = retries
-        kwargs["queue"] = queue
-        kwargs["pool"] = pool
-        kwargs["pool_slots"] = pool_slots
-        kwargs["execution_timeout"] = execution_timeout
-        kwargs["retry_delay"] = retry_delay
-        kwargs["retry_exponential_backoff"] = retry_exponential_backoff
-        kwargs["priority_weight"] = priority_weight
-        kwargs["weight_rule"] = weight_rule
-        kwargs["sla"] = sla
-        kwargs["max_active_tis_per_dag"] = max_active_tis_per_dag
-        kwargs["on_execute_callback"] = on_execute_callback
-        kwargs["on_failure_callback"] = on_failure_callback
-        kwargs["on_retry_callback"] = on_retry_callback
-        kwargs["on_success_callback"] = on_success_callback
-        kwargs["run_as_user"] = run_as_user
-        kwargs["executor_config"] = executor_config
-
-        return OperatorPartial(operator_class=operator_class, kwargs=kwargs)
 
 
 @functools.total_ordering
