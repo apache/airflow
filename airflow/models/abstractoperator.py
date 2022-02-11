@@ -19,19 +19,18 @@
 import datetime
 from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, List, Optional, Set, Type, Union
 
-import jinja2
-
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.taskmixin import DAGNode
-from airflow.templates import SandboxedEnvironment
 from airflow.utils.context import Context
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    import jinja2  # Slow import.
+
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
@@ -99,8 +98,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def node_id(self) -> str:
         return self.task_id
 
-    def get_template_env(self) -> jinja2.Environment:
+    def get_template_env(self) -> "jinja2.Environment":
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
+        # This is imported locally since Jinja2 is heavy and we don't need it
+        # for most of the functionalities. It is imported by get_template_env()
+        # though, so we don't need to put this after the 'if dag' check.
+        from airflow.templates import SandboxedEnvironment
+
         dag = self.get_dag()
         if dag:
             return dag.get_template_env()
