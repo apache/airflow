@@ -4033,6 +4033,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'action_set_success': 'edit',
     }
     base_permissions = [
+        permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
@@ -4377,6 +4378,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
