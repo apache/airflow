@@ -39,8 +39,8 @@ class MockExecutor(BaseExecutor):
         self.sorted_tasks = []
 
         # If multiprocessing runs in spawn mode,
-        # arguments are to be pickled but lambda is not picclable.
-        # So we should pass self.success instead of lambda.
+        # arguments are to be pickled, but lambda is not picclable.
+        # So we should pass self.success instead of lambda
         self.mock_task_results = defaultdict(self.success)
 
         super(MockExecutor, self).__init__(*args, **kwargs)

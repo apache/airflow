@@ -59,6 +59,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.state import State
 
 
