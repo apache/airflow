@@ -1498,6 +1498,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
+        nowait: bool = False,
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1514,6 +1515,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             characters. If not provided then uuid will be generated.
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
+        :param nowait: specify whether to insert job without waiting for the result
         """
         location = location or self.location
         job_id = job_id or self._custom_job_id(configuration)
@@ -1541,8 +1543,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
         self.log.info("Inserting job %s", job.job_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
+        if nowait:
+            # Initiate the job and don't wait for it to complete.
+            job._begin()
+        else:
+            # Start the job and wait for it to complete and get the result.
+            job.result()
         return job
 
     def run_with_configuration(self, configuration: dict) -> str:
