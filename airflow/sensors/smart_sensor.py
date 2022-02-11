@@ -24,6 +24,7 @@ from time import sleep
 
 from sqlalchemy import and_, or_, tuple_
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator, DagRun, SensorInstance, SkipMixin, TaskInstance
 from airflow.settings import LOGGING_CLASS_PATH
@@ -76,16 +77,12 @@ class SensorWork:
 
         self.poke_context = json.loads(si.poke_context) if si.poke_context else {}
         self.execution_context = json.loads(si.execution_context) if si.execution_context else {}
-        try:
-            self.log = self._get_sensor_logger(si)
-        except Exception as e:
-            self.log = None
-            print(e)
         self.hashcode = si.hashcode
         self.start_date = si.start_date
         self.operator = si.operator
         self.op_classpath = si.op_classpath
         self.encoded_poke_context = si.poke_context
+        self.si = si
 
     def __eq__(self, other):
         if not isinstance(other, SensorWork):
@@ -118,10 +115,12 @@ class SensorWork:
         handler.addFilter(_secrets_masker())
         return handler
 
-    def _get_sensor_logger(self, si):
+    @cached_property
+    def log(self):
         """Return logger for a sensor instance object."""
         # The created log_id is used inside of smart sensor as the key to fetch
         # the corresponding in memory log handler.
+        si = self.si
         si.raw = False  # Otherwise set_context will fail
         log_id = "-".join(
             [si.dag_id, si.task_id, si.execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f"), str(si.try_number)]
@@ -341,9 +340,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 .filter(SI.state == State.SENSING)
                 .filter(SI.shardcode < self.shard_max, SI.shardcode >= self.shard_min)
             )
-            tis = query.all()
+            sis = query.all()
 
-        self.log.info("Performance query %s tis, time: %.3f", len(tis), timer.duration)
+        self.log.info("Performance query %s sis, time: %.3f", len(sis), timer.duration)
 
         # Query without checking dagrun state might keep some failed dag_run tasks alive.
         # Join with DagRun table will be very slow based on the number of sensor tasks we
@@ -351,11 +350,11 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         # and expect scheduler correct the states in _change_state_for_tis_without_dagrun()
 
         sensor_works = []
-        for ti in tis:
+        for si in sis:
             try:
-                sensor_works.append(SensorWork(ti))
+                sensor_works.append(SensorWork(si))
             except Exception:
-                self.log.exception("Exception at creating sensor work for ti %s", ti.key)
+                self.log.exception("Exception at creating sensor work for ti %s", si.ti_key)
 
         self.log.info("%d tasks detected.", len(sensor_works))
 

@@ -161,3 +161,21 @@ class SensorInstance(Base):
             "<{self.__class__.__name__}: id: {self.id} poke_context: {self.poke_context} "
             "execution_context: {self.execution_context} state: {self.state}>".format(self=self)
         )
+
+    @provide_session
+    def get_dagrun(self, session):
+        """
+        Returns the DagRun for this SensorInstance
+
+        :param session: SQLAlchemy ORM Session
+        :return: DagRun
+        """
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
+        dr = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == self.execution_date)
+            .one()
+        )
+
+        return dr
