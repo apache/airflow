@@ -1822,8 +1822,8 @@ class TaskInstance(Base, LoggingMixin):
         integrate_macros_plugins()
 
         task = self.task
-        dag: Optional[DAG] = task.dag
-        assert dag is not None  # For Mypy.
+        assert task.dag  # For Mypy.
+        dag: DAG = task.dag
 
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
@@ -1851,7 +1851,7 @@ class TaskInstance(Base, LoggingMixin):
 
         def _get_previous_dagrun_data_interval_success() -> Optional["DataInterval"]:
             dagrun = _get_previous_dagrun_success()
-            if dagrun is None or dag is None:
+            if dagrun is None:
                 return None
             return dag.get_run_data_interval(dagrun)
 
