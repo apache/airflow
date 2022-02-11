@@ -1131,7 +1131,7 @@ class SchedulerJob(BaseJob):
         if not settings.CHECK_SLAS:
             return
 
-        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
+        if not any(isinstance(task.sla, timedelta) for task in dag.tasks):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 

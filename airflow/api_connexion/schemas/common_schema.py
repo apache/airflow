@@ -24,6 +24,7 @@ from dateutil import relativedelta
 from marshmallow import Schema, fields, validate
 from marshmallow_oneofschema import OneOfSchema
 
+from airflow.models.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.weight_rule import WeightRule
 
@@ -154,12 +155,12 @@ class ClassReferenceSchema(Schema):
     class_name = fields.Method("_get_class_name", required=True)
 
     def _get_module(self, obj):
-        if isinstance(obj, SerializedBaseOperator):
+        if isinstance(obj, (MappedOperator, SerializedBaseOperator)):
             return obj._task_module
         return inspect.getmodule(obj).__name__
 
     def _get_class_name(self, obj):
-        if isinstance(obj, SerializedBaseOperator):
+        if isinstance(obj, (MappedOperator, SerializedBaseOperator)):
             return obj._task_type
         if isinstance(obj, type):
             return obj.__name__

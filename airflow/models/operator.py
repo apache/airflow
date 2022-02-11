@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import DAG
-from airflow.decorators import task
-from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
+from typing import Union
 
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 
-@task
-def make_list():
-    return [1, 2, {'a': 'b'}]
+Operator = Union[BaseOperator, MappedOperator]
 
-
-def consumer(*args):
-    print(repr(args))
-
-
-with DAG(dag_id='test_mapped_classic', start_date=days_ago(2)) as dag:
-    PythonOperator.partial(task_id='consumer', python_callable=consumer).map(op_args=make_list())
+__all__ = ["Operator"]
