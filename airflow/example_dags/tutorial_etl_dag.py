@@ -19,7 +19,7 @@
 
 """
 ### ETL DAG Tutorial Documentation
-This ETL DAG is demonstrating Extract -> Transform -> Load pipeline
+This ETL DAG is demonstrating an Extract -> Transform -> Load pipeline
 """
 # [START tutorial]
 # [START import_module]
