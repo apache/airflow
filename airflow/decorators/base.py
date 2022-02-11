@@ -375,7 +375,10 @@ class DecoratedMappedOperator(MappedOperator):
     @classmethod
     @cache
     def get_serialized_fields(cls):
-        return MappedOperator.get_serialized_fields() | {"partial_op_kwargs"}
+        # The magic argument-less super() does not work well with @cache
+        # (actually lru_cache in general), so we use the explicit form instead.
+        sup = super(DecoratedMappedOperator, DecoratedMappedOperator)
+        return sup.get_serialized_fields() | {"partial_op_kwargs"}
 
     def _create_unmapped_operator(
         self,
