@@ -323,8 +323,6 @@ class S3DeleteObjectsOperator(BaseOperator):
     To enable users to delete single object or multiple objects from
     a bucket using a single HTTP request.
 
-    Users may specify up to 1000 keys to delete.
-
     :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
     :param keys: The key(s) to delete from S3 bucket. (templated)
 
@@ -334,7 +332,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         When ``keys`` is a list, it's supposed to be the list of the
         keys to delete.
 
-        You may specify up to 1000 keys.
     :param prefix: Prefix of objects to delete. (templated)
         All objects matching this prefix in the bucket will be deleted.
     :param aws_conn_id: Connection id of the S3 connection to use
@@ -371,14 +368,21 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-    def execute(self, context: 'Context'):
-        if not bool(self.keys) ^ bool(self.prefix):
+        if not keys is None ^ prefix is None:
             raise AirflowException("Either keys or prefix should be set.")
+    
+    def execute(self, context: 'Context'):
+        if not self.keys is None ^ self.prefix is None:
+            raise AirflowException("Either keys or prefix should be set.")
+        if isinstance(self.keys, list) and len(self.keys) == 0:
+            return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
         if keys:
             s3_hook.delete_objects(bucket=self.bucket, keys=keys)
+            
+     
 
 
 class S3FileTransformOperator(BaseOperator):
