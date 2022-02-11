@@ -573,14 +573,15 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Simplify partial_kwargs by comparing it to the most barebone object.
         # Remove all entries that are simply default values.
-        default_partial_kwargs = cls._serialize(BaseOperator.partial(task_id="").map().partial_kwargs)
-        for k, default in default_partial_kwargs.items():
+        default_partial = cls._serialize(BaseOperator.partial(task_id="_").map().partial_kwargs)[Encoding.VAR]
+        serialized_partial = serialized_op["partial_kwargs"]
+        for k, default in default_partial.items():
             try:
-                v = serialized_op["partial_kwargs"][k]
+                v = serialized_partial[k]
             except KeyError:
                 continue
             if v == default:
-                del serialized_op["partial_kwargs"][k]
+                del serialized_partial[k]
 
         # Simplify op_kwargs format. It must be a dict, so we flatten it.
         with contextlib.suppress(KeyError):
@@ -591,6 +592,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_kwargs = serialized_op["partial_kwargs"]["op_kwargs"]
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
             serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
+        with contextlib.suppress(KeyError):
+            op_kwargs = serialized_op["partial_op_kwargs"]
+            assert op_kwargs[Encoding.TYPE] == DAT.DICT
+            serialized_op["partial_op_kwargs"] = op_kwargs[Encoding.VAR]
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -749,6 +754,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
                 if op_kwargs is not None:
                     v["op_kwargs"] = op_kwargs
+            elif k == "partial_op_kwargs":
+                v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is

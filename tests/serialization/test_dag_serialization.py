@@ -1606,8 +1606,11 @@ def test_mapped_operator_serde():
             },
         },
         'task_id': 'a',
+        'operator_extra_links': [],
         'template_fields': ['bash_command', 'env'],
         'template_ext': ['.sh', '.bash'],
+        'ui_color': '#f0ede4',
+        'ui_fgcolor': '#000',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1625,7 +1628,7 @@ def test_mapped_operator_xcomarg_serde():
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1679,15 +1682,16 @@ def test_mapped_decorator_serde():
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
         'downstream_task_ids': [],
-        'partial_kwargs': {
-            'op_args': ["foo"],
-            'op_kwargs': {'arg3': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
-            'retry_delay': 30,
-        },
+        'partial_op_args': ["foo"],
+        'partial_op_kwargs': {'arg3': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+        'partial_kwargs': {'retry_delay': {'__type': 'timedelta', '__var': 30.0}},
         'mapped_kwargs': {
             'op_args': [{"__type": "dict", "__var": {'a': 1, 'b': 2}}],
             'op_kwargs': {'arg4': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}}},
         },
+        'operator_extra_links': [],
+        'ui_color': '#ffefeb',
+        'ui_fgcolor': '#000',
         'task_id': 'x',
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
@@ -1703,11 +1707,9 @@ def test_mapped_decorator_serde():
         "op_args": [{"a": 1, "b": 2}],
         "op_kwargs": {"arg4": _XComRef("op1", "my_key")},
     }
-    assert deserialized.partial_kwargs == {
-        "retry_delay": 30,
-        "op_args": ["foo"],
-        "op_kwargs": {"arg3": [1, 2, {"a": "b"}]},
-    }
+    assert deserialized.partial_kwargs == {"retry_delay": timedelta(seconds=30)}
+    assert deserialized.partial_op_args == ["foo"]
+    assert deserialized.partial_op_kwargs == {"arg3": [1, 2, {"a": "b"}]}
 
 
 def test_mapped_task_group_serde():

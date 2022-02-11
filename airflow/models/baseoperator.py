@@ -100,7 +100,7 @@ TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=FunctionType)
 
-logger = logging.getLogger("airflow.task.operators")
+logger = logging.getLogger("airflow.models.baseoperator.BaseOperato")
 
 
 def parse_retries(retries: Any) -> Optional[int]:
@@ -110,14 +110,14 @@ def parse_retries(retries: Any) -> Optional[int]:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
         raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-    warnings.warn(f"Implicitly converting 'retries' from {retries!r} to int", UserWarning, stacklevel=2)
+    logger.warning("Implicitly converting 'retries' from %r to int", retries)
     return parsed_retries
 
 
 def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
     if isinstance(retry_delay, timedelta):
         return retry_delay
-    logger.debug("Retry_delay isn't timedelta object, assuming secs")
+    logger.debug("retry_delay isn't a timedelta object, assuming secs")
     return timedelta(seconds=retry_delay)
 
 
@@ -281,6 +281,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         end_date: Optional[datetime] = None,
         owner: str = DEFAULT_OWNER,
         email: Union[None, str, Iterable[str]] = None,
+        params: Optional[dict] = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
@@ -334,6 +335,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         kwargs["end_date"] = end_date
         kwargs["owner"] = owner
         kwargs["email"] = email
+        kwargs["params"] = params
         kwargs["trigger_rule"] = trigger_rule
         kwargs["depends_on_past"] = depends_on_past
         kwargs["wait_for_downstream"] = wait_for_downstream
@@ -613,7 +615,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_date: Optional[pendulum.DateTime] = None
     end_date: Optional[pendulum.DateTime] = None
 
-    def __new__(cls, dag: Optional['DAG'] = None, task_group: Optional["TaskGroup"] = None, **kwargs):
+    def __new__(
+        cls,
+        dag: Optional['DAG'] = None,
+        task_group: Optional["TaskGroup"] = None,
+        _airflow_map_validation: bool = False,  # If True, this is called to validate a MappedOperator.
+        **kwargs,
+    ):
         # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
         # create mapped operators.
         from airflow.models.dag import DagContext
@@ -622,8 +630,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs)
+        if not _airflow_map_validation and isinstance(task_group, MappedTaskGroup):
+            return cls.partial(dag=dag, task_group=task_group, **kwargs).map()
         return super().__new__(cls)
 
     def __init__(
@@ -680,6 +688,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.__init_kwargs = {}
 
         super().__init__()
+
+        # This keyword is used internally to signify whether the operator is
+        # instantiated to validate a MappedOperator; only accessed in __new__.
+        kwargs.pop("_airflow_map_validation", None)
+
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(

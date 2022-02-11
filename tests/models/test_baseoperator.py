@@ -96,7 +96,7 @@ class TestBaseOperator:
         dummy = DummyClass(test_param=True)
         assert dummy.test_param
 
-        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+        with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
@@ -114,7 +114,7 @@ class TestBaseOperator:
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
 
-        with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
+        with pytest.raises(AirflowException, match="missing keyword argument 'test_sub_param'"):
             DummySubClass(default_args=default_args)
 
     def test_incorrect_default_args(self):
@@ -123,7 +123,7 @@ class TestBaseOperator:
         assert dummy_class.test_param
 
         default_args = {'random_params': True}
-        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+        with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
             DummyClass(default_args=default_args)
 
     def test_incorrect_priority_weight(self):
@@ -319,7 +319,7 @@ class TestBaseOperator:
         with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
             task.render_template("{{ invalid expression }}", {})
 
-    @mock.patch("airflow.models.base.SandboxedEnvironment", autospec=True)
+    @mock.patch("airflow.models.abstractoperator.SandboxedEnvironment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
@@ -667,10 +667,7 @@ def test_init_subclass_args():
 def test_operator_retries_invalid(dag_maker):
     with pytest.raises(AirflowException) as ctx:
         with dag_maker():
-            BaseOperator(
-                task_id='test_illegal_args',
-                retries='foo',
-            )
+            BaseOperator(task_id='test_illegal_args', retries='foo')
     assert str(ctx.value) == "'retries' type must be int, not str"
 
 
@@ -685,7 +682,7 @@ def test_operator_retries_invalid(dag_maker):
                 (
                     "airflow.models.baseoperator.BaseOperator",
                     logging.WARNING,
-                    "Implicitly converting 'retries' for task test_dag.test_illegal_args from '1' to int",
+                    "Implicitly converting 'retries' from '1' to int",
                 ),
             ],
             id="str",
@@ -706,7 +703,7 @@ def test_task_mapping_with_dag():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         literal = ['a', 'b', 'c']
-        mapped = MockOperator(task_id='task_2').map(arg2=literal)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=literal)
         finish = MockOperator(task_id="finish")
 
         task1 >> mapped >> finish
@@ -725,7 +722,7 @@ def test_task_mapping_without_dag_context():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
     literal = ['a', 'b', 'c']
-    mapped = MockOperator(task_id='task_2').map(arg2=literal)
+    mapped = MockOperator.partial(task_id='task_2').map(arg2=literal)
 
     task1 >> mapped
 
@@ -742,7 +739,7 @@ def test_task_mapping_default_args():
     with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
         task1 = BaseOperator(task_id="op1")
         literal = ['a', 'b', 'c']
-        mapped = MockOperator(task_id='task_2').map(arg2=literal)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=literal)
 
         task1 >> mapped
 
@@ -752,7 +749,7 @@ def test_task_mapping_default_args():
 
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator(task_id='a').map(file=[1, 2, {'a': 'b'}])
+        BaseOperator.partial(task_id='a').map(file=[1, 2, {'a': 'b'}])
 
 
 def test_map_xcom_arg():
@@ -760,7 +757,7 @@ def test_map_xcom_arg():
     with DAG("test-dag", start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
         finish = MockOperator(task_id="finish")
 
         mapped >> finish
@@ -779,7 +776,8 @@ def test_partial_on_instance() -> None:
 def test_partial_on_class() -> None:
     # Test that we accept args for superclasses too
     op = MockOperator.partial(task_id='a', arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
-    assert op.kwargs == {'arg1': 'a', 'trigger_rule': TriggerRule.ONE_FAILED}
+    assert op.kwargs["arg1"] == "a"
+    assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
 
 
 def test_partial_on_class_invalid_ctor_args() -> None:
@@ -818,7 +816,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
 
     dr = dag_maker.create_dagrun()
 
@@ -863,7 +861,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
 
     dr = dag_maker.create_dagrun()
 

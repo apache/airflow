@@ -212,7 +212,8 @@ class MappedOperator(AbstractOperator):
     @classmethod
     @cache
     def get_serialized_fields(cls):
-        return frozenset(attr.fields_dict(cls)) - {
+        # Not using 'cls' here since we only want to serialize base fields.
+        return frozenset(attr.fields_dict(MappedOperator)) - {
             "dag",
             "deps",
             "is_mapped",
@@ -239,11 +240,13 @@ class MappedOperator(AbstractOperator):
         operator = self._create_unmapped_operator(
             mapped_kwargs={k: unittest.mock.MagicMock(name=k) for k in self.mapped_kwargs},
             partial_kwargs=self.partial_kwargs,
+            real=False,
         )
         if operator.task_group:
             operator.task_group._remove(operator)
-        if operator.dag:
-            operator.dag._remove_task(operator.task_id)
+        dag = operator.get_dag()
+        if dag:
+            dag._remove_task(operator.task_id)
 
     @property
     def task_type(self) -> str:
@@ -366,6 +369,7 @@ class MappedOperator(AbstractOperator):
         *,
         mapped_kwargs: Dict[str, Any],
         partial_kwargs: Dict[str, Any],
+        real: bool,
     ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
         return self.operator_class(
@@ -375,6 +379,7 @@ class MappedOperator(AbstractOperator):
             params=self.params,
             start_date=self.start_date,
             end_date=self.end_date,
+            _airflow_map_validation=not real,
             **mapped_kwargs,
             **partial_kwargs,
         )
@@ -388,6 +393,7 @@ class MappedOperator(AbstractOperator):
         return self._create_unmapped_operator(
             mapped_kwargs=self.mapped_kwargs,
             partial_kwargs=self.partial_kwargs,
+            real=True,
         )
 
     def expand_mapped_task(

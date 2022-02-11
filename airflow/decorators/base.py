@@ -40,7 +40,7 @@ from typing import (
 import attr
 import typing_extensions
 
-from airflow.compat.functools import cached_property
+from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import BaseOperator, coerce_retry_delay, parse_retries
@@ -293,6 +293,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         params = partial_kwargs.pop("params", None)
+        partial_op_args = partial_kwargs.pop("op_args", [])
+        partial_op_kwargs = partial_kwargs.pop("op_kwargs", {})
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:
@@ -332,6 +334,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
+            partial_op_args=partial_op_args,
+            partial_op_kwargs=partial_op_kwargs,
         )
 
         return XComArg(operator=operator)
@@ -370,23 +374,30 @@ class DecoratedMappedOperator(MappedOperator):
     multiple_outputs: bool
     python_callable: Callable
 
+    # We can't save these in partial_kwargs because op_args and op_kwargs need
+    # to be present in mapped_kwargs, and MappedOperator prevents duplication.
+    partial_op_args: list
+    partial_op_kwargs: Dict[str, Any]
+
+    @classmethod
+    @cache
+    def get_serialized_fields(cls):
+        return MappedOperator.get_serialized_fields() | {"partial_op_args", "partial_op_kwargs"}
+
     def _create_unmapped_operator(
         self,
         *,
         mapped_kwargs: Dict[str, Any],
         partial_kwargs: Dict[str, Any],
+        real: bool,
     ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
-        mapped_kwargs = self.mapped_kwargs.copy()
-        partial_kwargs = self.partial_kwargs.copy()
-
-        op_args = partial_kwargs.pop("op_args", []) + mapped_kwargs.pop("op_args", [])
+        op_args = self.partial_op_args + mapped_kwargs.pop("op_args", [])
         op_kwargs = _merge_kwargs(
-            partial_kwargs.pop("op_kwargs", {}),
+            self.partial_op_kwargs,
             mapped_kwargs.pop("op_kwargs", {}),
             fail_reason="mapping already partial",
         )
-
         return self.operator_class(
             dag=self.dag,
             task_group=self.task_group,
@@ -395,6 +406,7 @@ class DecoratedMappedOperator(MappedOperator):
             op_kwargs=op_kwargs,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.python_callable,
+            _airflow_map_validation=not real,
             **partial_kwargs,
             **mapped_kwargs,
         )
