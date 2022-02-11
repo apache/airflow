@@ -60,7 +60,7 @@ install_mysql_client() {
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
     unset GNUPGHOME
-    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-${MYSQL_VERSION}" | tee -a /etc/apt/sources.list.d/mysql.list
+    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-${MYSQL_VERSION}" > /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
