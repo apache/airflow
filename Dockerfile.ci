@@ -22,7 +22,7 @@ FROM ${PYTHON_BASE_IMAGE} as main
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
+ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies
@@ -373,7 +373,6 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 EXPOSE 8080
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-ci" \
