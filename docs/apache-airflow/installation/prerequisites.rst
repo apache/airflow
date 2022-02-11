@@ -51,4 +51,4 @@ The work to add Windows support is tracked via `#10388 <https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-``Debian Buster``.
+``Debian Bullseye``.
