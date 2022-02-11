@@ -55,7 +55,11 @@ class BaseTaskRunner(LoggingMixin):
         self._task_instance = local_task_job.task_instance
 
         popen_prepend = []
-        if self._task_instance.run_as_user:
+        global_run_as_user = conf.get('core', 'global_impersonation_override')
+
+        if global_run_as_user:
+            self.run_as_user = global_run_as_user
+        elif self._task_instance.run_as_user:
             self.run_as_user = self._task_instance.run_as_user
         else:
             try:

@@ -299,6 +299,14 @@
       type: string
       example: ~
       default: ""
+    - name: global_impersonation_override
+      description: |
+        If set, it will override ``run_as_user`` argument on tasks
+        this is useful when infra wants to have strict control over the task ``run_as_user``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ""
     - name: security
       description: |
         What security module to use (for example kerberos)

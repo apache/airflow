@@ -22,6 +22,7 @@ import pytest
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.baseoperator import BaseOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
+from tests.test_utils.config import conf_vars
 
 
 @pytest.mark.parametrize(["impersonation"], (("nobody",), (None,)))
@@ -51,3 +52,31 @@ def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, im
         )
     else:
         subprocess_call.not_assert_called()
+
+
+@mock.patch('subprocess.check_call')
+@mock.patch('airflow.task.task_runner.base_task_runner.tmp_configuration_copy')
+def test_global_impersonation_override(tmp_configuration_copy, subprocess_call, dag_maker):
+    global_run_as_user = 'global-run-as-user'
+
+    with conf_vars({("core", "global_impersonation_override"): global_run_as_user}):
+        tmp_configuration_copy.return_value = "/tmp/some-string"
+
+        with dag_maker("test"):
+            BaseOperator(task_id="task_1", run_as_user='task-run-as-user')
+
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.task_instances[0]
+        job = LocalTaskJob(ti)
+        runner = BaseTaskRunner(job)
+        # So we don't try to delete it -- cos the file won't exist
+        del runner._cfg_path
+
+        assert runner.run_as_user == global_run_as_user
+
+        tmp_configuration_copy.assert_called_with(chmod=0o600, include_env=True, include_cmds=True)
+
+        subprocess_call.assert_called_with(
+            ['sudo', 'chown', global_run_as_user, "/tmp/some-string", runner._error_file.name], close_fds=True
+        )
