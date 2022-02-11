@@ -120,7 +120,10 @@ with DAG(
     )
 
     # [START howto_operator_eks_delete_cluster]
-    delete_cluster = EksDeleteClusterOperator(task_id='delete_eks_cluster')
+    delete_cluster = EksDeleteClusterOperator(
+        task_id='delete_eks_cluster',
+        cluster_name=CLUSTER_NAME,
+    )
     # [END howto_operator_eks_delete_cluster]
 
     await_delete_cluster = EksClusterStateSensor(

@@ -114,7 +114,10 @@ with DAG(
         target_state=FargateProfileStates.NONEXISTENT,
     )
 
-    delete_cluster = EksDeleteClusterOperator(task_id='delete_eks_cluster')
+    delete_cluster = EksDeleteClusterOperator(
+        task_id='delete_eks_cluster',
+        cluster_name=CLUSTER_NAME,
+    )
 
     await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
