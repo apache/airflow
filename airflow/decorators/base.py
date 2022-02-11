@@ -386,10 +386,11 @@ class DecoratedMappedOperator(MappedOperator):
         real: bool,
     ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
+        mapped_kwargs = mapped_kwargs.copy()
         del mapped_kwargs["op_kwargs"]
         op_kwargs = _merge_kwargs(
             self.partial_op_kwargs,
-            self.mapped_kwargs.get("op_kwargs", {}),
+            self.mapped_kwargs["op_kwargs"],  # We want to "original" op_kwargs.
             fail_reason="mapping already partial",
         )
         return self.operator_class(

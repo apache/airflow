@@ -1642,6 +1642,9 @@ def test_mapped_operator_xcomarg_serde():
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
         'template_ext': [],
+        'operator_extra_links': [],
+        'ui_color': '#fff',
+        'ui_fgcolor': '#000',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
