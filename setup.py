@@ -325,6 +325,7 @@ google = [
     'google-cloud-memcache>=0.2.0,<1.1.0',
     'google-cloud-monitoring>=2.0.0,<3.0.0',
     'google-cloud-os-login>=2.0.0,<3.0.0',
+    'google-cloud-orchestration-airflow>=1.0.0,<2.0.0',
     'google-cloud-pubsub>=2.0.0,<3.0.0',
     'google-cloud-redis>=2.0.0,<3.0.0',
     'google-cloud-secret-manager>=0.2.0,<2.0.0',
