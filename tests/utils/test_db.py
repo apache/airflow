@@ -75,6 +75,8 @@ class TestDb(unittest.TestCase):
             lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_usg'),
             lambda t: (t[0] == 'remove_table' and t[1].name == 'MSreplication_options'),
             lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_dev'),
+            # Ignore flask-session table
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'session'),
         ]
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
