@@ -246,6 +246,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
     # Used in airflow.models.BaseOperator
     template_fields: Sequence[str] = ('json',)
+    template_ext: Sequence[str] = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -479,6 +480,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     # Used in airflow.models.BaseOperator
     template_fields: Sequence[str] = ('json',)
+    template_ext: Sequence[str] = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
