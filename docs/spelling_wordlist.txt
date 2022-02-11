@@ -12,7 +12,6 @@ Analytics
 AnalyzeEntitiesResponse
 AnalyzeSentimentResponse
 AnalyzeSyntaxResponse
-Ane
 AnnotateTextResponse
 Ansible
 AppBuilder
@@ -256,7 +255,6 @@ NFS
 NaN
 Namenode
 Namespace
-Nane
 Neo4j
 NetBIOS
 Nextdoor
@@ -458,7 +456,6 @@ analyticsreporting
 analyzeEntities
 analyzeSentiment
 analyzeSyntax
-ane
 apache
 api
 apikey
@@ -1040,7 +1037,6 @@ namenode
 namespace
 namespaced
 namespaces
-nane
 natively
 navbar
 nd
