@@ -23,11 +23,14 @@ import time
 from enum import Enum
 from typing import Optional, Dict
 
-import looker_sdk
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.version import version
 # from looker_sdk.sdk.api40.models import MaterializePDT
+
+from looker_sdk.rtl import api_settings, auth_session, requests_transport, serialize
+from looker_sdk.sdk.api40 import methods as methods40
+from airflow.models.connection import Connection
 
 # Temporary imports for API response stub
 from looker_sdk.rtl.model import Model
@@ -52,6 +55,59 @@ class MaterializePDT(Model):
         self.resp_text = resp_text
 
 
+class LookerApiSettings(api_settings.ApiSettings):
+    """Custom implementation of Looker SDK's `ApiSettings` class."""
+
+    def __init__(
+        self,
+        conn: Connection,
+    ) -> None:
+        self.conn = conn  # need to init before `read_config` is called in super
+        super().__init__()
+
+    def read_config(self) -> Dict[str, str]:
+        """
+        Overrides the default logic of getting connection settings. Fetches
+        the connection settings from Airflow's connection object.
+        """
+
+        config = {}
+
+        if self.conn.host is None:
+            raise AirflowException(
+                f'No `host` was supplied in connection: {self.looker_conn_id}.'
+            )
+
+        if self.conn.port:
+            config["base_url"] = f"{self.conn.host}:{self.conn.port}"  # port is optional
+        else:
+            config["base_url"] = self.conn.host
+
+        if self.conn.login:
+            config["client_id"] = self.conn.login
+        else:
+            raise AirflowException(
+                f'No `login` was supplied in connection: {self.looker_conn_id}.'
+            )
+
+        if self.conn.password:
+            config["client_secret"] = self.conn.password
+        else:
+            raise AirflowException(
+                f'No `password` was supplied in connection: {self.looker_conn_id}.'
+            )
+
+        extras = self.conn.extra_dejson  # type: Dict
+
+        if 'verify_ssl' in extras:
+            config["verify_ssl"] = extras["verify_ssl"]  # optional
+
+        if 'timeout' in extras:
+            config["timeout"] = extras["timeout"]  # optional
+
+        return config
+
+
 class LookerHook(BaseHook):
     """
     Hook for Looker APIs.
@@ -64,18 +120,17 @@ class LookerHook(BaseHook):
         super().__init__()
         self.looker_conn_id = looker_conn_id
 
-        # example extras content: {"config_file": "airflow_fork/looker.ini", "section": "Looker"}
-        self.extras = self.get_connection(self.looker_conn_id).extra_dejson  # type: Dict
-        self.log.debug("Got extras from connection id: '%s'. Extras: '%s'.", self.looker_conn_id, self.extras)
+        conn = self.get_connection(self.looker_conn_id)
+        settings = LookerApiSettings(conn)
 
-        if 'config_file' in self.extras:
-            config_file = self.extras['config_file']
-        else:
-            raise AirflowException(f'No config file (looker.ini) was supplied in connection: {self.looker_conn_id}.')
-
-        section_in_file = self.extras.get('section')  # optional
-
-        self.sdk = looker_sdk.init40(config_file, section_in_file)
+        transport = requests_transport.RequestsTransport.configure(settings)
+        self.sdk = methods40.Looker40SDK(
+            auth_session.AuthSession(settings, transport, serialize.deserialize40, "4.0"),
+            serialize.deserialize40,
+            serialize.serialize,
+            transport,
+            "4.0",
+        )
 
         self.log.debug("Got the following version for connection id: '%s'. Version: '%s'.", self.looker_conn_id,
                        version)
