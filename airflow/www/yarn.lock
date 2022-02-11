@@ -1535,7 +1535,7 @@
   dependencies:
     "@chakra-ui/utils" "^1.10.2"
 
-"@chakra-ui/react@^1.6.6":
+"@chakra-ui/react@^1.8.3":
   version "1.8.3"
   resolved "https://registry.yarnpkg.com/@chakra-ui/react/-/react-1.8.3.tgz#a1a132a151b60fda370decb6d278582a8da933b9"
   integrity sha512-UkXy/GVM31tlqNbMKdmu+WJZk3Pn5hQVGFzHDkcf+aPuMCBvZv86BwrdghR/B5fvewKBywAS0vDrt8d8SuTI7g==
