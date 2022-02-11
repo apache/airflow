@@ -78,7 +78,7 @@ class VertexAITrainingPipelinesLink(BaseOperatorLink):
         )
 
 
-class _AutoMLTrainingJobBaseOperator(BaseOperator):
+class AutoMLTrainingJobBaseOperator(BaseOperator):
     """The base class for operators that launch AutoML jobs on VertexAI."""
 
     def __init__(
@@ -118,19 +118,18 @@ class _AutoMLTrainingJobBaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = AutoMLHook(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
-        )
+        self.hook = None  # type: Optional[AutoMLHook]
 
     def on_kill(self) -> None:
         """
         Callback called when the operator is killed.
         Cancel any running job.
         """
-        self.hook.cancel_auto_ml_job()
+        if self.hook:
+            self.hook.cancel_auto_ml_job()
 
 
-class CreateAutoMLForecastingTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
+class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create AutoML Forecasting Training job"""
 
     template_fields = [
@@ -197,6 +196,11 @@ class CreateAutoMLForecastingTrainingJobOperator(_AutoMLTrainingJobBaseOperator)
         self.budget_milli_node_hours = budget_milli_node_hours
 
     def execute(self, context: 'Context'):
+        self.hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_auto_ml_forecasting_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -252,7 +256,7 @@ class CreateAutoMLForecastingTrainingJobOperator(_AutoMLTrainingJobBaseOperator)
         return result
 
 
-class CreateAutoMLImageTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
+class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Image Training job"""
 
     template_fields = [
@@ -291,6 +295,11 @@ class CreateAutoMLImageTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.disable_early_stopping = disable_early_stopping
 
     def execute(self, context: 'Context'):
+        self.hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_auto_ml_image_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -330,7 +339,7 @@ class CreateAutoMLImageTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         return result
 
 
-class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
+class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Tabular Training job"""
 
     template_fields = [
@@ -385,6 +394,11 @@ class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         )
 
     def execute(self, context: 'Context'):
+        self.hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_auto_ml_tabular_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -434,7 +448,7 @@ class CreateAutoMLTabularTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         return result
 
 
-class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
+class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Text Training job"""
 
     template_fields = [
@@ -467,6 +481,11 @@ class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.test_filter_split = test_filter_split
 
     def execute(self, context: 'Context'):
+        self.hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_auto_ml_text_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -503,7 +522,7 @@ class CreateAutoMLTextTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         return result
 
 
-class CreateAutoMLVideoTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
+class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     """Create Auto ML Video Training job"""
 
     template_fields = [
@@ -530,6 +549,11 @@ class CreateAutoMLVideoTrainingJobOperator(_AutoMLTrainingJobBaseOperator):
         self.test_filter_split = test_filter_split
 
     def execute(self, context: 'Context'):
+        self.hook = AutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         model = self.hook.create_auto_ml_video_training_job(
             project_id=self.project_id,
             region=self.region,
