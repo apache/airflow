@@ -77,7 +77,6 @@ class EksCreateClusterOperator(BaseOperator):
     :param compute: The type of compute architecture to generate along with the cluster. (templated)
          Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :param create_cluster_kwargs: Optional parameters to pass to the CreateCluster API (templated)
-    :type: Dict
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -92,7 +91,6 @@ class EksCreateClusterOperator(BaseOperator):
     :param nodegroup_role_arn: *REQUIRED* The Amazon Resource Name (ARN) of the IAM role to associate with
          the Amazon EKS managed node group. (templated)
     :param create_nodegroup_kwargs: Optional parameters to pass to the CreateNodegroup API (templated)
-    :type: Dict
 
 
     If compute is assigned the value of 'fargate':
@@ -103,7 +101,6 @@ class EksCreateClusterOperator(BaseOperator):
     :param fargate_selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
          (templated)
-    :type: Dict
 
     """
 
@@ -241,7 +238,6 @@ class EksCreateNodegroupOperator(BaseOperator):
     :param nodegroup_role_arn:
          The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :param create_nodegroup_kwargs: Optional parameters to pass to the Create Nodegroup API (templated)
-    :type: Dict
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -324,7 +320,6 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargate Profile API
      (templated)
-    :type: Dict
 
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If

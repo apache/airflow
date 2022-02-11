@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.2.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-08
 
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`8f81b9a01 <https://github.com/apache/airflow/commit/8f81b9a01c7708a282271f9afd6b16a91011f105>`_  2022-02-08   ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
 `919ff4567 <https://github.com/apache/airflow/commit/919ff4567d86a09fb069dcfd84885b496229eea9>`_  2022-01-05   ``Refactor vertica_to_mysql to make it more 'mypy' friendly (#20618)``

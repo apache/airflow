@@ -34,6 +34,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.2.0
 .....

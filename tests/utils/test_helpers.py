@@ -160,7 +160,7 @@ class TestHelpers:
         Test query generated with dag_id and params
         """
         query = {"dag_id": "test_dag", "param": "key/to.encode"}
-        expected_url = "/graph?dag_id=test_dag&param=key%2Fto.encode"
+        expected_url = "/dags/test_dag/graph?param=key%2Fto.encode"
 
         from airflow.www.app import cached_app
 

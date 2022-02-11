@@ -135,7 +135,6 @@ class BackfillJob(BaseJob):
         :param run_backwards: Whether to process the dates from most to least recent
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
-        :type: bool
         :param args:
         :param kwargs:
         """

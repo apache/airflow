@@ -260,7 +260,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         if self.location:
             project = f"{project}/locations/{self.location}"
 
-        name = "f{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
+        name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
             request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
