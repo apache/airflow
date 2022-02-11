@@ -403,7 +403,7 @@ class MappedOperator(AbstractOperator):
     ) -> Sequence["TaskInstance"]:
         """Create the mapped task instances for mapped task.
 
-        :return: The mapped task instances, ascendingly ordered by map index.
+        :return: The mapped task instances, in ascending order by map index.
         """
         # TODO: support having multiuple mapped upstreams?
         from airflow.models.taskinstance import TaskInstance
