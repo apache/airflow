@@ -16,38 +16,39 @@
     under the License.
 
 
-.. _howto/operator:EcsOperator:
+Amazon Elastic Container Service (ECS) Operators
+================================================
 
-ECS Operator
-============
+`Amazon Elastic Container Service (Amazon ECS) <https://aws.amazon.com/eks/>`__  is a fully
+managed container orchestration service that makes it easy for you to deploy, manage, and
+scale containerized applications.
+
+Airflow provides operators to run Task Definitions on an ECS cluster.
 
 Prerequisite Tasks
-------------------
+^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include::/operators/_partials/prerequisite_tasks.rst
 
-Using Operator
---------------
+.. _howto/operator:EcsOperator:
 
-Use the
-:class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`
-to run a task defined in AWS ECS.
+Run a Task
+^^^^^^^^^^
 
-In the following example,
-the task "hello_world" runs ``hello-world`` task in ``c`` cluster.
-It overrides the command in the ``hello-world-container`` container.
+To run a task defined in an Amazon ECS cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
 
-Before using EcsOperator, *cluster* and *task definition* need to be created.
+Before using EcsOperator *cluster*, *task definition*, and *container* need to be created.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
 More information
 ----------------
 
-For further information, look at the documentation of :meth:`~ECS.Client.run_task` method
-in `boto3`_.
+For further information, look at:
 
-.. _boto3: https://pypi.org/project/boto3/
+* `Boto3 Library Documentation for ECS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html>`__
