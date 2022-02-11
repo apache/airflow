@@ -209,8 +209,12 @@ class MappedOperator(AbstractOperator):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
-        XComArg.apply_upstream_relationship(self, self.mapped_kwargs)
-        XComArg.apply_upstream_relationship(self, self.partial_kwargs)
+        for k, v in self.mapped_kwargs.items():
+            if k in self.template_fields:
+                XComArg.apply_upstream_relationship(self, v)
+        for k, v in self.partial_kwargs.items():
+            if k in self.template_fields:
+                XComArg.apply_upstream_relationship(self, v)
 
     @classmethod
     @cache
