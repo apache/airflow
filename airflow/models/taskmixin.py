@@ -311,4 +311,4 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         only contains operators, not task groups. In the future, we should
         provide a way to record an DAG node's all downstream nodes instead.
         """
-        return any(self.mapped_dependants())
+        return next(self.mapped_dependants(), None) is not None

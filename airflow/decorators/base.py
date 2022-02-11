@@ -336,6 +336,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             partial_op_kwargs=partial_op_kwargs,
         )
 
+        for arg in kwargs.values():
+            XComArg.apply_upstream_relationship(operator, arg)
         return XComArg(operator=operator)
 
     def partial(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
@@ -362,7 +364,7 @@ def _merge_kwargs(
     return {**kwargs1, **kwargs2}
 
 
-@attr.define(kw_only=True)
+@attr.define(kw_only=True, repr=False)
 class DecoratedMappedOperator(MappedOperator):
     """MappedOperator implementation for @task-decorated task function."""
 
