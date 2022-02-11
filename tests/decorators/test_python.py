@@ -24,6 +24,7 @@ from typing import Tuple
 import pytest
 
 from airflow.decorators import task as task_decorator
+from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.models.mappedoperator import MappedOperator
@@ -530,12 +531,12 @@ def test_partial_mapped_decorator() -> None:
     }
 
     assert isinstance(doubled, XComArg)
-    assert isinstance(doubled.operator, MappedOperator)
+    assert isinstance(doubled.operator, DecoratedMappedOperator)
     assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
-    assert doubled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 2}}
+    assert doubled.operator.partial_op_kwargs == {"multiple": 2}
 
-    assert isinstance(trippled.operator, MappedOperator)  # For type-checking on partial_kwargs.
-    assert trippled.operator.partial_kwargs == {"op_args": [], "op_kwargs": {"multiple": 3}}
+    assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
+    assert trippled.operator.partial_op_kwargs == {"multiple": 3}
 
     assert doubled.operator is not trippled.operator
 
@@ -557,7 +558,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
-def test_mapped_decorator_unmap_converts_partial_kwargs():
+def test_mapped_decorator_converts_partial_kwargs():
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
 
         @task_decorator
@@ -570,12 +571,10 @@ def test_mapped_decorator_unmap_converts_partial_kwargs():
 
         task2.partial(arg1=1).map(arg2=task1.map(arg=[1, 2]))
 
-    # Arguments to the task decorator are stored in partial_kwargs, and
-    # converted into their intended form after the task is unmapped.
     mapped_task2 = dag.get_task("task2")
-    assert mapped_task2.partial_kwargs["retry_delay"] == 30
+    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
     assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
 
     mapped_task1 = dag.get_task("task1")
-    assert "retry_delay" not in mapped_task1.partial_kwargs
+    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
     mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.

@@ -284,7 +284,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in unknown_args)
             raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
 
-    def map(self, *args, **kwargs) -> XComArg:
+    def map(self, **kwargs) -> XComArg:
         self._validate_arg_names("map", kwargs)
 
         partial_kwargs = self.kwargs.copy()
@@ -293,7 +293,6 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         params = partial_kwargs.pop("params", None)
-        partial_op_args = partial_kwargs.pop("op_args", [])
         partial_op_kwargs = partial_kwargs.pop("op_kwargs", {})
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
@@ -315,7 +314,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
-            mapped_kwargs={"op_args": list(args), "op_kwargs": kwargs},
+            mapped_kwargs={"op_args": [], "op_kwargs": kwargs},
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=params,
@@ -334,22 +333,18 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
-            partial_op_args=partial_op_args,
             partial_op_kwargs=partial_op_kwargs,
         )
 
         return XComArg(operator=operator)
 
-    def partial(self, *args, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def partial(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs)
-
-        op_args = self.kwargs.get("op_args", [])
-        op_args.extend(args)
 
         op_kwargs = self.kwargs.get("op_kwargs", {})
         op_kwargs = _merge_kwargs(op_kwargs, kwargs, fail_reason="duplicate partial")
 
-        return attr.evolve(self, kwargs={**self.kwargs, "op_args": op_args, "op_kwargs": op_kwargs})
+        return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
 
 
 def _merge_kwargs(
@@ -376,13 +371,12 @@ class DecoratedMappedOperator(MappedOperator):
 
     # We can't save these in partial_kwargs because op_args and op_kwargs need
     # to be present in mapped_kwargs, and MappedOperator prevents duplication.
-    partial_op_args: list
     partial_op_kwargs: Dict[str, Any]
 
     @classmethod
     @cache
     def get_serialized_fields(cls):
-        return MappedOperator.get_serialized_fields() | {"partial_op_args", "partial_op_kwargs"}
+        return MappedOperator.get_serialized_fields() | {"partial_op_kwargs"}
 
     def _create_unmapped_operator(
         self,
@@ -392,19 +386,16 @@ class DecoratedMappedOperator(MappedOperator):
         real: bool,
     ) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
-        del mapped_kwargs["op_args"]
         del mapped_kwargs["op_kwargs"]
-        op_args = self.partial_op_args + self.mapped_kwargs["op_args"]
         op_kwargs = _merge_kwargs(
             self.partial_op_kwargs,
-            self.mapped_kwargs["op_kwargs"],
+            self.mapped_kwargs.get("op_kwargs", {}),
             fail_reason="mapping already partial",
         )
         return self.operator_class(
             dag=self.dag,
             task_group=self.task_group,
             task_id=self.task_id,
-            op_args=op_args,
             op_kwargs=op_kwargs,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.python_callable,
