@@ -769,3 +769,31 @@ notacommand = OK
             "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
         )
         assert message == exception
+
+    def test_as_dict_works_without_sensitive_cmds(self):
+        test_conf = conf
+
+        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+
+        assert conf_materialize_cmds['core']['sql_alchemy_conn'] == 'sqlite:////root/airflow/airflow.db'
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+
+        assert conf_maintain_cmds['core']['sql_alchemy_conn'] == 'sqlite:////root/airflow/airflow.db'
+        assert 'sql_alchemy_conn_cmd' not in conf_maintain_cmds['core']
+
+    def test_as_dict_respects_sensitive_cmds(self):
+        test_conf = conf
+        test_conf.read_string(textwrap.dedent("""
+            [core]
+            sql_alchemy_conn_cmd = echo -n my-super-secret-conn
+        """))
+
+        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+
+        assert conf_materialize_cmds['core']['sql_alchemy_conn'] == 'my-super-secret-conn'
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+
+        assert 'sql_alchemy_conn' not in conf_maintain_cmds['core']
+        assert conf_maintain_cmds['core']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'

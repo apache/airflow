@@ -644,14 +644,21 @@ class AirflowConfigParser(ConfigParser):
         # add env vars and overwrite because they have priority
         if include_env:
             self._include_envs(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_env_var_option)
 
         # add bash commands
         if include_cmds:
             self._include_commands(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_cmd_option)
 
         # add config from secret backends
         if include_secret:
             self._include_secrets(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_env_var_option)
+
         return config_sources
 
     def _include_secrets(self, config_sources, display_sensitive, display_source, raw):
@@ -708,6 +715,20 @@ class AirflowConfigParser(ConfigParser):
             if section != 'kubernetes_environment_variables':
                 key = key.lower()
             config_sources.setdefault(section, OrderedDict()).update({key: opt})
+
+    def _filter_by_source(self, config_sources, display_source, getter_func):
+        for (section, key) in self.sensitive_config_values:
+            opt = getter_func(section, key)
+            if not opt:
+                continue
+            if section not in config_sources or key not in config_sources[section]:
+                continue
+            if display_source:
+                opt, source = config_sources[section][key]
+            else:
+                opt = config_sources[section][key]
+            if opt == self.airflow_defaults.get(section, key):
+                del config_sources[section][key]
 
     @staticmethod
     def _replace_config_with_display_sources(config_sources, configs, display_source, raw):
