@@ -3263,6 +3263,41 @@ class Airflow(AirflowBaseView):
         """
         return send_from_directory(current_app.static_folder, 'robots.txt')
 
+    @expose('/audit_log')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        ]
+    )
+    @provide_session
+    def audit_log(self, session=None):
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        included_events = conf.get('webserver', 'audit_view_included_events', fallback=None)
+        excluded_events = conf.get('webserver', 'audit_view_excluded_events', fallback=None)
+
+        query = session.query(Log).filter(Log.dag_id == dag_id)
+        if included_events:
+            included_events = {event.strip() for event in included_events.split(',')}
+            query = query.filter(Log.event.in_(included_events))
+        elif excluded_events:
+            excluded_events = {event.strip() for event in excluded_events.split(',')}
+            query = query.filter(Log.event.notin_(excluded_events))
+
+        dag_audit_logs = query.all()
+
+        content = self.render_template(
+            'airflow/dag_audit_log.html',
+            dag=dag,
+            root=request.args.get('root'),
+            dag_id=dag_id,
+            dag_logs=dag_audit_logs,
+            page_size=PAGE_SIZE,
+        )
+        return content
+
 
 class ConfigurationView(AirflowBaseView):
     """View to show Airflow Configurations"""
