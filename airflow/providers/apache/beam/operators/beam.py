@@ -113,9 +113,7 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/
 
-    :type runner: str
     :param default_pipeline_options: Map of default pipeline options.
-    :type default_pipeline_options: dict
     :param pipeline_options: Map of pipeline options.The key must be a dictionary.
         The value can contain different types:
 
@@ -128,18 +126,14 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (labels option), you can also provide a dictionary.
-    :type pipeline_options: dict
     :param gcp_conn_id: Optional.
         The connection ID to use connecting to Google Cloud Storage if python file is on GCS.
-    :type gcp_conn_id: str
     :param delegate_to:  Optional.
         The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner,
         (optional) defaults to None.
-    :type dataflow_config: DataflowConfiguration
     """
 
     def __init__(

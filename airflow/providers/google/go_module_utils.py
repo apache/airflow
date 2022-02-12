@@ -27,9 +27,7 @@ def init_module(go_module_name: str, go_module_path: str) -> None:
     will do nothing.
 
     :param go_module_name: The name of the Go module to initialize.
-    :type go_module_name: str
     :param go_module_path: The path to the directory containing the Go module.
-    :type go_module_path: str
     :return:
     """
     if os.path.isfile(os.path.join(go_module_path, "go.mod")):
@@ -42,7 +40,6 @@ def install_dependencies(go_module_path: str) -> None:
     """Install dependencies for a Go module.
 
     :param go_module_path: The path to the directory containing the Go module.
-    :type go_module_path: str
     :return:
     """
     go_mod_tidy = ["go", "mod", "tidy"]
