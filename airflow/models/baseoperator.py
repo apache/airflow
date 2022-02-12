@@ -1494,7 +1494,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     @staticmethod
     def xcom_pull(
         context: Any,
-        task_ids: Optional[List[str]] = None,
+        task_ids: Optional[Union[str, List[str]]] = None,
         dag_id: Optional[str] = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: Optional[bool] = None,
