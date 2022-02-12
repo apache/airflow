@@ -47,8 +47,6 @@ from urllib.parse import quote
 import dill
 import jinja2
 import pendulum
-import jpype
-from jaydebeapi import DatabaseError, InterfaceError
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -1723,11 +1721,11 @@ class TaskInstance(Base, LoggingMixin):
             test_mode = self.test_mode
 
         if error:
-            if jpype.isJVMStarted():
-                if isinstance(error, (jpype.java.sql.SQLException, DatabaseError, InterfaceError)):
-                    self.log.error("%s", error)
             if isinstance(error, BaseException):
-                self.log.error("Task failed with exception", exc_info=error)
+                try:
+                    self.log.error("Task failed with exception", exc_info=error)
+                except AttributeError:
+                    self.log.error("%s", error)
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task
