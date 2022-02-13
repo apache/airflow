@@ -29,6 +29,7 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -41,7 +42,7 @@ class CloudComposerHook(GoogleBaseHook):
         """Retrieves client library object that allow access Environments service."""
         return EnvironmentsClient(
             credentials=self._get_credentials(),
-            client_info=self.client_info,
+            client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
 
@@ -51,7 +52,7 @@ class CloudComposerHook(GoogleBaseHook):
         """Retrieves client library object that allow access Image Versions service."""
         return ImageVersionsClient(
             credentials=self._get_credentials(),
-            client_info=self.client_info,
+            client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
 

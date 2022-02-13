@@ -29,6 +29,8 @@ from base64 import b64decode
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 from uuid import uuid4
 
+from airflow.providers.google.common.consts import CLIENT_INFO
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
@@ -86,7 +88,7 @@ class PubSubHook(GoogleBaseHook):
         :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
-            self._client = PublisherClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = PublisherClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property
@@ -97,7 +99,7 @@ class PubSubHook(GoogleBaseHook):
         :return: Google Cloud Pub/Sub client object.
         :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
-        return SubscriberClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return SubscriberClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def publish(

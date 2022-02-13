@@ -30,6 +30,7 @@ from google.cloud.tasks_v2.types import Queue, Task
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -76,7 +77,7 @@ class CloudTasksHook(GoogleBaseHook):
         :rtype: google.cloud.tasks_v2.CloudTasksClient
         """
         if self._client is None:
-            self._client = CloudTasksClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = CloudTasksClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

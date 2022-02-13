@@ -55,6 +55,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -146,7 +147,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return:
         """
         return Client(
-            client_info=self.client_info,
+            client_info=CLIENT_INFO,
             project=project_id,
             location=location,
             credentials=self._get_credentials(),

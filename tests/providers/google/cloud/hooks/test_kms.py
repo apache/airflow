@@ -22,6 +22,7 @@ from collections import namedtuple
 from unittest import mock
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 Response = namedtuple("Response", ["plaintext", "ciphertext"])
 
@@ -61,18 +62,11 @@ class TestCloudKMSHook(unittest.TestCase):
         ):
             self.kms_hook = CloudKMSHook(gcp_conn_id="test")
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kms.CloudKMSHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kms.KeyManagementServiceClient")
-    def test_kms_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_kms_client_creation(self, mock_client, mock_get_creds):
         result = self.kms_hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value,
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.kms_hook._conn == result
 

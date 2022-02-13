@@ -27,6 +27,7 @@ from google.cloud.texttospeech_v1.types import (
     VoiceSelectionParams,
 )
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -73,9 +74,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         """
         if not self._client:
 
-            self._client = TextToSpeechClient(
-                credentials=self._get_credentials(), client_info=self.client_info
-            )
+            self._client = TextToSpeechClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
         return self._client
 
