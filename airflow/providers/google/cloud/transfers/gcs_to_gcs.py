@@ -90,6 +90,8 @@ class GCSToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param source_object_required: Whether you want to raise an exception when the source object
+        doesn't exist. It doesn't have any effect when the source objects are folders or patterns.
 
     :Example:
 
@@ -190,6 +192,7 @@ class GCSToGCSOperator(BaseOperator):
         maximum_modified_time=None,
         is_older_than=None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        source_object_required=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -216,6 +219,7 @@ class GCSToGCSOperator(BaseOperator):
         self.maximum_modified_time = maximum_modified_time
         self.is_older_than = is_older_than
         self.impersonation_chain = impersonation_chain
+        self.source_object_required = source_object_required
 
     def execute(self, context: 'Context'):
 
@@ -313,6 +317,11 @@ class GCSToGCSOperator(BaseOperator):
                 self._copy_single_object(
                     hook=hook, source_object=prefix, destination_object=self.destination_object
                 )
+            elif self.source_object_required:
+                msg = f"{prefix} does not exist in bucket {self.source_bucket}"
+                self.log.warning(msg)
+                raise AirflowException(msg)
+
         for source_obj in objects:
             if self.destination_object is None:
                 destination_object = source_obj

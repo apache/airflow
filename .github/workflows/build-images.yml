@@ -186,7 +186,7 @@ jobs:
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -196,6 +196,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -263,7 +266,7 @@ jobs:
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -273,6 +276,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            cut -d "=" -f 3 | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.

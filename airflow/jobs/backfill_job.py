@@ -49,7 +49,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import MappedOperator
+    from airflow.models.mappedoperator import MappedOperator
 
 
 class BackfillJob(BaseJob):
@@ -235,7 +235,7 @@ class BackfillJob(BaseJob):
         :param running: dict of key, task to verify
         :return: An iterable of expanded TaskInstance per MappedTask
         """
-        from airflow.models.baseoperator import MappedOperator
+        from airflow.models.mappedoperator import MappedOperator
 
         executor = self.executor
 

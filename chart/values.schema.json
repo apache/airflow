@@ -3846,6 +3846,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "podAnnotations": {
+                    "description": "Annotations to add to cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "resources": {
                     "description": "Resources for or cleanup pods",
                     "type": "object",

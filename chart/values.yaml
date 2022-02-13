@@ -1330,6 +1330,8 @@ cleanup:
   affinity: {}
   tolerations: []
 
+  podAnnotations: {}
+
   resources: {}
   #  limits:
   #   cpu: 100m
