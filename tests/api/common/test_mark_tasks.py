@@ -533,6 +533,10 @@ class TestMarkDAGRun:
         self._verify_task_instance_states_remain_default(dr)
         self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
 
+    def test_set_running_dag_run_to_queued(self):
+        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
+        pass
+
     def test_set_success_dag_run_to_success(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
@@ -575,6 +579,10 @@ class TestMarkDAGRun:
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
         self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+
+    def test_set_success_dag_run_to_queued(self):
+        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
+        pass
 
     def test_set_failed_dag_run_to_success(self):
         date = self.execution_dates[0]
@@ -620,6 +628,10 @@ class TestMarkDAGRun:
         self._verify_task_instance_states_remain_default(dr)
         self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
 
+    def test_set_queued_dag_run_to_running(self):
+        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
+        pass
+
     def test_set_state_without_commit(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.RUNNING, date)
@@ -631,6 +643,8 @@ class TestMarkDAGRun:
         assert len(will_be_altered) == 0
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
+
+        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
 
         will_be_altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=False)
 
@@ -695,6 +709,7 @@ class TestMarkDAGRun:
         assert len(altered) == 0
         altered = set_dag_run_state_to_running(dag=None, execution_date=self.execution_dates[0])
         assert len(altered) == 0
+        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
 
         # No dag_run_id
         altered = set_dag_run_state_to_success(dag=self.dag1, run_id=None)
@@ -703,6 +718,7 @@ class TestMarkDAGRun:
         assert len(altered) == 0
         altered = set_dag_run_state_to_running(dag=self.dag1, run_id=None)
         assert len(altered) == 0
+        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
 
         # This will throw ValueError since dag.last_dagrun is None
         # need to be 0 does not exist.

@@ -371,7 +371,7 @@ def set_dag_run_state_to_success(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-):
+) -> List[BaseOperator]:
     """
     Set the dag run for a specific execution date and its task instances
     to success.
@@ -418,7 +418,7 @@ def set_dag_run_state_to_failed(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-):
+) -> List[BaseOperator]:
     """
     Set the dag run for a specific execution date or run_id and its running task instances
     to failed.
@@ -472,15 +472,15 @@ def set_dag_run_state_to_failed(
     return set_state(tasks=tasks, dag_run_id=run_id, state=State.FAILED, commit=commit, session=session)
 
 
-@provide_session
-def set_dag_run_state_to_running(
+def __set_dag_run_state_to_running_or_queued(
     *,
+    new_state: DagRunState,
     dag: DAG,
     execution_date: Optional[datetime] = None,
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-):
+) -> List[BaseOperator]:
     """
     Set the dag run for a specific execution date to running.
 
@@ -512,7 +512,45 @@ def set_dag_run_state_to_running(
         raise ValueError(f'DagRun with run_id: {run_id} not found')
     # Mark the dag run to running.
     if commit:
-        _set_dag_run_state(dag.dag_id, run_id, DagRunState.RUNNING, session)
+        _set_dag_run_state(dag.dag_id, run_id, new_state, session)
 
     # To keep the return type consistent with the other similar functions.
     return res
+
+
+@provide_session
+def set_dag_run_state_to_running(
+    *,
+    dag: DAG,
+    execution_date: Optional[datetime] = None,
+    run_id: Optional[str] = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> List[BaseOperator]:
+    return __set_dag_run_state_to_running_or_queued(
+        new_state=DagRunState.RUNNING,
+        dag=dag,
+        execution_date=execution_date,
+        run_id=run_id,
+        commit=commit,
+        session=session,
+    )
+
+
+@provide_session
+def set_dag_run_state_to_queued(
+    *,
+    dag: DAG,
+    execution_date: Optional[datetime] = None,
+    run_id: Optional[str] = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> List[BaseOperator]:
+    return __set_dag_run_state_to_running_or_queued(
+        new_state=DagRunState.QUEUED,
+        dag=dag,
+        execution_date=execution_date,
+        run_id=run_id,
+        commit=commit,
+        session=session,
+    )
