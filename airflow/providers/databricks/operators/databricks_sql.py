@@ -20,12 +20,14 @@
 
 import csv
 import json
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DatabricksSqlOperator(BaseOperator):
@@ -116,8 +118,8 @@ class DatabricksSqlOperator(BaseOperator):
         self.log.info('Executing: %s', self.sql)
         hook = self._get_hook()
         schema, results = hook.run(self.sql, parameters=self.parameters)
-        self.log.info('Schema: %s', schema)
-        self.log.info('Results: %s', results)
+        # self.log.info('Schema: %s', schema)
+        # self.log.info('Results: %s', results)
         self._format_output(schema, results)
         if self.do_xcom_push:
             return results
