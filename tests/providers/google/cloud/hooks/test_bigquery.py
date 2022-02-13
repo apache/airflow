@@ -22,7 +22,6 @@ import unittest
 from unittest import mock
 
 import pytest
-import sqlalchemy
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.exceptions import NotFound
