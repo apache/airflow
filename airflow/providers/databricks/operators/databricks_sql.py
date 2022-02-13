@@ -114,7 +114,7 @@ class DatabricksSqlOperator(BaseOperator):
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: 'Context') -> Any:
         self.log.info('Executing: %s', self.sql)
         hook = self._get_hook()
         schema, results = hook.run(self.sql, parameters=self.parameters)
