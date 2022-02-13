@@ -284,10 +284,7 @@ class DagBag(LoggingMixin):
             self.log.exception(e)
             return []
 
-        _, file_ext = os.path.splitext(os.path.split(filepath)[-1])
-        is_zipfile = file_ext != '.py' and zipfile.is_zipfile(filepath)
-
-        if not is_zipfile:
+        if not filepath.endswith(".py") and zipfile.is_zipfile(filepath):
             mods = self._load_modules_from_file(filepath, safe_mode)
         else:
             mods = self._load_modules_from_zip(filepath, safe_mode)
