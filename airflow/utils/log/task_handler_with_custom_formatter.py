@@ -19,12 +19,11 @@
 import logging
 from typing import TYPE_CHECKING, Optional
 
+from airflow.configuration import conf
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from jinja2 import Template
-    from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
 
@@ -34,8 +33,7 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
 
     prefix_jinja_template: Optional["Template"] = None
 
-    @provide_session
-    def set_context(self, ti, *, session: "Session" = NEW_SESSION) -> None:
+    def set_context(self, ti) -> None:
         """
         Accept the run-time context (i.e. the current task) and configure the formatter accordingly.
 
@@ -44,7 +42,7 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         """
         if ti.raw or self.formatter is None:
             return
-        prefix = ti.get_dagrun().get_task_prefix_template(session=session)
+        prefix = conf.get('logging', 'task_log_prefix_template')
 
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)
