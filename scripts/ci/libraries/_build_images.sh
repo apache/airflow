@@ -263,7 +263,7 @@ function build_images::get_github_container_registry_image_prefix() {
 
 function build_images::get_docker_cache_image_names() {
     # Python base image to use
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-${DEBIAN_VERSION}"
 
     local image_name
     image_name="ghcr.io/$(build_images::get_github_container_registry_image_prefix)"

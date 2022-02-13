@@ -76,6 +76,7 @@ class TestAirflowCommon:
             name=release_name,
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                "cleanup": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -83,13 +84,18 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
             ],
         )
 
-        assert 5 == len(k8s_objects)
+        assert 6 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
-            annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
+            if k8s_object['kind'] == 'CronJob':
+                annotations = k8s_object["spec"]["jobTemplate"]["spec"]["template"]["metadata"]["annotations"]
+            else:
+                annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
+
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
