@@ -120,7 +120,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def run_now(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
+        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -131,7 +131,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
+        Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
