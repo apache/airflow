@@ -431,10 +431,10 @@ class TestCeleryExecutor:
         assert ti.state == state
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_task_in_queued_tasks_dict_are_not_cleared(
+    def test_task_in_queued_tasks_dict_are_cleared(
         self, session, dag_maker, create_dummy_dag, create_task_instance
     ):
-        """Test that clear_stuck_queued_tasks doesn't clear tasks in executor.queued_tasks"""
+        """Test that clear_stuck_queued_tasks clears tasks in executor.queued_tasks"""
         ti = create_task_instance(state=State.QUEUED)
         ti.queued_dttm = timezone.utcnow() - timedelta(days=2)
         ti.external_executor_id = '231'
@@ -446,13 +446,13 @@ class TestCeleryExecutor:
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
         assert executor.queued_tasks == {ti.key: AsyncResult("231")}
-        assert ti.state == State.QUEUED
+        assert ti.state == State.SCHEDULED
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_task_in_running_dict_are_not_cleared(
+    def test_task_in_running_dict_are_cleared(
         self, session, dag_maker, create_dummy_dag, create_task_instance
     ):
-        """Test that clear_stuck_queued_tasks doesn't clear tasks in executor.running"""
+        """Test that clear_stuck_queued_tasks clears tasks in executor.running"""
         ti = create_task_instance(state=State.QUEUED)
         ti.queued_dttm = timezone.utcnow() - timedelta(days=2)
         ti.external_executor_id = '231'
@@ -464,7 +464,7 @@ class TestCeleryExecutor:
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
         assert executor.running == {ti.key: AsyncResult("231")}
-        assert ti.state == State.QUEUED
+        assert ti.state == State.SCHEDULED
 
     @pytest.mark.backend("mysql", "postgres")
     def test_only_database_result_backend_supports_clearing_queued_task(

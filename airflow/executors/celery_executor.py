@@ -346,7 +346,11 @@ class CeleryExecutor(BaseExecutor):
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
         if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
-            self._clear_stuck_queued_tasks()
+            try:
+                with timeout(seconds=OPERATION_TIMEOUT):
+                    self._clear_stuck_queued_tasks()
+            except Exception:
+                self.log.exception("Error while checking for stuck tasks")
 
     def _check_for_stalled_adopted_tasks(self):
         """
@@ -421,9 +425,8 @@ class CeleryExecutor(BaseExecutor):
         for task in session.query(TaskInstance).filter(
             TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
         ):
-            if task.key in self.queued_tasks or task.key in self.running:
-                continue
-
+            # If the task is still queued, then it's stuck
+            # Check if it's in celery_task_ids, if so, it's now running
             if task.external_executor_id in celery_task_ids:
                 # The task is still running in the worker
                 continue
