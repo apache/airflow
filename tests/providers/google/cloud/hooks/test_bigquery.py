@@ -22,6 +22,7 @@ import unittest
 from unittest import mock
 
 import pytest
+import sqlalchemy
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.exceptions import NotFound
@@ -936,7 +937,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith('bigquery://')
 
-    def test_dbapi_get_sqlalchemy_engine(self):
+    def test_dbapi_get_sqlalchemy_engine_failed(self):
         with pytest.raises(
             AirflowException,
             match="For now, we only support instantiating SQLAlchemy engine by"
@@ -945,6 +946,14 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             "and extra__google_cloud_platform__keyfile_dict",
         ):
             self.hook.get_sqlalchemy_engine()
+
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID),
+    )
+    def test_dbapi_get_sqlalchemy_engine_success(self):
+        bq_hook = BigQueryHook(use_legacy_sql=False)
+        assert isinstance(bq_hook.get_sqlalchemy_engine(), sqlalchemy.engine.base.Engine) is True
 
 
 class TestBigQueryTableSplitter(unittest.TestCase):
