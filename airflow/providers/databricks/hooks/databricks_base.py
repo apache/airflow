@@ -25,11 +25,12 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 import sys
 import time
 from time import sleep
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
-from requests import exceptions as requests_exceptions
+from requests import PreparedRequest, exceptions as requests_exceptions
+from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
@@ -42,8 +43,6 @@ else:
     from cached_property import cached_property
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
-
-RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
 # https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
@@ -58,7 +57,7 @@ AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 
 
-class DatabricksBaseHook(BaseHook):
+class BaseDatabricksHook(BaseHook):
     """
     Base for interaction with Databricks.
 
@@ -74,7 +73,7 @@ class DatabricksBaseHook(BaseHook):
     conn_name_attr = 'databricks_conn_id'
     default_conn_name = 'databricks_default'
     conn_type = 'databricks'
-    hook_name = 'Databricks'
+
     extra_parameters = [
         'token',
         'host',
@@ -104,6 +103,9 @@ class DatabricksBaseHook(BaseHook):
     @cached_property
     def databricks_conn(self) -> Connection:
         return self.get_connection(self.databricks_conn_id)
+
+    def get_conn(self) -> Connection:
+        return self.databricks_conn
 
     @cached_property
     def host(self) -> str:
@@ -287,3 +289,85 @@ class DatabricksBaseHook(BaseHook):
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
+
+    def _do_api_call(self, endpoint_info: Tuple[str, str], json: Optional[Dict[str, Any]] = None):
+        """
+        Utility function to perform an API call with retries
+
+        :param endpoint_info: Tuple of method and endpoint
+        :param json: Parameters for this API call.
+        :return: If the api call returns a OK status code,
+            this function returns the response in JSON. Otherwise,
+            we throw an AirflowException.
+        :rtype: dict
+        """
+        method, endpoint = endpoint_info
+
+        # TODO: get rid of explicit 'api/' in the endpoint specification
+        url = f'https://{self.host}/{endpoint}'
+
+        aad_headers = self._get_aad_headers()
+        headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
+
+        auth: AuthBase
+        token = self._get_token()
+        if token:
+            auth = _TokenAuth(token)
+        else:
+            self.log.info('Using basic auth.')
+            auth = HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+
+        request_func: Any
+        if method == 'GET':
+            request_func = requests.get
+        elif method == 'POST':
+            request_func = requests.post
+        elif method == 'PATCH':
+            request_func = requests.patch
+        else:
+            raise AirflowException('Unexpected HTTP Method: ' + method)
+
+        attempt_num = 1
+        while True:
+            try:
+                response = request_func(
+                    url,
+                    json=json if method in ('POST', 'PATCH') else None,
+                    params=json if method == 'GET' else None,
+                    auth=auth,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                )
+                response.raise_for_status()
+                return response.json()
+            except requests_exceptions.RequestException as e:
+                if not self._retryable_error(e):
+                    # In this case, the user probably made a mistake.
+                    # Don't retry.
+                    raise AirflowException(
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
+                    )
+
+                self._log_request_error(attempt_num, str(e))
+
+            if attempt_num == self.retry_limit:
+                raise AirflowException(
+                    f'API requests to Databricks failed {self.retry_limit} times. Giving up.'
+                )
+
+            attempt_num += 1
+            sleep(self.retry_delay)
+
+
+class _TokenAuth(AuthBase):
+    """
+    Helper class for requests Auth field. AuthBase requires you to implement the __call__
+    magic function.
+    """
+
+    def __init__(self, token: str) -> None:
+        self.token = token
+
+    def __call__(self, r: PreparedRequest) -> PreparedRequest:
+        r.headers['Authorization'] = 'Bearer ' + self.token
+        return r

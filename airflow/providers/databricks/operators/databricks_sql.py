@@ -18,8 +18,11 @@
 #
 """This module contains Databricks operators."""
 
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Union
+import csv
+import json
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.context import Context
@@ -46,11 +49,15 @@ class DatabricksSqlOperator(BaseOperator):
         self,
         *,
         sql: Union[str, List[str]],
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
         http_path: Optional[str] = None,
+        sql_endpoint_name: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
         session_configuration=None,
         do_xcom_push: bool = True,
+        output_path: Optional[str] = None,
+        output_format: str = 'csv',
+        csv_params: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSqlOperator``."""
@@ -58,19 +65,59 @@ class DatabricksSqlOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.sql = sql
         self._http_path = http_path
+        self._sql_endpoint_name = sql_endpoint_name
+        self._output_path = output_path
+        self._output_format = output_format
+        self._csv_params = csv_params
         self.parameters = parameters
         self.do_xcom_push = do_xcom_push
         self.session_config = session_configuration
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
-            self.databricks_conn_id, http_path=self._http_path, session_configuration=self.session_config
+            self.databricks_conn_id,
+            http_path=self._http_path,
+            session_configuration=self.session_config,
+            sql_endpoint_name=self._sql_endpoint_name,
         )
+
+    def _format_output(self, schema, results):
+        if not self._output_path:
+            return
+        if not self._output_format:
+            raise AirflowException("Output format should be specified!")
+        field_names = [field[0] for field in schema]
+        if self._output_format.lower() == "csv":
+            with open(self._output_path, "w", newline='') as file:
+                if self._csv_params:
+                    csv_params = self._csv_params
+                else:
+                    csv_params = {}
+                write_header = csv_params.get("header", True)
+                if "header" in csv_params:
+                    del csv_params["header"]
+                writer = csv.DictWriter(file, fieldnames=field_names, **csv_params)
+                if write_header:
+                    writer.writeheader()
+                for row in results:
+                    writer.writerow(row.asDict())
+        elif self._output_format.lower() == "json":
+            with open(self._output_path, "w") as file:
+                file.write(json.dumps([row.asDict() for row in results]))
+        elif self._output_format.lower() == "jsonl":
+            with open(self._output_path, "w") as file:
+                for row in results:
+                    file.write(json.dumps(row.asDict()))
+                    file.write("\n")
+        else:
+            raise AirflowException(f"Unsupported output format: '{self._output_format}'")
 
     def execute(self, context: Context) -> Any:
         self.log.info('Executing: %s', self.sql)
         hook = self._get_hook()
-        results = hook.run(self.sql, parameters=self.parameters)
-        # self.log.debug('Results: %s', results)
+        schema, results = hook.run(self.sql, parameters=self.parameters)
+        self.log.info('Schema: %s', schema)
+        self.log.info('Results: %s', results)
+        self._format_output(schema, results)
         if self.do_xcom_push:
             return results

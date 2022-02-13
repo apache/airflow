@@ -25,35 +25,39 @@ from databricks.sql.client import Connection
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
-from airflow.providers.databricks.hooks.databricks_base import DatabricksBaseHook
+from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+
+LIST_SQL_ENDPOINTS_ENDPOINT = ('GET', 'api/2.0/sql/endpoints')
 
 
-class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
+class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     """
     Interact with Databricks SQL.
 
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
-        If not specified, it should be specified in the Databricks connection's extra parameters.
+        If not specified, it should be either specified in the Databricks connection's extra parameters,
+        or ``sql_endpoint_name`` must be specified.
+    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must
+        be provided as described above.
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
     """
 
-    conn_name_attr = 'databricks_conn_id'
-    default_conn_name = 'databricks_default'
-    conn_type = 'databricks'
     hook_name = 'Databricks SQL'
 
     def __init__(
         self,
-        databricks_conn_id: str = default_conn_name,
+        databricks_conn_id: str = BaseDatabricksHook.default_conn_name,
         http_path: Optional[str] = None,
+        sql_endpoint_name: Optional[str] = None,
         session_configuration: Optional[Dict[str, str]] = None,
     ) -> None:
         super().__init__(databricks_conn_id)
         self._sql_conn = None
         self._token: Optional[str] = None
         self._http_path = http_path
+        self._sql_endpoint_name = sql_endpoint_name
         self.supports_autocommit = True
         self.session_config = session_configuration
 
@@ -65,15 +69,30 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
 
         return extra_params
 
+    def _get_sql_endpoint_by_name(self, endpoint_name) -> Dict[str, Any]:
+        result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
+        if 'endpoints' not in result:
+            raise AirflowException("Can't list Databricks SQL endpoints")
+        lst = [endpoint for endpoint in result['endpoints'] if endpoint['name'] == endpoint_name]
+        if len(lst) == 0:
+            raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
+        return lst[0]
+
     def get_conn(self) -> Connection:
         """Returns a Databricks SQL connection object"""
         if not self._http_path:
-            if 'http_path' not in self.databricks_conn.extra_dejson:
+            if self._sql_endpoint_name:
+                endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
+                self._http_path = endpoint['odbc_params']['path']
+            elif 'http_path' in self.databricks_conn.extra_dejson:
+                self._http_path = self.databricks_conn.extra_dejson['http_path']
+            else:
                 raise AirflowException(
-                    "http_path should be provided either explicitly or "
-                    "in extra parameter of Databricks connection"
+                    "http_path should be provided either explicitly, "
+                    "or in extra parameter of Databricks connection, "
+                    "or sql_endpoint_name should be specified"
                 )
-            self._http_path = self.databricks_conn.extra_dejson['http_path']
+
         requires_init = True
         if not self._token:
             self._token = self._get_token(raise_error=True)
@@ -134,12 +153,12 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
             with closing(conn.cursor()) as cur:
-                self.log.info("Executing statement: %s, parameters: %s", sql_statement, parameters)
+                self.log.info("Executing statement: '%s', parameters: '%s'", sql_statement, parameters)
                 if parameters:
                     cur.execute(sql_statement, parameters)
                 else:
                     cur.execute(sql_statement)
-
+                schema = cur.description
                 results = []
                 if handler is not None:
                     cur = handler(cur)
@@ -153,7 +172,7 @@ class DatabricksSqlHook(DatabricksBaseHook, DbApiHook):
             self._sql_conn = None
 
         # Return only result of the last SQL expression
-        return results
+        return schema, results
 
     def test_connection(self):
         """Test the Databricks SQL connection by running a simple query."""

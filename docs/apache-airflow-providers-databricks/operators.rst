@@ -158,10 +158,18 @@ Operator executes given SQL queries against configured endpoint.  There are 3 wa
    * - sql: str or list[str]
      - Required parameter specifying a queries to execute.
    * - http_path: str
-     - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection.
+     - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection, or the ``sql_endpoint_name`` parameter must be set.
+   * - sql_endpoint_name: str
+     - Optional name of Databricks SQL endpoint to use.
    * - parameters: dict[str, any]
      - Optional parameters that will be used to substitute variable(s) in SQL query.
    * - session_configuration: dict[str,str]
      - optional dict specifying Spark configuration parameters that will be set for the session.
+   * - output_path: str
+     - Optional path to the file to which results will be written.
+   * - output_format: str
+     - Name of the format which will be used to write results.  Supported values are (case-insensitive): ``JSON`` (array of JSON objects), ``JSONL`` (each row as JSON object on a separate line), ``CSV`` (default).
+   * - csv_params: dict[str, any]
+     - Optional dictionary with parameters to customize Python CSV writer.
    * - do_xcom_push: boolean
      - whether we should push query results (last query if multiple queries are provided) to xcom. Default: true

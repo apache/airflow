@@ -34,7 +34,7 @@ from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
 from airflow.exceptions import AirflowException
-from airflow.providers.databricks.hooks.databricks_base import USER_AGENT_HEADER, DatabricksBaseHook
+from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -94,7 +94,7 @@ class RunState:
         return str(self.__dict__)
 
 
-class DatabricksHook(DatabricksBaseHook):
+class DatabricksHook(BaseDatabricksHook):
     """
     Interact with Databricks.
 
@@ -107,84 +107,16 @@ class DatabricksHook(DatabricksBaseHook):
         might be a floating point number).
     """
 
-    conn_name_attr = 'databricks_conn_id'
-    default_conn_name = 'databricks_default'
-    conn_type = 'databricks'
     hook_name = 'Databricks'
 
     def __init__(
         self,
-        databricks_conn_id: str = default_conn_name,
+        databricks_conn_id: str = BaseDatabricksHook.default_conn_name,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay)
-
-    def _do_api_call(self, endpoint_info, json):
-        """
-        Utility function to perform an API call with retries
-
-        :param endpoint_info: Tuple of method and endpoint
-        :param json: Parameters for this API call.
-        :return: If the api call returns a OK status code,
-            this function returns the response in JSON. Otherwise,
-            we throw an AirflowException.
-        :rtype: dict
-        """
-        method, endpoint = endpoint_info
-
-        url = f'https://{self.host}/{endpoint}'
-
-        aad_headers = self._get_aad_headers()
-        headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
-
-        token = self._get_token()
-        if token:
-            auth = _TokenAuth(token)
-        else:
-            self.log.info('Using basic auth.')
-            auth = (self.databricks_conn.login, self.databricks_conn.password)
-
-        if method == 'GET':
-            request_func = requests.get
-        elif method == 'POST':
-            request_func = requests.post
-        elif method == 'PATCH':
-            request_func = requests.patch
-        else:
-            raise AirflowException('Unexpected HTTP Method: ' + method)
-
-        attempt_num = 1
-        while True:
-            try:
-                response = request_func(
-                    url,
-                    json=json if method in ('POST', 'PATCH') else None,
-                    params=json if method == 'GET' else None,
-                    auth=auth,
-                    headers=headers,
-                    timeout=self.timeout_seconds,
-                )
-                response.raise_for_status()
-                return response.json()
-            except requests_exceptions.RequestException as e:
-                if not self._retryable_error(e):
-                    # In this case, the user probably made a mistake.
-                    # Don't retry.
-                    raise AirflowException(
-                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
-                    )
-
-                self._log_request_error(attempt_num, str(e))
-
-            if attempt_num == self.retry_limit:
-                raise AirflowException(
-                    f'API requests to Databricks failed {self.retry_limit} times. Giving up.'
-                )
-
-            attempt_num += 1
-            sleep(self.retry_delay)
 
     def run_now(self, json: dict) -> int:
         """
@@ -388,17 +320,3 @@ class DatabricksHook(DatabricksBaseHook):
         :param json: json dictionary containing cluster_id and an array of library
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
-
-
-class _TokenAuth(AuthBase):
-    """
-    Helper class for requests Auth field. AuthBase requires you to implement the __call__
-    magic function.
-    """
-
-    def __init__(self, token: str) -> None:
-        self.token = token
-
-    def __call__(self, r: PreparedRequest) -> PreparedRequest:
-        r.headers['Authorization'] = 'Bearer ' + self.token
-        return r
