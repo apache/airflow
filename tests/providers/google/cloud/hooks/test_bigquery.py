@@ -947,14 +947,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         ):
             self.hook.get_sqlalchemy_engine()
 
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
-        return_value=(CREDENTIALS, PROJECT_ID),
-    )
-    def test_dbapi_get_sqlalchemy_engine_success(self, mock_get_creds_and_proj_id):
-        bq_hook = BigQueryHook(use_legacy_sql=False)
-        assert isinstance(bq_hook.get_sqlalchemy_engine(), sqlalchemy.engine.base.Engine) is True
-
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
