@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-11T23:45:14Z
+# This constraints file was automatically generated on 2022-02-13T11:57:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -114,7 +114,7 @@ certifi==2020.12.5
 cffi==1.15.0
 cfgv==3.3.1
 cgroupspy==0.2.1
-charset-normalizer==2.0.11
+charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
@@ -225,7 +225,7 @@ hmsclient==0.1.1
 httpcore==0.14.7
 httplib2==0.19.1
 httpx==0.22.0
-humanize==3.14.0
+humanize==4.0.0
 hvac==0.11.2
 identify==2.4.9
 idna==3.3
@@ -316,6 +316,7 @@ pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.3.8
 pipdeptree==2.2.1
+pipx==1.0.0
 pkginfo==1.8.2
 platformdirs==2.5.0
 pluggy==1.0.0
@@ -348,7 +349,7 @@ pydata-google-auth==1.3.0
 pydot==1.4.2
 pydruid==0.6.2
 pyenchant==3.2.2
-pyexasol==0.23.3
+pyexasol==0.24.0
 pyflakes==2.3.1
 pykerberos==1.2.1
 pymongo==3.12.3
@@ -493,6 +494,7 @@ tzlocal==4.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.26.8
+userpath==1.8.0
 vertica-python==1.0.3
 vine==5.0.0
 virtualenv==20.13.1
