@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 from airflow import models
 from airflow.providers.apache.beam.operators.beam import (
+    BeamRunGoPipelineOperator,
     BeamRunJavaPipelineOperator,
     BeamRunPythonPipelineOperator,
 )
@@ -43,7 +44,10 @@ GCS_PYTHON = os.environ.get('APACHE_BEAM_PYTHON', 'gs://INVALID BUCKET NAME/word
 GCS_PYTHON_DATAFLOW_ASYNC = os.environ.get(
     'APACHE_BEAM_PYTHON_DATAFLOW_ASYNC', 'gs://INVALID BUCKET NAME/wordcount_debugging.py'
 )
-
+GCS_GO = os.environ.get('APACHE_BEAM_GO', 'gs://INVALID BUCKET NAME/wordcount_debugging.go')
+GCS_GO_DATAFLOW_ASYNC = os.environ.get(
+    'APACHE_BEAM_GO_DATAFLOW_ASYNC', 'gs://INVALID BUCKET NAME/wordcount_debugging.go'
+)
 GCS_JAR_DIRECT_RUNNER = os.environ.get(
     'APACHE_BEAM_DIRECT_RUNNER_JAR',
     'gs://INVALID BUCKET NAME/tests/dataflow-templates-bundled-java=11-beam-v2.25.0-DirectRunner.jar',
@@ -323,3 +327,111 @@ with models.DAG(
 
     start_python_job_dataflow_runner_async >> wait_for_python_job_dataflow_runner_async_done
     # [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
+
+
+with models.DAG(
+    "example_beam_native_go",
+    start_date=START_DATE,
+    schedule_interval="@once",
+    catchup=False,
+    default_args=DEFAULT_ARGS,
+    tags=['example'],
+) as dag_native_go:
+
+    # [START howto_operator_start_go_direct_runner_pipeline_local_file]
+    start_go_pipeline_local_direct_runner = BeamRunGoPipelineOperator(
+        task_id="start_go_pipeline_local_direct_runner",
+        go_file='files/apache_beam/examples/wordcount.go',
+    )
+    # [END howto_operator_start_go_direct_runner_pipeline_local_file]
+
+    # [START howto_operator_start_go_direct_runner_pipeline_gcs_file]
+    start_go_pipeline_direct_runner = BeamRunGoPipelineOperator(
+        task_id="start_go_pipeline_direct_runner",
+        go_file=GCS_GO,
+        pipeline_options={"output": GCS_OUTPUT},
+    )
+    # [END howto_operator_start_go_direct_runner_pipeline_gcs_file]
+
+    # [START howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
+    start_go_pipeline_dataflow_runner = BeamRunGoPipelineOperator(
+        task_id="start_go_pipeline_dataflow_runner",
+        runner="DataflowRunner",
+        go_file=GCS_GO,
+        pipeline_options={
+            'tempLocation': GCS_TMP,
+            'stagingLocation': GCS_STAGING,
+            'output': GCS_OUTPUT,
+            'WorkerHarnessContainerImage': "apache/beam_go_sdk:latest",
+        },
+        dataflow_config=DataflowConfiguration(
+            job_name='{{task.task_id}}', project_id=GCP_PROJECT_ID, location="us-central1"
+        ),
+    )
+    # [END howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
+
+    start_go_pipeline_local_spark_runner = BeamRunGoPipelineOperator(
+        task_id="start_go_pipeline_local_spark_runner",
+        go_file='/files/apache_beam/examples/wordcount.go',
+        runner="SparkRunner",
+        pipeline_options={
+            'endpoint': '/your/spark/endpoint',
+        },
+    )
+
+    start_go_pipeline_local_flink_runner = BeamRunGoPipelineOperator(
+        task_id="start_go_pipeline_local_flink_runner",
+        go_file='/files/apache_beam/examples/wordcount.go',
+        runner="FlinkRunner",
+        pipeline_options={
+            'output': '/tmp/start_go_pipeline_local_flink_runner',
+        },
+    )
+
+    (
+        [
+            start_go_pipeline_local_direct_runner,
+            start_go_pipeline_direct_runner,
+        ]
+        >> start_go_pipeline_local_flink_runner
+        >> start_go_pipeline_local_spark_runner
+    )
+
+
+with models.DAG(
+    "example_beam_native_go_dataflow_async",
+    default_args=DEFAULT_ARGS,
+    start_date=START_DATE,
+    schedule_interval="@once",
+    catchup=False,
+    tags=['example'],
+) as dag_native_go_dataflow_async:
+    # [START howto_operator_start_go_dataflow_runner_pipeline_async_gcs_file]
+    start_go_job_dataflow_runner_async = BeamRunGoPipelineOperator(
+        task_id="start_go_job_dataflow_runner_async",
+        runner="DataflowRunner",
+        go_file=GCS_GO_DATAFLOW_ASYNC,
+        pipeline_options={
+            'tempLocation': GCS_TMP,
+            'stagingLocation': GCS_STAGING,
+            'output': GCS_OUTPUT,
+            'WorkerHarnessContainerImage': "apache/beam_go_sdk:latest",
+        },
+        dataflow_config=DataflowConfiguration(
+            job_name='{{task.task_id}}',
+            project_id=GCP_PROJECT_ID,
+            location="us-central1",
+            wait_until_finished=False,
+        ),
+    )
+
+    wait_for_go_job_dataflow_runner_async_done = DataflowJobStatusSensor(
+        task_id="wait-for-go-job-async-done",
+        job_id="{{task_instance.xcom_pull('start_go_job_dataflow_runner_async')['dataflow_job_id']}}",
+        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+        project_id=GCP_PROJECT_ID,
+        location='us-central1',
+    )
+
+    start_go_job_dataflow_runner_async >> wait_for_go_job_dataflow_runner_async_done
+    # [END howto_operator_start_go_dataflow_runner_pipeline_async_gcs_file]

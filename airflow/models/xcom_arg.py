@@ -23,7 +23,7 @@ from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator, MappedOperator
+    from airflow.models.operator import Operator
 
 
 class XComArg(DependencyMixin):
@@ -59,7 +59,7 @@ class XComArg(DependencyMixin):
     :param key: key value which is used for xcom_pull (key in the XCom table)
     """
 
-    def __init__(self, operator: "Union[BaseOperator, MappedOperator]", key: str = XCOM_RETURN_KEY):
+    def __init__(self, operator: "Operator", key: str = XCOM_RETURN_KEY):
         self.operator = operator
         self.key = key
 
@@ -136,7 +136,7 @@ class XComArg(DependencyMixin):
         return resolved_value
 
     @staticmethod
-    def apply_upstream_relationship(op: "Union[BaseOperator, MappedOperator]", arg: Any):
+    def apply_upstream_relationship(op: "Operator", arg: Any):
         """
         Set dependency for XComArgs.
 

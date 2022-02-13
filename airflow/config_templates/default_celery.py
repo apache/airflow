@@ -48,6 +48,7 @@ DEFAULT_CELERY_CONFIG = {
     'broker_transport_options': broker_transport_options,
     'result_backend': conf.get('celery', 'RESULT_BACKEND'),
     'worker_concurrency': conf.getint('celery', 'WORKER_CONCURRENCY'),
+    'worker_enable_remote_control': conf.get('celery', 'worker_enable_remote_control'),
 }
 
 celery_ssl_active = False

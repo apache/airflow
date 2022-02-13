@@ -1381,12 +1381,11 @@ class BaseSecurityManager:
                 if perm.action.name not in base_action_names:
                     # perm to delete
                     roles = self.get_all_roles()
-                    action = self.get_action(perm.action.name)
                     # del permission from all roles
                     for role in roles:
                         # TODO: An action can't be removed from a role.
                         # This is a bug in FAB. It has been reported.
-                        self.remove_permission_from_role(role, action)
+                        self.remove_permission_from_role(role, perm)
                     self.delete_permission(perm.action.name, resource_name)
                 elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
                     # Role Admin must have all permissions
