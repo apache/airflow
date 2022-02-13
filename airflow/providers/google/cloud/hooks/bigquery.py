@@ -163,6 +163,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if engine_kwargs is None:
+            engine_kwargs = {}
         connection = self.get_connection(self.gcp_conn_id)
         if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
             credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
