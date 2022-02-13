@@ -99,6 +99,7 @@ class LivyHook(HttpHook, LoggingMixin):
         method: str = 'GET',
         data: Optional[Any] = None,
         headers: Optional[Dict[str, Any]] = None,
+        _retry_args: Optional[Dict[str, Any]] = None
     ) -> Any:
         """
         Wrapper for HttpHook, allows to change method on the same HttpHook
@@ -107,6 +108,8 @@ class LivyHook(HttpHook, LoggingMixin):
         :param endpoint: endpoint
         :param data: request payload
         :param headers: headers
+        :param _retry_args: Arguments which define the retry behaviour.
+            See Tenacity documentation at https://github.com/jd/tenacity
         :return: http response
         :rtype: requests.Response
         """
@@ -118,7 +121,16 @@ class LivyHook(HttpHook, LoggingMixin):
         back_method = self.method
         self.method = method
         try:
-            result = self.run(endpoint, data, headers, self.extra_options)
+            if _retry_args:
+                result = self.run_with_advanced_retry(
+                    endpoint=endpoint,
+                    data=data,
+                    headers=headers,
+                    extra_options=self.extra_options,
+                    _retry_args=_retry_args)
+            else:
+                result = self.run(endpoint, data, headers, self.extra_options)
+
         finally:
             self.method = back_method
         return result
@@ -180,18 +192,20 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return response.json()
 
-    def get_batch_state(self, session_id: Union[int, str]) -> BatchState:
+    def get_batch_state(self, session_id: Union[int, str], _retry_args: Optional[Dict[str, Any]] = None) -> BatchState:
         """
         Fetch the state of the specified batch
 
         :param session_id: identifier of the batch sessions
+        :param _retry_args: Arguments which define the retry behaviour.
+            See Tenacity documentation at https://github.com/jd/tenacity
         :return: batch state
         :rtype: BatchState
         """
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %d", session_id)
-        response = self.run_method(endpoint=f'/batches/{session_id}/state')
+        response = self.run_method(endpoint=f'/batches/{session_id}/state', _retry_args=_retry_args)
 
         try:
             response.raise_for_status()
