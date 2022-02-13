@@ -82,7 +82,7 @@ class LivyOperator(BaseOperator):
         polling_interval: int = 0,
         extra_options: Optional[Dict[str, Any]] = None,
         extra_headers: Optional[Dict[str, Any]] = None,
-        _retry_args:  Optional[Dict[str, Any]] = None,
+        _retry_args: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
 

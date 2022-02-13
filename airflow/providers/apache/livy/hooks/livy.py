@@ -99,7 +99,7 @@ class LivyHook(HttpHook, LoggingMixin):
         method: str = 'GET',
         data: Optional[Any] = None,
         headers: Optional[Dict[str, Any]] = None,
-        _retry_args: Optional[Dict[str, Any]] = None
+        _retry_args: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """
         Wrapper for HttpHook, allows to change method on the same HttpHook
@@ -127,7 +127,8 @@ class LivyHook(HttpHook, LoggingMixin):
                     data=data,
                     headers=headers,
                     extra_options=self.extra_options,
-                    _retry_args=_retry_args)
+                    _retry_args=_retry_args,
+                )
             else:
                 result = self.run(endpoint, data, headers, self.extra_options)
 
@@ -192,7 +193,9 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return response.json()
 
-    def get_batch_state(self, session_id: Union[int, str], _retry_args: Optional[Dict[str, Any]] = None) -> BatchState:
+    def get_batch_state(
+        self, session_id: Union[int, str], _retry_args: Optional[Dict[str, Any]] = None
+    ) -> BatchState:
         """
         Fetch the state of the specified batch
 
