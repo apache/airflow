@@ -5,7 +5,7 @@ This is a generic installation method that requires a number of dependencies to 
 Depending on your system you might need different prerequisites, but the following
 systems/prerequisites are known to work:
 
-Linux (Debian Buster and Linux Mint Tricia):
+Linux (Debian Bullseye and Linux Mint Debbie):
 
 sudo apt install build-essential python3-dev libsqlite3-dev openssl \
                  sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
