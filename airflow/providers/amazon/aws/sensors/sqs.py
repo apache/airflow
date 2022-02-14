@@ -21,11 +21,11 @@ import warnings
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from jsonpath_ng import parse
-from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
