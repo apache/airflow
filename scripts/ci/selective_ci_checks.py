@@ -109,7 +109,7 @@ if len(sys.argv) < 1:
     INCOMING_COMMIT_SHA = ""
     # override FULL_TESTS_NEEDED_LABEL in main/scheduled run
     FULL_TESTS_NEEDED_LABEL = True
-    output_all_basic_variables
+    output_all_basic_variables()
     check_upgrade_to_newer_dependencies_needed
     set_outputs_run_everything_and_exit
 else:
@@ -119,4 +119,4 @@ else:
     print("")
 
 
-output_all_basic_variables
+output_all_basic_variables()
