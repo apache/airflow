@@ -38,10 +38,10 @@ directory.
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`
 
-The default pattern is followed while naming log files form tasks:
+The default pattern is followed while naming log files for tasks:
 
-- For normal tasks: ``dag_id{dag_id}/run_id={run_id}/task_id={task_id}/attempt={try_number}.log``.
-- For dynamically mapped tasks: ``dag_id{dag_id}/run_id={run_id}/task_id={task_id}/map_index={map_index}/attempt={try_number}.log``.
+- For normal tasks: ``dag_id={dag_id}/run_id={run_id}/task_id={task_id}/attempt={try_number}.log``.
+- For dynamically mapped tasks: ``dag_id={dag_id}/run_id={run_id}/task_id={task_id}/map_index={map_index}/attempt={try_number}.log``.
 
 These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
 
