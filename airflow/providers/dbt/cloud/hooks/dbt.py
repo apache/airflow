@@ -53,7 +53,7 @@ def fallback_to_default_account(func: Callable) -> Callable:
         # provided.
         if bound_args.arguments.get("account_id") is None:
             self = args[0]
-            default_account_id = self.conn.login
+            default_account_id = self.connection.login
             if not default_account_id:
                 raise AirflowException("Could not determine the dbt Cloud account.")
 
@@ -154,16 +154,16 @@ class DbtCloudHook(HttpHook):
         self.base_url = "https://cloud.getdbt.com/api/v2/accounts/"
 
     @cached_property
-    def conn(self) -> Connection:
-        _conn = self.get_connection(self.dbt_cloud_conn_id)
-        if not _conn.password:
+    def connection(self) -> Connection:
+        _connection = self.get_connection(self.dbt_cloud_conn_id)
+        if not _connection.password:
             raise AirflowException("An API token is required to connect to dbt Cloud.")
 
-        return _conn
+        return _connection
 
     def get_conn(self, *args, **kwargs) -> Session:
         session = Session()
-        session.auth = self.auth_type(self.conn.password)
+        session.auth = self.auth_type(self.connection.password)
 
         return session
 
