@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-14T16:43:43Z
+# This constraints file was automatically generated on 2022-02-14T21:42:40Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -101,9 +101,9 @@ billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.20.54
+boto3==1.21.0
 boto==2.49.0
-botocore==1.23.54
+botocore==1.24.0
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
@@ -256,7 +256,7 @@ jwcrypto==1.0
 keyring==23.5.0
 kombu==5.2.3
 krb5==0.2.0
-kubernetes==21.7.0
+kubernetes==22.6.0
 kylinpy==2.8.4
 lazy-object-proxy==1.7.1
 ldap3==2.9.1
@@ -285,7 +285,7 @@ mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.28
 mysqlclient==2.1.0
-nbclient==0.5.10
+nbclient==0.5.11
 nbformat==5.1.3
 neo4j==4.4.1
 nest-asyncio==1.5.4
@@ -443,7 +443,7 @@ sqlalchemy-drill==1.1.1
 sqlalchemy-redshift==0.8.9
 sqlparse==0.4.2
 sshtunnel==0.4.0
-stack-data==0.1.4
+stack-data==0.2.0
 starkbank-ecdsa==2.0.3
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
