@@ -63,6 +63,19 @@ def output_all_basic_variables():
                 "3.9",
             ],
         )
+        ga_output(
+            "all-python-versions",
+            [
+                "3.7",
+                "3.8",
+                "3.9",
+            ],
+        )
+    else:
+        ga_output(
+            "python_versions",
+            ["3.7"],
+        )
 
 
 def set_outputs_run_everything_and_exit():
@@ -100,3 +113,6 @@ else:
     print("")
     print(f"Commit SHA passed: {INCOMING_COMMIT_SHA}!")
     print("")
+
+
+output_all_basic_variables
