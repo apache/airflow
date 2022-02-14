@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-14T21:42:40Z
+# This constraints file was automatically generated on 2022-02-14T23:13:19Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -94,7 +94,7 @@ azure-storage-file==2.1.0
 backcall==0.2.0
 backoff==1.10.0
 bcrypt==3.2.0
-beautifulsoup4==4.7.1
+beautifulsoup4==4.10.0
 billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
@@ -191,7 +191,7 @@ google-cloud-dataproc==3.2.0
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.11.0
 google-cloud-language==1.3.0
-google-cloud-logging==2.7.0
+google-cloud-logging==3.0.0
 google-cloud-memcache==1.0.0
 google-cloud-monitoring==2.8.0
 google-cloud-orchestration-airflow==1.2.1
