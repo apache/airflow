@@ -309,8 +309,6 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
         )
         partial_kwargs.setdefault("executor_config", {})
-        partial_kwargs.setdefault("inlets", [])
-        partial_kwargs.setdefault("outlets", [])
 
         # Mypy does not work well with a subclassed attrs class :(
         _MappedOperator = cast(Any, DecoratedMappedOperator)
