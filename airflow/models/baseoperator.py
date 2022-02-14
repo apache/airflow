@@ -48,7 +48,6 @@ from typing import (
 )
 
 import attr
-import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
@@ -91,6 +90,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    import jinja2  # Slow import.
+
     from airflow.models.dag import DAG
     from airflow.utils.task_group import TaskGroup
 
@@ -1149,7 +1150,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
-        self, context: Context, jinja_env: Optional[jinja2.Environment] = None
+        self, context: Context, jinja_env: Optional["jinja2.Environment"] = None
     ) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
@@ -1167,7 +1168,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         parent: Any,
         template_fields: Iterable[str],
         context: Context,
-        jinja_env: jinja2.Environment,
+        jinja_env: "jinja2.Environment",
         seen_oids: Set,
     ) -> None:
         for attr_name in template_fields:
@@ -1187,7 +1188,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         content: Any,
         context: Context,
-        jinja_env: Optional[jinja2.Environment] = None,
+        jinja_env: Optional["jinja2.Environment"] = None,
         seen_oids: Optional[Set] = None,
     ) -> Any:
         """
@@ -1245,7 +1246,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return content
 
     def _render_nested_template_fields(
-        self, content: Any, context: Context, jinja_env: jinja2.Environment, seen_oids: Set
+        self, content: Any, context: Context, jinja_env: "jinja2.Environment", seen_oids: Set
     ) -> None:
         if id(content) not in seen_oids:
             seen_oids.add(id(content))
