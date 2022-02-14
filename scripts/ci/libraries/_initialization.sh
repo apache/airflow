@@ -116,6 +116,8 @@ function initialization::initialize_base_variables() {
     # Currently supported major/minor versions of python
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+    echo 'You are in _script_init.sh'
+    echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS}"
 
     # Currently supported versions of Postgres
     CURRENT_POSTGRES_VERSIONS+=("10" "13")
