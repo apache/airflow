@@ -41,166 +41,18 @@ if TYPE_CHECKING:
 
 BASE_LINK = "https://console.cloud.google.com"
 METASTORE_BASE_LINK = BASE_LINK + "/dataproc/metastore/services/{region}/{service_id}"
-METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/backups/{backup_id}?project={project_id}"
+METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/backups/{resource}?project={project_id}"
 METASTORE_BACKUPS_LINK = METASTORE_BASE_LINK + "/backuprestore?project={project_id}"
 METASTORE_EXPORT_LINK = METASTORE_BASE_LINK + "/importexport?project={project_id}"
-METASTORE_IMPORT_LINK = METASTORE_BASE_LINK + "/imports/{import_id}?project={project_id}"
+METASTORE_IMPORT_LINK = METASTORE_BASE_LINK + "/imports/{resource}?project={project_id}"
 METASTORE_SERVICE_LINK = METASTORE_BASE_LINK + "/config?project={project_id}"
 
 
-class DataprocMetastoreBackupLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore Backup link"""
+class DataprocMetastoreLink(BaseOperatorLink):
+    """Helper class for constructing Dataproc Metastore resource link"""
 
-    name = "Dataproc Metastore Backup"
-    key = "backup_conf"
-
-    @staticmethod
-    def persist(context: "Context", task_instance: "DataprocMetastoreCreateBackupOperator"):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocMetastoreBackupLink.key,
-            value={
-                "region": task_instance.region,
-                "service_id": task_instance.service_id,
-                "backup_id": task_instance.backup_id,
-                "project_id": task_instance.project_id,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        backup_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreBackupLink.key,
-        )
-        return (
-            METASTORE_BACKUP_LINK.format(
-                region=backup_conf["region"],
-                service_id=backup_conf["service_id"],
-                backup_id=backup_conf["backup_id"],
-                project_id=backup_conf["project_id"],
-            )
-            if backup_conf
-            else ""
-        )
-
-
-class DataprocMetastoreBackupsLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore list of Backups link"""
-
-    name = "Dataproc Metastore Backups"
-    key = "backups_list_conf"
-
-    @staticmethod
-    def persist(context: "Context", task_instance: "DataprocMetastoreListBackupsOperator"):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocMetastoreBackupsLink.key,
-            value={
-                "region": task_instance.region,
-                "service_id": task_instance.service_id,
-                "project_id": task_instance.project_id,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        backups_list_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreBackupsLink.key,
-        )
-        return (
-            METASTORE_BACKUPS_LINK.format(
-                region=backups_list_conf["region"],
-                service_id=backups_list_conf["service_id"],
-                project_id=backups_list_conf["project_id"],
-            )
-            if backups_list_conf
-            else ""
-        )
-
-
-class DataprocMetastoreExportLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore Export Metadata link"""
-
-    name = "Dataproc Metastore Export Metadata"
-    key = "export_conf"
-
-    @staticmethod
-    def persist(context: "Context", task_instance: "DataprocMetastoreExportMetadataOperator"):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocMetastoreExportLink.key,
-            value={
-                "region": task_instance.region,
-                "service_id": task_instance.service_id,
-                "project_id": task_instance.project_id,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        export_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreExportLink.key,
-        )
-        return (
-            METASTORE_EXPORT_LINK.format(
-                region=export_conf["region"],
-                service_id=export_conf["service_id"],
-                project_id=export_conf["project_id"],
-            )
-            if export_conf
-            else ""
-        )
-
-
-class DataprocMetastoreImportLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore Import Metadata link"""
-
-    name = "Dataproc Metastore Import Metadata"
-    key = "import_conf"
-
-    @staticmethod
-    def persist(context: "Context", task_instance: "DataprocMetastoreCreateMetadataImportOperator"):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocMetastoreImportLink.key,
-            value={
-                "region": task_instance.region,
-                "service_id": task_instance.service_id,
-                "import_id": task_instance.metadata_import_id,
-                "project_id": task_instance.project_id,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        import_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreImportLink.key,
-        )
-        return (
-            METASTORE_IMPORT_LINK.format(
-                region=import_conf["region"],
-                service_id=import_conf["service_id"],
-                import_id=import_conf["import_id"],
-                project_id=import_conf["project_id"],
-            )
-            if import_conf
-            else ""
-        )
-
-
-class DataprocMetastoreServiceLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore Service link"""
-
-    name = "Dataproc Metastore Service"
-    key = "service_conf"
+    name = "Dataproc Metastore"
+    key = "conf"
 
     @staticmethod
     def persist(
@@ -210,32 +62,83 @@ class DataprocMetastoreServiceLink(BaseOperatorLink):
             "DataprocMetastoreGetServiceOperator",
             "DataprocMetastoreRestoreServiceOperator",
             "DataprocMetastoreUpdateServiceOperator",
+            "DataprocMetastoreListBackupsOperator",
+            "DataprocMetastoreExportMetadataOperator",
         ],
+        url: str,
     ):
         task_instance.xcom_push(
             context=context,
-            key=DataprocMetastoreServiceLink.key,
+            key=DataprocMetastoreLink.key,
             value={
                 "region": task_instance.region,
                 "service_id": task_instance.service_id,
                 "project_id": task_instance.project_id,
+                "url": url,
             },
         )
 
     def get_link(self, operator: BaseOperator, dttm: datetime):
-        service_conf = XCom.get_one(
+        conf = XCom.get_one(
             dag_id=operator.dag.dag_id,
             task_id=operator.task_id,
             execution_date=dttm,
-            key=DataprocMetastoreServiceLink.key,
+            key=DataprocMetastoreLink.key,
         )
         return (
-            METASTORE_SERVICE_LINK.format(
-                region=service_conf["region"],
-                service_id=service_conf["service_id"],
-                project_id=service_conf["project_id"],
+            conf["url"].format(
+                region=conf["region"],
+                service_id=conf["service_id"],
+                project_id=conf["project_id"],
             )
-            if service_conf
+            if conf
+            else ""
+        )
+
+
+class DataprocMetastoreDetailedLink(BaseOperatorLink):
+    """Helper class for constructing Dataproc Metastore detailed resource link"""
+
+    name = "Dataproc Metastore resource"
+    key = "config"
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance: Union[
+            "DataprocMetastoreCreateBackupOperator",
+            "DataprocMetastoreCreateMetadataImportOperator",
+        ],
+        url: str,
+        resource: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataprocMetastoreDetailedLink.key,
+            value={
+                "region": task_instance.region,
+                "service_id": task_instance.service_id,
+                "project_id": task_instance.project_id,
+                "url": url,
+                "resource": resource,
+            },
+        )
+
+    def get_link(self, operator: BaseOperator, dttm: datetime):
+        conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key=DataprocMetastoreDetailedLink.key,
+        )
+        return (
+            conf["url"].format(
+                region=conf["region"],
+                service_id=conf["service_id"],
+                project_id=conf["project_id"],
+                resource=conf["resource"],
+            )
+            if conf
             else ""
         )
 
@@ -285,7 +188,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         'impersonation_chain',
     )
     template_fields_renderers = {'backup': 'json'}
-    operator_extra_links = (DataprocMetastoreBackupLink(),)
+    operator_extra_links = (DataprocMetastoreDetailedLink(),)
 
     def __init__(
         self,
@@ -349,7 +252,9 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        DataprocMetastoreBackupLink.persist(context=context, task_instance=self)
+        DataprocMetastoreDetailedLink.persist(
+            context=context, task_instance=self, url=METASTORE_BACKUP_LINK, resource=self.backup_id
+        )
         return Backup.to_dict(backup)
 
 
@@ -398,7 +303,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         'impersonation_chain',
     )
     template_fields_renderers = {'metadata_import': 'json'}
-    operator_extra_links = (DataprocMetastoreImportLink(),)
+    operator_extra_links = (DataprocMetastoreDetailedLink(),)
 
     def __init__(
         self,
@@ -448,7 +353,9 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         metadata_import = hook.wait_for_operation(self.timeout, operation)
         self.log.info("Metadata import %s created successfully", self.metadata_import_id)
 
-        DataprocMetastoreImportLink.persist(context=context, task_instance=self)
+        DataprocMetastoreDetailedLink.persist(
+            context=context, task_instance=self, url=METASTORE_IMPORT_LINK, resource=self.metadata_import_id
+        )
         return MetadataImport.to_dict(metadata_import)
 
 
@@ -491,7 +398,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         'impersonation_chain',
     )
     template_fields_renderers = {'service': 'json'}
-    operator_extra_links = (DataprocMetastoreServiceLink(),)
+    operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
         self,
@@ -550,7 +457,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        DataprocMetastoreServiceLink.persist(context=context, task_instance=self)
+        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
         return Service.to_dict(service)
 
 
@@ -732,7 +639,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
-    operator_extra_links = (DataprocMetastoreExportLink(), StorageLink())
+    operator_extra_links = (DataprocMetastoreLink(), StorageLink())
 
     def __init__(
         self,
@@ -782,7 +689,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         metadata_export = self._wait_for_export_metadata(hook)
         self.log.info("Metadata from service %s exported successfully", self.service_id)
 
-        DataprocMetastoreExportLink.persist(context=context, task_instance=self)
+        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_EXPORT_LINK)
         uri = self._get_uri_from_destination(MetadataExport.to_dict(metadata_export)["destination_gcs_uri"])
         StorageLink.persist(context=context, task_instance=self, uri=uri)
         return MetadataExport.to_dict(metadata_export)
@@ -846,7 +753,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
-    operator_extra_links = (DataprocMetastoreServiceLink(),)
+    operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
         self,
@@ -884,7 +791,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataprocMetastoreServiceLink.persist(context=context, task_instance=self)
+        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
         return Service.to_dict(result)
 
 
@@ -919,7 +826,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
-    operator_extra_links = (DataprocMetastoreBackupsLink(),)
+    operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
         self,
@@ -969,7 +876,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataprocMetastoreBackupsLink.persist(context=context, task_instance=self)
+        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_BACKUPS_LINK)
         return [Backup.to_dict(backup) for backup in backups]
 
 
@@ -1016,7 +923,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
-    operator_extra_links = (DataprocMetastoreServiceLink(),)
+    operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
         self,
@@ -1076,7 +983,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
         )
         self._wait_for_restore_service(hook)
         self.log.info("Service %s restored from backup %s", self.service_id, self.backup_id)
-        DataprocMetastoreServiceLink.persist(context=context, task_instance=self)
+        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
 
     def _wait_for_restore_service(self, hook: DataprocMetastoreHook):
         """
@@ -1146,7 +1053,7 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
-    operator_extra_links = (DataprocMetastoreServiceLink(),)
+    operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
         self,
@@ -1196,4 +1103,4 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
         )
         hook.wait_for_operation(self.timeout, operation)
         self.log.info("Service %s updated successfully", self.service.get("name"))
-        DataprocMetastoreServiceLink.persist(context=context, task_instance=self)
+        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
