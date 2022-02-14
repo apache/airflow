@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import os
 import sys
 
@@ -53,24 +54,20 @@ def ga_output(parameter_name: str, parameter_value: str):
 
 
 def output_all_basic_variables():
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = os.environ.get('CURRENT_PYTHON_MAJOR_MINOR_VERSIONS')
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS = os.environ.get('ALL_PYTHON_MAJOR_MINOR_VERSIONS')
     print(f" HERE >>  + {FULL_TESTS_NEEDED_LABEL}")
     if FULL_TESTS_NEEDED_LABEL:
-        ga_output(
-            "python_versions",
-            [
-                "3.7",
-                "3.8",
-                "3.9",
-            ],
-        )
-        ga_output(
+        ga_output("python-versions", json.dumps(CURRENT_PYTHON_MAJOR_MINOR_VERSIONS))
+        ga_output("all-python-versions", json.dumps(ALL_PYTHON_MAJOR_MINOR_VERSIONS))
+        """ga_output(
             "all-python-versions",
             [
                 "3.7",
                 "3.8",
                 "3.9",
             ],
-        )
+        )"""
     else:
         ga_output(
             "python_versions",

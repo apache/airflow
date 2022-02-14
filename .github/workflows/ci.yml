@@ -195,9 +195,6 @@ jobs:
           GITHUB_EVENT_NAME = os.environ.get('GITHUB_EVENT_NAME')
           GITHUB_SHA = os.environ.get('GITHUB_SHA')
 
-          print(f"GITHUB_EVENT_NAME = > {GITHUB_EVENT_NAME}")
-          print(f"GITHUB_SHA = > {GITHUB_SHA}")
-
           if GITHUB_EVENT_NAME == "pull_request":
             print("Run selective checks")
             # ./scripts/ci/selective_ci_checks.sh GITHUB_SHA
