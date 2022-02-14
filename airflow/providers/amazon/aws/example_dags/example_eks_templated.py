@@ -14,7 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
+
+# mypy ignore arg types (for templated fields)
+# type: ignore[arg-type]
+
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -39,6 +42,7 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksN
         "endpointPrivateAccess": false
     },
     "nodegroup_name": "templated-nodegroup",
+    "nodegroup_subnets": "['subnet-12345ab', 'subnet-67890cd']",
     "nodegroup_role_arn": "arn:aws:iam::123456789012:role/role_name"
 }
 """
@@ -55,8 +59,6 @@ with DAG(
 
     CLUSTER_NAME = "{{ dag_run.conf['cluster_name'] }}"
     NODEGROUP_NAME = "{{ dag_run.conf['nodegroup_name'] }}"
-    VPC_CONFIG = json.loads("{{ dag_run.conf['resources_vpc_config'] }}")
-    SUBNETS = VPC_CONFIG['subnetIds']
 
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EksCreateClusterOperator(
@@ -64,7 +66,7 @@ with DAG(
         cluster_name=CLUSTER_NAME,
         compute=None,
         cluster_role_arn="{{ dag_run.conf['cluster_role_arn'] }}",
-        resources_vpc_config=VPC_CONFIG,
+        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",
     )
 
     await_create_cluster = EksClusterStateSensor(
@@ -77,7 +79,7 @@ with DAG(
         task_id='create_eks_nodegroup',
         cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
-        nodegroup_subnets=SUBNETS,
+        nodegroup_subnets="{{ dag_run.conf['nodegroup_subnets'] }}",
         nodegroup_role_arn="{{ dag_run.conf['nodegroup_role_arn'] }}",
     )
 
