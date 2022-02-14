@@ -17,6 +17,7 @@
 # under the License.
 
 from datetime import timedelta
+from typing import Callable
 
 import pytest
 from sqlalchemy.orm import eagerload
@@ -26,6 +27,7 @@ from airflow.api.common.mark_tasks import (
     _create_dagruns,
     _DagRunInfo,
     set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
     set_dag_run_state_to_running,
     set_dag_run_state_to_success,
     set_state,
@@ -519,23 +521,23 @@ class TestMarkDAGRun:
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    def test_set_running_dag_run_to_running(self):
+    @pytest.mark.parametrize(
+        "dag_run_alter_function,new_state",
+        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
+    )
+    def test_set_running_dag_run_to_activate_state(self, dag_run_alter_function: Callable, new_state: State):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.RUNNING, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
+        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # None of the tasks should be altered, only the dag itself
         assert len(altered) == 0
-        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_dag_run_state(self.dag1, date, new_state)
         self._verify_task_instance_states_remain_default(dr)
-        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
-
-    def test_set_running_dag_run_to_queued(self):
-        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
-        pass
+        self._verify_dag_run_dates(self.dag1, date, new_state, middle_time)
 
     def test_set_success_dag_run_to_success(self):
         date = self.execution_dates[0]
@@ -566,23 +568,23 @@ class TestMarkDAGRun:
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    def test_set_success_dag_run_to_running(self):
+    @pytest.mark.parametrize(
+        "dag_run_alter_function,new_state",
+        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
+    )
+    def test_set_success_dag_run_to_activate_state(self, dag_run_alter_function: Callable, new_state: State):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
+        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # None of the tasks should be altered, but only the dag object should be changed
         assert len(altered) == 0
-        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_dag_run_state(self.dag1, date, new_state)
         self._verify_task_instance_states_remain_default(dr)
-        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
-
-    def test_set_success_dag_run_to_queued(self):
-        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
-        pass
+        self._verify_dag_run_dates(self.dag1, date, new_state, middle_time)
 
     def test_set_failed_dag_run_to_success(self):
         date = self.execution_dates[0]
@@ -614,23 +616,23 @@ class TestMarkDAGRun:
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    def test_set_failed_dag_run_to_running(self):
+    @pytest.mark.parametrize(
+        "dag_run_alter_function,state",
+        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
+    )
+    def test_set_failed_dag_run_to_activate_state(self, dag_run_alter_function: Callable, state: State):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
+        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # None of the tasks should be altered, since we've only altered the DAG itself
         assert len(altered) == 0
-        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_dag_run_state(self.dag1, date, state)
         self._verify_task_instance_states_remain_default(dr)
-        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
-
-    def test_set_queued_dag_run_to_running(self):
-        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
-        pass
+        self._verify_dag_run_dates(self.dag1, date, state, middle_time)
 
     def test_set_state_without_commit(self):
         date = self.execution_dates[0]
@@ -644,7 +646,12 @@ class TestMarkDAGRun:
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 
-        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
+        will_be_altered = set_dag_run_state_to_queued(dag=self.dag1, run_id=dr.run_id, commit=False)
+
+        # None of the tasks will be altered.
+        assert len(will_be_altered) == 0
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
 
         will_be_altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=False)
 
@@ -709,7 +716,8 @@ class TestMarkDAGRun:
         assert len(altered) == 0
         altered = set_dag_run_state_to_running(dag=None, execution_date=self.execution_dates[0])
         assert len(altered) == 0
-        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
+        altered = set_dag_run_state_to_queued(dag=None, execution_date=self.execution_dates[0])
+        assert len(altered) == 0
 
         # No dag_run_id
         altered = set_dag_run_state_to_success(dag=self.dag1, run_id=None)
@@ -718,7 +726,8 @@ class TestMarkDAGRun:
         assert len(altered) == 0
         altered = set_dag_run_state_to_running(dag=self.dag1, run_id=None)
         assert len(altered) == 0
-        # @ToDo(jorrick) Add set_dag_run_state_to_queued test
+        altered = set_dag_run_state_to_queued(dag=self.dag1, run_id=None)
+        assert len(altered) == 0
 
         # This will throw ValueError since dag.last_dagrun is None
         # need to be 0 does not exist.
