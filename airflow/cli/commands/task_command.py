@@ -113,9 +113,9 @@ def _get_ti(
 ) -> TaskInstance:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     if task.is_mapped:
-        if map_index == -1:
+        if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
-    elif map_index != -1:
+    elif map_index >= 0:
         raise RuntimeError("map_index passed to non-mapped task")
     dag_run = _get_dag_run(
         dag=task.dag,
