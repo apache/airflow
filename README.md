@@ -333,7 +333,7 @@ binding.
 
 Those `extras` and `providers` dependencies are maintained in `setup.cfg`.
 
-There are few dependencies that we decided are important enough to upper-bind them by default, as they are
+There are few dependencies that we decided are important enough to upper-bound them by default, as they are
 known to follow predictable versioning scheme, and we know that new versions of those are very likely to
 bring breaking changes. We commit to regularly review and attempt to upgrade to the newer versions of
 the dependencies as they are released, but this is manual process.
