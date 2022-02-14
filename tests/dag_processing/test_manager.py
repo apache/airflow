@@ -454,10 +454,14 @@ class TestDagFileProcessorManager:
             )
 
     def test_deactivate_stale_dags(self):
+        """
+        Ensure that DAGs are marked inactive when the file is parsed but the
+        DagModel.last_parsed_time is not updated.
+        """
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(minutes=10),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -470,17 +474,18 @@ class TestDagFileProcessorManager:
         with create_session() as session:
             # Add stale DAG to the DB
             dag = dagbag.get_dag('test_example_bash_operator')
-            dag.last_parsed_time = timezone.utcnow() - timedelta(hours=4)
+            dag.last_parsed_time = timezone.utcnow()
             dag.sync_to_db()
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
                 num_dags=1,
                 import_errors=0,
-                last_finish_time=timezone.utcnow(),
+                last_finish_time=timezone.utcnow() + timedelta(hours=1),
                 last_duration=1,
                 run_count=1,
             )
+            manager._file_paths = [test_dag_path]
             manager._file_stats[test_dag_path] = stat
 
             active_dags = (
@@ -488,6 +493,7 @@ class TestDagFileProcessorManager:
             )
             assert len(active_dags) == 1
 
+            manager._file_stats[test_dag_path] = stat
             manager._deactivate_stale_dags()
             active_dags = (
                 session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
