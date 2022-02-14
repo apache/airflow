@@ -531,6 +531,8 @@ def task_render(args):
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary=True)
+    if ti.task.is_mapped:
+        ti.task = ti.task.unmap()
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

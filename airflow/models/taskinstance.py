@@ -1661,6 +1661,8 @@ class TaskInstance(Base, LoggingMixin):
     def dry_run(self):
         """Only Renders Templates for the TI"""
         task = self.task
+        if task.is_mapped:
+            task = task.unmap()
         task_copy = task.prepare_for_execution()
         self.task = task_copy
 
@@ -2032,6 +2034,11 @@ class TaskInstance(Base, LoggingMixin):
 
     def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""
+        if self.task.is_mapped:
+            raise RuntimeError(
+                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
+                'expanded already!'
+            )
         if not context:
             context = self.get_template_context()
 
