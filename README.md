@@ -53,6 +53,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Semantic versioning](#semantic-versioning)
 - [Version Life Cycle](#version-life-cycle)
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
+- [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -307,6 +308,54 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 
 * Previous versions [require](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
   when using Python 3.
+
+## Approach to dependencies of Airflow
+
+Airflow has a lot of dependencies - direct and transitive, also Airflow is both - library and application,
+therefore our policies to dependencies has to include both - stability of installation of application,
+but also ability to install newer version of dependencies for those users who develop DAGs. We developed
+the approach where `constraints` are used to make sure airflow can be installed in a repeatable way, while
+we do not limit our users to upgrade most of the dependencies. As a result we decided not to upper-bound
+version of Airflow dependencies by default, unless we have good reasons to believe upper-bounding them is
+needed because of importance of the dependency as well as risk it involves to upgrade specific dependency.
+We also upper-bound the dependencies that we know cause problems.
+
+The constraint mechanism of ours takes care about finding and upgrading all the non-upper bound dependencies
+automatically (providing that all the tests pass). Our `main` build failures will indicate in case there
+are versions of dependencies that break our tests - indicating that we should either upper-bind them or
+that we should fix our code/tests to account for the upstream changes from those dependencies.
+
+Whenever we upper-bound such a dependency, we should always comment why we are doing it - i.e. we should have
+a good reason why dependency is upper-bound. And we should also mention what is the condition to remove the
+binding.
+
+### Approach for dependencies for Airflow Core
+
+Those `extras` and `providers` dependencies are maintained in `setup.cfg`.
+
+There are few dependencies that we decided are important enough to upper-bound them by default, as they are
+known to follow predictable versioning scheme, and we know that new versions of those are very likely to
+bring breaking changes. We commit to regularly review and attempt to upgrade to the newer versions of
+the dependencies as they are released, but this is manual process.
+
+The important dependencies are:
+
+* `SQLAlchemy`: upper-bound to specific MINOR version (SQLAlchemy is known to remove deprecations and
+   introduce breaking changes especially that support for different Databases varies and changes at
+   various speed (example: SQLAlchemy 1.4 broke MSSQL integration for Airflow)
+* `Alembic`: it is important to handle our migrations in predictable and performant way. It is developed
+   together with SQLAlchemy. Our experience with Alembic is that it very stable in MINOR version
+* `Flask`: We are using Flask as the back-bone of our web UI and API. We know major version of Flask
+   are very likely to introduce breaking changes across those so limiting it to MAJOR version makes sense
+* `werkzeug`: the library is known to cause problems in new versions. It is tightly coupled with Flask
+   libraries, and we should update them together
+
+### Approach for dependencies in Airflow Providers and extras
+
+Those `extras` and `providers` dependencies are maintained in `setup.py`.
+
+By default, we should not upper-bound dependencies for providers, however each provider's maintainer
+might decide to add additional limits (and justify them with comment)
 
 ## Contributing
 
