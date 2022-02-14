@@ -196,9 +196,6 @@ class MappedOperator(AbstractOperator):
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
 
-    inlets: list = attr.ib(factory=list)
-    outlets: list = attr.ib(factory=list)
-
     is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
 
@@ -365,6 +362,14 @@ class MappedOperator(AbstractOperator):
     @property
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("run_as_user", {})
+
+    @property
+    def inlets(self) -> Optional[Any]:
+        return self.partial_kwargs.get("inlets", None)
+
+    @property
+    def outlets(self) -> Optional[Any]:
+        return self.partial_kwargs.get("outlets", None)
 
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""
