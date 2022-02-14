@@ -53,7 +53,7 @@ def ga_output(parameter_name: str, parameter_value: str):
 
 
 def output_all_basic_variables():
-    global FULL_TESTS_NEEDED_LABEL
+    print(f" HERE >>  + {FULL_TESTS_NEEDED_LABEL}")
     if FULL_TESTS_NEEDED_LABEL:
         ga_output(
             "python_versions",
@@ -74,6 +74,10 @@ def output_all_basic_variables():
     else:
         ga_output(
             "python_versions",
+            ["3.7"],
+        )
+        ga_output(
+            "all-python-versions",
             ["3.7"],
         )
 
