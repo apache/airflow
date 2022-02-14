@@ -383,6 +383,7 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
+        dir: Optional[str] = None,
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -393,12 +394,13 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: The bucket to fetch from.
         :param object_name: The object to fetch.
         :param object_url: File reference url. Must start with "gs: //"
+        :param dir: The tmp sub directory to download the file to. (passed to NamedTemporaryFile)
         :return: File handler
         """
         if object_name is None:
             raise ValueError("Object name can not be empty")
         _, _, file_name = object_name.rpartition("/")
-        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+        with NamedTemporaryFile(suffix=file_name, dir=dir) as tmp_file:
             self.download(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
             tmp_file.flush()
             yield tmp_file

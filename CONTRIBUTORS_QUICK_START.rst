@@ -317,10 +317,14 @@ Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 .. code-block:: bash
 
   $ sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
+
+2. Initialize virtual environment with breeze.
+
+.. code-block:: bash
+
   $ ./breeze initialize-local-virtualenv --python 3.8
 
-
-2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
+3. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
 .. code-block:: bash
 
@@ -420,6 +424,9 @@ Using Breeze
 3. Setup mysql database in
    MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
    blank(leave empty), default schema ``airflow``.
+
+   If you cannot connect to MySQL, refer to the Prerequisites section in the
+   |Breeze documentation| and try increasing Docker disk space.
 
    .. raw:: html
 

@@ -163,6 +163,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if engine_kwargs is None:
+            engine_kwargs = {}
         connection = self.get_connection(self.gcp_conn_id)
         if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
             credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
@@ -186,6 +188,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 ", extra__google_cloud_platform__key_path"
                 "and extra__google_cloud_platform__keyfile_dict"
             )
+
+    def get_records(self, sql, parameters=None):
+        if self.location is None:
+            raise AirflowException("Need to specify 'location' to use BigQueryHook.get_records()")
+        return super().get_records(sql, parameters=parameters)
 
     @staticmethod
     def _resolve_table_reference(
