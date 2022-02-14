@@ -127,7 +127,7 @@ class LivyHook(HttpHook, LoggingMixin):
                     data=data,
                     headers=headers,
                     extra_options=self.extra_options,
-                    retry_args=retry_args,
+                    _retry_args=retry_args,
                 )
             else:
                 result = self.run(endpoint, data, headers, self.extra_options)
