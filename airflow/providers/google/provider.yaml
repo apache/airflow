@@ -89,6 +89,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_build.rst
     logo: /integration-logos/gcp/Cloud-Build.png
     tags: [gcp]
+  - integration-name: Google Cloud Composer
+    external-doc-url: https://cloud.google.com/composer
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     external-doc-url: https://cloud.google.com/dlp/
     how-to-guide:
@@ -363,6 +368,9 @@ operators:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_build
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_composer
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
@@ -538,6 +546,9 @@ hooks:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_build
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_composer
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
@@ -825,6 +836,8 @@ extra-links:
   - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAITrainingPipelinesLink
   - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetLink
   - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetListLink
+  - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
+  - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.common.links.storage.StorageLink
 
 additional-extras:
