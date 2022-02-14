@@ -371,7 +371,7 @@ def set_dag_run_state_to_success(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> List[BaseOperator]:
+) -> List[TaskInstance]:
     """
     Set the dag run for a specific execution date and its task instances
     to success.
@@ -418,7 +418,7 @@ def set_dag_run_state_to_failed(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> List[BaseOperator]:
+) -> List[TaskInstance]:
     """
     Set the dag run for a specific execution date or run_id and its running task instances
     to failed.
@@ -480,7 +480,7 @@ def __set_dag_run_state_to_running_or_queued(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> List[BaseOperator]:
+) -> List[TaskInstance]:
     """
     Set the dag run for a specific execution date to running.
 
@@ -492,7 +492,7 @@ def __set_dag_run_state_to_running_or_queued(
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
     """
-    res: List[BaseOperator] = []
+    res: List[TaskInstance] = []
 
     if not (execution_date is None) ^ (run_id is None):
         return res
@@ -526,7 +526,7 @@ def set_dag_run_state_to_running(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> List[BaseOperator]:
+) -> List[TaskInstance]:
     return __set_dag_run_state_to_running_or_queued(
         new_state=DagRunState.RUNNING,
         dag=dag,
@@ -545,7 +545,7 @@ def set_dag_run_state_to_queued(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> List[BaseOperator]:
+) -> List[TaskInstance]:
     return __set_dag_run_state_to_running_or_queued(
         new_state=DagRunState.QUEUED,
         dag=dag,
