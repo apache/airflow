@@ -22,7 +22,7 @@ import os
 import subprocess
 import sys
 
-subprocess.call("../../scripts/ci/libraries/_script_init.sh")
+subprocess.check_call('../../scripts/ci/libraries/_script_init.sh')
 
 # Forcing PR
 PR_LABELS = "full tests needed"  # os.environ.get('PR_LABELS')
