@@ -1563,8 +1563,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def unmap(self) -> "BaseOperator":
         """:meta private:"""
-        # Exists to make typing easier
-        raise TypeError("Internal code error: Do not call unmap on BaseOperator!")
+        return self
 
 
 # TODO: Deprecate for Airflow 3.0
