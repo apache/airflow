@@ -43,7 +43,7 @@ How package/modules loading in Python works
 
 The list of directories from which Python tries to load the module is given
 by the variable ``sys.path``. Python really tries to
-`intelligently determine the contents of <https://stackoverflow.com/a/38403654>`_
+`intelligently determine the contents <https://stackoverflow.com/a/38403654>`_
 of this variable, including depending on the operating system and how Python
 is installed and which Python version is used.
 
