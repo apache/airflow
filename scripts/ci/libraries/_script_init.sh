@@ -18,12 +18,16 @@
 
 set -eo pipefail
 
+
 if [[ $(uname -s) != "Darwin" ]]; then
     # do not fail with undefined variable on MacOS. The old Bash which is default on Mac OS
     # fails with undefined variable when you are passing an empty variable and this causes
     # problems for example when you try to pass empty list of arguments "${@}"
     set -u
 fi
+
+echo 'You are in _script_init.sh'
+
 
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES:=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../.." && pwd )}"
 readonly AIRFLOW_SOURCES
