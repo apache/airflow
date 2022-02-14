@@ -24,9 +24,6 @@ import sys
 
 subprocess.check_call('./scripts/ci/libraries/_script_init.sh')
 
-cmd = r'find . -name "*.pyc" -exec rm -rf {} \;'
-os.system(cmd)
-
 
 # Forcing PR
 PR_LABELS = "full tests needed"  # os.environ.get('PR_LABELS')
