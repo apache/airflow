@@ -802,14 +802,14 @@ notacommand = OK
         assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
         assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
 
-        if conf_conn != test_conf.airflow_defaults['core']['sql_alchemy_conn']:
-            assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
-        else:
+        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
             assert conf_materialize_cmds['core']['sql_alchemy_conn'] == 'my-super-secret-conn'
 
         assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['core']
         assert conf_maintain_cmds['core']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
 
-        if conf_conn != test_conf.airflow_defaults['core']['sql_alchemy_conn']:
+        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
+            assert 'sql_alchemy_conn' not in conf_maintain_cmds['core']
+        else:
             assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
             assert conf_maintain_cmds['core']['sql_alchemy_conn'] == conf_conn
