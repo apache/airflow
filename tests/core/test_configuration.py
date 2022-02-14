@@ -784,10 +784,14 @@ notacommand = OK
 
     def test_as_dict_respects_sensitive_cmds(self):
         test_conf = conf
-        test_conf.read_string(textwrap.dedent("""
-            [core]
-            sql_alchemy_conn_cmd = echo -n my-super-secret-conn
-        """))
+        test_conf.read_string(
+            textwrap.dedent(
+                """
+                [core]
+                sql_alchemy_conn_cmd = echo -n my-super-secret-conn
+                """
+            )
+        )
 
         conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
         conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
