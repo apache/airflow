@@ -363,6 +363,14 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("run_as_user", {})
 
+    @property
+    def inlets(self) -> Optional[Any]:
+        return self.partial_kwargs.get("inlets", None)
+
+    @property
+    def outlets(self) -> Optional[Any]:
+        return self.partial_kwargs.get("outlets", None)
+
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""
         return self.dag

@@ -1424,6 +1424,8 @@ class TaskInstance(Base, LoggingMixin):
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
         with Stats.timer(f'dag.{self.task.dag_id}.{self.task.task_id}.duration'):
+            # Set the validated/merged params on the task object.
+            self.task.params = context['params']
 
             self.render_templates(context=context)
             RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
@@ -1836,7 +1838,7 @@ class TaskInstance(Base, LoggingMixin):
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        validated_params = task.params = params.validate()
+        validated_params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')

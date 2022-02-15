@@ -195,6 +195,8 @@ def partial(
     on_retry_callback: Optional[TaskStateChangeCallback] = None,
     run_as_user: Optional[str] = None,
     executor_config: Optional[Dict] = None,
+    inlets: Optional[Any] = None,
+    outlets: Optional[Any] = None,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -247,6 +249,8 @@ def partial(
     partial_kwargs.setdefault("on_success_callback", on_success_callback)
     partial_kwargs.setdefault("run_as_user", run_as_user)
     partial_kwargs.setdefault("executor_config", executor_config)
+    partial_kwargs.setdefault("inlets", inlets)
+    partial_kwargs.setdefault("outlets", outlets)
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.map().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
