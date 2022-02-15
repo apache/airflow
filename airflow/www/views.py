@@ -18,7 +18,6 @@
 #
 import collections
 import copy
-import html
 import json
 import logging
 import math
@@ -1818,7 +1817,6 @@ class Airflow(AirflowBaseView):
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                html_attr_escaped_origin=html.escape(origin, quote=True),
                 conf=default_conf,
                 doc_md=doc_md,
                 form=form,
@@ -1834,7 +1832,6 @@ class Airflow(AirflowBaseView):
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                html_attr_escaped_origin=html.escape(origin, quote=True),
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
@@ -1856,7 +1853,6 @@ class Airflow(AirflowBaseView):
                         'airflow/trigger.html',
                         dag_id=dag_id,
                         origin=origin,
-                        html_attr_escaped_origin=html.escape(origin, quote=True),
                         conf=request_conf,
                         form=form,
                         is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
@@ -1868,7 +1864,6 @@ class Airflow(AirflowBaseView):
                     'airflow/trigger.html',
                     dag_id=dag_id,
                     origin=origin,
-                    html_attr_escaped_origin=html.escape(origin, quote=True),
                     conf=request_conf,
                     form=form,
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
@@ -1894,7 +1889,6 @@ class Airflow(AirflowBaseView):
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                html_attr_escaped_origin=html.escape(origin, quote=True),
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
