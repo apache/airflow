@@ -373,17 +373,7 @@ We need to have Docker and Postgres installed.
 We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
 Follow the instructions properly to set up Airflow.
 
-We need to add a connection to Postgres. Go to the UI and click "Admin" >> "Connections". Specify the following for each field:
-
-- Conn id: LOCAL
-- Conn Type: postgres
-- Host: postgres
-- Schema: <DATABASE_NAME>
-- Login: airflow
-- Password: airflow
-- Port: 5432
-
-Alternatively, you can use the postgres_default connection. If one uses this, one should change the value of ``postgres_conn_id`` in the DAG definition:
+You can use the postgres_default connection:
 
 - Conn id: postgres_default
 - Conn Type: postgres
@@ -455,7 +445,7 @@ Let's break this down into 2 steps: get data & merge data:
       with open(data_path, "w") as file:
           file.write(response.text)
 
-      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
       with open(data_path, "r") as file:
@@ -485,7 +475,7 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
           FROM EMPLOYEES_TEMP;
       """
       try:
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           cur.execute(query)
@@ -527,7 +517,7 @@ Lets look at our DAG:
           with open(data_path, "w") as file:
               file.write(response.text)
 
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           with open(data_path, "r") as file:
@@ -549,7 +539,7 @@ Lets look at our DAG:
                   FROM EMPLOYEES_TEMP;
                   """
           try:
-              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
               conn = postgres_hook.get_conn()
               cur = conn.cursor()
               cur.execute(query)
