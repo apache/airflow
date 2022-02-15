@@ -828,6 +828,9 @@ extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+  - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
+  - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
+  - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
   - airflow.providers.google.cloud.operators.dataproc.DataprocJobLink
   - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink

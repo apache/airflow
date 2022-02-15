@@ -16,17 +16,158 @@
 # under the License.
 
 """This module contains Google DataFusion operators."""
+from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+BASE_LINK = "https://console.cloud.google.com/data-fusion"
+DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/default/pipelines"
+DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
+
+
+class DataFusionPipelineLinkHelper:
+    """Helper class for Pipeline links"""
+
+    @staticmethod
+    def get_project_id(instance):
+        instance = instance["name"]
+        project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
+        return project_id
+
+
+class DataFusionInstanceLink(BaseOperatorLink):
+    """Helper class for constructing Data Fusion Instance link"""
+
+    name = "Data Fusion Instance"
+    key = "instance_conf"
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance: Union[
+            "CloudDataFusionRestartInstanceOperator",
+            "CloudDataFusionCreateInstanceOperator",
+            "CloudDataFusionUpdateInstanceOperator",
+            "CloudDataFusionGetInstanceOperator",
+        ],
+        project_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataFusionInstanceLink.key,
+            value={
+                "region": task_instance.location,
+                "instance_name": task_instance.instance_name,
+                "project_id": project_id,
+            },
+        )
+
+    def get_link(self, operator: BaseOperator, dttm: datetime):
+        instance_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key=DataFusionInstanceLink.key,
+        )
+        return (
+            DATAFUSION_INSTANCE_LINK.format(
+                region=instance_conf["region"],
+                instance_name=instance_conf["instance_name"],
+                project_id=instance_conf["project_id"],
+            )
+            if instance_conf
+            else ""
+        )
+
+
+class DataFusionPipelineLink(BaseOperatorLink):
+    """Helper class for constructing Data Fusion Pipeline link"""
+
+    name = "Data Fusion Pipeline"
+    key = "pipeline_conf"
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance: Union[
+            "CloudDataFusionCreatePipelineOperator",
+            "CloudDataFusionStartPipelineOperator",
+            "CloudDataFusionStopPipelineOperator",
+        ],
+        uri: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataFusionPipelineLink.key,
+            value={
+                "uri": uri,
+                "pipeline_name": task_instance.pipeline_name,
+            },
+        )
+
+    def get_link(self, operator: BaseOperator, dttm: datetime):
+        pipeline_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key=DataFusionPipelineLink.key,
+        )
+        return (
+            DATAFUSION_PIPELINE_LINK.format(
+                uri=pipeline_conf["uri"],
+                pipeline_name=pipeline_conf["pipeline_name"],
+            )
+            if pipeline_conf
+            else ""
+        )
+
+
+class DataFusionPipelinesLink(BaseOperatorLink):
+    """Helper class for constructing list of Data Fusion Pipelines link"""
+
+    name = "Data Fusion Pipelines"
+    key = "pipelines_conf"
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance: "CloudDataFusionListPipelinesOperator",
+        uri: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataFusionPipelinesLink.key,
+            value={
+                "uri": uri,
+            },
+        )
+
+    def get_link(self, operator: BaseOperator, dttm: datetime):
+        pipelines_conf = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key=DataFusionPipelinesLink.key,
+        )
+        return (
+            DATAFUSION_PIPELINES_LINK.format(
+                uri=pipelines_conf["uri"],
+            )
+            if pipelines_conf
+            else ""
+        )
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -60,6 +201,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         "instance_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -95,8 +237,11 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        hook.wait_for_operation(operation)
+        instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
+
+        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
 
 
 class CloudDataFusionDeleteInstanceOperator(BaseOperator):
@@ -201,6 +346,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         "instance",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -257,6 +403,9 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
                 instance = hook.get_instance(
                     instance_name=self.instance_name, location=self.location, project_id=self.project_id
                 )
+
+        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
         return instance
 
 
@@ -299,6 +448,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         "instance",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -340,8 +490,11 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        hook.wait_for_operation(operation)
+        instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s updated successfully", self.instance_name)
+
+        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
 
 
 class CloudDataFusionGetInstanceOperator(BaseOperator):
@@ -374,6 +527,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         "instance_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -409,6 +563,9 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
+
+        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
         return instance
 
 
@@ -448,6 +605,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         "pipeline_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -496,6 +654,8 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
             instance_url=api_url,
             namespace=self.namespace,
         )
+
+        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
         self.log.info("Pipeline created")
 
 
@@ -623,6 +783,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         "artifact_version",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelinesLink(),)
 
     def __init__(
         self,
@@ -672,6 +833,8 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
             artifact_name=self.artifact_name,
         )
         self.log.info("%s", pipelines)
+
+        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
         return pipelines
 
 
@@ -718,6 +881,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         "runtime_args",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -778,6 +942,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         )
         self.log.info("Pipeline %s submitted successfully.", pipeline_id)
 
+        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
+
         if not self.asynchronous:
             self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
             hook.wait_for_pipeline_state(
@@ -826,6 +992,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         "pipeline_name",
         "impersonation_chain",
     )
+    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -859,16 +1026,18 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
+        self.log.info("Data Fusion pipeline: %s is going to be stopped", self.pipeline_name)
         instance = hook.get_instance(
             instance_name=self.instance_name,
             location=self.location,
             project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
+
+        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,
             instance_url=api_url,
             namespace=self.namespace,
         )
-        self.log.info("Pipeline started")
+        self.log.info("Pipeline stopped")
