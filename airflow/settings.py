@@ -352,6 +352,12 @@ def dispose_orm():
         engine = None
 
 
+def reconfigure_orm(disable_connection_pool=False):
+    """Properly close database connections and re-configure ORM"""
+    dispose_orm()
+    configure_orm(disable_connection_pool=disable_connection_pool)
+
+
 def configure_adapters():
     """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
