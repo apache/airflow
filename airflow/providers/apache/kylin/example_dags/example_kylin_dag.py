@@ -44,15 +44,15 @@ def gen_build_time():
     return {'date_start': '1325347200000', 'date_end': '1325433600000'}
 
 
-gen_build_time = gen_build_time()
-gen_build_time_output_date_start = gen_build_time['date_start']
-gen_build_time_output_date_end = gen_build_time['date_end']
+build_time = gen_build_time()
+build_time_output_date_start = build_time['date_start']
+build_time_output_date_end = build_time['date_end']
 
 build_task1 = KylinCubeOperator(
     task_id="kylin_build_1",
     command='build',
-    start_time=gen_build_time_output_date_start,
-    end_time=gen_build_time_output_date_end,
+    start_time=build_time_output_date_start,
+    end_time=build_time_output_date_end,
     is_track_job=True,
     dag=dag,
 )
@@ -60,7 +60,7 @@ build_task1 = KylinCubeOperator(
 build_task2 = KylinCubeOperator(
     task_id="kylin_build_2",
     command='build',
-    start_time=gen_build_time_output_date_end,
+    start_time=build_time_output_date_end,
     end_time='1325520000000',
     is_track_job=True,
     dag=dag,
@@ -69,8 +69,8 @@ build_task2 = KylinCubeOperator(
 refresh_task1 = KylinCubeOperator(
     task_id="kylin_refresh_1",
     command='refresh',
-    start_time=gen_build_time_output_date_start,
-    end_time=gen_build_time_output_date_end,
+    start_time=build_time_output_date_start,
+    end_time=build_time_output_date_end,
     is_track_job=True,
     dag=dag,
 )
@@ -78,7 +78,7 @@ refresh_task1 = KylinCubeOperator(
 merge_task = KylinCubeOperator(
     task_id="kylin_merge",
     command='merge',
-    start_time=gen_build_time_output_date_start,
+    start_time=build_time_output_date_start,
     end_time='1325520000000',
     is_track_job=True,
     dag=dag,
@@ -99,7 +99,7 @@ purge_task = KylinCubeOperator(
 build_task3 = KylinCubeOperator(
     task_id="kylin_build_3",
     command='build',
-    start_time=gen_build_time_output_date_end,
+    start_time=build_time_output_date_end,
     end_time='1328730000000',
     dag=dag,
 )
