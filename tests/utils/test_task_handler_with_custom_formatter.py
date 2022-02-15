@@ -20,11 +20,9 @@ import logging
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.tasklog import LogTemplate
+from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.log.logging_mixin import set_context
-from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -65,20 +63,6 @@ def task_instance():
     clear_db_runs()
 
 
-@pytest.fixture()
-def custom_prefix_template(task_instance):
-    run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
-    custom_prefix_template = "{{ ti.dag_id }}-{{ ti.task_id }}"
-    with create_session() as session:
-        log_template = session.merge(LogTemplate(filename="irrelevant", task_prefix=custom_prefix_template))
-        session.flush()  # To populate 'log_template.id'.
-        session.query(DagRun).filter(*run_filters).update({"log_template_id": log_template.id})
-    yield custom_prefix_template
-    with create_session() as session:
-        session.query(DagRun).filter(*run_filters).update({"log_template_id": None})
-        session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
-
-
 def assert_prefix(task_instance: TaskInstance, prefix: str) -> None:
     handler = next((h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None)
     assert handler is not None, "custom task log handler not set up correctly"
@@ -93,18 +77,6 @@ def test_custom_formatter_default_format(task_instance):
     assert_prefix(task_instance, "")
 
 
-@conf_vars({("logging", "task_log_prefix_template"): "this is wrong"})
-def test_custom_formatter_default_format_not_affected_by_config(task_instance):
-    assert_prefix(task_instance, "")
-
-
-@pytest.mark.usefixtures("custom_prefix_template")
-def test_custom_formatter_custom_format(task_instance):
-    """Use the prefix specified from the metadatabase."""
-    assert_prefix(task_instance, f"{DAG_ID}-{TASK_ID}")
-
-
-@pytest.mark.usefixtures("custom_prefix_template")
-@conf_vars({("logging", "task_log_prefix_template"): "this is wrong"})
+@conf_vars({("logging", "task_log_prefix_template"): "{{ti.dag_id }}-{{ ti.task_id }}"})
 def test_custom_formatter_custom_format_not_affected_by_config(task_instance):
     assert_prefix(task_instance, f"{DAG_ID}-{TASK_ID}")

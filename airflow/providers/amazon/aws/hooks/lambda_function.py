@@ -33,13 +33,9 @@ class LambdaHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param function_name: AWS Lambda Function Name
-    :type function_name: str
     :param log_type: Tail Invocation Request
-    :type log_type: str
     :param qualifier: AWS Lambda Function Version or Alias Name
-    :type qualifier: str
     :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
-    :type invocation_type: str
     """
 
     def __init__(

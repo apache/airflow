@@ -138,6 +138,7 @@ class DagRunsBatchFormSchema(Schema):
     page_offset = fields.Int(load_default=0, validate=Range(min=0))
     page_limit = fields.Int(load_default=100, validate=Range(min=1))
     dag_ids = fields.List(fields.Str(), load_default=None)
+    states = fields.List(fields.Str(), load_default=None)
     execution_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     execution_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     start_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)

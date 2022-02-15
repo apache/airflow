@@ -35,6 +35,46 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.4.0
+.....
+
+Latest change: 2022-02-13
+
+================================================================================================  ===========  ============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================================
+`6bb0857df <https://github.com/apache/airflow/commit/6bb0857df94c0f959e7ebe421a00b942fd60b199>`_  2022-02-13   ``(providers_google) add a location check in bigquery (#19571)``
+`6579648af <https://github.com/apache/airflow/commit/6579648af2a21aa01cb93f051d091569a03c04a4>`_  2022-02-13   ``Fix bigquery-hook when no  engine_kwargs are passed``
+`da485da29 <https://github.com/apache/airflow/commit/da485da29a06ecdda720a7ba75f04a2680aac0a2>`_  2022-02-13   ``Add support for BeamGoPipelineOperator (#20386)``
+`05a883b35 <https://github.com/apache/airflow/commit/05a883b35e34853ec9326bd579551a8e161d6cdc>`_  2022-02-11   ``Google Cloud Composer opearators (#21251)``
+`833087f4f <https://github.com/apache/airflow/commit/833087f4f9e86ee063d6a754593d80e9e5cd4100>`_  2022-02-10   ``Enable asynchronous job submission in BigQuery hook (#21385)``
+`51aff276c <https://github.com/apache/airflow/commit/51aff276ca4a33ee70326dd9eea6fba59f1463a3>`_  2022-02-10   ``Optionally raise an error if source file does not exist in GCSToGCSOperator (#21391)``
+`07fe9e8c6 <https://github.com/apache/airflow/commit/07fe9e8c6acf8826ac1dcaf2ad8c94297a0f0c24>`_  2022-02-09   ``Never set DagRun.state to State.NONE (#21263)``
+`0a3ff43d4 <https://github.com/apache/airflow/commit/0a3ff43d41d33d05fb3996e61785919effa9a2fa>`_  2022-02-08   ``Add pre-commit check for docstring param types (#21398)``
+`d94fa3783 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`e97374020 <https://github.com/apache/airflow/commit/e9737402081aa9c9bac748de1d75b387b3b8da42>`_  2022-02-08   ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
+`34d63fabc <https://github.com/apache/airflow/commit/34d63fabc0f2a85df38a78a89f9929e110951d11>`_  2022-02-08   ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
+`6b88d432d <https://github.com/apache/airflow/commit/6b88d432d959df73433528fe3d62194239f13edd>`_  2022-02-06   ``Support to upload file to Google Shared Drive (#21319)``
+`1a77bc648 <https://github.com/apache/airflow/commit/1a77bc6481580ab6817267b6e075634caaa025be>`_  2022-02-06   ``:bug: (BigQueryHook) fix compatibility with sqlalchemy engine (#19508)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`e840acf8d <https://github.com/apache/airflow/commit/e840acf8d1840761b72b596ccd4280efece0c974>`_  2022-02-04   ``Fix BigQuery system test (#21320)``
+`ddb5246bd <https://github.com/apache/airflow/commit/ddb5246bd1576e2ce6abf8c80c3328d7d71a75ce>`_  2022-02-03   ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+`1d4b709e2 <https://github.com/apache/airflow/commit/1d4b709e20b07c6f0b5d1bab1935e19557df2913>`_  2022-01-28   ``Revert "Create CustomJob and Datasets operators for Vertex AI service (#20077)" (#21203)``
+`48d44b885 <https://github.com/apache/airflow/commit/48d44b885b0b205a8a4f8ff864716127476ff7f4>`_  2022-01-28   ``Cloudsql import links fix. (#21199)``
+`640c0b676 <https://github.com/apache/airflow/commit/640c0b67631c5f2c8ee866b0726fa7a8a452cd3c>`_  2022-01-28   ``Create CustomJob and Datasets operators for Vertex AI service (#20077)``
+`cb7305321 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`60aa518eb <https://github.com/apache/airflow/commit/60aa518ebfe8d794ee216c8283cba841d6510189>`_  2022-01-26   ``batch as templated field in DataprocCreateBatchOperator (#20905)``
+`623163f16 <https://github.com/apache/airflow/commit/623163f16ad2bbdd47d499e423fd5e37d36a028b>`_  2022-01-25   ``Extend dataproc example dag (#21091)``
+`86ef016ea <https://github.com/apache/airflow/commit/86ef016eabd90819163503ef07c0da50373142ad>`_  2022-01-23   ``Make timeout Optional for wait_for_operation (#20981)``
+`506efb6fa <https://github.com/apache/airflow/commit/506efb6fa3999ac21a8539e863d81dc684abe52a>`_  2022-01-21   ``Squelch more deprecation warnings (#21003)``
+`372849486 <https://github.com/apache/airflow/commit/372849486cd455a4ff4821b01805a442f1a78417>`_  2022-01-21   ``Fix last google provider MyPy errors (#21010)``
+`73c0d241d <https://github.com/apache/airflow/commit/73c0d241d804507abc651a365f93d60c543349d5>`_  2022-01-21   ``Remove a few stray ':type's in docs (#21014)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`b8526abc2 <https://github.com/apache/airflow/commit/b8526abc2c220b1e07eed83694dfee972c2e2609>`_  2022-01-19   ``Add encoding parameter to 'GCSToLocalFilesystemOperator' to fix #20901 (#20919)``
+`58452f97d <https://github.com/apache/airflow/commit/58452f97dbcddb4c57a021e9c7fc76139aa9633b>`_  2022-01-03   ``Add hook for integrating with Google Calendar (#20542)``
+================================================================================================  ===========  ============================================================================================
+
 6.3.0
 .....
 
@@ -43,6 +83,7 @@ Latest change: 2021-12-31
 ================================================================================================  ===========  =====================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =====================================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `a22d5bd07 <https://github.com/apache/airflow/commit/a22d5bd07696d9cafe10a3e246ea9f3a381585ee>`_  2021-12-31   ``Fix mypy errors in Google Cloud provider (#20611)``
 `4233ebe5c <https://github.com/apache/airflow/commit/4233ebe5cea4862dbf16c9d7c72c4fdd11db9774>`_  2021-12-31   ``Fix setting of project ID in ''provide_authorized_gcloud'' (#20428)``

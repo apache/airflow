@@ -18,10 +18,11 @@
 import logging
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, NamedTuple
 from unittest import mock
 
 import jinja2
+import pendulum
 import pytest
 
 from airflow.decorators import task as task_decorator
@@ -29,13 +30,19 @@ from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
+from airflow.models.mappedoperator import MappedOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
+from tests.test_utils.config import conf_vars
+from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -79,12 +86,17 @@ class DummySubClass(DummyClass):
         self.test_sub_param = test_sub_param
 
 
+class MockNamedTuple(NamedTuple):
+    var1: str
+    var2: str
+
+
 class TestBaseOperator:
     def test_apply(self):
         dummy = DummyClass(test_param=True)
         assert dummy.test_param
 
-        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+        with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
@@ -102,7 +114,7 @@ class TestBaseOperator:
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
 
-        with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
+        with pytest.raises(AirflowException, match="missing keyword argument 'test_sub_param'"):
             DummySubClass(default_args=default_args)
 
     def test_incorrect_default_args(self):
@@ -111,13 +123,37 @@ class TestBaseOperator:
         assert dummy_class.test_param
 
         default_args = {'random_params': True}
-        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+        with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
             DummyClass(default_args=default_args)
 
     def test_incorrect_priority_weight(self):
         error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
+
+    def test_illegal_args(self):
+        """
+        Tests that Operators reject illegal arguments
+        """
+        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
+            with pytest.warns(PendingDeprecationWarning, match=msg):
+                BaseOperator(
+                    task_id='test_illegal_args',
+                    illegal_argument_1234='hello?',
+                )
+
+    def test_illegal_args_forbidden(self):
+        """
+        Tests that operators raise exceptions on illegal arguments when
+        illegal arguments are not allowed.
+        """
+        msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
+        with pytest.raises(AirflowException, match=msg):
+            BaseOperator(
+                task_id='test_illegal_args',
+                illegal_argument_1234='hello?',
+            )
 
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
@@ -247,10 +283,34 @@ class TestBaseOperator:
         """Test render_template when a nested template field is missing."""
         task = BaseOperator(task_id="op1")
 
-        with pytest.raises(AttributeError) as ctx:
-            task.render_template(ClassWithCustomAttributes(template_fields=["missing_field"]), {})
+        error_message = (
+            "'missing_field' is configured as a template field but ClassWithCustomAttributes does not have "
+            "this attribute."
+        )
+        with pytest.raises(AttributeError, match=error_message):
+            task.render_template(
+                ClassWithCustomAttributes(
+                    template_fields=["missing_field"], task_type="ClassWithCustomAttributes"
+                ),
+                {},
+            )
 
-        assert "'ClassWithCustomAttributes' object has no attribute 'missing_field'" == str(ctx.value)
+    def test_string_template_field_attr_is_converted_to_list(self):
+        """Verify template_fields attribute is converted to a list if declared as a string."""
+
+        class StringTemplateFieldsOperator(BaseOperator):
+            template_fields = "a_string"
+
+        warning_message = (
+            "The `template_fields` value for StringTemplateFieldsOperator is a string but should be a "
+            "list or tuple of string. Wrapping it in a list for execution. Please update "
+            "StringTemplateFieldsOperator accordingly."
+        )
+        with pytest.warns(UserWarning, match=warning_message) as warnings:
+            task = StringTemplateFieldsOperator(task_id="op1")
+
+            assert len(warnings) == 1
+            assert isinstance(task.template_fields, list)
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
@@ -607,10 +667,7 @@ def test_init_subclass_args():
 def test_operator_retries_invalid(dag_maker):
     with pytest.raises(AirflowException) as ctx:
         with dag_maker():
-            BaseOperator(
-                task_id='test_illegal_args',
-                retries='foo',
-            )
+            BaseOperator(task_id='test_illegal_args', retries='foo')
     assert str(ctx.value) == "'retries' type must be int, not str"
 
 
@@ -625,7 +682,7 @@ def test_operator_retries_invalid(dag_maker):
                 (
                     "airflow.models.baseoperator.BaseOperator",
                     logging.WARNING,
-                    "Implicitly converting 'retries' for task test_dag.test_illegal_args from '1' to int",
+                    "Implicitly converting 'retries' from '1' to int",
                 ),
             ],
             id="str",
@@ -640,3 +697,185 @@ def test_operator_retries(caplog, dag_maker, retries, expected):
                 retries=retries,
             )
     assert caplog.record_tuples == expected
+
+
+def test_task_mapping_with_dag():
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = BaseOperator(task_id="op1")
+        literal = ['a', 'b', 'c']
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=literal)
+        finish = MockOperator(task_id="finish")
+
+        task1 >> mapped >> finish
+
+    assert task1.downstream_list == [mapped]
+    assert mapped in dag.tasks
+    assert mapped.task_group == dag.task_group
+    # At parse time there should only be three tasks!
+    assert len(dag.tasks) == 3
+
+    assert finish.upstream_list == [mapped]
+    assert mapped.downstream_list == [finish]
+
+
+def test_task_mapping_without_dag_context():
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = BaseOperator(task_id="op1")
+    literal = ['a', 'b', 'c']
+    mapped = MockOperator.partial(task_id='task_2').map(arg2=literal)
+
+    task1 >> mapped
+
+    assert isinstance(mapped, MappedOperator)
+    assert mapped in dag.tasks
+    assert task1.downstream_list == [mapped]
+    assert mapped in dag.tasks
+    # At parse time there should only be two tasks!
+    assert len(dag.tasks) == 2
+
+
+def test_task_mapping_default_args():
+    default_args = {'start_date': DEFAULT_DATE.now(), 'owner': 'test'}
+    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+        task1 = BaseOperator(task_id="op1")
+        literal = ['a', 'b', 'c']
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=literal)
+
+        task1 >> mapped
+
+    assert mapped.partial_kwargs['owner'] == 'test'
+    assert mapped.start_date == pendulum.instance(default_args['start_date'])
+
+
+def test_map_unknown_arg_raises():
+    with pytest.raises(TypeError, match=r"argument 'file'"):
+        BaseOperator.partial(task_id='a').map(file=[1, 2, {'a': 'b'}])
+
+
+def test_map_xcom_arg():
+    """Test that dependencies are correct when mapping with an XComArg"""
+    with DAG("test-dag", start_date=DEFAULT_DATE):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
+        finish = MockOperator(task_id="finish")
+
+        mapped >> finish
+
+    assert task1.downstream_list == [mapped]
+
+
+def test_partial_on_instance() -> None:
+    """`.partial` on an instance should fail -- it's only designed to be called on classes"""
+    with pytest.raises(TypeError):
+        MockOperator(
+            task_id='a',
+        ).partial()
+
+
+def test_partial_on_class() -> None:
+    # Test that we accept args for superclasses too
+    op = MockOperator.partial(task_id='a', arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
+    assert op.kwargs["arg1"] == "a"
+    assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
+
+
+def test_partial_on_class_invalid_ctor_args() -> None:
+    """Test that when we pass invalid args to partial().
+
+    I.e. if an arg is not known on the class or any of its parent classes we error at parse time
+    """
+    with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
+        MockOperator.partial(task_id='a', foo='bar', bar=2)
+
+
+@pytest.mark.parametrize(
+    ["num_existing_tis", "expected"],
+    (
+        pytest.param(0, [(0, None), (1, None), (2, None)], id='only-unmapped-ti-exists'),
+        pytest.param(
+            3,
+            [(0, 'success'), (1, 'success'), (2, 'success')],
+            id='all-tis-exist',
+        ),
+        pytest.param(
+            5,
+            [
+                (0, 'success'),
+                (1, 'success'),
+                (2, 'success'),
+                (3, TaskInstanceState.REMOVED),
+                (4, TaskInstanceState.REMOVED),
+            ],
+            id="tis-to-be-removed",
+        ),
+    ),
+)
+def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
+    literal = [1, 2, {'a': 'b'}]
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
+
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=len(literal),
+            keys=None,
+        )
+    )
+
+    if num_existing_tis:
+        # Remove the map_index=-1 TI when we're creating other TIs
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == dr.run_id,
+        ).delete()
+
+    for index in range(num_existing_tis):
+        # Give the existing TIs a state to make sure we don't change them
+        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        session.add(ti)
+    session.flush()
+
+    mapped.expand_mapped_task(upstream_ti=dr.get_task_instance(task1.task_id), session=session)
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+
+    assert indices == expected
+
+
+def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(task1, "test_key")
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
+
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(dag_id=dr.dag_id, task_id=task1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
+    )
+
+    mapped.expand_mapped_task(upstream_ti=dr.get_task_instance(task1.task_id), session=session)
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+
+    assert indices == [(-1, TaskInstanceState.SKIPPED)]

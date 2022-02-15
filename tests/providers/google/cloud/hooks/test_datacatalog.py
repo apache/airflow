@@ -23,6 +23,7 @@ from unittest import TestCase, mock
 import pytest
 from google.api_core.retry import Retry
 from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
@@ -47,7 +48,7 @@ TEST_TAG_TEMPLATE: Dict = {"name": TEST_TAG_TEMPLATE_ID}
 TEST_TAG_TEMPLATE_FIELD_ID: str = "test-tag-template-field-id"
 TEST_TAG_TEMPLATE_FIELD: Dict = {}
 TEST_FORCE: bool = False
-TEST_READ_MASK: Dict = {"fields": ["name"]}
+TEST_READ_MASK: FieldMask = FieldMask(paths=["name"])
 TEST_RESOURCE: str = "test-resource"
 TEST_PAGE_SIZE: int = 50
 TEST_LINKED_RESOURCE: str = "test-linked-resource"

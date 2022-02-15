@@ -63,7 +63,7 @@ spec:
     fsGroup: 50000
   serviceAccountName: "RELEASE-NAME-worker-serviceaccount"
   volumes:
-    - name: dags
+    - name: airflow-dags
       persistentVolumeClaim:
         claimName: RELEASE-NAME-dags
     - emptyDir: {}

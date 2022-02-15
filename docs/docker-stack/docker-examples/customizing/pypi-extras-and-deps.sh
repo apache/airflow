@@ -23,9 +23,11 @@ cd "${AIRFLOW_SOURCES}"
 
 # [START build]
 export AIRFLOW_VERSION=2.2.2
+export DEBIAN_VERSION="buster"
 
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-${DEBIAN_VERSION}" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="oauth2client" \

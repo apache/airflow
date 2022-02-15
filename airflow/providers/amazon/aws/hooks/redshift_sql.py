@@ -39,7 +39,6 @@ class RedshiftSQLHook(DbApiHook):
 
     :param redshift_conn_id: reference to
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
-    :type redshift_conn_id: str
 
     .. note::
         get_sqlalchemy_engine() and get_uri() depend on sqlalchemy-amazon-redshift
@@ -108,9 +107,7 @@ class RedshiftSQLHook(DbApiHook):
         """
         Helper method that returns the table primary key
         :param table: Name of the target table
-        :type table: str
         :param table: Name of the target schema, public by default
-        :type table: str
         :return: Primary key columns list
         :rtype: List[str]
         """

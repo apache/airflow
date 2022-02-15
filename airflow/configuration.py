@@ -31,6 +31,7 @@ from collections import OrderedDict
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from contextlib import suppress
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -202,6 +203,13 @@ class AirflowConfigParser(ConfigParser):
                 '2.1',
             ),
         },
+        'logging': {
+            'log_filename_template': (
+                re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                "XX-set-after-default-config-loaded-XX",
+                3.0,
+            ),
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
@@ -213,6 +221,9 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
     }
 
+    upgraded_values: Dict[Tuple[str, str], str]
+    """Mapping of (section,option) to the old value that was upgraded"""
+
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
     # to instead be case-preserving
@@ -221,10 +232,27 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.upgraded_values = {}
 
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
             self.airflow_defaults.read_string(default_config)
+            # Set the upgrade value based on the current loaded default
+            default = self.airflow_defaults.get('logging', 'log_filename_template', fallback=None, raw=True)
+            if default:
+                replacement = self.deprecated_values['logging']['log_filename_template']
+                self.deprecated_values['logging']['log_filename_template'] = (
+                    replacement[0],
+                    default,
+                    replacement[2],
+                )
+            else:
+                # In case of tests it might not exist
+                with suppress(KeyError):
+                    del self.deprecated_values['logging']['log_filename_template']
+        else:
+            with suppress(KeyError):
+                del self.deprecated_values['logging']['log_filename_template']
 
         self.is_validated = False
 
@@ -239,6 +267,7 @@ class AirflowConfigParser(ConfigParser):
                 old, new, version = info
                 current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
+                    self.upgraded_values[(section, name)] = current_value
                     new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
@@ -493,6 +522,32 @@ class AirflowConfigParser(ConfigParser):
                 f'Current value: "{full_qualified_path}".'
             )
 
+    def getjson(self, section, key, fallback=_UNSET, **kwargs) -> Union[dict, list, str, int, float, None]:
+        """
+        Return a config value parsed from a JSON string.
+
+        ``fallback`` is *not* JSON parsed but used verbatim when no config value is given.
+        """
+        # get always returns the fallback value as a string, so for this if
+        # someone gives us an object we want to keep that
+        default = _UNSET
+        if fallback is not _UNSET:
+            default = fallback
+            fallback = _UNSET
+
+        try:
+            data = self.get(section=section, key=key, fallback=fallback, **kwargs)
+        except (NoSectionError, NoOptionError):
+            return default
+
+        if len(data) == 0:
+            return default if default is not _UNSET else None
+
+        try:
+            return json.loads(data)
+        except JSONDecodeError as e:
+            raise AirflowConfigException(f'Unable to parse [{section}] {key!r} as valid json') from e
+
     def read(self, filenames, encoding=None):
         super().read(filenames=filenames, encoding=encoding)
 
@@ -590,25 +645,19 @@ class AirflowConfigParser(ConfigParser):
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
             'airflow.cfg', 'default', 'env var', or 'cmd'.
-        :type display_source: bool
         :param display_sensitive: If True, the values of options set by env
             vars and bash commands will be displayed. If False, those options
             are shown as '< hidden >'
-        :type display_sensitive: bool
         :param raw: Should the values be output as interpolated values, or the
             "raw" form that can be fed back in to ConfigParser
-        :type raw: bool
         :param include_env: Should the value of configuration from AIRFLOW__
             environment variables be included or not
-        :type include_env: bool
         :param include_cmds: Should the result of calling any *_cmd config be
             set (True, default), or should the _cmd options be left as the
             command to run (False)
-        :type include_cmds: bool
         :param include_secret: Should the result of calling any *_secret config be
             set (True, default), or should the _secret options be left as the
             path to get the secret from (False)
-        :type include_secret: bool
         :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.

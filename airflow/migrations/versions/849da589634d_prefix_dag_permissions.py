@@ -55,6 +55,22 @@ def prefix_individual_dag_permissions(session):
     session.commit()
 
 
+def remove_prefix_in_individual_dag_permissions(session):
+    dag_perms = ['can_read', 'can_edit']
+    prefix = "DAG:"
+    perms = (
+        session.query(Permission)
+        .join(Action)
+        .filter(Action.name.in_(dag_perms))
+        .join(Resource)
+        .filter(Resource.name.like(prefix + '%'))
+        .all()
+    )
+    for permission in perms:
+        permission.resource.name = permission.resource.name[len(prefix) :]
+    session.commit()
+
+
 def get_or_create_dag_resource(session):
     dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
     if dag_resource:
@@ -66,6 +82,19 @@ def get_or_create_dag_resource(session):
     session.commit()
 
     return dag_resource
+
+
+def get_or_create_all_dag_resource(session):
+    all_dag_resource = get_resource_query(session, 'all_dags').first()
+    if all_dag_resource:
+        return all_dag_resource
+
+    all_dag_resource = Resource()
+    all_dag_resource.name = 'all_dags'
+    session.add(all_dag_resource)
+    session.commit()
+
+    return all_dag_resource
 
 
 def get_or_create_action(session, action_name):
@@ -158,6 +187,43 @@ def migrate_to_new_dag_permissions(db):
     db.session.commit()
 
 
+def undo_migrate_to_new_dag_permissions(session):
+    # Remove prefix from individual dag perms
+    remove_prefix_in_individual_dag_permissions(session)
+
+    # Update existing permissions to use `can_dag_read` instead of `can_read`
+    can_read_action = get_action_query(session, 'can_read').first()
+    new_can_read_permissions = get_permission_with_action_query(session, can_read_action)
+    can_dag_read_action = get_or_create_action(session, 'can_dag_read')
+    update_permission_action(session, new_can_read_permissions, can_dag_read_action)
+
+    # Update existing permissions to use `can_dag_edit` instead of `can_edit`
+    can_edit_action = get_action_query(session, 'can_edit').first()
+    new_can_edit_permissions = get_permission_with_action_query(session, can_edit_action)
+    can_dag_edit_action = get_or_create_action(session, 'can_dag_edit')
+    update_permission_action(session, new_can_edit_permissions, can_dag_edit_action)
+
+    # Update existing permissions for `DAGs` resource to use `all_dags` resource.
+    dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
+    if dag_resource:
+        new_dag_permission = get_permission_with_resource_query(session, dag_resource)
+        old_all_dag_resource = get_or_create_all_dag_resource(session)
+        update_permission_resource(session, new_dag_permission, old_all_dag_resource)
+
+        # Delete the `DAG` resource
+        session.delete(dag_resource)
+
+    # Delete `can_read` action
+    if can_read_action:
+        session.delete(can_read_action)
+
+    # Delete `can_edit` action
+    if can_edit_action:
+        session.delete(can_edit_action)
+
+    session.commit()
+
+
 def upgrade():
     db = SQLA()
     db.session = settings.Session
@@ -167,4 +233,6 @@ def upgrade():
 
 
 def downgrade():
-    pass
+    db = SQLA()
+    db.session = settings.Session
+    undo_migrate_to_new_dag_permissions(db.session)

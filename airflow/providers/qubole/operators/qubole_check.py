@@ -86,7 +86,6 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         :ref:`howto/operator:QuboleCheckOperator`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     kwargs:
 
@@ -139,16 +138,13 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
     is not within the permissible limit of expected value.
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     :param pass_value: Expected value of the query results.
-    :type pass_value: str or int or float
 
     :param tolerance: Defines the permissible pass_value range, for example if
         tolerance is 2, the Qubole command output can be anything between
         -2*pass_value and 2*pass_value, without the operator erring out.
 
-    :type tolerance: int or float
 
 
     kwargs:
@@ -168,7 +164,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
             QuboleOperator and SQLValueCheckOperator are template-supported.
     """
 
-    template_fields = set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields)
+    template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 

@@ -39,26 +39,20 @@ class BashOperator(BaseOperator):
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
-    :type bash_command: str
     :param env: If env is not None, it must be a dict that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
         behavior. (templated)
-    :type env: dict
     :param append_env: If False(default) uses the environment variables passed in env params
         and does not inherit the current process environment. If True, inherits the environment variables
         from current passes and then environment variable passed by the user will either update the existing
         inherited environment variables or the new variables gets appended to it
-    :type append_env: bool
     :param output_encoding: Output encoding of bash command
-    :type output_encoding: str
     :param skip_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
-    :type skip_exit_code: int
     :param cwd: Working directory to execute the command in.
         If None (default), the command is run in a temporary directory.
-    :type cwd: str
 
     Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success. Exit code ``99`` (or another set in ``skip_exit_code``)

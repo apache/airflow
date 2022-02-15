@@ -32,7 +32,6 @@ def provide_sftp_default_connection(key_file_path: str):
     Context manager to provide a temporary value for sftp_default connection
 
     :param key_file_path: Path to file with sftp_default credentials .json file.
-    :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")

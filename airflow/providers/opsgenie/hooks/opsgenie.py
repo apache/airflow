@@ -43,7 +43,6 @@ class OpsgenieAlertHook(BaseHook):
     You can override these defaults in this hook.
 
     :param opsgenie_conn_id: The name of the Opsgenie connection to use
-    :type opsgenie_conn_id: str
 
     """
 
@@ -86,7 +85,6 @@ class OpsgenieAlertHook(BaseHook):
 
         :param payload: Opsgenie API Create Alert payload values
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert
-        :type payload: dict
         :return: api response
         :rtype: opsgenie_sdk.SuccessResponse
         """
@@ -111,15 +109,11 @@ class OpsgenieAlertHook(BaseHook):
         Close an alert in Opsgenie
 
         :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
-        :type identifier: str
         :param identifier_type: Type of the identifier that is provided as an in-line parameter.
             Possible values are 'id', 'alias' or 'tiny'
-        :type identifier_type: str
         :param payload: Request payload of closing alert action.
             see https://github.com/opsgenie/opsgenie-python-sdk/blob/master/docs/AlertApi.md#close_alert
-        :type payload: dict
         :param kwargs: params to pass to the function
-        :type kwargs: dict
         :return: SuccessResponse
                  If the method is called asynchronously,
                  returns the request thread.

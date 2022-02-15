@@ -81,33 +81,25 @@ class StackdriverHook(GoogleBaseHook):
         :param format_: (Optional) Desired output format of the result. The
             supported formats are "dict", "json" and None which returns
             python dictionary, stringified JSON and protobuf respectively.
-        :type format_: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be included in the response.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type filter_: str
         :param order_by: A comma-separated list of fields by which to sort the result.
             Supports the same set of field references as the ``filter`` field. Entries
             can be prefixed with a minus sign to sort by the field in descending order.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type order_by: str
         :param page_size: The maximum number of resources contained in the
             underlying API response. If page streaming is performed per-
             resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number
             of resources in a page.
-        :type page_size: int
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         :param project_id: The project to fetch alerts from.
-        :type project_id: str
         """
         client = self._get_policy_client()
         policies_ = client.list_alert_policies(
@@ -165,20 +157,15 @@ class StackdriverHook(GoogleBaseHook):
         parameter. Inoperative in case the policy is already enabled.
 
         :param project_id: The project in which alert needs to be enabled.
-        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be enabled.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type filter_: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         self._toggle_policy_status(
             new_state=True,
@@ -203,20 +190,15 @@ class StackdriverHook(GoogleBaseHook):
         parameter. Inoperative in case the policy is already disabled.
 
         :param project_id: The project in which alert needs to be disabled.
-        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be disabled.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type filter_: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         self._toggle_policy_status(
             filter_=filter_,
@@ -241,21 +223,16 @@ class StackdriverHook(GoogleBaseHook):
          the name field in the alerts parameter.
 
         :param project_id: The project in which alert needs to be created/updated.
-        :type project_id: str
         :param alerts: A JSON string or file that specifies all the alerts that needs
              to be either created or updated. For more details, see
              https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies#AlertPolicy.
              (templated)
-        :type alerts: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         policy_client = self._get_policy_client()
         channel_client = self._get_channel_client()
@@ -342,16 +319,12 @@ class StackdriverHook(GoogleBaseHook):
 
         :param name: The alerting policy to delete. The format is:
                          ``projects/[PROJECT_ID]/alertPolicies/[ALERT_POLICY_ID]``.
-        :type name: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         policy_client = self._get_policy_client()
         try:
@@ -383,33 +356,25 @@ class StackdriverHook(GoogleBaseHook):
         :param format_: (Optional) Desired output format of the result. The
             supported formats are "dict", "json" and None which returns
             python dictionary, stringified JSON and protobuf respectively.
-        :type format_: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by notification channels to be included in the response.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type filter_: str
         :param order_by: A comma-separated list of fields by which to sort the result.
             Supports the same set of field references as the ``filter`` field. Entries
             can be prefixed with a minus sign to sort by the field in descending order.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type order_by: str
         :param page_size: The maximum number of resources contained in the
             underlying API response. If page streaming is performed per-
             resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number
             of resources in a page.
-        :type page_size: int
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         :param project_id: The project to fetch notification channels from.
-        :type project_id: str
         """
         client = self._get_channel_client()
         channels = client.list_notification_channels(
@@ -469,20 +434,15 @@ class StackdriverHook(GoogleBaseHook):
         parameter. Inoperative in case the policy is already enabled.
 
         :param project_id: The project in which notification channels needs to be enabled.
-        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by notification channels to be enabled.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type filter_: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         self._toggle_channel_status(
             project_id=project_id,
@@ -507,20 +467,15 @@ class StackdriverHook(GoogleBaseHook):
         parameter. Inoperative in case the policy is already disabled.
 
         :param project_id: The project in which notification channels needs to be enabled.
-        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be disabled.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-        :type filter_: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         self._toggle_channel_status(
             filter_=filter_,
@@ -548,18 +503,13 @@ class StackdriverHook(GoogleBaseHook):
             to be either created or updated. For more details, see
             https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels.
             (templated)
-        :type channels: str
         :param project_id: The project in which notification channels needs to be created/updated.
-        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         channel_client = self._get_channel_client()
 
@@ -611,16 +561,12 @@ class StackdriverHook(GoogleBaseHook):
 
         :param name: The alerting policy to delete. The format is:
                          ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.
-        :type name: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
-        :type retry: str
         :param timeout: The amount of time, in seconds, to wait
             for the request to complete. Note that if ``retry`` is
             specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: str
         """
         channel_client = self._get_channel_client()
         try:

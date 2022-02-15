@@ -50,7 +50,7 @@ the metrics that start with the elements of the list:
     statsd_allow_list = scheduler,executor,dagrun
 
 If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
-in ``[scheduler]`` section.  It should point to a function that validates the StatsD stat name, applies changes
+in ``[metrics]`` section.  It should point to a function that validates the StatsD stat name, applies changes
 to the stat name if necessary, and returns the transformed stat name. The function may looks as follow:
 
 .. code-block:: python
@@ -100,14 +100,15 @@ Name                                        Description
 ``scheduler.critical_section_busy``         Count of times a scheduler process tried to get a lock on the critical
                                             section (needed to send tasks to the executor) and found it locked by
                                             another process.
+``sla_callback_notification_failure``       Number of failed SLA miss callback notification attempts
 ``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
-``ti.start.<dagid>.<taskid>``               Number of started task in a given dag. Similar to <job_name>_start but for task
-``ti.finish.<dagid>.<taskid>.<state>``      Number of completed task in a given dag. Similar to <job_name>_end but for task
+``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
+``ti.finish.<dag_id>.<task_id>.<state>``    Number of completed task in a given dag. Similar to <job_name>_end but for task
 ``dag.callback_exceptions``                 Number of exceptions raised from DAG callbacks. When this happens, it
                                             means DAG callback is not working.
 ``celery.task_timeout_error``               Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
-``task_removed_from_dag.<dagid>``           Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
-``task_restored_to_dag.<dagid>``            Number of tasks restored for a given dag (i.e. task instance which was
+``task_removed_from_dag.<dag_id>``          Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
+``task_restored_to_dag.<dag_id>``           Number of tasks restored for a given dag (i.e. task instance which was
                                             previously in REMOVED state in the DB is added to DAG file)
 ``task_instance_created-<operator_name>``   Number of tasks instances created for a given Operator
 ``triggers.blocked_main_thread``            Number of triggers that blocked the main thread (likely due to not being

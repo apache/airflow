@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 from datetime import datetime
 from os import environ
 
@@ -90,4 +94,10 @@ with DAG(
         target_state=ClusterStates.NONEXISTENT,
     )
 
-    create_cluster_and_nodegroup >> await_create_nodegroup >> start_pod >> delete_all >> await_delete_cluster
+    (
+        create_cluster_and_nodegroup
+        >> await_create_nodegroup
+        >> start_pod
+        >> delete_all
+        >> await_delete_cluster
+    )

@@ -70,15 +70,11 @@ class HiveCliHook(BaseHook):
 
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
-    :type hive_cli_conn_id: str
     :param mapred_queue: queue used by the Hadoop Scheduler (Capacity or Fair)
-    :type  mapred_queue: str
     :param mapred_queue_priority: priority within the job queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
-    :type  mapred_queue_priority: str
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
-    :type  mapred_job_name: str
     """
 
     conn_name_attr = 'hive_cli_conn_id'
@@ -166,7 +162,6 @@ class HiveCliHook(BaseHook):
         from a dictionary of key value pairs.
 
         :param d:
-        :type d: dict
 
         >>> hh = HiveCliHook()
         >>> hive_conf = {"hive.exec.dynamic.partition": "true",
@@ -192,16 +187,12 @@ class HiveCliHook(BaseHook):
         in HiveConf.
 
         :param hql: an hql (hive query language) statement to run with hive cli
-        :type hql: str
         :param schema: Name of hive schema (database) to use
-        :type schema: str
         :param verbose: Provides additional logging. Defaults to True.
-        :type verbose: bool
         :param hive_conf: if specified these key value pairs will be passed
             to hive as ``-hiveconf "key"="value"``. Note that they will be
             passed after the ``hive_cli_params`` and thus will override
             whatever values are specified in the database.
-        :type hive_conf: dict
 
         >>> hh = HiveCliHook()
         >>> result = hh.run_cli("USE airflow;")
@@ -323,19 +314,13 @@ class HiveCliHook(BaseHook):
         not be sanitized.
 
         :param df: DataFrame to load into a Hive table
-        :type df: pandas.DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
-        :type table: str
         :param field_dict: mapping from column name to hive data type.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: collections.OrderedDict
         :param delimiter: field delimiter in the file
-        :type delimiter: str
         :param encoding: str encoding to use when writing DataFrame to file
-        :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
-        :type pandas_kwargs: dict
         :param kwargs: passed to self.load_file
         """
 
@@ -404,28 +389,19 @@ class HiveCliHook(BaseHook):
         final destination using a ``HiveOperator``.
 
         :param filepath: local filepath of the file to load
-        :type filepath: str
         :param table: target Hive table, use dot notation to target a
             specific database
-        :type table: str
         :param delimiter: field delimiter in the file
-        :type delimiter: str
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: collections.OrderedDict
         :param create: whether to create the table if it doesn't exist
-        :type create: bool
         :param overwrite: whether to overwrite the data in table or partition
-        :type overwrite: bool
         :param partition: target partition as a dict of partition columns
             and values
-        :type partition: dict
         :param recreate: whether to drop and recreate the table at every
             execution
-        :type recreate: bool
         :param tblproperties: TBLPROPERTIES of the hive table being created
-        :type tblproperties: dict
         """
         hql = ''
         if recreate:
@@ -478,7 +454,6 @@ class HiveMetastoreHook(BaseHook):
 
     :param metastore_conn_id: reference to the
         :ref: `metastore thrift service connection id <howto/connection:hive_metastore>`.
-    :type metastore_conn_id: str
     """
 
     # java short max val
@@ -570,12 +545,9 @@ class HiveMetastoreHook(BaseHook):
         Checks whether a partition exists
 
         :param schema: Name of hive schema (database) @table belongs to
-        :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type table: str
         :param partition: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :type partition: str
         :rtype: bool
 
         >>> hh = HiveMetastoreHook()
@@ -584,7 +556,9 @@ class HiveMetastoreHook(BaseHook):
         True
         """
         with self.metastore as client:
-            partitions = client.get_partitions_by_filter(schema, table, partition, 1)
+            partitions = client.get_partitions_by_filter(
+                schema, table, partition, HiveMetastoreHook.MAX_PART_COUNT
+            )
 
         return bool(partitions)
 
@@ -593,11 +567,8 @@ class HiveMetastoreHook(BaseHook):
         Checks whether a partition with a given name exists
 
         :param schema: Name of hive schema (database) @table belongs to
-        :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type table: str
         :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
-        :type partition_name: str
         :rtype: bool
 
         >>> hh = HiveMetastoreHook()
@@ -682,14 +653,11 @@ class HiveMetastoreHook(BaseHook):
         filter out partitions.
 
         :param part_specs: list of partition specs.
-        :type part_specs: list
         :param partition_key: partition key name.
-        :type partition_key: str
         :param filter_map: partition_key:partition_value map used for partition filtering,
                            e.g. {'key1': 'value1', 'key2': 'value2'}.
                            Only partitions matching all partition_key:partition_value
                            pairs will be considered as candidates of max partition.
-        :type filter_map: map
         :return: Max partition or None if part_specs is empty.
         :rtype: basestring
         """
@@ -733,13 +701,9 @@ class HiveMetastoreHook(BaseHook):
         filter out partitions.
 
         :param schema: schema name.
-        :type schema: str
         :param table_name: table name.
-        :type table_name: str
         :param field: partition key to get max partition from.
-        :type field: str
         :param filter_map: partition_key:partition_value map used for partition filtering.
-        :type filter_map: map
 
         >>> hh = HiveMetastoreHook()
         >>> filter_map = {'ds': '2015-01-01'}
@@ -789,14 +753,10 @@ class HiveMetastoreHook(BaseHook):
         Drop partitions from the given table matching the part_vals input
 
         :param table_name: table name.
-        :type table_name: str
         :param part_vals: list of partition specs.
-        :type part_vals: list
         :param delete_data: Setting to control if underlying data have to deleted
                             in addition to dropping partitions.
-        :type delete_data: bool
         :param db: Name of hive schema (database) @table belongs to
-        :type db: str
 
         >>> hh = HiveMetastoreHook()
         >>> hh.drop_partitions(db='airflow', table_name='static_babynames',
@@ -827,9 +787,7 @@ class HiveServer2Hook(DbApiHook):
 
     :param hiveserver2_conn_id: Reference to the
         :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
-    :type hiveserver2_conn_id: str
     :param schema: Hive database name.
-    :type schema: Optional[str]
     """
 
     conn_name_attr = 'hiveserver2_conn_id'
@@ -943,13 +901,9 @@ class HiveServer2Hook(DbApiHook):
         Get results of the provided hql in target schema.
 
         :param hql: hql to be executed.
-        :type hql: str or list
         :param schema: target schema, default to 'default'.
-        :type schema: str
         :param fetch_size: max size of result to fetch.
-        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :type hive_conf: dict
         :return: results of hql execution, dict with data (list of results) and header
         :rtype: dict
         """
@@ -973,21 +927,13 @@ class HiveServer2Hook(DbApiHook):
         Execute hql in target schema and write results to a csv file.
 
         :param hql: hql to be executed.
-        :type hql: str or list
         :param csv_filepath: filepath of csv to write results into.
-        :type csv_filepath: str
         :param schema: target schema, default to 'default'.
-        :type schema: str
         :param delimiter: delimiter of the csv file, default to ','.
-        :type delimiter: str
         :param lineterminator: lineterminator of the csv file.
-        :type lineterminator: str
         :param output_header: header of the csv file, default to True.
-        :type output_header: bool
         :param fetch_size: number of result rows to write into the csv file, default to 1000.
-        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :type hive_conf: dict
 
         """
         results_iter = self._get_results(hql, schema, fetch_size=fetch_size, hive_conf=hive_conf)
@@ -1023,11 +969,8 @@ class HiveServer2Hook(DbApiHook):
         Get a set of records from a Hive query.
 
         :param hql: hql to be executed.
-        :type hql: str or list
         :param schema: target schema, default to 'default'.
-        :type schema: str
         :param hive_conf: hive_conf to execute alone with the hql.
-        :type hive_conf: dict
         :return: result of hive execution
         :rtype: list
 
@@ -1049,13 +992,9 @@ class HiveServer2Hook(DbApiHook):
         Get a pandas dataframe from a Hive query
 
         :param hql: hql to be executed.
-        :type hql: str or list
         :param schema: target schema, default to 'default'.
-        :type schema: str
         :param hive_conf: hive_conf to execute alone with the hql.
-        :type hive_conf: dict
         :param kwargs: (optional) passed into pandas.DataFrame constructor
-        :type kwargs: dict
         :return: result of hive execution
         :rtype: DataFrame
 

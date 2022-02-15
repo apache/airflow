@@ -17,16 +17,13 @@
 from typing import List, Optional, Tuple
 
 import pendulum
+from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
 
-from airflow._vendor.connexion import NoContent
-from airflow.api.common.experimental.mark_tasks import (
-    set_dag_run_state_to_failed,
-    set_dag_run_state_to_success,
-)
+from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
@@ -149,6 +146,7 @@ def get_dag_runs(
     execution_date_lte: Optional[str] = None,
     end_date_gte: Optional[str] = None,
     end_date_lte: Optional[str] = None,
+    state: Optional[List[str]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     order_by: str = "id",
@@ -164,6 +162,9 @@ def get_dag_runs(
     else:
         query = query.filter(DagRun.dag_id == dag_id)
 
+    if state:
+        query = query.filter(DagRun.state.in_(state))
+
     dag_run, total_entries = _fetch_dag_runs(
         query,
         end_date_gte=end_date_gte,
@@ -176,7 +177,6 @@ def get_dag_runs(
         offset=offset,
         order_by=order_by,
     )
-
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
 
 
@@ -204,6 +204,10 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     else:
         query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
 
+    states = data.get("states")
+    if states:
+        query = query.filter(DagRun.state.in_(states))
+
     dag_runs, total_entries = _fetch_dag_runs(
         query,
         end_date_gte=data["end_date_gte"],
@@ -216,6 +220,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
         offset=data["page_offset"],
         order_by=data.get("order_by", "id"),
     )
+
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
@@ -302,8 +307,8 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
     state = post_body['state']
     dag = current_app.dag_bag.get_dag(dag_id)
     if state == DagRunState.SUCCESS:
-        set_dag_run_state_to_success(dag, dag_run.execution_date, commit=True)
+        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
-        set_dag_run_state_to_failed(dag, dag_run.execution_date, commit=True)
+        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
     dag_run = session.query(DagRun).get(dag_run.id)
     return dagrun_schema.dump(dag_run)

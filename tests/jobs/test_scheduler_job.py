@@ -40,16 +40,17 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, Pool, TaskInstance
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest
+from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -84,7 +85,7 @@ TRY_NUMBER = 1
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({('core', 'load_examples'): 'false'}):
-        with env_vars({('core', 'load_examples'): 'false'}):
+        with env_vars({'AIRFLOW__CORE__LOAD_EXAMPLES': 'false'}):
             yield
 
 
@@ -169,7 +170,6 @@ class TestSchedulerJob:
         dags_folder.
 
         :param dags_folder: the directory to traverse
-        :type dags_folder: str
         """
         self.scheduler_job = SchedulerJob(
             executor=self.null_exec, num_times_parse_dags=1, subdir=os.path.join(dags_folder)
@@ -645,6 +645,34 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
+        """Check that task instances of missing DAGs are failed"""
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag'
+        task_id_1 = 'dummy'
+        task_id_2 = 'dummydummy'
+
+        with dag_maker(dag_id=dag_id, session=session, default_args={"max_active_tis_per_dag": 1}):
+            DummyOperator(task_id=task_id_1)
+            DummyOperator(task_id=task_id_2)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.dagbag = mock.MagicMock()
+        self.scheduler_job.dagbag.get_dag.return_value = None
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        tis = dr.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+        assert 0 == len(res)
+        tis = dr.get_task_instances(session=session)
+        assert len(tis) == 2
+        assert all(ti.state == State.FAILED for ti in tis)
+
     def test_nonexistent_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_nonexistent_pool'
         with dag_maker(dag_id=dag_id, max_active_tasks=16):
@@ -689,12 +717,16 @@ class TestSchedulerJob:
     def test_not_enough_pool_slots(self, caplog, dag_maker):
         dag_id = 'SchedulerJobTest.test_test_not_enough_pool_slots'
         with dag_maker(dag_id=dag_id, concurrency=16):
-            DummyOperator(task_id="dummy", pool="some_pool", pool_slots=4)
+            DummyOperator(task_id="cannot_run", pool="some_pool", pool_slots=4)
+            DummyOperator(task_id="can_run", pool="some_pool", pool_slots=1)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         session = settings.Session()
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        ti = dr.task_instances[1]
         ti.state = State.SCHEDULED
         session.merge(ti)
         some_pool = Pool(pool='some_pool', slots=2, description='my pool')
@@ -704,10 +736,24 @@ class TestSchedulerJob:
             self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
             assert (
                 "Not executing <TaskInstance: "
-                "SchedulerJobTest.test_test_not_enough_pool_slots.dummy test [scheduled]>. "
+                "SchedulerJobTest.test_test_not_enough_pool_slots.cannot_run test [scheduled]>. "
                 "Requested pool slots (4) are greater than total pool slots: '2' for pool: some_pool"
                 in caplog.text
             )
+
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.state == State.SCHEDULED)
+            .count()
+            == 1
+        )
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id, TaskInstance.state == State.QUEUED)
+            .count()
+            == 1
+        )
+
         session.flush()
         session.rollback()
 
@@ -2316,6 +2362,7 @@ class TestSchedulerJob:
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
+            'test_invalid_param.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
@@ -3433,6 +3480,114 @@ class TestSchedulerJob:
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
+
+    def test_find_zombies_nothing(self):
+        with create_session() as session:
+            self.scheduler_job = SchedulerJob()
+            self.scheduler_job.processor_agent = mock.MagicMock()
+
+            self.scheduler_job._find_zombies(session=session)
+
+            self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+
+    def test_find_zombies(self):
+        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
+        with create_session() as session:
+            session.query(LocalTaskJob).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            dag.sync_to_db()
+            task = dag.get_task(task_id='run_this_first')
+
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            local_job = LocalTaskJob(ti)
+            local_job.state = State.SHUTDOWN
+
+            session.add(local_job)
+            session.flush()
+
+            ti.job_id = local_job.id
+            session.add(ti)
+            session.flush()
+
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.processor_agent = mock.MagicMock()
+
+            self.scheduler_job._find_zombies(session=session)
+
+            self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once()
+            requests = self.scheduler_job.processor_agent.send_callback_to_execute.call_args[0]
+            assert 1 == len(requests)
+            assert requests[0].full_filepath == dag.fileloc
+            assert requests[0].msg == f"Detected {ti} as zombie"
+            assert requests[0].is_failure_callback is True
+            assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
+            assert ti.dag_id == requests[0].simple_task_instance.dag_id
+            assert ti.task_id == requests[0].simple_task_instance.task_id
+            assert ti.run_id == requests[0].simple_task_instance.run_id
+
+            session.query(TaskInstance).delete()
+            session.query(LocalTaskJob).delete()
+
+    def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(self):
+        """
+        Check that the same set of failure callback with zombies are passed to the dag
+        file processors until the next zombie detection logic is invoked.
+        """
+        with conf_vars({('core', 'load_examples'): 'False'}):
+            dagbag = DagBag(
+                dag_folder=os.path.join(settings.DAGS_FOLDER, "test_example_bash_operator.py"),
+                read_dags_from_db=False,
+            )
+            session = settings.Session()
+            session.query(LocalTaskJob).delete()
+            dag = dagbag.get_dag('test_example_bash_operator')
+            dag.sync_to_db()
+
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+            task = dag.get_task(task_id='run_this_last')
+
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            local_job = LocalTaskJob(ti)
+            local_job.state = State.SHUTDOWN
+            session.add(local_job)
+            session.flush()
+
+            # TODO: If there was an actual Relationship between TI and Job
+            # we wouldn't need this extra commit
+            session.add(ti)
+            ti.job_id = local_job.id
+            session.flush()
+
+            expected_failure_callback_requests = [
+                TaskCallbackRequest(
+                    full_filepath=dag.fileloc,
+                    simple_task_instance=SimpleTaskInstance(ti),
+                    msg="Message",
+                )
+            ]
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+
+        self.scheduler_job._find_zombies(session=session)
+
+        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once()
+        callback_requests = self.scheduler_job.processor_agent.send_callback_to_execute.call_args[0]
+        assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
+            result.simple_task_instance.key for result in callback_requests
+        }
 
 
 @pytest.mark.xfail(reason="Work out where this goes")

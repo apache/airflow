@@ -84,7 +84,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
         args:
           - --comment-style
           - "|#|"
@@ -195,11 +195,12 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
+  # TODO: Bump to Python 3.7 when support for Python 3.6 is dropped in Airflow 2.3.
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.31.0
     hooks:
       - id: pyupgrade
-        args: ["--py37-plus"]
+        args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
@@ -231,7 +232,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D202,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
@@ -279,6 +280,7 @@ repos:
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
+          - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
       - id: autoflake
@@ -533,21 +535,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.7.2 -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-      - id: bats-tests
-        name: Run BATS bash tests for changed Breeze bash files
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/
-        files: ^breeze$|^breeze-complete$|^tests/bats/breeze
-        pass_filenames: false
-      - id: bats-tests
-        name: Run BATS bash tests for changed bash files
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh
-        files: \.sh$|\.bash$|\.bats$
-        exclude: ^tests/bats/in_container|^scripts/in_container|^tests/bats/breeze|^airflow/_vendor/
-        pass_filenames: true
-        require_serial: true
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
       - id: stylelint
         name: stylelint
         entry: "stylelint"
@@ -599,8 +587,8 @@ repos:
         args:
           - --max-length=70
         language: python
-        files: ^\.pre-commit-config\.yaml$
-        additional_dependencies: ['pyyaml']
+        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names.py$
+        additional_dependencies: ['pyyaml', 'jinja2', 'black']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
@@ -702,6 +690,15 @@ repos:
         pass_filenames: true
         files: \.github/workflows/.*\.yml$
         additional_dependencies: ['PyYAML', 'rich']
+      - id: docstring-params
+        name: Check that docstrings do not specify param types
+        entry: ./scripts/ci/pre_commit/pre_commit_docstring_param_type.py
+        language: python
+        pass_filenames: true
+        files: \.py$
+        pass_filenames: true
+        exclude: ^airflow/_vendor/
+        additional_dependencies: ['rich']
       - id: chart-schema-lint
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py
@@ -731,18 +728,6 @@ repos:
         pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7 false
-        language: system
-        always_run: true
-        pass_filenames: false
-      - id: bats-in-container-tests
-        name: Run in container bats tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
-        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
-        pass_filenames: false
       - id: mypy
         name: Run mypy
         language: system

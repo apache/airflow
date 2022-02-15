@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 3.0.0
   - 2.6.0
   - 2.5.0
   - 2.4.0
@@ -126,6 +127,8 @@ integrations:
   - integration-name: Amazon Simple Notification Service (SNS)
     external-doc-url: https://aws.amazon.com/sns/
     logo: /integration-logos/aws/Amazon-Simple-Notification-Service-SNS_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sns.rst
     tags: [aws]
   - integration-name: Amazon Simple Queue Service (SQS)
     external-doc-url: https://aws.amazon.com/sqs/
@@ -465,6 +468,9 @@ transfers:
   - source-integration-name: Local
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.local_to_s3
+  - source-integration-name: SQL
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.amazon.aws.hooks.s3.S3Hook

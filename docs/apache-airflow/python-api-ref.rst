@@ -20,6 +20,12 @@
 Python API Reference
 ====================
 
+.. _pythonapi:dags:
+
+DAGs
+---------
+The DAG is Airflow's core model that represents a recurring workflow. Check out :class:`~airflow.models.dag.DAG` for details.
+
 .. _pythonapi:operators:
 
 Operators

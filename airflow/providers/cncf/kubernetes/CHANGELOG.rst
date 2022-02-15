@@ -19,23 +19,58 @@
 Changelog
 ---------
 
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add missed deprecations for cncf (#20031)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Make ''delete_pod'' change more prominent in K8s changelog (#20753)``
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+3.0.1
+.....
+
+
+Misc
+~~~~
+
+* ``Update Kubernetes library version (#18797)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.0
 .....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+* ``Parameter is_delete_operator_pod default is changed to True (#20575)``
 * ``Simplify KubernetesPodOperator (#19572)``
-* ``Delete pods by default in KubernetesPodOperator (#20575)``
 * ``Move pod_mutation_hook call from PodManager to KubernetesPodOperator (#20596)``
 * ``Rename ''PodLauncher'' to ''PodManager'' (#20576)``
 
-.. warning:: Many methods in ``KubernetesPodOperator`` and ``PodLauncher`` have been renamed.
-    If you have subclassed ``KubernetesPodOperator`` will need to update your subclass to reflect
-    the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
+Parameter is_delete_operator_pod has new default
+````````````````````````````````````````````````
+
+Previously, the default for param ``is_delete_operator_pod`` was ``False``, which means that
+after a task runs, its pod is not deleted by the operator and remains on the
+cluster indefinitely.  With this release, we change the default to ``True``.
 
 Notes on changes KubernetesPodOperator and PodLauncher
 ``````````````````````````````````````````````````````
+
+.. warning:: Many methods in ``KubernetesPodOperator`` and ``PodLauncher`` have been renamed.
+    If you have subclassed ``KubernetesPodOperator`` you will need to update your subclass to reflect
+    the new structure. Additionally ``PodStatus`` enum has been renamed to ``PodPhase``.
 
 Overview
 ''''''''
@@ -192,7 +227,8 @@ Bug Fixes
 * ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
 * ``Import Hooks lazily individually in providers manager (#17682)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Fix messed-up changelog in 3 providers (#17380)``
    * ``Fix static checks (#17256)``
    * ``Update spark_kubernetes.py (#17237)``

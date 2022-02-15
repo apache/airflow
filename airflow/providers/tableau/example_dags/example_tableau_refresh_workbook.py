@@ -23,7 +23,7 @@ when the operation actually finishes. That's why we have another task that check
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.tableau.operators.tableau_refresh_workbook import TableauRefreshWorkbookOperator
+from airflow.providers.tableau.operators.tableau import TableauOperator
 from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
 
 with DAG(
@@ -35,15 +35,21 @@ with DAG(
     tags=['example'],
 ) as dag:
     # Refreshes a workbook and waits until it succeeds.
-    task_refresh_workbook_blocking = TableauRefreshWorkbookOperator(
-        workbook_name='MyWorkbook',
-        blocking=True,
+    task_refresh_workbook_blocking = TableauOperator(
+        resource='workbooks',
+        method='refresh',
+        find='MyWorkbook',
+        match_with='name',
+        blocking_refresh=True,
         task_id='refresh_tableau_workbook_blocking',
     )
     # Refreshes a workbook and does not wait until it succeeds.
-    task_refresh_workbook_non_blocking = TableauRefreshWorkbookOperator(
-        workbook_name='MyWorkbook',
-        blocking=False,
+    task_refresh_workbook_non_blocking = TableauOperator(
+        resource='workbooks',
+        method='refresh',
+        find='MyWorkbook',
+        match_with='name',
+        blocking_refresh=False,
         task_id='refresh_tableau_workbook_non_blocking',
     )
     # The following task queries the status of the workbook refresh job until it succeeds.

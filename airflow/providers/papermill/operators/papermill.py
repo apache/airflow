@@ -42,14 +42,10 @@ class PapermillOperator(BaseOperator):
     Executes a jupyter notebook through papermill that is annotated with parameters
 
     :param input_nb: input notebook (can also be a NoteBook or a File inlet)
-    :type input_nb: str
     :param output_nb: output notebook (can also be a NoteBook or File outlet)
-    :type output_nb: str
     :param parameters: the notebook parameters to set
-    :type parameters: dict
     :param kernel_name: (optional) name of kernel to execute the notebook against
         (ignores kernel name in the notebook document metadata)
-    :type kernel_name: str
     """
 
     supports_lineage = True

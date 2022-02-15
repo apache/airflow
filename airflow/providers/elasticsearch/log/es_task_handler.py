@@ -44,17 +44,17 @@ EsLogMsgType = List[Tuple[str, str]]
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
-    reads logs from Elasticsearch. Note logs are not directly
-    indexed into Elasticsearch. Instead, it flushes logs
+    reads logs from Elasticsearch. Note that Airflow does not handle the indexing
+    of logs into Elasticsearch. Instead, Airflow flushes logs
     into local files. Additional software setup is required
-    to index the log into Elasticsearch, such as using
+    to index the logs into Elasticsearch, such as using
     Filebeat and Logstash.
-    To efficiently query and sort Elasticsearch results, we assume each
+    To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
     `log_id = {dag_id}-{task_id}-{execution_date}-{try_number}`
     Log messages with specific log_id are sorted based on `offset`,
     which is a unique integer indicates log message's order.
-    Timestamp here are unreliable because multiple log messages
+    Timestamps here are unreliable because multiple log messages
     might have the same timestamp.
     """
 
@@ -103,15 +103,27 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        dag_run = ti.dag_run
+        dag_run = ti.get_dagrun()
+        dag = ti.task.dag
+        assert dag is not None  # For Mypy.
+        try:
+            data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+        except AttributeError:  # ti.task is not always set.
+            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
 
         if self.json_format:
-            data_interval_start = self._clean_date(dag_run.data_interval_start)
-            data_interval_end = self._clean_date(dag_run.data_interval_end)
+            data_interval_start = self._clean_date(data_interval[0])
+            data_interval_end = self._clean_date(data_interval[1])
             execution_date = self._clean_date(dag_run.execution_date)
         else:
-            data_interval_start = dag_run.data_interval_start.isoformat()
-            data_interval_end = dag_run.data_interval_end.isoformat()
+            if data_interval[0]:
+                data_interval_start = data_interval[0].isoformat()
+            else:
+                data_interval_start = ""
+            if data_interval[1]:
+                data_interval_end = data_interval[1].isoformat()
+            else:
+                data_interval_end = ""
             execution_date = dag_run.execution_date.isoformat()
 
         return self.log_id_template.format(
@@ -122,17 +134,19 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             data_interval_end=data_interval_end,
             execution_date=execution_date,
             try_number=try_number,
+            map_index=ti.map_index,
         )
 
     @staticmethod
-    def _clean_date(value: datetime) -> str:
+    def _clean_date(value: Optional[datetime]) -> str:
         """
         Clean up a date value so that it is safe to query in elasticsearch
         by removing reserved characters.
-        # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
 
-        :param execution_date: execution date of the dag run.
+        https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
         """
+        if value is None:
+            return ""
         return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
     def _group_logs_by_host(self, logs):
@@ -187,15 +201,24 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         metadata['end_of_log'] = False if not logs else len(loading_hosts) == 0
 
         cur_ts = pendulum.now()
-        # Assume end of log after not receiving new log for 5 min,
-        # as executor heartbeat is 1 min and there might be some
-        # delay before Elasticsearch makes the log available.
         if 'last_log_timestamp' in metadata:
             last_log_ts = timezone.parse(metadata['last_log_timestamp'])
+
+            # if we are not getting any logs at all after more than N seconds of trying,
+            # assume logs do not exist
+            if int(next_offset) == 0 and cur_ts.diff(last_log_ts).in_seconds() > 5:
+                metadata['end_of_log'] = True
+                missing_log_message = (
+                    f"*** Log {log_id} not found in Elasticsearch. "
+                    "If your task started recently, please wait a moment and reload this page. "
+                    "Otherwise, the logs for this task instance may have been removed."
+                )
+                return [('', missing_log_message)], metadata
             if (
+                # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
-                or 'max_offset' in metadata
-                and int(offset) >= int(metadata['max_offset'])
+                # if max_offset specified, respect it
+                or ('max_offset' in metadata and int(offset) >= int(metadata['max_offset']))
             ):
                 metadata['end_of_log'] = True
 
@@ -232,11 +255,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         Returns '' if no log is found or there was an error.
 
         :param log_id: the log_id of the log to read.
-        :type log_id: str
         :param offset: the offset start to read log from.
-        :type offset: str
         :param metadata: log metadata, used for steaming log download.
-        :type metadata: dict
         """
         # Offset is the unique key for sorting logs given log_id.
         search = Search(using=self.client).query('match_phrase', log_id=log_id).sort(self.offset_field)
@@ -347,9 +367,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         Creates an address for an external log collecting service.
 
         :param task_instance: task instance object
-        :type: task_instance: TaskInstance
         :param try_number: task instance try_number to read logs from.
-        :type try_number: Optional[int]
         :return: URL to the external log collection service
         :rtype: str
         """

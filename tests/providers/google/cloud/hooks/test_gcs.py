@@ -27,7 +27,9 @@ from unittest import mock
 
 import dateutil
 import pytest
-from google.cloud import exceptions, storage
+
+# dynamic storage type in google.cloud needs to be type-ignored
+from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
@@ -703,7 +705,7 @@ class TestGCSHook(unittest.TestCase):
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
             [
-                mock.call(suffix='test_object'),
+                mock.call(suffix='test_object', dir=None),
                 mock.call().__enter__(),
                 mock.call().__enter__().flush(),
                 mock.call().__exit__(None, None, None),

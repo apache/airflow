@@ -44,7 +44,6 @@ def example_dag_decorator(email: str = 'example@example.com'):
     DAG to send server IP to email.
 
     :param email: Email to send IP to. Defaults to example@example.com.
-    :type email: str
     """
     get_ip = GetRequestOperator(task_id='get_ip', url="http://httpbin.org/get")
 

@@ -32,6 +32,12 @@ from airflow.hooks.dbapi import DbApiHook
 from airflow.utils.strings import to_boolean
 
 
+def _try_to_boolean(value: Any):
+    if isinstance(value, (str, type(None))):
+        return to_boolean(value)
+    return value
+
+
 class SnowflakeHook(DbApiHook):
     """
     A client to interact with Snowflake.
@@ -43,9 +49,7 @@ class SnowflakeHook(DbApiHook):
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param account: snowflake account name
-    :type account: Optional[str]
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -53,24 +57,16 @@ class SnowflakeHook(DbApiHook):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
-    :type authenticator: Optional[str]
     :param warehouse: name of snowflake warehouse
-    :type warehouse: Optional[str]
     :param database: name of snowflake database
-    :type database: Optional[str]
     :param region: name of snowflake region
-    :type region: Optional[str]
     :param role: name of snowflake role
-    :type role: Optional[str]
     :param schema: name of snowflake schema
-    :type schema: Optional[str]
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :type session_parameters: Optional[dict]
     :param insecure_mode: Turns off OCSP certificate checks.
         For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community
         <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`__
-    :type insecure_mode: Optional[bool]
 
     .. note::
         get_sqlalchemy_engine() depends on snowflake-sqlalchemy
@@ -107,7 +103,7 @@ class SnowflakeHook(DbApiHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         import json
 
@@ -167,7 +163,7 @@ class SnowflakeHook(DbApiHook):
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')
-        insecure_mode = to_boolean(
+        insecure_mode = _try_to_boolean(
             conn.extra_dejson.get(
                 'extra__snowflake__insecure_mode', conn.extra_dejson.get('insecure_mode', None)
             )
@@ -279,14 +275,10 @@ class SnowflakeHook(DbApiHook):
 
         :param sql: the sql string to be executed with possibly multiple statements,
           or a list of sql statements to execute
-        :type sql: str or list
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
-        :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: dict or iterable
         :param handler: The result handler which is called with the result of each statement.
-        :type handler: callable
         """
         self.query_ids = []
 
@@ -315,9 +307,10 @@ class SnowflakeHook(DbApiHook):
                         self.log.info("Statement execution info - %s", row)
                         execution_info.append(row)
 
+                    query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
-                    self.log.info("Snowflake query id: %s", cur.sfqid)
-                    self.query_ids.append(cur.sfqid)
+                    self.log.info("Snowflake query id: %s", query_id)
+                    self.query_ids.append(query_id)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.

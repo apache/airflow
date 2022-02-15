@@ -33,9 +33,19 @@ const StatusBox = ({
   group, instance, containerRef, extraLinks = [], ...rest
 }) => {
   const {
-    executionDate, taskId, tryNumber = 0, operator,
+    executionDate, taskId, tryNumber = 0, operator, runId,
   } = instance;
-  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined);
+  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined, runId);
+
+  // Fetch the corresponding column element and set its background color when hovering
+  const onMouseOver = () => {
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
+      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+  };
+  const onMouseLeave = () => {
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
+      .forEach((e) => { e.style.backgroundColor = null; });
+  };
 
   return (
     <Tooltip
@@ -44,7 +54,7 @@ const StatusBox = ({
       portalProps={{ containerRef }}
       hasArrow
       placement="top"
-      openDelay={100}
+      openDelay={400}
     >
       <Flex
         p="1px"
@@ -55,6 +65,9 @@ const StatusBox = ({
         onClick={onClick}
         cursor={!group.children && 'pointer'}
         data-testid="task-instance"
+        zIndex={1}
+        onMouseEnter={onMouseOver}
+        onMouseLeave={onMouseLeave}
         {...rest}
       >
         <Box

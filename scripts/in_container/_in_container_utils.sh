@@ -242,7 +242,7 @@ function install_released_airflow_version() {
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow==${version}"
+    pip install "apache-airflow==${version}"
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -332,7 +332,7 @@ function setup_provider_packages() {
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     group_end
 }
 
@@ -345,36 +345,6 @@ function filename_to_python_module() {
     echo "${no_init//\//.}"
 }
 
-function import_all_provider_classes() {
-    group_start "Import all Airflow classes"
-    # We have to move to a directory where "airflow" is
-    unset PYTHONPATH
-    # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
-    # import path
-    cd /
-
-    declare -a IMPORT_CLASS_PARAMETERS
-
-    PROVIDER_PATHS=$(
-        python3 <<EOF 2>/dev/null
-import airflow.providers;
-path=airflow.providers.__path__
-for p in path._path:
-    print(p)
-EOF
-    )
-    export PROVIDER_PATHS
-
-    echo "Searching for providers packages in:"
-    echo "${PROVIDER_PATHS}"
-
-    while read -r provider_path; do
-        IMPORT_CLASS_PARAMETERS+=("--path" "${provider_path}")
-    done < <(echo "${PROVIDER_PATHS}")
-
-    python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"
-    group_end
-}
 
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'

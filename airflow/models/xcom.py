@@ -116,7 +116,6 @@ class BaseXCom(Base, LoggingMixin):
         :param run_id: DAG run ID for the task.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload
@@ -215,14 +214,13 @@ class BaseXCom(Base, LoggingMixin):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload
     @classmethod
     def get_one(
         cls,
-        execution_date: pendulum.DateTime,
+        execution_date: datetime.datetime,
         key: Optional[str] = None,
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
@@ -235,7 +233,7 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def get_one(
         cls,
-        execution_date: Optional[pendulum.DateTime] = None,
+        execution_date: Optional[datetime.datetime] = None,
         key: Optional[str] = None,
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
@@ -310,14 +308,13 @@ class BaseXCom(Base, LoggingMixin):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload
     @classmethod
     def get_many(
         cls,
-        execution_date: pendulum.DateTime,
+        execution_date: datetime.datetime,
         key: Optional[str] = None,
         task_ids: Union[str, Iterable[str], None] = None,
         dag_ids: Union[str, Iterable[str], None] = None,
@@ -331,7 +328,7 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def get_many(
         cls,
-        execution_date: Optional[pendulum.DateTime] = None,
+        execution_date: Optional[datetime.datetime] = None,
         key: Optional[str] = None,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
@@ -410,7 +407,6 @@ class BaseXCom(Base, LoggingMixin):
         :param run_id: ID of DAG run to clear the XCom for.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :type session: sqlalchemy.orm.session.Session
         """
 
     @overload

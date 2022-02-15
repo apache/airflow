@@ -20,11 +20,12 @@
 
 import hashlib
 import logging
+import zlib
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, String, and_
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -33,7 +34,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
+from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -53,6 +54,8 @@ class SerializedDagModel(Base):
     * ``[scheduler] dag_dir_list_interval = 300`` (s):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
+    * ``[core] compress_serialized_dags``:
+      whether compressing the dag data to the Database.
 
     It is used by webserver to load dags
     because reading from database is lightweight compared to importing from files,
@@ -65,7 +68,8 @@ class SerializedDagModel(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(BigInteger, nullable=False)
-    data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    _data = Column('data', sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
 
@@ -92,9 +96,23 @@ class SerializedDagModel(Base):
         self.dag_id = dag.dag_id
         self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
-        self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
-        self.dag_hash = hashlib.md5(json.dumps(self.data, sort_keys=True).encode("utf-8")).hexdigest()
+
+        dag_data = SerializedDAG.to_dict(dag)
+        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+
+        self.dag_hash = hashlib.md5(dag_data_json).hexdigest()
+
+        if COMPRESS_SERIALIZED_DAGS:
+            self._data = None
+            self._data_compressed = zlib.compress(dag_data_json)
+        else:
+            self._data = dag_data
+            self._data_compressed = None
+
+        # serve as cache so no need to decompress and load, when accessing data field
+        # when COMPRESS_SERIALIZED_DAGS is True
+        self.__data_cache = dag_data
 
     def __repr__(self):
         return f"<SerializedDag: {self.dag_id}>"
@@ -170,6 +188,17 @@ class SerializedDagModel(Base):
                     dag.dag_id,
                 )
         return dags
+
+    @property
+    def data(self):
+        # use __data_cache to avoid decompress and loads
+        if not hasattr(self, "__data_cache") or self.__data_cache is None:
+            if self._data_compressed:
+                self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
+            else:
+                self.__data_cache = self._data
+
+        return self.__data_cache
 
     @property
     def dag(self):
@@ -250,9 +279,7 @@ class SerializedDagModel(Base):
         DAG is saved in a separate database query.
 
         :param dags: the DAG objects to save to the DB
-        :type dags: List[airflow.models.dag.DAG]
         :param session: ORM Session
-        :type session: Session
         :return: None
         """
         for dag in dags:
@@ -269,9 +296,7 @@ class SerializedDagModel(Base):
         in serialized_dag table
 
         :param dag_id: DAG ID
-        :type dag_id: str
         :param session: ORM Session
-        :type session: Session
         """
         return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()
 
@@ -282,7 +307,6 @@ class SerializedDagModel(Base):
         Get the maximum date when any DAG was last updated in serialized_dag table
 
         :param session: ORM Session
-        :type session: Session
         """
         return session.query(func.max(cls.last_updated)).scalar()
 
@@ -293,9 +317,7 @@ class SerializedDagModel(Base):
         Get the latest DAG version for a given DAG ID.
 
         :param dag_id: DAG ID
-        :type dag_id: str
         :param session: ORM Session
-        :type session: Session
         :return: DAG Hash, or None if the DAG is not found
         :rtype: str | None
         """
@@ -308,14 +330,13 @@ class SerializedDagModel(Base):
         Get the dependencies between DAGs
 
         :param session: ORM Session
-        :type session: Session
         """
         if session.bind.dialect.name in ["sqlite", "mysql"]:
-            query = session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies"))
+            query = session.query(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         elif session.bind.dialect.name == "mssql":
-            query = session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies"))
+            query = session.query(cls.dag_id, func.json_query(cls._data, "$.dag.dag_dependencies"))
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
-            iterator = session.query(cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies"))
+            iterator = session.query(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}

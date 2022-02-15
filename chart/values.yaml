@@ -90,7 +90,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.3.0
+    tag: v3.4.0
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -514,15 +514,17 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: worker
-            topologyKey: "kubernetes.io/hostname"
+  priorityClassName: ~
+  affinity: {}
+  # default worker affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: worker
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
   # hostAliases to use in worker pods.
   # See:
@@ -558,7 +560,7 @@ scheduler:
   # scheduler and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
   # Airflow 2.0 allows users to run multiple schedulers,
@@ -625,16 +627,19 @@ scheduler:
 
   # Select certain nodes for airflow scheduler pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: scheduler
-            topologyKey: "kubernetes.io/hostname"
+  affinity: {}
+  # default scheduler affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: scheduler
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -864,15 +869,17 @@ webserver:
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: webserver
-            topologyKey: "kubernetes.io/hostname"
+  priorityClassName: ~
+  affinity: {}
+  # default webserver affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: webserver
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
 
   podAnnotations: {}
@@ -898,7 +905,7 @@ triggerer:
   # triggerer and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
 
@@ -945,16 +952,19 @@ triggerer:
 
   # Select certain nodes for airflow triggerer pods.
   nodeSelector: {}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                component: triggerer
-            topologyKey: "kubernetes.io/hostname"
+  affinity: {}
+  # default triggerer affinity is:
+  #  podAntiAffinity:
+  #    preferredDuringSchedulingIgnoredDuringExecution:
+  #    - podAffinityTerm:
+  #        labelSelector:
+  #          matchLabels:
+  #            component: triggerer
+  #        topologyKey: kubernetes.io/hostname
+  #      weight: 100
   tolerations: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -1045,6 +1055,8 @@ flower:
   affinity: {}
   tolerations: []
 
+  priorityClassName: ~
+
   podAnnotations: {}
 
 # Statsd settings
@@ -1085,6 +1097,8 @@ statsd:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  priorityClassName: ~
 
   # Additional mappings for statsd exporter.
   extraMappings: []
@@ -1191,6 +1205,8 @@ pgbouncer:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  priorityClassName: ~
 
   uid: 65534
 
@@ -1313,6 +1329,8 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  podAnnotations: {}
 
   resources: {}
   #  limits:

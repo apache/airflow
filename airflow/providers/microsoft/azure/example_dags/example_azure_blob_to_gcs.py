@@ -15,6 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 import os
 from datetime import datetime
 

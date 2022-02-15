@@ -87,6 +87,9 @@ function initialization::initialize_base_variables() {
     # so that all breeze commands use emulation
     export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
+    # enable buildkit for builds
+    export DOCKER_BUILDKIT=1
+
     # Default port numbers for forwarded ports
     export SSH_PORT=${SSH_PORT:="12322"}
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
@@ -179,9 +182,6 @@ function initialization::initialize_base_variables() {
     # Dry run - only show docker-compose and docker commands but do not execute them
     export DRY_RUN_DOCKER=${DRY_RUN_DOCKER:="false"}
 
-    # By default we only push built ci/prod images - base python images are only pushed
-    # When requested
-    export PUSH_PYTHON_BASE_IMAGE=${PUSH_PYTHON_BASE_IMAGE:="false"}
 }
 
 # Determine current branch
@@ -290,21 +290,9 @@ function initialization::initialize_mount_variables() {
 
 # Determine values of force settings
 function initialization::initialize_force_variables() {
-    # By default we do not pull CI/PROD images. We can force-pull them when needed
-    export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
-
-    # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI main and when we manually refresh the images to latest versions
-    export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="false"
-
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
-
-    # File to keep the last forced answer. This is useful for pre-commits where you need to
-    # only answer once if the image should be rebuilt or not and your answer is used for
-    # All the subsequent questions
-    export LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
     # Can be set to "yes/no/quit" in order to force specified answer to all questions asked to the user.
     export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:=""}
@@ -364,6 +352,8 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
+    export DEBIAN_VERSION=${DEBIAN_VERSION:="buster"}
+
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
         awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
@@ -421,7 +411,7 @@ function initialization::initialize_image_build_variables() {
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.4"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.3.1"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -438,6 +428,13 @@ function initialization::initialize_image_build_variables() {
 
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
     export AIRFLOW_SOURCES_TO
+
+    # By default no sources are copied to image
+    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="empty"}
+    export AIRFLOW_SOURCES_WWW_FROM
+
+    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/empty"}
+    export AIRFLOW_SOURCES_WWW_TO
 
     # By default in scripts production docker image is installed from PyPI package
     export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
@@ -478,6 +475,9 @@ function initialization::initialize_image_build_variables() {
     #   * wheel - replaces airflow with one specified in the sdist file in /dist
     #   * <VERSION> - replaces airflow with the specific version from PyPI
     export USE_AIRFLOW_VERSION=${USE_AIRFLOW_VERSION:=""}
+
+    # whether images should be pushed to registry cache after they are built
+    export PREPARE_BUILDX_CACHE=${PREPARE_BUILDX_CACHE:="false"}
 }
 
 # Determine version suffixes used to build provider packages
@@ -555,7 +555,6 @@ function initialization::initialize_git_variables() {
 }
 
 function initialization::initialize_github_variables() {
-    export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
@@ -569,6 +568,9 @@ function initialization::initialize_github_variables() {
 }
 
 function initialization::initialize_test_variables() {
+
+    #Enables test coverage
+    export ENABLE_TEST_COVERAGE=${ENABLE_TEST_COVERAGE:=""}
 
     # In case we want to force certain test type to run, this variable should be set to this type
     # Otherwise TEST_TYPEs to run will be derived from TEST_TYPES space-separated string
@@ -632,10 +634,7 @@ function initialization::initialize_common_environment() {
 function initialization::set_default_python_version_if_empty() {
     # default version of python used to tag the "main" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.7
-
-    # default python Major/Minor version
     export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}}
-
 }
 
 function initialization::summarize_build_environment() {
@@ -656,7 +655,6 @@ Mount variables:
 
 Force variables:
 
-    FORCE_PULL_IMAGES: ${FORCE_PULL_IMAGES}
     FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     FORCE_ANSWER_TO_QUESTIONS: ${FORCE_ANSWER_TO_QUESTIONS}
     SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
@@ -711,12 +709,13 @@ Production image build variables:
     AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
+    AIRFLOW_SOURCES_WWW_FROM: '${AIRFLOW_SOURCES_WWW_FROM}'
+    AIRFLOW_SOURCES_WWW_TO: '${AIRFLOW_SOURCES_WWW_TO}'
 
 Detected GitHub environment:
 
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
-    GITHUB_REGISTRY_WAIT_FOR_IMAGE: '${GITHUB_REGISTRY_WAIT_FOR_IMAGE}'
     GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
     GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
     GITHUB_ACTIONS: '${GITHUB_ACTIONS=}'
@@ -853,7 +852,6 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_RUNTIME_APT_DEPS
     readonly ADDITIONAL_RUNTIME_APT_ENV
 
-    readonly GITHUB_REGISTRY_WAIT_FOR_IMAGE
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
     readonly GITHUB_REGISTRY_PUSH_IMAGE_TAG
 

@@ -185,7 +185,7 @@ During this process, two 2 process are created:
 - RawTaskProcess - It is process with the user code e.g. :meth:`~airflow.models.BaseOperator.execute`.
 
 | [1] **SchedulerProcess** processes the tasks and when it finds a task that needs to be done, sends it to the **QueueBroker**.
-| [2] **QueueBroker** also begins to periodically query **ResultBackend** for the status of the task.
+| [2] **SchedulerProcess** also begins to periodically query **ResultBackend** for the status of the task.
 | [3] **QueueBroker**, when it becomes aware of the task, sends information about it to one WorkerProcess.
 | [4] **WorkerProcess** assigns a single task to a one **WorkerChildProcess**.
 | [5] **WorkerChildProcess** performs the proper task handling functions - :meth:`~airflow.executor.celery_executor.execute_command`. It creates a new process - **LocalTaskJobProcess**.

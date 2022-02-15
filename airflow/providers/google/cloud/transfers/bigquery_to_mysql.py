@@ -52,26 +52,17 @@ class BigQueryToMySqlOperator(BaseOperator):
         )
 
     :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
-    :type dataset_table: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
-    :type selected_fields: List[str] | str
     :param gcp_conn_id: reference to a specific Google Cloud hook.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param database: name of database which overwrite defined one in connection
-    :type database: str
     :param replace: Whether to replace instead of insert
-    :type replace: bool
     :param batch_size: The number of rows to take in each batch
-    :type batch_size: int
     :param location: The location used for the operation.
-    :type location: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -80,7 +71,6 @@ class BigQueryToMySqlOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: str | Sequence[str]
     """
 
     template_fields: Sequence[str] = (

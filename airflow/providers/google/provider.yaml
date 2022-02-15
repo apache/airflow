@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 6.4.0
   - 6.3.0
   - 6.2.0
   - 6.1.0
@@ -88,6 +89,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_build.rst
     logo: /integration-logos/gcp/Cloud-Build.png
     tags: [gcp]
+  - integration-name: Google Cloud Composer
+    external-doc-url: https://cloud.google.com/composer
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     external-doc-url: https://cloud.google.com/dlp/
     how-to-guide:
@@ -259,6 +265,10 @@ integrations:
     external-doc-url: https://github.com/googleapis/google-api-python-client/
     logo: /integration-logos/gcp/Google-API-Python-Client.png
     tags: [google]
+  - integration-name: Google Calendar
+    external-doc-url: https://calendar.google.com/
+    logo: /integration-logos/gcp/Google-Calendar.png
+    tags: [google]
   - integration-name: Google Campaign Manager
     external-doc-url: https://developers.google.com/doubleclick-advertisers
     how-to-guide:
@@ -333,6 +343,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
     tags: [google]
+  - integration-name: Google Vertex AI
+    external-doc-url: https://cloud.google.com/vertex-ai
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/vertex_ai.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -353,6 +368,9 @@ operators:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_build
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_composer
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
@@ -460,6 +478,10 @@ operators:
   - integration-name: Google LevelDB
     python-modules:
       - airflow.providers.google.leveldb.operators.leveldb
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.operators.vertex_ai.dataset
+      - airflow.providers.google.cloud.operators.vertex_ai.custom_job
 
 sensors:
   - integration-name: Google BigQuery
@@ -524,6 +546,9 @@ hooks:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_build
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_composer
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
@@ -642,6 +667,9 @@ hooks:
   - integration-name: Google Search Ads 360
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.search_ads
+  - integration-name: Google Calendar
+    python-modules:
+      - airflow.providers.google.suite.hooks.calendar
   - integration-name: Google Drive
     python-modules:
       - airflow.providers.google.suite.hooks.drive
@@ -651,6 +679,10 @@ hooks:
   - integration-name: Google LevelDB
     python-modules:
       - airflow.providers.google.leveldb.hooks.leveldb
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.hooks.vertex_ai.dataset
+      - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
 
 transfers:
   - source-integration-name: Presto
@@ -796,8 +828,20 @@ extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+  - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
+  - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
+  - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
   - airflow.providers.google.cloud.operators.dataproc.DataprocJobLink
   - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
+  - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
+  - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
+  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAIModelLink
+  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAITrainingPipelinesLink
+  - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetLink
+  - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetListLink
+  - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
+  - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
+  - airflow.providers.google.common.links.storage.StorageLink
 
 additional-extras:
   apache.beam: apache-beam[gcp]

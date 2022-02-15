@@ -60,16 +60,11 @@ class GKEDeleteClusterOperator(BaseOperator):
         :ref:`howto/operator:GKEDeleteClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
-    :type project_id: str
     :param name: The name of the resource to delete, in this case cluster name
-    :type name: str
     :param location: The name of the Google Compute Engine zone or region in which the cluster
         resides.
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: The api version to use
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -78,7 +73,6 @@ class GKEDeleteClusterOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -161,17 +155,12 @@ class GKECreateClusterOperator(BaseOperator):
         :ref:`howto/operator:GKECreateClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
-    :type project_id: str
     :param location: The name of the Google Compute Engine  or region in which the cluster
         resides.
-    :type location: str
     :param body: The Cluster definition to create, can be protobuf or python dict, if
         dict it must match protobuf message Cluster
-    :type body: dict or google.cloud.container_v1.types.Cluster
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: The api version to use
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -180,7 +169,6 @@ class GKECreateClusterOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -279,17 +267,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     :param location: The name of the Google Kubernetes Engine zone or region in which the
         cluster resides, e.g. 'us-central1-a'
-    :type location: str
     :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
         should be spawned in
-    :type cluster_name: str
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :type use_internal_ip: bool
     :param project_id: The Google Developers Console project id
-    :type project_id: str
     :param gcp_conn_id: The google cloud connection id to use. This allows for
         users to specify a service account.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -298,14 +281,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param regional: The location param is region name.
-    :type regional: bool
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
         pod; if False, leave the pod.  Current default is False, but this will be
         changed in the next major release of this provider.
-    :type is_delete_operator_pod: bool
     """
 
     template_fields: Sequence[str] = tuple(

@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ARG BASE_AIRFLOW_IMAGE
-
 FROM ${BASE_AIRFLOW_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
@@ -24,7 +23,7 @@ USER 0
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && curl -fsSL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
-    && echo 'deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ buster main' > \
+    && echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \

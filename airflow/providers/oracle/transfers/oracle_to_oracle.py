@@ -30,18 +30,12 @@ class OracleToOracleOperator(BaseOperator):
 
 
     :param oracle_destination_conn_id: destination Oracle connection.
-    :type oracle_destination_conn_id: str
     :param destination_table: destination table to insert rows.
-    :type destination_table: str
     :param oracle_source_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
-    :type oracle_source_conn_id: str
     :param source_sql: SQL query to execute against the source Oracle
         database. (templated)
-    :type source_sql: str
     :param source_sql_params: Parameters to use in sql query. (templated)
-    :type source_sql_params: dict
     :param rows_chunk: number of rows per chunk to commit.
-    :type rows_chunk: int
     """
 
     template_fields: Sequence[str] = ('source_sql', 'source_sql_params')

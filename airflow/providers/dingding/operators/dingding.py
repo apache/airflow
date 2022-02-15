@@ -34,16 +34,11 @@ class DingdingOperator(BaseOperator):
     `Dingding custom bot <https://open-doc.dingtalk.com/microapp/serverapi2/qf2nxq>`_
 
     :param dingding_conn_id: The name of the Dingding connection to use
-    :type dingding_conn_id: str
     :param message_type: Message type you want to send to Dingding, support five type so far
         including text, link, markdown, actionCard, feedCard
-    :type message_type: str
     :param message: The message send to Dingding chat group
-    :type message: str or dict
     :param at_mobiles: Remind specific users with this message
-    :type at_mobiles: list[str]
     :param at_all: Remind all people in group or not. If True, will overwrite ``at_mobiles``
-    :type at_all: bool
     """
 
     template_fields: Sequence[str] = ('message',)

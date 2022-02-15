@@ -70,7 +70,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         call start_manual_transfer_runs.
 
         :param config: Data transfer configuration to create.
-        :type config: Union[dict, google.cloud.bigquery_datatransfer_v1.types.TransferConfig]
         """
         config = TransferConfig.to_dict(config) if isinstance(config, TransferConfig) else config
         new_config = copy(config)
@@ -114,23 +113,17 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Creates a new data transfer configuration.
 
         :param transfer_config: Data transfer configuration to create.
-        :type transfer_config: Union[dict, google.cloud.bigquery_datatransfer_v1.types.TransferConfig]
         :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :param authorization_code: authorization code to use with this transfer configuration.
             This is required if new credentials are needed.
-        :type authorization_code: Optional[str]
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each individual
             attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: A ``google.cloud.bigquery_datatransfer_v1.types.TransferConfig`` instance.
         """
         client = self.get_conn()
@@ -162,20 +155,15 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Deletes transfer configuration.
 
         :param transfer_config_id: Id of transfer config to be used.
-        :type transfer_config_id: str
         :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each individual
             attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: None
         """
         client = self.get_conn()
@@ -206,29 +194,22 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         (exclusive), or for a specific run_time.
 
         :param transfer_config_id: Id of transfer config to be used.
-        :type transfer_config_id: str
         :param requested_time_range: Time range for the transfer runs that should be started.
             If a dict is provided, it must be of the same form as the protobuf
             message `~google.cloud.bigquery_datatransfer_v1.types.TimeRange`
-        :type requested_time_range: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.TimeRange]
         :param requested_run_time: Specific run_time for a transfer run to be started. The
             requested_run_time must not be in the future.  If a dict is provided, it
             must be of the same form as the protobuf message
             `~google.cloud.bigquery_datatransfer_v1.types.Timestamp`
-        :type requested_run_time: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.Timestamp]
         :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each individual
             attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.StartManualTransferRunsResponse`` instance.
         """
         client = self.get_conn()
@@ -262,22 +243,16 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Returns information about the particular transfer run.
 
         :param run_id: ID of the transfer run.
-        :type run_id: str
         :param transfer_config_id: ID of transfer config to be used.
-        :type transfer_config_id: str
         :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
-        :type retry: Optional[google.api_core.retry.Retry]
         :param timeout: The amount of time, in seconds, to wait for the request to
             complete. Note that if retry is specified, the timeout applies to each individual
             attempt.
-        :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
         client = self.get_conn()
@@ -285,7 +260,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         if self.location:
             project = f"{project}/locations/{self.location}"
 
-        name = "f{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
+        name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
             request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
