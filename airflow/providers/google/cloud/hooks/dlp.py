@@ -55,6 +55,7 @@ from google.cloud.dlp_v2.types import (
 )
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
@@ -104,7 +105,7 @@ class CloudDLPHook(GoogleBaseHook):
         :rtype: google.cloud.dlp_v2.DlpServiceClient
         """
         if not self._client:
-            self._client = DlpServiceClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = DlpServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

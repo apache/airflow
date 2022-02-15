@@ -49,7 +49,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import MappedOperator
+    from airflow.models.mappedoperator import MappedOperator
 
 
 class BackfillJob(BaseJob):
@@ -135,7 +135,6 @@ class BackfillJob(BaseJob):
         :param run_backwards: Whether to process the dates from most to least recent
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
-        :type: bool
         :param args:
         :param kwargs:
         """
@@ -236,7 +235,7 @@ class BackfillJob(BaseJob):
         :param running: dict of key, task to verify
         :return: An iterable of expanded TaskInstance per MappedTask
         """
-        from airflow.models.baseoperator import MappedOperator
+        from airflow.models.mappedoperator import MappedOperator
 
         executor = self.executor
 

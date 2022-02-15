@@ -22,7 +22,7 @@ FROM ${PYTHON_BASE_IMAGE} as main
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
+ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies
@@ -280,6 +280,15 @@ RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not v
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
+# The PATH is needed for PIPX to find the tools installed
+ENV PATH="/root/.local/bin:${PATH}"
+
+COPY scripts/docker/install_pipx_tools.sh /scripts/docker/
+
+# Install useful command line tools in their own virtualenv so that they do not clash with
+# dependencies installed in Airflow
+RUN bash /scripts/docker/install_pipx_tools.sh
+
 # Copy package.json and yarn.lock to install node modules
 # this way even if other static check files change, node modules will not need to be installed
 # we want to keep node_modules so we can do this step separately from compiling assets
@@ -373,7 +382,6 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 EXPOSE 8080
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-ci" \

@@ -40,6 +40,7 @@ Features
    * ``Prepare documentation for October Provider's release (#19321)``
    * ``Update documentation for September providers release (#18613)``
    * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.0.1
 .....

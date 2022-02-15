@@ -29,11 +29,20 @@ Features
 * ``batch as templated field in DataprocCreateBatchOperator (#20905)``
 * ``Make timeout Optional for wait_for_operation (#20981)``
 * ``Add more SQL template fields renderers (#21237)``
+* ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
+* ``Support to upload file to Google Shared Drive (#21319)``
+* ``(providers_google) add a location check in bigquery (#19571)``
+* ``Add support for BeamGoPipelineOperator (#20386)``
+* ``Google Cloud Composer opearators (#21251)``
+* ``Enable asynchronous job submission in BigQuery hook (#21385)``
+* ``Optionally raise an error if source file does not exist in GCSToGCSOperator (#21391)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Cloudsql import links fix. (#21199)``
+* ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
+* ``:bug: (BigQueryHook) fix compatibility with sqlalchemy engine (#19508)``
 
 Misc
 ~~~~
@@ -51,8 +60,10 @@ Misc
    * ``Remove a few stray ':type's in docs (#21014)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Fix BigQuery system test (#21320)``
-
-.. Review and move the new changes to one of the sections above:
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Never set DagRun.state to State.NONE (#21263)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
 
 6.3.0
 .....

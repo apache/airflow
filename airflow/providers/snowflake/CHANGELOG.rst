@@ -37,6 +37,7 @@ Bug Fixes
    * ``Add optional features in providers. (#21074)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Snowflake Provider: Improve tests for Snowflake Hook (#20745)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.4.0
 .....

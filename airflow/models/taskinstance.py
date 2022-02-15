@@ -115,14 +115,6 @@ from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
-try:
-    from kubernetes.client.api_client import ApiClient
-
-    from airflow.kubernetes.kube_config import KubeConfig
-    from airflow.kubernetes.pod_generator import PodGenerator
-except ImportError:
-    ApiClient = None
-
 TR = TaskReschedule
 
 _CURRENT_CONTEXT: List[Context] = []
@@ -130,8 +122,9 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, DagModel, DagRun
+    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagrun import DagRun
+    from airflow.models.operator import Operator
 
 
 @contextlib.contextmanager
@@ -429,9 +422,11 @@ class TaskInstance(Base, LoggingMixin):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
+    task: "Operator"  # Not always set...
+
     def __init__(
         self,
-        task: "BaseOperator",
+        task: "Operator",
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         state: Optional[str] = None,
@@ -460,6 +455,7 @@ class TaskInstance(Base, LoggingMixin):
                     execution_date,
                 )
                 if self.task.has_dag():
+                    assert self.task.dag  # For Mypy.
                     execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
                 else:
                     execution_date = timezone.make_aware(execution_date)
@@ -492,7 +488,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "BaseOperator", map_index: int) -> dict:
+    def insert_mapping(run_id: str, task: "Operator", map_index: int) -> dict:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
@@ -798,7 +794,7 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-    def refresh_from_task(self, task: "BaseOperator", pool_override=None):
+    def refresh_from_task(self, task: "Operator", pool_override=None):
         """
         Copy common attributes from the given task.
 
@@ -1320,8 +1316,9 @@ class TaskInstance(Base, LoggingMixin):
                 f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
                 'expanded already!'
             )
+        task = self.task.unmap()
         self.test_mode = test_mode
-        self.refresh_from_task(self.task, pool_override=pool)
+        self.refresh_from_task(task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
@@ -1333,7 +1330,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
         try:
             if not mark_success:
-                self.task = self.task.prepare_for_execution()
+                self.task = task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
                 self._execute_task_with_callbacks(context)
             if not test_mode:
@@ -1396,7 +1393,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{self.state}')
+            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1423,6 +1420,8 @@ class TaskInstance(Base, LoggingMixin):
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
         with Stats.timer(f'dag.{self.task.dag_id}.{self.task.task_id}.duration'):
+            # Set the validated/merged params on the task object.
+            self.task.params = context['params']
 
             self.render_templates(context=context)
             RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
@@ -1657,8 +1656,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
-        task = self.task
-        task_copy = task.prepare_for_execution()
+        task_copy = self.task.unmap().prepare_for_execution()
         self.task = task_copy
 
         self.render_templates()
@@ -1721,7 +1719,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
-        session=NEW_SESSION,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
@@ -1739,9 +1737,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             self.refresh_from_db(session)
 
-        task = self.task
-        if task.is_mapped:
-            task = task.unmap()
+        task = self.task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
@@ -1820,8 +1816,10 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        task: "BaseOperator" = self.task
+        task = self.task
+        assert task.dag  # For Mypy.
         dag: DAG = task.dag
+
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
@@ -1833,7 +1831,7 @@ class TaskInstance(Base, LoggingMixin):
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        validated_params = task.params = params.validate()
+        validated_params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -1892,6 +1890,8 @@ class TaskInstance(Base, LoggingMixin):
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
                 return logical_date
+            if dag is None:
+                return None
             next_info = dag.next_dagrun_info(data_interval, restricted=False)
             if next_info is None:
                 return None
@@ -2025,14 +2025,22 @@ class TaskInstance(Base, LoggingMixin):
 
     def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""
+        if self.task.is_mapped:
+            raise RuntimeError(
+                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
+                'expanded already!'
+            )
         if not context:
             context = self.get_template_context()
-
-        self.task.render_template_fields(context)
+        self.task.unmap().render_template_fields(context)
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
+        from kubernetes.client.api_client import ApiClient
+
+        from airflow.kubernetes.kube_config import KubeConfig
         from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
+        from airflow.kubernetes.pod_generator import PodGenerator
 
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(

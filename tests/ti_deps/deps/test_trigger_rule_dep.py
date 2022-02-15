@@ -604,11 +604,11 @@ class TestTriggerRuleDep:
         session.commit()
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        finished_tasks = DepContext().ensure_finished_tasks(ti_op2.dag_run, session)
-        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op2) == (1, 0, 0, 0, 1)
-        finished_tasks = dr.get_task_instances(state=State.finished, session=session)
-        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op4) == (1, 0, 1, 0, 2)
-        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op5) == (2, 0, 1, 0, 3)
+        finished_tis = DepContext().ensure_finished_tis(ti_op2.dag_run, session)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op2) == (1, 0, 0, 0, 1)
+        finished_tis = dr.get_task_instances(state=State.finished, session=session)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op4) == (1, 0, 1, 0, 2)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op5) == (2, 0, 1, 0, 3)
 
         dr.update_state()
         assert State.SUCCESS == dr.state

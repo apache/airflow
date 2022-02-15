@@ -176,6 +176,12 @@ class TestOracleHookConn(unittest.TestCase):
             assert args == ()
             assert kwargs['purity'] == purity.get(pur)
 
+    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    def test_set_current_schema(self, mock_connect):
+        self.connection.schema = "schema_name"
+        self.connection.extra = json.dumps({'service_name': 'service_name'})
+        assert self.db_hook.get_conn().current_schema == self.connection.schema
+
 
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
 class TestOracleHook(unittest.TestCase):

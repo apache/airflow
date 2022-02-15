@@ -2035,15 +2035,11 @@ class DataprocCreateBatchOperator(BaseOperator):
     Creates a batch workload.
 
     :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to. (templated)
-    :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
-    :type region: str
     :param batch: Required. The batch to create. (templated)
-    :type batch: google.cloud.dataproc_v1.types.Batch
     :param batch_id: Optional. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
-    :type batch_id: str
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.

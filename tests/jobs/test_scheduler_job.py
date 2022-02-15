@@ -40,16 +40,17 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, Pool, TaskInstance
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest
+from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -3479,6 +3480,114 @@ class TestSchedulerJob:
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
+
+    def test_find_zombies_nothing(self):
+        with create_session() as session:
+            self.scheduler_job = SchedulerJob()
+            self.scheduler_job.processor_agent = mock.MagicMock()
+
+            self.scheduler_job._find_zombies(session=session)
+
+            self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+
+    def test_find_zombies(self):
+        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
+        with create_session() as session:
+            session.query(LocalTaskJob).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            dag.sync_to_db()
+            task = dag.get_task(task_id='run_this_first')
+
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            local_job = LocalTaskJob(ti)
+            local_job.state = State.SHUTDOWN
+
+            session.add(local_job)
+            session.flush()
+
+            ti.job_id = local_job.id
+            session.add(ti)
+            session.flush()
+
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.processor_agent = mock.MagicMock()
+
+            self.scheduler_job._find_zombies(session=session)
+
+            self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once()
+            requests = self.scheduler_job.processor_agent.send_callback_to_execute.call_args[0]
+            assert 1 == len(requests)
+            assert requests[0].full_filepath == dag.fileloc
+            assert requests[0].msg == f"Detected {ti} as zombie"
+            assert requests[0].is_failure_callback is True
+            assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
+            assert ti.dag_id == requests[0].simple_task_instance.dag_id
+            assert ti.task_id == requests[0].simple_task_instance.task_id
+            assert ti.run_id == requests[0].simple_task_instance.run_id
+
+            session.query(TaskInstance).delete()
+            session.query(LocalTaskJob).delete()
+
+    def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(self):
+        """
+        Check that the same set of failure callback with zombies are passed to the dag
+        file processors until the next zombie detection logic is invoked.
+        """
+        with conf_vars({('core', 'load_examples'): 'False'}):
+            dagbag = DagBag(
+                dag_folder=os.path.join(settings.DAGS_FOLDER, "test_example_bash_operator.py"),
+                read_dags_from_db=False,
+            )
+            session = settings.Session()
+            session.query(LocalTaskJob).delete()
+            dag = dagbag.get_dag('test_example_bash_operator')
+            dag.sync_to_db()
+
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+            task = dag.get_task(task_id='run_this_last')
+
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            local_job = LocalTaskJob(ti)
+            local_job.state = State.SHUTDOWN
+            session.add(local_job)
+            session.flush()
+
+            # TODO: If there was an actual Relationship between TI and Job
+            # we wouldn't need this extra commit
+            session.add(ti)
+            ti.job_id = local_job.id
+            session.flush()
+
+            expected_failure_callback_requests = [
+                TaskCallbackRequest(
+                    full_filepath=dag.fileloc,
+                    simple_task_instance=SimpleTaskInstance(ti),
+                    msg="Message",
+                )
+            ]
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+
+        self.scheduler_job._find_zombies(session=session)
+
+        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once()
+        callback_requests = self.scheduler_job.processor_agent.send_callback_to_execute.call_args[0]
+        assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
+            result.simple_task_instance.key for result in callback_requests
+        }
 
 
 @pytest.mark.xfail(reason="Work out where this goes")

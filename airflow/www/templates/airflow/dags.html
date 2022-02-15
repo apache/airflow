@@ -31,7 +31,7 @@
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="status_filter" content="{{ status_filter }}">
   <meta name="autocomplete_url" content="{{ url_for('AutocompleteView.autocomplete') }}">
-  <meta name="graph_url" content="{{ url_for('Airflow.graph') }}">
+  <meta name="graph_url" content="{{ url_for('Airflow.legacy_graph') }}">
   <meta name="dag_run_url" content="{{ url_for('DagRunModelView.list') }}">
   <meta name="task_instance_url" content="{{ url_for('TaskInstanceModelView.list') }}">
   <meta name="blocked_url" content="{{ url_for('Airflow.blocked') }}">
@@ -293,9 +293,9 @@
                           <span class="material-icons" aria-hidden="true">account_tree</span>
                           Graph
                         </a>
-                        <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
-                          <span class="material-icons" aria-hidden="true">nature</span>
-                          Tree
+                        <a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
+                          <span class="material-icons" aria-hidden="true">grid_on</span>
+                          Grid
                         </a>
                       </div>
                       <span class="dags-table-more__toggle"><span class="material-icons">more_horiz</span></span>

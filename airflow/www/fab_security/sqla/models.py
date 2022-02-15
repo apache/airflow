@@ -37,7 +37,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
-from sqlalchemy.orm.relationships import foreign
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -140,17 +139,13 @@ class Permission(Model):
     action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
     action = relationship(
         "Action",
-        primaryjoin=action_id == foreign(Action.id),
         uselist=False,
-        backref="permission",
         lazy="joined",
     )
     resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
     resource = relationship(
         "Resource",
-        primaryjoin=resource_id == foreign(Resource.id),
         uselist=False,
-        backref="permission",
         lazy="joined",
     )
 
