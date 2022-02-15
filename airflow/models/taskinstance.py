@@ -1943,13 +1943,13 @@ class TaskInstance(Base, LoggingMixin):
             'ds': ds,
             'ds_nodash': ds_nodash,
             'execution_date': logical_date,
-            'inlets': task.inlets,  # type: ignore  # TODO: Wait for MappedOperator.inlets
+            'inlets': task.inlets,
             'logical_date': logical_date,
             'macros': macros,
             'next_ds': get_next_ds(),
             'next_ds_nodash': get_next_ds_nodash(),
             'next_execution_date': get_next_execution_date(),
-            'outlets': task.outlets,  # type: ignore  # TODO: Wait for MappedOperator.outlets
+            'outlets': task.outlets,
             'params': validated_params,
             'prev_data_interval_start_success': get_prev_data_interval_start_success(),
             'prev_data_interval_end_success': get_prev_data_interval_end_success(),
