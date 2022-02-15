@@ -476,6 +476,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _deactivate_stale_dags(self, session=None):
+        """Detects DAGs which are no longer present in files and deactivate them."""
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
         if elapsed_time_since_refresh > self.deactivate_stale_dags_interval:
@@ -489,6 +490,9 @@ class DagFileProcessorManager(LoggingMixin):
                 .all()
             )
             for dag in dags_parsed:
+                # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
+                # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
+                # no longer present in the file.
                 if (
                     dag.fileloc in last_parsed
                     and (dag.last_parsed_time + self._processor_timeout) < last_parsed[dag.fileloc]
