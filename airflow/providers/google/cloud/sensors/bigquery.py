@@ -95,7 +95,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
