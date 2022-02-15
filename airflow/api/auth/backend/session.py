@@ -14,10 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from google.api_core.gapic_v1.client_info import ClientInfo
+"""Session authentication backend"""
+from functools import wraps
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
-from airflow import version
+from flask import Response, g
 
-GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME = 'execute_complete'
+CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
 
-CLIENT_INFO = ClientInfo(client_library_version='airflow_v' + version.version)
+
+def init_app(_):
+    """Initializes authentication backend"""
+
+
+T = TypeVar("T", bound=Callable)
+
+
+def requires_authentication(function: T):
+    """Decorator for functions that require authentication"""
+
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        if g.user.is_anonymous:
+            return Response("Unauthorized", 401, {})
+        return function(*args, **kwargs)
+
+    return cast(T, decorated)

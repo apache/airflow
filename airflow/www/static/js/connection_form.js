@@ -158,7 +158,7 @@ $(document).ready(() => {
   if (!restApiEnabled) {
     $(testConnBtn).prop('disabled', true)
       .attr('title', 'Airflow REST APIs have been disabled. '
-        + 'See api->auth_backend section of the Airflow configuration.');
+        + 'See api->auth_backends section of the Airflow configuration.');
   }
 
   $(testConnBtn).insertAfter($('form#model_form div.well.well-sm button:submit'));

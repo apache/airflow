@@ -25,6 +25,7 @@ from typing import Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -78,7 +79,7 @@ class CloudKMSHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = KeyManagementServiceClient(
-                credentials=self._get_credentials(), client_info=self.client_info
+                credentials=self._get_credentials(), client_info=CLIENT_INFO
             )
         return self._conn
 
