@@ -383,8 +383,6 @@ You can use the postgres_default connection:
 - Password: airflow
 
 
-
-
 After that, you can test your connection and if you followed all the steps correctly, it should show a success notification. Proceed with saving the connection. For
 
 
