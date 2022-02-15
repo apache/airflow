@@ -379,7 +379,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 
 The visual representation of this DAG after execution looks like this:
 
-.. image:: /img/basic-dag.png
+.. image:: /img/watcher.png
 
 We have several tasks that serve different purposes:
 
