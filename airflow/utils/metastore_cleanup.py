@@ -249,7 +249,7 @@ class _warn_if_missing(AbstractContextManager):
     def __exit__(self, exctype, excinst, exctb):
         caught_error = exctype is not None and issubclass(exctype, OperationalError)
         if caught_error:
-            logger.warning(f"Table %r not found.  Skipping.", self.table)
+            logger.warning("Table %r not found.  Skipping.", self.table)
         return caught_error
 
 
