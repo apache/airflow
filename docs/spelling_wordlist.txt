@@ -1222,6 +1222,7 @@ sdk
 secretRef
 secretRefs
 securable
+securecookie
 securityManager
 seealso
 seedlist
