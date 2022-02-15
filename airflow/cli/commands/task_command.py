@@ -319,11 +319,11 @@ def task_run(args, dag=None):
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
+    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
     # behind multiple open sleeping connections while heartbeating, which could
     # easily exceed the database connection limit when
     # processing hundreds of simultaneous tasks.
-    settings.configure_orm(disable_connection_pool=True)
+    settings.reconfigure_orm(disable_connection_pool=True)
 
     if args.pickle:
         print(f'Loading pickle id: {args.pickle}')
