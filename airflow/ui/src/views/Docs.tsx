@@ -49,6 +49,7 @@ const Docs: React.FC = () => {
     { path: 'apache-livy', name: 'Apache Livy' },
     { path: 'apache-pig', name: 'Apache Pig' },
     { path: 'apache-pinot', name: 'Apache Pinot' },
+    { path: 'apache-pulsar', name: 'Apache Pulsar' },
     { path: 'apache-spark', name: 'Apache Spark' },
     { path: 'apache-sqoop', name: 'Apache Sqoop' },
     { path: 'celery', name: 'Celery' },

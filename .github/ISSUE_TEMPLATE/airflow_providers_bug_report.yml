@@ -36,6 +36,7 @@ body:
         - apache-livy
         - apache-pig
         - apache-pinot
+        - apache-pulsar
         - apache-spark
         - apache-sqoop
         - asana

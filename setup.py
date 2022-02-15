@@ -478,6 +478,9 @@ presto = [
 psrp = [
     'pypsrp>=0.8',
 ]
+pulsar = [
+    'pulsar-client>=2.9.1',
+]
 qubole = [
     'qds-sdk>=1.10.4',
 ]
@@ -668,6 +671,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.livy': http_provider,
     'apache.pig': [],
     'apache.pinot': pinot,
+    'apache.pulsar': pulsar,
     'apache.spark': spark,
     'apache.sqoop': [],
     'asana': asana,

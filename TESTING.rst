@@ -316,6 +316,8 @@ The following integrations are available:
      - Integration required for OpenLDAP hooks
    * - pinot
      - Integration required for Apache Pinot hooks
+   * - pulsar
+     - Integration required for Apache Pulsar hooks
    * - rabbitmq
      - Integration required for Celery executor tests
    * - redis

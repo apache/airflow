@@ -134,6 +134,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.pinot        | ``pip install 'apache-airflow[apache.pinot]'``      | All Pinot related hooks                        |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.pulsar       | ``pip install 'apache-airflow[apache.pulsar]'``     | All Pulsar related hooks                       |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.spark        | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.sqoop        | ``pip install 'apache-airflow[apache.sqoop]'``      | All Sqoop related operators & hooks            |
