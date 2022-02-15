@@ -19,11 +19,11 @@
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Callable
 
-from airflow.callbacks.base_callbacks_sink import BaseCallbacksSink
-from airflow.utils.callback_requests import CallbackRequest
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import CallbackRequest
 
 
-class PipeCallbacksSink(BaseCallbacksSink):
+class PipeCallbackSink(BaseCallbackSink):
     """
     Class for sending callbacks to DagProcessor using pipe.
 

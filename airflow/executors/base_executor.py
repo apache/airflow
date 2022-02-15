@@ -19,11 +19,11 @@ import sys
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from airflow.callbacks.base_callbacks_sink import BaseCallbacksSink
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
-from airflow.utils.callback_requests import CallbackRequest
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -58,7 +58,7 @@ class BaseExecutor(LoggingMixin):
     """
 
     job_id: Union[None, int, str] = None
-    callbacks_sink: Optional[BaseCallbacksSink] = None
+    callbacks_sink: Optional[BaseCallbackSink] = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()

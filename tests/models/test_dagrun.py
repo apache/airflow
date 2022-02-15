@@ -26,13 +26,13 @@ import pytest
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest
 from airflow.utils.dates import days_ago
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule

@@ -17,10 +17,10 @@
 # under the License.
 #
 
-from airflow.utils.callback_requests import CallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest
 
 
-class BaseCallbacksSink:
+class BaseCallbackSink:
     """Base class for Callbacks Sinks."""
 
     def send_callback_to_execute(self, callback: CallbackRequest) -> None:

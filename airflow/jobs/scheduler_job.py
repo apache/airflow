@@ -34,7 +34,8 @@ from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
-from airflow.callbacks.pipe_callbacks_sink import PipeCallbacksSink
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
@@ -49,7 +50,6 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -665,7 +665,7 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
-            self.executor.callbacks_sink = PipeCallbacksSink(
+            self.executor.callbacks_sink = PipeCallbackSink(
                 get_sink_pipe=self.processor_agent.get_callbacks_pipe
             )
 
