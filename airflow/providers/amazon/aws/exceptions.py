@@ -33,7 +33,6 @@ class EcsOperatorError(Exception):
         return EcsOperatorError, (self.failures, self.message)
 
 
-
 class ECSOperatorError(EcsOperatorError):
     """
     This class is deprecated.
