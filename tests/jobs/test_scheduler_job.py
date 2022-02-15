@@ -3600,6 +3600,9 @@ class TestSchedulerJob:
 
         This needs a DagRun to be pre-created (it can be in running or queued state) as no more will be
         created as we turn off creating new DagRuns via setting USE_JOB_SCHEDULE to false
+
+        Note: This doesn't currently account for tasks that go into retry -- the scheduler would be detected
+        as idle in that circumstance
         """
         # Spy on _do_scheduling and _process_executor_events so we can notice
         # if nothing happened, and abort early! Given we are using
