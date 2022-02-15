@@ -732,12 +732,24 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
-    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+    def check_templates(filename, elasticsearch_id):
+        stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+        if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
+            session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
+
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
-    if stored and stored.filename == filename and stored.elasticsearch_id == elasticsearch_id:
-        return
-    session.merge(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
+
+    # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
+    # place exists!
+    pre_upgrade_filename = conf.upgraded_values.get(('logging', 'log_filename_template'), None)
+    if pre_upgrade_filename is not None:
+        check_templates(pre_upgrade_filename, elasticsearch_id)
+        session.flush()
+
+    check_templates(filename, elasticsearch_id)
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -1053,9 +1065,12 @@ def drop_airflow_models(connection):
     users.drop(settings.engine, checkfirst=True)
     dag_stats = Table('dag_stats', Base.metadata)
     dag_stats.drop(settings.engine, checkfirst=True)
+    session = Table('session', Base.metadata)
+    session.drop(settings.engine, checkfirst=True)
 
     Base.metadata.drop_all(connection)
     # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
+    Base.metadata.remove(session)
     Base.metadata.remove(dag_stats)
     Base.metadata.remove(users)
     Base.metadata.remove(user)

@@ -445,7 +445,7 @@ class DagFileProcessor(LoggingMixin):
             blocking_tis: List[TI] = []
             for ti in fetched_tis:
                 if ti.task_id in dag.task_ids:
-                    ti.task = dag.get_task(ti.task_id)  # type: ignore[assignment]  # TODO: Fix task: Operator
+                    ti.task = dag.get_task(ti.task_id)
                     blocking_tis.append(ti)
                 else:
                     session.delete(ti)

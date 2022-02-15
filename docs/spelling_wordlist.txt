@@ -115,6 +115,7 @@ Deserialize
 Deserialized
 DevOps
 Dingding
+DirectRunner
 Dlp
 DlpJob
 DlpServiceClient
@@ -1254,6 +1255,7 @@ sdk
 secretRef
 secretRefs
 securable
+securecookie
 securestring
 securityManager
 seealso

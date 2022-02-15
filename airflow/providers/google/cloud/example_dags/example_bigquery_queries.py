@@ -138,10 +138,7 @@ for index, location in enumerate(locations, 1):
             task_id="execute_multi_query",
             configuration={
                 "query": {
-                    "query": [
-                        f"SELECT * FROM {DATASET}.{TABLE_2}",
-                        f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
-                    ],
+                    "query": f"SELECT * FROM {DATASET}.{TABLE_2};SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
                     "useLegacySql": False,
                 }
             },

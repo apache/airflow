@@ -43,7 +43,7 @@ import typing_extensions
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
-from airflow.models.baseoperator import BaseOperator, coerce_retry_delay, parse_retries
+from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
 from airflow.models.dag import DAG, DagContext
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.pool import Pool
@@ -308,6 +308,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         partial_kwargs["retry_delay"] = coerce_retry_delay(
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
         )
+        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
         partial_kwargs.setdefault("executor_config", {})
 
         # Mypy does not work well with a subclassed attrs class :(

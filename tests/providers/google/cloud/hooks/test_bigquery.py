@@ -936,7 +936,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith('bigquery://')
 
-    def test_dbapi_get_sqlalchemy_engine(self):
+    def test_dbapi_get_sqlalchemy_engine_failed(self):
         with pytest.raises(
             AirflowException,
             match="For now, we only support instantiating SQLAlchemy engine by"
