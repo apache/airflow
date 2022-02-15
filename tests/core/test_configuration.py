@@ -782,7 +782,10 @@ notacommand = OK
         assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
         assert 'sql_alchemy_conn_cmd' not in conf_maintain_cmds['core']
 
-        assert conf_materialize_cmds['core']['sql_alchemy_conn'] == conf_maintain_cmds['core']['sql_alchemy_conn']
+        assert (
+            conf_materialize_cmds['core']['sql_alchemy_conn']
+            == conf_maintain_cmds['core']['sql_alchemy_conn']
+        )
 
     def test_as_dict_respects_sensitive_cmds(self):
         conf_conn = conf['core']['sql_alchemy_conn']
