@@ -340,9 +340,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 .filter(SI.state == State.SENSING)
                 .filter(SI.shardcode < self.shard_max, SI.shardcode >= self.shard_min)
             )
-            sis = query.all()
+            tis = query.all()
 
-        self.log.info("Performance query %s sis, time: %.3f", len(sis), timer.duration)
+        self.log.info("Performance query %s tis, time: %.3f", len(tis), timer.duration)
 
         # Query without checking dagrun state might keep some failed dag_run tasks alive.
         # Join with DagRun table will be very slow based on the number of sensor tasks we
@@ -350,11 +350,11 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         # and expect scheduler correct the states in _change_state_for_tis_without_dagrun()
 
         sensor_works = []
-        for si in sis:
+        for ti in tis:
             try:
-                sensor_works.append(SensorWork(si))
+                sensor_works.append(SensorWork(ti))
             except Exception:
-                self.log.exception("Exception at creating sensor work for ti %s", si.ti_key)
+                self.log.exception("Exception at creating sensor work for ti %s", ti.key)
 
         self.log.info("%d tasks detected.", len(sensor_works))
 
