@@ -85,10 +85,14 @@ def execute_command(command_to_exec: CommandType) -> None:
     celery_task_id = app.current_task.request.id
     log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
 
-    if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-        _execute_in_subprocess(command_to_exec, celery_task_id)
-    else:
-        _execute_in_fork(command_to_exec, celery_task_id)
+    try:
+        if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+            _execute_in_subprocess(command_to_exec, celery_task_id)
+        else:
+            _execute_in_fork(command_to_exec, celery_task_id)
+    except Exception:
+        Stats.incr("celery.execute_command.failure")
+        raise
 
 
 def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
