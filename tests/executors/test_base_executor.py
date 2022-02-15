@@ -98,22 +98,28 @@ def test_trigger_queued_tasks(dag_maker, open_slots):
     assert len(executor.execute_async.mock_calls) == open_slots
 
 
-@mark.parametrize("change_state_attempt", range(QUEUEING_ATTEMPTS))
+@mark.parametrize("change_state_attempt", range(QUEUEING_ATTEMPTS + 2))
 def test_trigger_running_tasks(dag_maker, change_state_attempt):
     executor, dagrun = setup_trigger_tasks(dag_maker)
-    open_slots = triggered = len(dagrun.task_instances)
+    open_slots = 100
     executor.trigger_tasks(open_slots)
+    expected_calls = len(dagrun.task_instances)  # initially `execute_async` called for each task
+    assert len(executor.execute_async.mock_calls) == expected_calls
 
-    # All the tasks are now running, so while we _can_ enqueue them
-    # again, they won't be triggered during `trigger_tasks` until
-    # the executor has been notified of a state change.
+    # All the tasks are now "running", so while we enqueue them again here,
+    # they won't be executed again until the executor has been notified of a state change.
     enqueue_tasks(executor, dagrun)
-    for attempt in range(QUEUEING_ATTEMPTS):
-        # On the configured attempt, we notify the executor
-        # that the task has succeeded.
+
+    for attempt in range(QUEUEING_ATTEMPTS + 2):
+        # On the configured attempt, we notify the executor that the task has succeeded.
         if attempt == change_state_attempt:
             executor.change_state(dagrun.task_instances[0].key, State.SUCCESS)
-            # We then expect an additional triggered task.
-            triggered += 1
+            # If we have not exceeded QUEUEING_ATTEMPTS, we should expect an additional "execute" call
+            if attempt < QUEUEING_ATTEMPTS:
+                expected_calls += 1
         executor.trigger_tasks(open_slots)
-        assert len(executor.execute_async.mock_calls) == triggered
+        assert len(executor.execute_async.mock_calls) == expected_calls
+    if change_state_attempt < QUEUEING_ATTEMPTS:
+        assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances) + 1
+    else:
+        assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances)
