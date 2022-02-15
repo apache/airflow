@@ -48,7 +48,6 @@ from typing import (
 )
 
 import attr
-import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
@@ -91,6 +90,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    import jinja2  # Slow import.
+
     from airflow.models.dag import DAG
     from airflow.utils.task_group import TaskGroup
 
@@ -120,6 +121,12 @@ def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
         return retry_delay
     logger.debug("retry_delay isn't a timedelta object, assuming secs")
     return timedelta(seconds=retry_delay)
+
+
+def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]:
+    if resources is None:
+        return None
+    return Resources(**resources)
 
 
 def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
@@ -175,6 +182,7 @@ def partial(
     owner: str = DEFAULT_OWNER,
     email: Union[None, str, Iterable[str]] = None,
     params: Optional[dict] = None,
+    resources: Optional[Dict[str, Any]] = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
     wait_for_downstream: bool = False,
@@ -251,6 +259,7 @@ def partial(
     partial_kwargs.setdefault("executor_config", executor_config)
     partial_kwargs.setdefault("inlets", inlets)
     partial_kwargs.setdefault("outlets", outlets)
+    partial_kwargs.setdefault("resources", resources)
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.map().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -264,6 +273,7 @@ def partial(
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
     partial_kwargs["retry_delay"] = coerce_retry_delay(partial_kwargs["retry_delay"])
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
+    partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
     return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
 
@@ -696,7 +706,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pre_execute: Optional[TaskPreExecuteHook] = None,
         post_execute: Optional[TaskPostExecuteHook] = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
-        resources: Optional[Dict] = None,
+        resources: Optional[Dict[str, Any]] = None,
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
         max_active_tis_per_dag: Optional[int] = None,
@@ -828,7 +838,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"received '{weight_rule}'."
             )
         self.weight_rule = weight_rule
-        self.resources: Optional[Resources] = Resources(**resources) if resources else None
+        self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -1140,7 +1150,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
-        self, context: Context, jinja_env: Optional[jinja2.Environment] = None
+        self, context: Context, jinja_env: Optional["jinja2.Environment"] = None
     ) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
@@ -1158,7 +1168,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         parent: Any,
         template_fields: Iterable[str],
         context: Context,
-        jinja_env: jinja2.Environment,
+        jinja_env: "jinja2.Environment",
         seen_oids: Set,
     ) -> None:
         for attr_name in template_fields:
@@ -1178,7 +1188,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         content: Any,
         context: Context,
-        jinja_env: Optional[jinja2.Environment] = None,
+        jinja_env: Optional["jinja2.Environment"] = None,
         seen_oids: Optional[Set] = None,
     ) -> Any:
         """
@@ -1236,7 +1246,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return content
 
     def _render_nested_template_fields(
-        self, content: Any, context: Context, jinja_env: jinja2.Environment, seen_oids: Set
+        self, content: Any, context: Context, jinja_env: "jinja2.Environment", seen_oids: Set
     ) -> None:
         if id(content) not in seen_oids:
             seen_oids.add(id(content))
@@ -1553,8 +1563,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def unmap(self) -> "BaseOperator":
         """:meta private:"""
-        # Exists to make typing easier
-        raise TypeError("Internal code error: Do not call unmap on BaseOperator!")
+        return self
 
 
 # TODO: Deprecate for Airflow 3.0

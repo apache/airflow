@@ -1205,9 +1205,9 @@ class Airflow(AirflowBaseView):
         root = request.args.get('root', '')
 
         logging.info("Retrieving rendered templates.")
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = copy.copy(dag.get_task(task_id))
+        task = copy.copy(dag.get_task(task_id).unmap())
 
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this

@@ -104,8 +104,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         dag_run = ti.get_dagrun()
+        dag = ti.task.dag
+        assert dag is not None  # For Mypy.
         try:
-            data_interval: Tuple[datetime, datetime] = ti.task.dag.get_run_data_interval(dag_run)
+            data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
         except AttributeError:  # ti.task is not always set.
             data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
 

@@ -113,9 +113,9 @@ def _get_ti(
 ) -> TaskInstance:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     if task.is_mapped:
-        if map_index == -1:
+        if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
-    elif map_index != -1:
+    elif map_index >= 0:
         raise RuntimeError("map_index passed to non-mapped task")
     dag_run = _get_dag_run(
         dag=task.dag,
@@ -224,8 +224,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
-    if ti.task.is_mapped:
-        ti.task = ti.task.unmap()
+    ti.task = ti.task.unmap()
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -531,6 +530,7 @@ def task_render(args):
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary=True)
+    ti.task = ti.task.unmap()
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

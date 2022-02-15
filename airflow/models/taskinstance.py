@@ -122,7 +122,6 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
@@ -423,11 +422,7 @@ class TaskInstance(Base, LoggingMixin):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
-    # TODO: Investigate TaskInstance's lifecycle and call stack to determine
-    # when self.task is guaranteed to be unmapped, and when it may be mapped.
-    # Add 'assert isinstance(self.task, BaseOperator) to methods accordingly,
-    # and change this to 'task: Operator' instead.
-    task: "BaseOperator"  # Not always set...
+    task: "Operator"  # Not always set...
 
     def __init__(
         self,
@@ -806,7 +801,7 @@ class TaskInstance(Base, LoggingMixin):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
-        self.task = task  # type: ignore[assignment]  # TODO: Fix task: Operator
+        self.task = task
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
@@ -1321,8 +1316,9 @@ class TaskInstance(Base, LoggingMixin):
                 f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
                 'expanded already!'
             )
+        task = self.task.unmap()
         self.test_mode = test_mode
-        self.refresh_from_task(self.task, pool_override=pool)
+        self.refresh_from_task(task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
@@ -1334,7 +1330,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
         try:
             if not mark_success:
-                self.task = self.task.prepare_for_execution()
+                self.task = task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
                 self._execute_task_with_callbacks(context)
             if not test_mode:
@@ -1397,7 +1393,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{self.state}')
+            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1660,8 +1656,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
-        task = self.task
-        task_copy = task.prepare_for_execution()
+        task_copy = self.task.unmap().prepare_for_execution()
         self.task = task_copy
 
         self.render_templates()
@@ -1742,9 +1737,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             self.refresh_from_db(session)
 
-        task = self.task
-        if task.is_mapped:
-            task = task.unmap()
+        task = self.task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
@@ -2032,10 +2025,14 @@ class TaskInstance(Base, LoggingMixin):
 
     def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""
+        if self.task.is_mapped:
+            raise RuntimeError(
+                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
+                'expanded already!'
+            )
         if not context:
             context = self.get_template_context()
-
-        self.task.render_template_fields(context)
+        self.task.unmap().render_template_fields(context)
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""

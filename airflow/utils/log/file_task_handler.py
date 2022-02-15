@@ -84,8 +84,10 @@ class FileTaskHandler(logging.Handler):
             return render_template_to_string(self.filename_jinja_template, context)
         elif self.filename_template:
             dag_run = ti.get_dagrun()
+            dag = ti.task.dag
+            assert dag is not None  # For Mypy.
             try:
-                data_interval: Tuple[datetime, datetime] = ti.task.dag.get_run_data_interval(dag_run)
+                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
