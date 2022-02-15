@@ -274,6 +274,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
         wait_for_termination: bool = True,
+        git_source: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -312,6 +313,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['idempotency_token'] = idempotency_token
         if access_control_list is not None:
             self.json['access_control_list'] = access_control_list
+        if git_source is not None:
+            self.json['git_source'] = git_source
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.

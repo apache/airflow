@@ -193,6 +193,24 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         )
         assert expected == op.json
 
+    def test_init_with_git_source(self):
+        json = {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
+        git_source = {
+            'git_url': 'https://github.com/apache/airflow',
+            'git_provider': 'github',
+            'git_branch': 'main',
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, git_source=git_source, json=json)
+        expected = databricks_operator._deep_string_coerce(
+            {
+                'new_cluster': NEW_CLUSTER,
+                'notebook_task': NOTEBOOK_TASK,
+                'run_name': RUN_NAME,
+                'git_source': git_source
+            }
+        )
+        assert expected == op.json
+
     def test_init_with_bad_type(self):
         json = {'test': datetime.now()}
         # Looks a bit weird since we have to escape regex reserved symbols.
