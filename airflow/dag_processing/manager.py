@@ -422,11 +422,10 @@ class DagFileProcessorManager(LoggingMixin):
         self.last_stat_print_time = 0
         # Last time we cleaned up DAGs which are no longer in files
         self.last_deactivate_stale_dags_time = timezone.make_aware(datetime.fromtimestamp(0))
-        # TODO: make this configurable
-        self.deactivate_stale_dags_interval = 60
+        # How often to check for DAGs which are no longer in files
+        self.deactivate_stale_dags_interval = conf.getint('scheduler', 'deactivate_stale_dags_interval')
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
-
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
         self.dag_dir_list_interval = conf.getint('scheduler', 'dag_dir_list_interval')
 
