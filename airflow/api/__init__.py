@@ -40,6 +40,6 @@ def load_auth():
             log.info("Loaded API auth backend: %s", backend)
             backends.append(auth)
         except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", auth_backend, err)
+            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
             raise AirflowException(err)
     return backends
