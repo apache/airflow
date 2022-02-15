@@ -23,13 +23,13 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
