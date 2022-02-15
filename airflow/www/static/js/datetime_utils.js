@@ -74,7 +74,10 @@ export function updateAllDateTimes() {
   $('time[data-datetime-convert!="false"]').each((_, el) => {
     const $el = $(el);
     const dt = moment($el.attr('datetime'));
-    $el.text(dt.format(defaultFormat));
+    // eslint-disable-next-line no-underscore-dangle
+    if (dt._isValid) {
+      $el.text(dt.format(defaultFormat));
+    }
     if ($el.attr('title') !== undefined) {
       // If displayed date is not UTC, have the UTC date in a title attribute
       $el.attr('title', dt.isUTC() ? '' : `UTC: ${dt.clone().utc().format()}`);
@@ -88,15 +91,26 @@ export function updateAllDateTimes() {
   $('.datetime input').each((_, el) => {
     el.value = moment(el.value).format();
   });
-
-  $('.js-format-date').each((_, el) => {
-    el.innerHTML = moment(el.innerHTML, 'YYYY-MM-DD').isValid()
-      ? formatDateTime(el.innerHTML)
-      : el.innerHTML;
-  });
 }
 
 export function setDisplayedTimezone(tz) {
   moment.tz.setDefault(tz);
   updateAllDateTimes();
 }
+
+// moment will resolve the enddate to now if it is undefined
+export const getDuration = (startDate, endDate) => (
+  moment(endDate || undefined).diff(startDate || undefined)
+);
+
+export const formatDuration = (dur) => {
+  const duration = moment.duration(dur);
+  const days = duration.days();
+  // .as('milliseconds') is necessary for .format() to work correctly
+  return `${days > 0 ? `${days}d` : ''}${moment.utc(duration.as('milliseconds')).format('HH:mm:ss')}`;
+};
+
+export const approxTimeFromNow = (dur) => {
+  const timefromNow = moment(dur);
+  return `${timefromNow.fromNow()}`;
+};

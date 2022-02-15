@@ -35,7 +35,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column(
@@ -46,5 +46,5 @@ def upgrade():  # noqa: D103
         )
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     pass

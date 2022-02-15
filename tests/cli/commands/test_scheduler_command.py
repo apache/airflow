@@ -70,3 +70,20 @@ class TestSchedulerCommand(unittest.TestCase):
         with conf_vars({("core", "executor"): executor}):
             scheduler_command.scheduler(args)
             mock_process.assert_not_called()
+
+    @parameterized.expand(
+        [
+            ("LocalExecutor",),
+            ("SequentialExecutor",),
+        ]
+    )
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_graceful_shutdown(self, executor, mock_process, mock_scheduler_job):
+        args = self.parser.parse_args(['scheduler'])
+        with conf_vars({("core", "executor"): executor}):
+            mock_scheduler_job.run.side_effect = Exception('Mock exception to trigger runtime error')
+            try:
+                scheduler_command.scheduler(args)
+            finally:
+                mock_process().terminate.assert_called()

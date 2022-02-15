@@ -19,6 +19,7 @@ from typing import NamedTuple, Optional
 
 import airflow
 from airflow.api_connexion.schemas.version_schema import version_info_schema
+from airflow.api_connexion.types import APIResponse
 from airflow.utils.platform import get_airflow_git_version
 
 
@@ -29,7 +30,7 @@ class VersionInfo(NamedTuple):
     git_version: Optional[str]
 
 
-def get_version():
+def get_version() -> APIResponse:
     """Get version information"""
     airflow_version = airflow.__version__
 

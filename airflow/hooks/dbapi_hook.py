@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.hooks.dbapi import DbApiHook  # noqa
 
 warnings.warn(

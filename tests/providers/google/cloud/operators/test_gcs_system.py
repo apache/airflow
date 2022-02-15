@@ -22,26 +22,49 @@ from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
+@pytest.fixture(scope="module")
+def helper():
+    return GcsSystemTestHelper()
+
+
+@pytest.fixture
+def file_to_upload(helper):
+    helper.create_file_to_upload()
+    yield
+    helper.remove_file_to_upload()
+
+
+@pytest.fixture
+def script_to_transform(helper):
+    helper.create_script_to_transform()
+    yield
+    helper.remove_script_to_transform()
+
+
+@pytest.fixture
+def saved_file(helper):
+    # file is created by operator inside DAG
+    yield
+    helper.remove_saved_file()
+
+
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class GoogleCloudStorageExampleDagsTest(GoogleSystemTest):
-    helper = GcsSystemTestHelper()
-
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_test_file()
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.helper.remove_test_files()
-        self.helper.remove_bucket()
         super().tearDown()
 
     @provide_gcp_context(GCP_GCS_KEY)
+    @pytest.mark.usefixtures("file_to_upload", "script_to_transform", "saved_file")
     def test_run_example_dag(self):
         self.run_dag('example_gcs', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
+    @pytest.mark.usefixtures("file_to_upload")
     def test_run_example_gcs_sensor_dag(self):
         self.run_dag('example_gcs_sensors', CLOUD_DAG_FOLDER)

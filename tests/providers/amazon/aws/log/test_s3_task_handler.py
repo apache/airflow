@@ -24,7 +24,7 @@ from unittest.mock import ANY
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
@@ -58,9 +58,11 @@ class TestS3TaskHandler(unittest.TestCase):
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
-        self.dag = DAG('dag_for_testing_file_task_handler', start_date=date)
-        task = DummyOperator(task_id='task_for_testing_file_log_handler', dag=self.dag)
-        self.ti = TaskInstance(task=task, execution_date=date)
+        self.dag = DAG('dag_for_testing_s3_task_handler', start_date=date)
+        task = DummyOperator(task_id='task_for_testing_s3_log_handler', dag=self.dag)
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test")
+        self.ti = TaskInstance(task=task)
+        self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
         self.addCleanup(self.dag.clear)
@@ -75,7 +77,7 @@ class TestS3TaskHandler(unittest.TestCase):
         if self.s3_task_handler.handler:
             try:
                 os.remove(self.s3_task_handler.handler.baseFilename)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 pass
 
     def test_hook(self):
@@ -179,24 +181,14 @@ class TestS3TaskHandler(unittest.TestCase):
             self.s3_task_handler.s3_write('text', self.remote_log_location)
             # We shouldn't expect any error logs in the default working case.
             mock_error.assert_not_called()
-        body = (
-            boto3.resource('s3')
-            .Object('bucket', self.remote_log_key)  # pylint: disable=no-member
-            .get()['Body']
-            .read()
-        )
+        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
 
         assert body == b'text'
 
     def test_write_existing(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
         self.s3_task_handler.s3_write('text', self.remote_log_location)
-        body = (
-            boto3.resource('s3')
-            .Object('bucket', self.remote_log_key)  # pylint: disable=no-member
-            .get()['Body']
-            .read()
-        )
+        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
 
         assert body == b'previous \ntext'
 
@@ -213,7 +205,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
         self.s3_task_handler.close()
         # Should not raise
-        boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member
+        boto3.resource('s3').Object('bucket', self.remote_log_key).get()
 
     def test_close_no_upload(self):
         self.ti.raw = True
@@ -222,4 +214,4 @@ class TestS3TaskHandler(unittest.TestCase):
         self.s3_task_handler.close()
 
         with pytest.raises(ClientError):
-            boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member
+            boto3.resource('s3').Object('bucket', self.remote_log_key).get()

@@ -37,11 +37,13 @@ Here you can find detailed documentation about each one of Airflow's core concep
     tasks
     operators
     sensors
+    deferring
     smart-sensors
     taskflow
     ../executor/index
     scheduler
     pools
+    timetable
     priority-weight
     cluster-policies
 
@@ -53,3 +55,4 @@ Here you can find detailed documentation about each one of Airflow's core concep
     xcoms
     variables
     connections
+    params

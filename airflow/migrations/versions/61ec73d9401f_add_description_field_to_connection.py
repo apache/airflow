@@ -36,7 +36,7 @@ depends_on = None
 
 def upgrade():
     """Apply Add description field to connection"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
 
     with op.batch_alter_table('connection') as batch_op:
         if conn.dialect.name == "mysql":

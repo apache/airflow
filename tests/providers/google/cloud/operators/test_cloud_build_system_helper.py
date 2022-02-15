@@ -25,7 +25,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://example-bucket/source-code.tar.gz")
@@ -36,7 +36,7 @@ GCP_OBJECT_NAME = GCP_ARCHIVE_URL_PARTS.path[1:]
 GCP_REPOSITORY_NAME = os.environ.get("GCP_CLOUD_BUILD_REPOSITORY_NAME", "repository-name")
 
 
-class GCPCloudBuildTestHelper(LoggingCommandExecutor):
+class GCPCloudBuildTestHelper(CommandExecutor):
     """
     Helper class to perform system tests for the Google Cloud Build service.
     """
@@ -75,11 +75,9 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
             self.execute_cmd(["git", "add", "quickstart.sh"], cwd=tmp_dir)
             self.execute_cmd(["git", "add", "Dockerfile"], cwd=tmp_dir)
             self.execute_cmd(["git", "commit", "-m", "Initial commit"], cwd=tmp_dir)
-            repo_url = "https://source.developers.google.com/p/{}/r/{}".format(
-                GCP_PROJECT_ID, GCP_REPOSITORY_NAME
-            )
+            repo_url = f"https://source.developers.google.com/p/{GCP_PROJECT_ID}/r/{GCP_REPOSITORY_NAME}"
             self.execute_cmd(["git", "remote", "add", "origin", repo_url], cwd=tmp_dir)
-            self.execute_cmd(["git", "push", "--force", "origin", "main"], cwd=tmp_dir)
+            self.execute_cmd(["git", "push", "--force", "origin", "master"], cwd=tmp_dir)
 
     def delete_repo(self):
         """Delete repository in Google Cloud Source Repository service"""

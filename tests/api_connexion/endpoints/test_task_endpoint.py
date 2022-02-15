@@ -60,7 +60,7 @@ class TestTaskEndpoint:
     @pytest.fixture(scope="class")
     def setup_dag(self, configured_app):
         with DAG(self.dag_id, start_date=self.task1_start_date, doc_md="details") as dag:
-            task1 = DummyOperator(task_id=self.task_id)
+            task1 = DummyOperator(task_id=self.task_id, params={'foo': 'bar'})
             task2 = DummyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
         task1 >> task2
@@ -75,7 +75,7 @@ class TestTaskEndpoint:
         clear_db_serialized_dags()
 
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app, setup_dag) -> None:  # pylint: disable=unused-argument
+    def setup_attrs(self, configured_app, setup_dag) -> None:
         self.clean_db()
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
@@ -97,6 +97,14 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "owner": "airflow",
+            'params': {
+                'foo': {
+                    '__class': 'airflow.models.param.Param',
+                    'value': 'bar',
+                    'description': None,
+                    'schema': {},
+                }
+            },
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
@@ -139,6 +147,14 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "owner": "airflow",
+            'params': {
+                'foo': {
+                    '__class': 'airflow.models.param.Param',
+                    'value': 'bar',
+                    'description': None,
+                    'schema': {},
+                }
+            },
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
@@ -196,6 +212,14 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "owner": "airflow",
+                    'params': {
+                        'foo': {
+                            '__class': 'airflow.models.param.Param',
+                            'value': 'bar',
+                            'description': None,
+                            'schema': {},
+                        }
+                    },
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
@@ -223,6 +247,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "owner": "airflow",
+                    "params": {},
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,

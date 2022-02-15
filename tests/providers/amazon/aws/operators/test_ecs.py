@@ -20,14 +20,16 @@
 import sys
 import unittest
 from copy import deepcopy
+from datetime import timedelta
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.exceptions import ECSOperatorError
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator, should_retry
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError
+from airflow.providers.amazon.aws.operators.ecs import EcsOperator, EcsTaskLogFetcher, should_retry
 
 # fmt: off
 RESPONSE_WITHOUT_FAILURES = {
@@ -53,7 +55,7 @@ RESPONSE_WITHOUT_FAILURES = {
 # fmt: on
 
 
-class TestECSOperator(unittest.TestCase):
+class TestEcsOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsBaseHook')
     def set_up_operator(self, aws_hook_mock, **kwargs):
         self.aws_hook_mock = aws_hook_mock
@@ -75,11 +77,12 @@ class TestECSOperator(unittest.TestCase):
             },
             'propagate_tags': 'TASK_DEFINITION',
         }
-        self.ecs = ECSOperator(**self.ecs_operator_args, **kwargs)
+        self.ecs = EcsOperator(**self.ecs_operator_args, **kwargs)
         self.ecs.get_hook()
 
     def setUp(self):
-        self.set_up_operator()  # pylint: disable=no-value-for-parameter
+        self.set_up_operator()
+        self.mock_context = mock.MagicMock()
 
     def test_init(self):
         assert self.ecs.region_name == 'eu-west-1'
@@ -96,10 +99,23 @@ class TestECSOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ['EC2', None, None, {'launchType': 'EC2'}],
-            ['FARGATE', None, None, {'launchType': 'FARGATE', 'platformVersion': 'LATEST'}],
             [
                 'EC2',
+                None,
+                None,
+                None,
+                {'launchType': 'EC2'},
+            ],
+            [
+                'FARGATE',
+                None,
+                'LATEST',
+                None,
+                {'launchType': 'FARGATE', 'platformVersion': 'LATEST'},
+            ],
+            [
+                'EC2',
+                None,
                 None,
                 {'testTagKey': 'testTagValue'},
                 {'launchType': 'EC2', 'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
@@ -107,12 +123,14 @@ class TestECSOperator(unittest.TestCase):
             [
                 '',
                 None,
+                None,
                 {'testTagKey': 'testTagValue'},
                 {'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
             ],
             [
                 None,
                 {'capacityProvider': 'FARGATE_SPOT'},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
@@ -122,6 +140,7 @@ class TestECSOperator(unittest.TestCase):
             [
                 'FARGATE',
                 {'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {
@@ -135,6 +154,7 @@ class TestECSOperator(unittest.TestCase):
             [
                 'EC2',
                 {'capacityProvider': 'FARGATE_SPOT'},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
@@ -143,14 +163,24 @@ class TestECSOperator(unittest.TestCase):
             ],
         ]
     )
-    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
-    @mock.patch.object(ECSOperator, '_check_success_task')
+    @mock.patch.object(EcsOperator, '_wait_for_task_ended')
+    @mock.patch.object(EcsOperator, '_check_success_task')
     def test_execute_without_failures(
-        self, launch_type, capacity_provider_strategy, tags, expected_args, check_mock, wait_mock
+        self,
+        launch_type,
+        capacity_provider_strategy,
+        platform_version,
+        tags,
+        expected_args,
+        check_mock,
+        wait_mock,
     ):
 
-        self.set_up_operator(  # pylint: disable=no-value-for-parameter
-            launch_type=launch_type, capacity_provider_strategy=capacity_provider_strategy, tags=tags
+        self.set_up_operator(
+            launch_type=launch_type,
+            capacity_provider_strategy=capacity_provider_strategy,
+            platform_version=platform_version,
+            tags=tags,
         )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
@@ -184,7 +214,7 @@ class TestECSOperator(unittest.TestCase):
         resp_failures['failures'].append('dummy error')
         client_mock.run_task.return_value = resp_failures
 
-        with pytest.raises(ECSOperatorError):
+        with pytest.raises(EcsOperatorError):
             self.ecs.execute(None)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
@@ -216,7 +246,28 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(cluster='c', tasks=['arn'])
         assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
-    def test_check_success_tasks_raises(self):
+    def test_check_success_tasks_raises_failed_to_start(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        client_mock.describe_tasks.return_value = {
+            'tasks': [
+                {
+                    'stopCode': 'TaskFailedToStart',
+                    'stoppedReason': 'Task failed to start',
+                    'containers': [{'name': 'foo', 'lastStatus': 'STOPPED'}],
+                }
+            ]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        assert str(ctx.value) == "The task failed to start due to: Task failed to start"
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    def test_check_success_tasks_raises_cloudwatch_logs(self):
         client_mock = mock.Mock()
         self.ecs.arn = 'arn'
         self.ecs.client = client_mock
@@ -224,14 +275,76 @@ class TestECSOperator(unittest.TestCase):
         client_mock.describe_tasks.return_value = {
             'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED', 'exitCode': 1}]}]
         }
+
+        task_log_fetcher = mock.Mock()
+        self.ecs.task_log_fetcher = task_log_fetcher
+
+        task_log_fetcher.get_last_log_messages.return_value = ["1", "2", "3", "4", "5"]
+
         with pytest.raises(Exception) as ctx:
             self.ecs._check_success_task()
 
-        # Ordering of str(dict) is not guaranteed.
+        assert str(ctx.value) == (
+            "This task is not in success state - last 10 logs from Cloudwatch:\n1\n2\n3\n4\n5"
+        )
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    def test_check_success_tasks_raises_cloudwatch_logs_empty(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED', 'exitCode': 1}]}]
+        }
+
+        task_log_fetcher = mock.Mock()
+        self.ecs.task_log_fetcher = task_log_fetcher
+
+        task_log_fetcher.get_last_log_messages.return_value = []
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        assert str(ctx.value) == "This task is not in success state - last 10 logs from Cloudwatch:\n"
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    def test_check_success_tasks_raises_logs_disabled(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED', 'exitCode': 1}]}]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
         assert "This task is not in success state " in str(ctx.value)
         assert "'name': 'foo'" in str(ctx.value)
         assert "'lastStatus': 'STOPPED'" in str(ctx.value)
         assert "'exitCode': 1" in str(ctx.value)
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    def test_check_success_tasks_handles_initialization_failure(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        # exitCode is missing during some container initialization failures
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED'}]}]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        print(str(ctx.value))
+        assert "This task is not in success state " in str(ctx.value)
+        assert "'name': 'foo'" in str(ctx.value)
+        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
+        assert "exitCode" not in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):
@@ -276,16 +389,16 @@ class TestECSOperator(unittest.TestCase):
                     'stoppedReason': 'Host EC2 (instance i-1234567890abcdef) terminated.',
                     "containers": [
                         {
-                            "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501 # pylint: disable=line-too-long
+                            "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501
                             "lastStatus": "RUNNING",
                             "name": "wordpress",
-                            "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
+                            "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
                         }
                     ],
                     "desiredStatus": "STOPPED",
                     "lastStatus": "STOPPED",
-                    "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
-                    "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11",  # noqa: E501 # pylint: disable=line-too-long
+                    "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
+                    "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11",  # noqa: E501
                 }
             ]
         }
@@ -316,20 +429,31 @@ class TestECSOperator(unittest.TestCase):
             ['', {'testTagKey': 'testTagValue'}],
         ]
     )
-    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
-    @mock.patch.object(ECSOperator, '_check_success_task')
-    @mock.patch.object(ECSOperator, '_start_task')
-    def test_reattach_successful(self, launch_type, tags, start_mock, check_mock, wait_mock):
+    @mock.patch.object(EcsOperator, "_xcom_del")
+    @mock.patch.object(
+        EcsOperator,
+        "xcom_pull",
+        return_value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
+    )
+    @mock.patch.object(EcsOperator, '_wait_for_task_ended')
+    @mock.patch.object(EcsOperator, '_check_success_task')
+    @mock.patch.object(EcsOperator, '_start_task')
+    def test_reattach_successful(
+        self, launch_type, tags, start_mock, check_mock, wait_mock, xcom_pull_mock, xcom_del_mock
+    ):
 
-        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(launch_type=launch_type, tags=tags)
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
         client_mock.list_tasks.return_value = {
-            'taskArns': ['arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55']
+            'taskArns': [
+                'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b54',
+                'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55',
+            ]
         }
 
         self.ecs.reattach = True
-        self.ecs.execute(None)
+        self.ecs.execute(self.mock_context)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
@@ -340,36 +464,213 @@ class TestECSOperator(unittest.TestCase):
         if tags:
             extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
-        client_mock.describe_task_definition.assert_called_once_with('t')
+        client_mock.describe_task_definition.assert_called_once_with(taskDefinition='t')
 
-        client_mock.list_tasks.assert_called_once_with(
-            cluster='c', launchType=launch_type, desiredStatus='RUNNING', family='f'
-        )
+        client_mock.list_tasks.assert_called_once_with(cluster='c', desiredStatus='RUNNING', family='f')
 
         start_mock.assert_not_called()
+        xcom_pull_mock.assert_called_once_with(
+            self.mock_context,
+            key=self.ecs.REATTACH_XCOM_KEY,
+            task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
+        )
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
+        xcom_del_mock.assert_called_once()
         assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
 
-    @mock.patch.object(ECSOperator, '_last_log_message', return_value="Log output")
-    def test_execute_xcom_with_log(self, mock_cloudwatch_log_message):
-        self.ecs.do_xcom_push = True
-        assert self.ecs.execute(None) == mock_cloudwatch_log_message.return_value
+    @parameterized.expand(
+        [
+            ['EC2', None],
+            ['FARGATE', None],
+            ['EC2', {'testTagKey': 'testTagValue'}],
+            ['', {'testTagKey': 'testTagValue'}],
+        ]
+    )
+    @mock.patch.object(EcsOperator, '_xcom_del')
+    @mock.patch.object(EcsOperator, '_xcom_set')
+    @mock.patch.object(EcsOperator, '_try_reattach_task')
+    @mock.patch.object(EcsOperator, '_wait_for_task_ended')
+    @mock.patch.object(EcsOperator, '_check_success_task')
+    def test_reattach_save_task_arn_xcom(
+        self, launch_type, tags, check_mock, wait_mock, reattach_mock, xcom_set_mock, xcom_del_mock
+    ):
 
-    @mock.patch.object(ECSOperator, '_last_log_message', return_value=None)
-    def test_execute_xcom_with_no_log(self, mock_cloudwatch_log_message):
-        self.ecs.do_xcom_push = True
-        assert self.ecs.execute(None) == mock_cloudwatch_log_message.return_value
+        self.set_up_operator(launch_type=launch_type, tags=tags)
+        client_mock = self.aws_hook_mock.return_value.get_conn.return_value
+        client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
+        client_mock.list_tasks.return_value = {'taskArns': []}
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
-    @mock.patch.object(ECSOperator, '_last_log_message', return_value="Log output")
-    def test_execute_xcom_disabled(self, mock_cloudwatch_log_message):
+        self.ecs.reattach = True
+        self.ecs.execute(self.mock_context)
+
+        self.aws_hook_mock.return_value.get_conn.assert_called_once()
+        extend_args = {}
+        if launch_type:
+            extend_args['launchType'] = launch_type
+        if launch_type == 'FARGATE':
+            extend_args['platformVersion'] = 'LATEST'
+        if tags:
+            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
+
+        reattach_mock.assert_called_once()
+        client_mock.run_task.assert_called_once()
+        xcom_set_mock.assert_called_once_with(
+            self.mock_context,
+            key=self.ecs.REATTACH_XCOM_KEY,
+            task_id=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
+            value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
+        )
+        wait_mock.assert_called_once_with()
+        check_mock.assert_called_once_with()
+        xcom_del_mock.assert_called_once()
+        assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+
+    def test_execute_xcom_with_log(self):
+        self.ecs.do_xcom_push = True
+        self.ecs.task_log_fetcher = mock.Mock()
+        self.ecs.task_log_fetcher.get_last_log_message.return_value = "Log output"
+        assert self.ecs.execute(None) == "Log output"
+
+    def test_execute_xcom_with_no_log(self):
+        self.ecs.do_xcom_push = True
+        self.ecs.task_log_fetcher = mock.Mock()
+        self.ecs.task_log_fetcher.get_last_log_message.return_value = None
+        assert self.ecs.execute(None) is None
+
+    def test_execute_xcom_with_no_log_fetcher(self):
+        self.ecs.do_xcom_push = True
+        assert self.ecs.execute(None) is None
+
+    def test_execute_xcom_disabled(self):
         self.ecs.do_xcom_push = False
+        self.ecs.task_log_fetcher = mock.Mock()
+        self.ecs.task_log_fetcher.get_last_log_message.return_value = "Log output"
         assert self.ecs.execute(None) is None
 
 
 class TestShouldRetry(unittest.TestCase):
     def test_return_true_on_valid_reason(self):
-        self.assertTrue(should_retry(ECSOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
+        self.assertTrue(should_retry(EcsOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
 
     def test_return_false_on_invalid_reason(self):
-        self.assertFalse(should_retry(ECSOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))
+        self.assertFalse(should_retry(EcsOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))
+
+
+class TestEcsTaskLogFetcher(unittest.TestCase):
+    @mock.patch('logging.Logger')
+    def set_up_log_fetcher(self, logger_mock):
+        self.logger_mock = logger_mock
+
+        self.log_fetcher = EcsTaskLogFetcher(
+            log_group="test_log_group",
+            log_stream_name="test_log_stream_name",
+            fetch_interval=timedelta(milliseconds=1),
+            logger=logger_mock,
+        )
+
+    def setUp(self):
+        self.set_up_log_fetcher()
+
+    @mock.patch(
+        'threading.Event.is_set',
+        side_effect=(False, False, False, True),
+    )
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        side_effect=(
+            iter(
+                [
+                    {'timestamp': 1617400267123, 'message': 'First'},
+                    {'timestamp': 1617400367456, 'message': 'Second'},
+                ]
+            ),
+            iter(
+                [
+                    {'timestamp': 1617400467789, 'message': 'Third'},
+                ]
+            ),
+            iter([]),
+        ),
+    )
+    def test_run(self, get_log_events_mock, event_is_set_mock):
+
+        self.log_fetcher.run()
+
+        self.logger_mock.info.assert_has_calls(
+            [
+                mock.call('[2021-04-02 21:51:07,123] First'),
+                mock.call('[2021-04-02 21:52:47,456] Second'),
+                mock.call('[2021-04-02 21:54:27,789] Third'),
+            ]
+        )
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        side_effect=ClientError({"Error": {"Code": "ResourceNotFoundException"}}, None),
+    )
+    def test_get_log_events_with_expected_error(self, get_log_events_mock):
+        with pytest.raises(StopIteration):
+            next(self.log_fetcher._get_log_events())
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        side_effect=Exception(),
+    )
+    def test_get_log_events_with_unexpected_error(self, get_log_events_mock):
+        with pytest.raises(Exception):
+            next(self.log_fetcher._get_log_events())
+
+    def test_event_to_str(self):
+        events = [
+            {'timestamp': 1617400267123, 'message': 'First'},
+            {'timestamp': 1617400367456, 'message': 'Second'},
+            {'timestamp': 1617400467789, 'message': 'Third'},
+        ]
+        assert [self.log_fetcher._event_to_str(event) for event in events] == (
+            [
+                '[2021-04-02 21:51:07,123] First',
+                '[2021-04-02 21:52:47,456] Second',
+                '[2021-04-02 21:54:27,789] Third',
+            ]
+        )
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        return_value=(),
+    )
+    def test_get_last_log_message_with_no_log_events(self, mock_log_events):
+        assert self.log_fetcher.get_last_log_message() is None
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        return_value=iter(
+            [
+                {'timestamp': 1617400267123, 'message': 'First'},
+                {'timestamp': 1617400367456, 'message': 'Second'},
+            ]
+        ),
+    )
+    def test_get_last_log_message_with_log_events(self, mock_log_events):
+        assert self.log_fetcher.get_last_log_message() == 'Second'
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        return_value=iter(
+            [
+                {'timestamp': 1617400267123, 'message': 'First'},
+                {'timestamp': 1617400367456, 'message': 'Second'},
+                {'timestamp': 1617400367458, 'message': 'Third'},
+            ]
+        ),
+    )
+    def test_get_last_log_messages_with_log_events(self, mock_log_events):
+        assert self.log_fetcher.get_last_log_messages(2) == ['Second', 'Third']
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events',
+        return_value=(),
+    )
+    def test_get_last_log_messages_with_no_log_events(self, mock_log_events):
+        assert self.log_fetcher.get_last_log_messages(2) == []

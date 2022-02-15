@@ -17,10 +17,12 @@
 # under the License.
 
 import datetime
-from typing import Dict, Union
+from typing import Sequence, Union
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
+from airflow.utils.context import Context
 
 
 class DateTimeSensor(BaseSensorOperator):
@@ -50,13 +52,14 @@ class DateTimeSensor(BaseSensorOperator):
             )
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :type target_time: str or datetime.datetime
     """
 
-    template_fields = ("target_time",)
+    template_fields: Sequence[str] = ("target_time",)
 
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
+
+        # self.target_time can't be a datetime object as it is a template_field
         if isinstance(target_time, datetime.datetime):
             self.target_time = target_time.isoformat()
         elif isinstance(target_time, str):
@@ -66,6 +69,27 @@ class DateTimeSensor(BaseSensorOperator):
                 f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
             )
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.utcnow() > timezone.parse(self.target_time)
+
+
+class DateTimeSensorAsync(DateTimeSensor):
+    """
+    Waits until the specified datetime, deferring itself to avoid taking up
+    a worker slot while it is waiting.
+
+    It is a drop-in replacement for DateTimeSensor.
+
+    :param target_time: datetime after which the job succeeds. (templated)
+    """
+
+    def execute(self, context: Context):
+        self.defer(
+            trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context, event=None):
+        """Callback for when the trigger fires - returns immediately."""
+        return None

@@ -19,18 +19,28 @@
 package-name: apache-airflow-providers-apache-druid
 name: Apache Druid
 description: |
-    `Apache Druid <https://druid.apache.org/>`__.
+  `Apache Druid <https://druid.apache.org/>`__.
 
 versions:
+  - 2.3.0
+  - 2.2.0
+  - 2.1.0
+  - 2.0.2
+  - 2.0.1
   - 2.0.0
   - 1.1.0
   - 1.0.1
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Apache Druid
     external-doc-url: https://druid.apache.org/
     logo: /integration-logos/apache/druid-1.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-druid/operators.rst
     tags: [apache]
 
 operators:
@@ -44,8 +54,12 @@ hooks:
     python-modules:
       - airflow.providers.apache.druid.hooks.druid
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.druid.hooks.druid.DruidDbApiHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.druid.hooks.druid.DruidDbApiHook
+    connection-type: druid
 
 transfers:
   - source-integration-name: Apache Hive

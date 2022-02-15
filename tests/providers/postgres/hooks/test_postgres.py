@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
 import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -43,7 +43,7 @@ class TestPostgresHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user='login', password='password', host='host', dbname='schema', port=None
@@ -55,6 +55,17 @@ class TestPostgresHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user='login', password='password', host='host', dbname='schema', port=None
+        )
+
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
+    def test_get_uri(self, mock_connect):
+        self.connection.extra = json.dumps({'client_encoding': 'utf-8'})
+        self.connection.conn_type = 'postgres'
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+
+        self.assertEqual(
+            self.db_hook.get_uri(), "postgresql://login:password@host/schema?client_encoding=utf-8"
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
@@ -113,31 +124,65 @@ class TestPostgresHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
-    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
-    def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
+    def test_get_conn_rds_iam_redshift(self, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true, "cluster-identifier": "different-identifier"}'
         self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
         login = f'IAM:{self.connection.login}'
-        mock_client.return_value.get_cluster_credentials.return_value = {
-            'DbPassword': 'aws_token',
-            'DbUser': login,
-        }
-        self.db_hook.get_conn()
+
+        mock_session = mock.Mock()
+        mock_get_cluster_credentials = mock_session.client.return_value.get_cluster_credentials
+        mock_get_cluster_credentials.return_value = {'DbPassword': 'aws_token', 'DbUser': login}
+
+        aws_get_credentials_patcher = mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook._get_credentials",
+            return_value=(mock_session, None),
+        )
         get_cluster_credentials_call = mock.call(
             DbUser=self.connection.login,
             DbName=self.connection.schema,
             ClusterIdentifier="different-identifier",
             AutoCreate=False,
         )
-        mock_client.return_value.get_cluster_credentials.assert_has_calls([get_cluster_credentials_call])
+
+        with aws_get_credentials_patcher:
+            self.db_hook.get_conn()
+        assert mock_get_cluster_credentials.mock_calls == [get_cluster_credentials_call]
         mock_connect.assert_called_once_with(
             user=login, password='aws_token', host=self.connection.host, dbname='schema', port=5439
         )
+
         # Verify that the connection object has not been mutated.
-        self.db_hook.get_conn()
-        mock_client.return_value.get_cluster_credentials.assert_has_calls(
-            [get_cluster_credentials_call, get_cluster_credentials_call]
+        mock_get_cluster_credentials.reset_mock()
+        with aws_get_credentials_patcher:
+            self.db_hook.get_conn()
+        assert mock_get_cluster_credentials.mock_calls == [get_cluster_credentials_call]
+
+    def test_get_uri_from_connection_without_schema_override(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="postgres",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
         )
+        assert "postgresql://login:password@host:1/schema" == self.db_hook.get_uri()
+
+    def test_get_uri_from_connection_with_schema_override(self):
+        hook = PostgresHook(schema='schema-override')
+        hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="postgres",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
+        assert "postgresql://login:password@host:1/schema-override" == hook.get_uri()
 
 
 class TestPostgresHook(unittest.TestCase):

@@ -32,9 +32,7 @@ There are two ways to connect to SFTP using Airflow.
 1. Use `host key
    <https://pysftp.readthedocs.io/en/release_0.2.9/pysftp.html#pysftp.CnOpts>`_
    i.e. host key entered in extras value ``host_key``.
-2. Use a `private key, private key pass, or password
-   <https://pysftp.readthedocs.io/en/release_0.2.9/pysftp.html#pysftp.Connection>`_
-   i.e. use the ``private_key``, ``private_key_pass``, or ``private_key`` extra values.
+2. Use ``private_key`` or ``key_file``, along with the optional ``private_key_pass``
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -72,14 +70,15 @@ Extra (optional)
     * ``host_key``: The base64 encoded ssh-rsa public key of the host, as you would find in the known_hosts file.
       Specifying this, along with no_host_key_check=False allows you to only make the connection if the public key of
       the endpoint matches this value.
-    * ``private_key`` Specify the path to private key file(str) or paramiko.AgentKey
+    * ``private_key`` Specify the content of the private key, the path to the private key file(str) or paramiko.AgentKey
+    * ``key_file`` - Full Path of the private SSH Key file that will be used to connect to the remote_host.
 
 Example “extras” field:
 
 .. code-block:: bash
 
     {
-       "private_key": "path/to/private_key",
+       "key_file": "path/to/private_key",
        "no_host_key_check": "false",
        "allow_host_key_change": "false",
        "host_key": "AAAHD...YDWwq=="
@@ -90,11 +89,11 @@ it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
 
-Example connection string with ``private_key``:
+Example connection string with ``key_file``  (path to key file provided in connection):
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_SFTP_DEFAULT='sftp://user:pass@localhost:22?private_key=64bit-encoded-private-key'
+   export AIRFLOW_CONN_SFTP_DEFAULT='sftp://user:pass@localhost:22?key_file=%2Fhome%2Fairflow%2F.ssh%2Fid_rsa'
 
 Example connection string with ``host_key``:
 

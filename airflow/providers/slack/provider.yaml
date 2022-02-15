@@ -22,14 +22,22 @@ description: |
     `Slack <https://slack.com/>`__
 
 versions:
+  - 4.2.0
+  - 4.1.0
+  - 4.0.1
   - 4.0.0
   - 3.0.0
   - 2.0.0
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-slack/operators/slack_operator_howto_guide.rst
     logo: /integration-logos/slack/Slack.png
     tags: [service]
 
@@ -45,5 +53,9 @@ hooks:
       - airflow.providers.slack.hooks.slack
       - airflow.providers.slack.hooks.slack_webhook
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
+
+connection-types:
+  - hook-class-name: airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
+    connection-type: slackwebhook

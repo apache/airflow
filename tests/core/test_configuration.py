@@ -51,7 +51,7 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
         'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"',
     },
 )
-class TestConf(unittest.TestCase):
+class TestConf:
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
             if 'AIRFLOW_HOME' in os.environ:
@@ -251,6 +251,43 @@ sql_alchemy_conn = airflow
 
         assert 'sqlite:////Users/airflow/airflow/airflow.db' == test_conf.get('test', 'sql_alchemy_conn')
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars(
+        {
+            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+        }
+    )
+    def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
+        """Get Config Value from a Secret Backend"""
+
+        mock_client = mock.MagicMock()
+        # mock_client.side_effect = AirflowConfigException
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = Exception
+
+        test_config = '''[test]
+sql_alchemy_conn_secret = sql_alchemy_conn
+'''
+        test_config_default = '''[test]
+sql_alchemy_conn = airflow
+'''
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Cannot retrieve config from alternative secrets backend. '
+                'Make sure it is configured properly and that the Backend '
+                'is accessible.'
+            ),
+        ):
+            test_conf.get('test', 'sql_alchemy_conn')
+
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
         test_config = """
@@ -329,6 +366,55 @@ key2 = 1.23
             test_conf.getfloat('invalid', 'key1')
         assert isinstance(test_conf.getfloat('valid', 'key2'), float)
         assert 1.23 == test_conf.getfloat('valid', 'key2')
+
+    @pytest.mark.parametrize(
+        ("config_str", "expected"),
+        [
+            pytest.param('{"a": 123}', {'a': 123}, id='dict'),
+            pytest.param('[1,2,3]', [1, 2, 3], id='list'),
+            pytest.param('"abc"', 'abc', id='str'),
+            pytest.param('2.1', 2.1, id='num'),
+            pytest.param('', None, id='empty'),
+        ],
+    )
+    def test_getjson(self, config_str, expected):
+        config = textwrap.dedent(
+            f"""
+            [test]
+            json = {config_str}
+        """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json') == expected
+
+    def test_getjson_empty_with_fallback(self):
+        config = textwrap.dedent(
+            """
+            [test]
+            json =
+            """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json', fallback={}) == {}
+        assert test_conf.getjson('test', 'json') is None
+
+    @pytest.mark.parametrize(
+        ("fallback"),
+        [
+            pytest.param({"a": "b"}, id='dict'),
+            # fallback is _NOT_ json parsed, but used verbatim
+            pytest.param('{"a": "b"}', id='str'),
+            pytest.param(None, id='None'),
+        ],
+    )
+    def test_getjson_fallback(self, fallback):
+        test_conf = AirflowConfigParser()
+
+        assert test_conf.getjson('test', 'json', fallback=fallback) == fallback
 
     def test_has_option(self):
         test_config = '''[test]
@@ -493,31 +579,37 @@ AIRFLOW_HOME = /root/airflow
                 if tmp:
                     os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
 
-    def test_deprecated_values(self):
+    def test_deprecated_values_from_conf(self):
+        test_conf = AirflowConfigParser(default_config='')
+        # Guarantee we have deprecated settings, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        test_conf.deprecated_values = {
+            'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
+        }
+        test_conf.read_dict({'core': {'hostname_callable': 'socket:getfqdn'}})
+
+        with pytest.warns(FutureWarning):
+            test_conf.validate()
+            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+
+    @pytest.mark.parametrize(
+        "conf_dict",
+        [
+            {},  # Even if the section is absent from config file, environ still needs replacing.
+            {'core': {'hostname_callable': 'socket:getfqdn'}},
+        ],
+    )
+    def test_deprecated_values_from_environ(self, conf_dict):
         def make_config():
             test_conf = AirflowConfigParser(default_config='')
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
-                'core': {
-                    'hostname_callable': (re.compile(r':'), r'.', '2.1'),
-                },
+                'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
             }
-            test_conf.read_dict(
-                {
-                    'core': {
-                        'executor': 'SequentialExecutor',
-                        'sql_alchemy_conn': 'sqlite://',
-                        'hostname_callable': 'socket:getfqdn',
-                    },
-                }
-            )
+            test_conf.read_dict(conf_dict)
             test_conf.validate()
             return test_conf
-
-        with pytest.warns(FutureWarning):
-            test_conf = make_config()
-            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
 
         with pytest.warns(FutureWarning):
             with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
@@ -654,20 +746,26 @@ notacommand = OK
     def test_confirm_unittest_mod(self):
         assert conf.get('core', 'unit_test_mode')
 
-    @conf_vars({})
-    def test_store_dag_code_default_config(self):
-        store_dag_code = conf.getboolean("core", "store_dag_code")
-        assert conf.has_option("core", "store_dag_code")
-        assert store_dag_code
+    def test_enum_default_task_weight_rule_from_conf(self):
+        test_conf = AirflowConfigParser(default_config='')
+        test_conf.read_dict({'core': {'default_task_weight_rule': 'sidestream'}})
+        with pytest.raises(AirflowConfigException) as ctx:
+            test_conf.validate()
+        exception = str(ctx.value)
+        message = (
+            "`[core] default_task_weight_rule` should not be 'sidestream'. Possible values: "
+            "absolute, downstream, upstream."
+        )
+        assert message == exception
 
-    @conf_vars({("core", "store_dag_code"): "True"})
-    def test_store_dag_code_config_when_set_to_true(self):
-        store_dag_code = conf.getboolean("core", "store_dag_code")
-        assert conf.has_option("core", "store_dag_code")
-        assert store_dag_code
-
-    @conf_vars({("core", "store_dag_code"): "False"})
-    def test_store_dag_code_config_when_set(self):
-        store_dag_code = conf.getboolean("core", "store_dag_code")
-        assert conf.has_option("core", "store_dag_code")
-        assert not store_dag_code
+    def test_enum_logging_levels(self):
+        test_conf = AirflowConfigParser(default_config='')
+        test_conf.read_dict({'logging': {'logging_level': 'XXX'}})
+        with pytest.raises(AirflowConfigException) as ctx:
+            test_conf.validate()
+        exception = str(ctx.value)
+        message = (
+            "`[logging] logging_level` should not be 'XXX'. Possible values: "
+            "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
+        )
+        assert message == exception

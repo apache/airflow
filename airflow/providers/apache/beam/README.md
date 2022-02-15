@@ -26,11 +26,9 @@ Release: 1.0.0
 
 - [Provider package](#provider-package)
 - [Installation](#installation)
-- [PIP requirements](#pip-requirements)
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
 - [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
-    - [Transfer operators](#transfer-operators)
     - [Hooks](#hooks)
 - [Releases](#releases)
 

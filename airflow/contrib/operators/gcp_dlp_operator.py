@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.dlp import (  # noqa
     CloudDLPCancelDLPJobOperator,
     CloudDLPCreateDeidentifyTemplateOperator,

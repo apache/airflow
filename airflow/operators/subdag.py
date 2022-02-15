@@ -15,9 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""The module which provides a way to nest your DAGs and so your levels of complexity."""
+"""
+This module is deprecated. Please use :mod:`airflow.utils.task_group`.
+The module which provides a way to nest your DAGs and so your levels of complexity.
+"""
+
+import warnings
+from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from sqlalchemy.orm.session import Session
 
@@ -28,7 +34,8 @@ from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.context import Context
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -42,6 +49,9 @@ class SkippedStatePropagationOptions(Enum):
 
 class SubDagOperator(BaseSensorOperator):
     """
+    This class is deprecated.
+    Please use `airflow.utils.task_group.TaskGroup`.
+
     This runs a sub dag. By convention, a sub dag's dag_id
     should be prefixed by its parent and a dot. As in `parent.child`.
     Although SubDagOperator can occupy a pool/concurrency slot,
@@ -51,7 +61,6 @@ class SubDagOperator(BaseSensorOperator):
     :param subdag: the DAG object to run as a subdag of the current DAG.
     :param session: sqlalchemy session
     :param conf: Configuration for the subdag
-    :type conf: dict
     :param propagate_skipped_state: by setting this argument you can define
         whether the skipped state of leaf task(s) should be propagated to the
         parent dag's downstream task.
@@ -60,12 +69,14 @@ class SubDagOperator(BaseSensorOperator):
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
+    subdag: "DAG"
+
     @provide_session
     def __init__(
         self,
         *,
         subdag: DAG,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
         conf: Optional[Dict] = None,
         propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
         **kwargs,
@@ -78,6 +89,12 @@ class SubDagOperator(BaseSensorOperator):
         self._validate_dag(kwargs)
         self._validate_pool(session)
 
+        warnings.warn(
+            """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
     def _validate_dag(self, kwargs):
         dag = kwargs.get('dag') or DagContext.get_current_dag()
 
@@ -86,10 +103,8 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag.dag_id + '.' + kwargs['task_id'] != self.subdag.dag_id:
             raise AirflowException(
-                "The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
-                "Expected '{d}.{t}'; received '{rcvd}'.".format(
-                    d=dag.dag_id, t=kwargs['task_id'], rcvd=self.subdag.dag_id
-                )
+                f"The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
+                f"Expected '{dag.dag_id}.{kwargs['task_id']}'; received '{self.subdag.dag_id}'."
             )
 
     def _validate_pool(self, session):
@@ -141,16 +156,22 @@ class SubDagOperator(BaseSensorOperator):
             session.commit()
 
     def pre_execute(self, context):
+        super().pre_execute(context)
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date)
 
         if dag_run is None:
+            if context['data_interval_start'] is None or context['data_interval_end'] is None:
+                data_interval: Optional[Tuple[datetime, datetime]] = None
+            else:
+                data_interval = (context['data_interval_start'], context['data_interval_end'])
             dag_run = self.subdag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,
                 state=State.RUNNING,
                 conf=self.conf,
                 external_trigger=True,
+                data_interval=data_interval,
             )
             self.log.info("Created DagRun: %s", dag_run.run_id)
         else:
@@ -158,12 +179,13 @@ class SubDagOperator(BaseSensorOperator):
             if dag_run.state == State.FAILED:
                 self._reset_dag_run_and_task_instances(dag_run, execution_date)
 
-    def poke(self, context):
+    def poke(self, context: Context):
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date=execution_date)
         return dag_run.state != State.RUNNING
 
     def post_execute(self, context, result=None):
+        super().post_execute(context)
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date=execution_date)
         self.log.info("Execution finished. State is %s", dag_run.state)

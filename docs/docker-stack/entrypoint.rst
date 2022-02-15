@@ -49,11 +49,11 @@ those formats (See `Docker Run reference <https://docs.docker.com/engine/referen
 
 In case of Docker Compose environment it can be changed via ``user:`` entry in the ``docker-compose.yaml``.
 See `Docker compose reference <https://docs.docker.com/compose/compose-file/compose-file-v3/#domainname-hostname-ipc-mac_address-privileged-read_only-shm_size-stdin_open-tty-user-working_dir>`_
-for details. In our Quickstart Guide using Docker-Compose, the UID and GID can be passed via
-``AIRFLOW_UID`` and ``AIRFLOW_GID`` variables as described in
+for details. In our Quickstart Guide using Docker-Compose, the UID can be passed via the
+``AIRFLOW_UID`` variable as described in
 :ref:`Initializing docker compose environment <initializing_docker_compose_environment>`.
 
-In case ``GID`` is set to ``0``, the user can be any UID, but in case UID is different than the default
+The user can be any UID. In case UID is different than the default
 ``airflow`` (UID=50000), the user will be automatically created when entering the container.
 
 In order to accommodate a number of external libraries and projects, Airflow will automatically create
@@ -94,37 +94,19 @@ You can read more about it in the "Support arbitrary user ids" chapter in the
 Waits for Airflow DB connection
 -------------------------------
 
-In case Postgres or MySQL DB is used, the entrypoint will wait until the airflow DB connection becomes
-available. This happens always when you use the default entrypoint.
+The entrypoint is waiting for a connection to the database independent of the database engine. This allows us to increase
+the stability of the environment.
 
-The script detects backend type depending on the URL schema and assigns default port numbers if not specified
-in the URL. Then it loops until the connection to the host/port specified can be established
+Waiting for connection involves executing ``airflow db check`` command, which means that a ``select 1 as is_alive;`` statement
+is executed. Then it loops until the the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
-Supported schemes:
-
-* ``postgres://`` - default port 5432
-* ``mysql://``    - default port 3306
-* ``sqlite://``
-
-In case of SQLite backend, there is no connection to establish and waiting is skipped.
-
-For older than Airflow 1.10.14, waiting for connection involves checking if a matching port is open.
-The host information is derived from the variables :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` and
-:envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD`. If :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD` variable
-is passed to the container, it is evaluated as a command to execute and result of this evaluation is used
-as :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN`. The :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD` variable
-takes precedence over the :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` variable.
-
-For newer versions, the ``airflow db check`` command is used, which means that a ``select 1 as is_alive;`` query
-is executed. This also means that you can keep your password in secret backend.
-
-Waits for celery broker connection
+Waits for Celery broker connection
 ----------------------------------
 
-In case Postgres or MySQL DB is used, and one of the ``scheduler``, ``celery``, ``worker``, or ``flower``
-commands are used the entrypoint will wait until the celery broker DB connection is available.
+In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``
+commands are used the entrypoint will wait until the Celery broker DB connection is available.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until connection to the host/port specified can be established
@@ -138,12 +120,7 @@ Supported schemes:
 * ``postgres://``            - default port 5432
 * ``mysql://``               - default port 3306
 
-Waiting for connection involves checking if a matching port is open.
-The host information is derived from the variables :envvar:`AIRFLOW__CELERY__BROKER_URL` and
-:envvar:`AIRFLOW__CELERY__BROKER_URL_CMD`. If :envvar:`AIRFLOW__CELERY__BROKER_URL_CMD` variable
-is passed to the container, it is evaluated as a command to execute and result of this evaluation is used
-as :envvar:`AIRFLOW__CELERY__BROKER_URL`. The :envvar:`AIRFLOW__CELERY__BROKER_URL_CMD` variable
-takes precedence over the :envvar:`AIRFLOW__CELERY__BROKER_URL` variable.
+Waiting for connection involves checking if a matching port is open. The host information is derived from the Airflow configuration.
 
 .. _entrypoint:commands:
 
@@ -155,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.1.0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -167,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.3.0.dev0-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -175,14 +152,155 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.1.0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.3.0.dev0-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 version
-  2.1.0
+  > docker run -it apache/airflow:2.3.0.dev0-python3.6 help
+    usage: airflow [-h] GROUP_OR_COMMAND ...
+
+    positional arguments:
+      GROUP_OR_COMMAND
+
+        Groups:
+          celery         Celery components
+          config         View configuration
+          connections    Manage connections
+          dags           Manage DAGs
+          db             Database operations
+          jobs           Manage jobs
+          kubernetes     Tools to help run the KubernetesExecutor
+          pools          Manage pools
+          providers      Display providers
+          roles          Manage roles
+          tasks          Manage tasks
+          users          Manage users
+          variables      Manage variables
+
+        Commands:
+          cheat-sheet    Display cheat sheet
+          info           Show information about current Airflow and environment
+          kerberos       Start a Kerberos ticket renewer
+          plugins        Dump information about loaded plugins
+          rotate-fernet-key
+                         Rotate encrypted connection credentials and variables
+          scheduler      Start a scheduler instance
+          sync-perm      Update permissions for existing roles and optionally DAGs
+          version        Show the version
+          webserver      Start a Airflow webserver instance
+
+    optional arguments:
+      -h, --help         show this help message and exit
+
+Execute custom code before the Airflow entrypoint
+-------------------------------------------------
+
+If you want to execute some custom code before Airflow's entrypoint you can by using
+a custom script and calling Airflow's entrypoint as the
+last ``exec`` instruction in your custom one. However you have to remember to use ``dumb-init`` in the same
+way as it is used with Airflow's entrypoint, otherwise you might have problems with proper signal
+propagation (See the next chapter).
+
+
+.. code-block:: Dockerfile
+
+    FROM airflow:2.3.0.dev0
+    COPY my_entrypoint.sh /
+    ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
+
+Your entrypoint might for example modify or add variables on the fly. For example the below
+entrypoint sets max count of DB checks from the first parameter passed as parameter of the image
+execution (A bit useless example but should give the reader an example of how you could use it).
+
+.. code-block:: bash
+
+    #!/bin/bash
+    export CONNECTION_CHECK_MAX_COUNT=${1}
+    shift
+    exec /entrypoint "${@}"
+
+Make sure Airflow's entrypoint is run with ``exec /entrypoint "${@}"`` as the last command in your
+custom entrypoint. This way signals will be properly propagated and arguments will be passed
+to the entrypoint as usual (you can use ``shift`` as above if you need to pass some extra
+arguments. Note that passing secret values this way or storing secrets inside the image is a bad
+idea from security point of view - as both image and parameters to run the image with are accessible
+to anyone who has access to logs of your Kubernetes or image registry.
+
+Also be aware that code executed before Airflow's entrypoint should not create any files or
+directories inside the container and everything might not work the same way when it is executed.
+Before Airflow entrypoint is executed, the following functionalities are not available:
+
+* umask is not set properly to allow ``group`` write access
+* user is not yet created in ``/etc/passwd`` if an arbitrary user is used to run the image
+* the database and brokers might not be available yet
+
+Adding custom image behaviour
+-----------------------------
+
+The Airflow image executes a lot of steps in the entrypoint, and sets the right environment, but
+you might want to run additional code after the entrypoint creates the user, sets the umask, sets
+variables and checks that database is running.
+
+Rather than running regular commands - ``scheduler``, ``webserver`` you can run *custom* script that
+you can embed into the image. You can even execute the usual components of airflow -
+``scheduler``, ``webserver`` in your custom script when you finish your custom setup.
+Similarly to custom entrypoint, it can be added to the image by extending it.
+
+.. code-block:: Dockerfile
+
+    FROM airflow:2.3.0.dev0
+    COPY my_after_entrypoint_script.sh /
+
+Build your image and then you can run this script by running the command:
+
+.. code-block:: bash
+
+  docker build . --pull --tag my-image:0.0.1
+  docker run -it my-image:0.0.1 bash -c "/my_after_entrypoint_script.sh"
+
+
+Signal propagation
+------------------
+
+Airflow uses ``dumb-init`` to run as "init" in the entrypoint. This is in order to propagate
+signals and reap child processes properly. This means that the process that you run does not have
+to install signal handlers to work properly and be killed when the container is gracefully terminated.
+The behaviour of signal propagation is configured by ``DUMB_INIT_SETSID`` variable which is set to
+``1`` by default - meaning that the signals will be propagated to the whole process group, but you can
+set it to ``0`` to enable ``single-child`` behaviour of ``dumb-init`` which only propagates the
+signals to only single child process.
+
+The table below summarizes ``DUMB_INIT_SETSID`` possible values and their use cases.
+
++----------------+----------------------------------------------------------------------+
+| Variable value | Use case                                                             |
++----------------+----------------------------------------------------------------------+
+| 1 (default)    | Propagates signals to all processes in the process group of the main |
+|                | process running in the container.                                    |
+|                |                                                                      |
+|                | If you run your processes via ``["bash", "-c"]`` command and bash    |
+|                | spawn  new processes without ``exec``, this will help to terminate   |
+|                | your container gracefully as all processes will receive the signal.  |
++----------------+----------------------------------------------------------------------+
+| 0              | Propagates signals to the main process only.                         |
+|                |                                                                      |
+|                | This is useful if your main process handles signals gracefully.      |
+|                | A good example is warm shutdown of Celery workers. The ``dumb-init`` |
+|                | in this case will only propagate the signals to the main process,    |
+|                | but not to the processes that are spawned in the same process        |
+|                | group as the main one. For example in case of Celery, the main       |
+|                | process will put the worker in "offline" mode, and will wait         |
+|                | until all running tasks complete, and only then it will              |
+|                | terminate all processes.                                             |
+|                |                                                                      |
+|                | For Airflow's Celery worker, you should set the variable to 0        |
+|                | and either use ``["celery", "worker"]`` command.                     |
+|                | If you are running it through ``["bash", "-c"]`` command,            |
+|                | you  need to start the worker via ``exec airflow celery worker``     |
+|                | as the last command executed.                                        |
++----------------+----------------------------------------------------------------------+
 
 Additional quick test options
 -----------------------------
@@ -245,7 +363,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:main-python3.8 webserver
+      apache/airflow:2.3.0.dev0-python3.8 webserver
 
 
 .. code-block:: bash
@@ -254,7 +372,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:main-python3.8 webserver
+      apache/airflow:2.3.0.dev0-python3.8 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -262,11 +380,28 @@ and Admin role. They also forward local port ``8080`` to the webserver port and 
 Installing additional requirements
 ..................................
 
+.. warning:: Installing requirements this way is a very convenient method of running Airflow, very useful for
+    testing and debugging. However, do not be tricked by its convenience. You should never, ever use it in
+    production environment. We have deliberately chose to make it a development/test dependency and we print
+    a warning, whenever it is used. There is an inherent security-related issue with using this method in
+    production. Installing the requirements this way can happen at literally any time - when your containers
+    get restarted, when your machines in K8S cluster get restarted. In a K8S Cluster those events can happen
+    literally any time. This opens you up to a serious vulnerability where your production environment
+    might be brought down by a single dependency being removed from PyPI - or even dependency of your
+    dependency. This means that you put your production service availability in hands of 3rd-party developers.
+    At any time, any moment including weekends and holidays those 3rd party developers might bring your
+    production Airflow instance down, without you even knowing it. This is a serious vulnerability that
+    is similar to the infamous
+    `leftpad <https://qz.com/646467/how-one-programmer-broke-the-internet-by-deleting-a-tiny-piece-of-code/>`_
+    problem. You can fully protect against this case by building your own, immutable custom image, where the
+    dependencies are baked in. You have been warned.
+
 Installing additional requirements can be done by specifying ``_PIP_ADDITIONAL_REQUIREMENTS`` variable.
 The variable should contain a list of requirements that should be installed additionally when entering
 the containers. Note that this option slows down starting of Airflow as every time any container starts
-it must install new packages. Therefore this option should only be used for testing. When testing is
-finished, you should create your custom image with dependencies baked in.
+it must install new packages and it opens up huge potential security vulnerability when used in production
+(see below). Therefore this option should only be used for testing. When testing is finished,
+you should create your custom image with dependencies baked in.
 
 Example:
 
@@ -277,6 +412,6 @@ Example:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:master-python3.8 webserver
+      apache/airflow:2.3.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.

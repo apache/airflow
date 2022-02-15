@@ -34,8 +34,9 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/kylin/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kylin/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -51,7 +52,7 @@ Package apache-airflow-providers-apache-kylin
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------
@@ -62,16 +63,17 @@ are in ``airflow.providers.apache.kylin`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-kylin``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``kylinpy``    ``>=2.6``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``kylinpy``         ``>=2.6``
+==================  ==================
 
 .. include:: ../../airflow/providers/apache/kylin/CHANGELOG.rst

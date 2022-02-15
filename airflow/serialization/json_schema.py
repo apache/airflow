@@ -30,12 +30,11 @@ from airflow.typing_compat import Protocol
 
 class Validator(Protocol):
     """
-    This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)
+    This class is only used for TypeChecking (for IDEs, mypy, etc)
     due to the way ``Draft7Validator`` is created. They are created or do not inherit
     from proper classes. Hence you can not have ``type: Draft7Validator``.
     """
 
-    # pylint: disable=unused-argument
     def is_valid(self, instance) -> bool:
         """Check if the instance is valid under the current schema"""
         ...

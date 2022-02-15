@@ -21,11 +21,6 @@ The `Google Cloud Storage <https://cloud.google.com/storage/>`__ (GCS) service i
 used to store large data from various applications. This page shows how to copy
 data from Oracle to GCS.
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

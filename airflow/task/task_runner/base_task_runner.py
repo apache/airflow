@@ -19,6 +19,13 @@
 import os
 import subprocess
 import threading
+
+from airflow.utils.platform import IS_WINDOWS
+
+if not IS_WINDOWS:
+    # ignored to avoid flake complaining on Linux
+    from pwd import getpwnam  # noqa
+
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
@@ -40,7 +47,6 @@ class BaseTaskRunner(LoggingMixin):
 
     :param local_task_job: The local task job associated with running the
         associated task instance.
-    :type local_task_job: airflow.jobs.local_task_job.LocalTaskJob
     """
 
     def __init__(self, local_task_job):
@@ -57,6 +63,8 @@ class BaseTaskRunner(LoggingMixin):
             except AirflowConfigException:
                 self.run_as_user = None
 
+        self._error_file = NamedTemporaryFile(delete=True)
+
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         self.log.debug("Planning to run as the %s user", self.run_as_user)
@@ -65,10 +73,12 @@ class BaseTaskRunner(LoggingMixin):
             # want to have to specify them in the sudo call - they would show
             # up in `ps` that way! And run commands now, as the other user
             # might not be able to run the cmds to get credentials
-            cfg_path = tmp_configuration_copy(chmod=0o600)
+            cfg_path = tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True)
 
             # Give ownership of file to user; only they can read and write
-            subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
+            subprocess.check_call(
+                ['sudo', 'chown', self.run_as_user, cfg_path, self._error_file.name], close_fds=True
+            )
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
@@ -82,10 +92,8 @@ class BaseTaskRunner(LoggingMixin):
             # we are running as the same user, and can pass through environment
             # variables then we don't need to include those in the config copy
             # - the runner can read/execute those values as it needs
-            cfg_path = tmp_configuration_copy(chmod=0o600)
+            cfg_path = tmp_configuration_copy(chmod=0o600, include_env=False, include_cmds=False)
 
-        # pylint: disable=consider-using-with
-        self._error_file = NamedTemporaryFile(delete=True)
         self._cfg_path = cfg_path
         self._command = (
             popen_prepend
@@ -124,7 +132,6 @@ class BaseTaskRunner(LoggingMixin):
         Run the task command.
 
         :param run_with: list of tokens to run the task command with e.g. ``['bash', '-c']``
-        :type run_with: list
         :return: the process that was run
         :rtype: subprocess.Popen
         """
@@ -133,16 +140,26 @@ class BaseTaskRunner(LoggingMixin):
 
         self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
-        # pylint: disable=subprocess-popen-preexec-fn,consider-using-with
-        proc = subprocess.Popen(
-            full_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            close_fds=True,
-            env=os.environ.copy(),
-            preexec_fn=os.setsid,
-        )
+
+        if IS_WINDOWS:
+            proc = subprocess.Popen(
+                full_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                close_fds=True,
+                env=os.environ.copy(),
+            )
+        else:
+            proc = subprocess.Popen(
+                full_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                close_fds=True,
+                env=os.environ.copy(),
+                preexec_fn=os.setsid,
+            )
 
         # Start daemon thread to read subprocess logging output
         log_reader = threading.Thread(
@@ -176,4 +193,9 @@ class BaseTaskRunner(LoggingMixin):
                 subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
             else:
                 os.remove(self._cfg_path)
-        self._error_file.close()
+        try:
+            self._error_file.close()
+        except FileNotFoundError:
+            # The subprocess has deleted this file before we do
+            # so we ignore
+            pass

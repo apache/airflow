@@ -16,194 +16,184 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest.mock
-from base64 import b64encode
+from unittest import mock
 
 import pytest
-from parameterized import parameterized
+from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests_ssh_test_op'
 TEST_CONN_ID = "conn_id_for_testing"
-TIMEOUT = 5
+DEFAULT_TIMEOUT = 10
+CONN_TIMEOUT = 5
+CMD_TIMEOUT = 7
+TIMEOUT = 12
 DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
 
 
-class TestSSHOperator(unittest.TestCase):
-    def setUp(self):
-        from airflow.providers.ssh.hooks.ssh import SSHHook
+class SSHClientSideEffect:
+    def __init__(self, hook):
+        self.hook = hook
+
+
+class TestSSHOperator:
+    def setup_method(self):
 
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-        }
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
+
+        ssh_client = mock.create_autospec(SSHClient)
+        # `with ssh_client` should return itself.
+        ssh_client.__enter__.return_value = ssh_client
+        hook.get_conn = mock.MagicMock(return_value=ssh_client)
         self.hook = hook
-        self.dag = dag
+
+    # Make sure nothing in this test actually connects to SSH -- that's for hook tests.
+    @pytest.fixture(autouse=True)
+    def _patch_exec_ssh_client(self):
+        with mock.patch.object(self.hook, 'exec_ssh_client_command') as exec_ssh_client_command:
+            self.exec_ssh_client_command = exec_ssh_client_command
+            exec_ssh_client_command.return_value = (0, b'airflow', '')
+            yield exec_ssh_client_command
 
     def test_hook_created_correctly(self):
-        timeout = 20
-        ssh_id = "ssh_default"
+        conn_timeout = 20
+        cmd_timeout = 45
         task = SSHOperator(
-            task_id="test", command=COMMAND, dag=self.dag, timeout=timeout, ssh_conn_id="ssh_default"
+            task_id="test",
+            command=COMMAND,
+            conn_timeout=conn_timeout,
+            cmd_timeout=cmd_timeout,
+            ssh_conn_id="ssh_default",
         )
-        assert task is not None
+        ssh_hook = task.get_hook()
+        assert conn_timeout == ssh_hook.conn_timeout
+        assert "ssh_default" == ssh_hook.ssh_conn_id
 
-        task.execute(None)
-
-        assert timeout == task.ssh_hook.timeout
-        assert ssh_id == task.ssh_hook.ssh_conn_id
-
-    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
-    def test_json_command_execution(self):
+    @pytest.mark.parametrize(
+        ("enable_xcom_pickling", "output", "expected"),
+        [(False, b"airflow", "YWlyZmxvdw=="), (True, b"airflow", b"airflow"), (True, b'', b'')],
+    )
+    def test_return_value(self, enable_xcom_pickling, output, expected):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command=COMMAND,
-            do_xcom_push=True,
-            dag=self.dag,
-        )
-
-        assert task is not None
-
-        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-        ti.run()
-        assert ti.duration is not None
-        assert ti.xcom_pull(task_ids='test', key='return_value') == b64encode(b'airflow').decode('utf-8')
-
-    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
-    def test_pickle_command_execution(self):
-        task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command=COMMAND,
-            do_xcom_push=True,
-            dag=self.dag,
-        )
-
-        assert task is not None
-
-        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-        ti.run()
-        assert ti.duration is not None
-        assert ti.xcom_pull(task_ids='test', key='return_value') == b'airflow'
-
-    def test_command_execution_with_env(self):
-        task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command=COMMAND,
-            do_xcom_push=True,
-            dag=self.dag,
             environment={'TEST': 'value'},
         )
+        with conf_vars({('core', 'enable_xcom_pickling'): str(enable_xcom_pickling)}):
+            self.exec_ssh_client_command.return_value = (0, output, b'')
+            result = task.execute(None)
+            assert result == expected
+            self.exec_ssh_client_command.assert_called_with(
+                mock.ANY, COMMAND, timeout=None, environment={'TEST': 'value'}, get_pty=False
+            )
 
-        assert task is not None
+    @mock.patch('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
+    @mock.patch.object(SSHOperator, 'run_ssh_client_command')
+    @mock.patch.object(SSHHook, 'get_conn')
+    def test_arg_checking(self, get_conn, run_ssh_client_command):
+        run_ssh_client_command.return_value = b''
 
-        with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
-            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-            ti.run()
-            assert ti.duration is not None
-            assert ti.xcom_pull(task_ids='test', key='return_value') == b'airflow'
-
-    def test_no_output_command(self):
-        task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command="sleep 1",
-            do_xcom_push=True,
-            dag=self.dag,
-        )
-
-        assert task is not None
-
-        with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
-            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-            ti.run()
-            assert ti.duration is not None
-            assert ti.xcom_pull(task_ids='test', key='return_value') == b''
-
-    @unittest.mock.patch('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
-    def test_arg_checking(self):
-        # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
+        # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided.
+        task_0 = SSHOperator(task_id="test", command=COMMAND)
         with pytest.raises(AirflowException, match="Cannot operate without ssh_hook or ssh_conn_id."):
-            task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)
 
-        # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
+        # If ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook.
         task_1 = SSHOperator(
             task_id="test_1",
-            ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
+            ssh_hook="string_rather_than_SSHHook",  # Invalid ssh_hook.
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            timeout=TIMEOUT,
-            dag=self.dag,
         )
-        try:
-            task_1.execute(None)
-        except Exception:  # pylint: disable=broad-except
-            pass
+        task_1.execute(None)
         assert task_1.ssh_hook.ssh_conn_id == TEST_CONN_ID
 
         task_2 = SSHOperator(
             task_id="test_2",
-            ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
+            ssh_conn_id=TEST_CONN_ID,  # No ssh_hook provided.
             command=COMMAND,
-            timeout=TIMEOUT,
-            dag=self.dag,
         )
-        try:
-            task_2.execute(None)
-        except Exception:  # pylint: disable=broad-except
-            pass
+        task_2.execute(None)
         assert task_2.ssh_hook.ssh_conn_id == TEST_CONN_ID
 
-        # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
+        # If both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id.
         task_3 = SSHOperator(
             task_id="test_3",
             ssh_hook=self.hook,
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            timeout=TIMEOUT,
-            dag=self.dag,
         )
-        try:
-            task_3.execute(None)
-        except Exception:  # pylint: disable=broad-except
-            pass
+        task_3.execute(None)
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
+        # If remote_host was specified, ensure it is used
+        task_4 = SSHOperator(
+            task_id="test_4",
+            ssh_hook=self.hook,
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
+            remote_host='operator_remote_host',
+        )
+        task_4.execute(None)
+        assert task_4.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
+        assert task_4.ssh_hook.remote_host == 'operator_remote_host'
 
-    @parameterized.expand(
+        with pytest.raises(
+            AirflowException, match="SSH operator error: SSH command not specified. Aborting."
+        ):
+            SSHOperator(
+                task_id="test_4",
+                ssh_hook=self.hook,
+                command=None,
+            ).execute(None)
+            task_0.execute(None)
+
+    @pytest.mark.parametrize(
+        "command, get_pty_in, get_pty_out",
         [
             (COMMAND, False, False),
             (COMMAND, True, True),
             (COMMAND_WITH_SUDO, False, True),
             (COMMAND_WITH_SUDO, True, True),
-            (None, True, True),
-        ]
+        ],
     )
     def test_get_pyt_set_correctly(self, command, get_pty_in, get_pty_out):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command=command,
-            timeout=TIMEOUT,
             get_pty=get_pty_in,
-            dag=self.dag,
         )
-        try:
-            task.execute(None)
-        except Exception:  # pylint: disable=broad-except
-            pass
+        task.execute(None)
         assert task.get_pty == get_pty_out
+
+    def test_ssh_client_managed_correctly(self):
+        # Ensure connection gets closed once (via context_manager)
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command="ls",
+        )
+        task.execute()
+        self.hook.get_conn.assert_called_once()
+        self.hook.get_conn.return_value.__exit__.assert_called_once()
+
+    def test_command_errored(self):
+        # Test that run_ssh_client_command works on invalid commands
+        command = "not_a_real_command"
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command=command,
+        )
+        self.exec_ssh_client_command.return_value = (1, b'', b'Error here')
+        with pytest.raises(AirflowException, match=f"error running cmd: {command}, error: Error here"):
+            task.execute(None)

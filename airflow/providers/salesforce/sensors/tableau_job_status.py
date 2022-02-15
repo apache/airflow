@@ -17,7 +17,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.tableau.sensors.tableau_job_status import (  # noqa
     TableauJobFailedException,
     TableauJobStatusSensor,

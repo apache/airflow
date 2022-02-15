@@ -25,13 +25,14 @@ If you write most of your DAGs using plain Python code rather than Operators, th
 TaskFlow takes care of moving inputs and outputs between your Tasks using XComs for you, as well as automatically calculating dependencies - when you call a TaskFlow function in your DAG file, rather than executing it, you will get an object representing the XCom for the result (an ``XComArg``), that you can then use as inputs to downstream tasks or operators. For example::
 
     from airflow.decorators import task
+    from airflow.operators.email import EmailOperator
 
     @task
     def get_ip():
         return my_ip_service.get_main_ip()
 
     @task
-    compose_email(external_ip):
+    def compose_email(external_ip):
         return {
             'subject':f'Server connected from {external_ip}',
             'body': f'Your server executing Airflow is connected from the external IP {external_ip}<br>'
@@ -69,4 +70,4 @@ History
 The TaskFlow API is new as of Airflow 2.0, and you are likely to encounter DAGs written for previous versions of Airflow that instead use ``PythonOperator`` to achieve similar goals, albeit with a lot more code.
 
 More context around the addition and design of the TaskFlow API can be found as part of its Airflow Improvement Proposal
-`AIP-31: "Taskflow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`_
+`AIP-31: "TaskFlow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`_

@@ -26,7 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NewType, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -36,6 +36,12 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+NotSetType = NewType('NotSetType', object)
+NOT_SET = NotSetType(object())
+
 
 class CassandraToGCSOperator(BaseOperator):
     """
@@ -44,37 +50,27 @@ class CassandraToGCSOperator(BaseOperator):
     Note: Arrays of arrays are not supported.
 
     :param cql: The CQL to execute on the Cassandra table.
-    :type cql: str
     :param bucket: The bucket to upload to.
-    :type bucket: str
     :param filename: The filename to use as the object name when uploading
         to Google Cloud Storage. A {} should be specified in the filename
         to allow the operator to inject file numbers in cases where the
         file is split due to size.
-    :type filename: str
     :param schema_filename: If set, the filename to use as the object name
         when uploading a .json file containing the BigQuery schema fields
         for the table that was dumped from MySQL.
-    :type schema_filename: str
     :param approx_max_file_size_bytes: This operator supports the ability
         to split large table dumps into multiple files (see notes in the
         filename param docs above). This param allows developers to specify the
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
-    :type approx_max_file_size_bytes: long
     :param cassandra_conn_id: Reference to a specific Cassandra hook.
-    :type cassandra_conn_id: str
     :param gzip: Option to compress file for upload
-    :type gzip: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -83,22 +79,24 @@ class CassandraToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
+    :param query_timeout: (Optional) The amount of time, in seconds, used to execute the Cassandra query.
+        If not set, the timeout value will be set in Session.execute() by Cassandra driver.
+        If set to None, there is no timeout.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'cql',
         'bucket',
         'filename',
         'schema_filename',
         'impersonation_chain',
     )
-    template_ext = ('.cql',)
+    template_ext: Sequence[str] = ('.cql',)
     ui_color = '#a0e08c'
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         cql: str,
         bucket: str,
         filename: str,
@@ -110,6 +108,7 @@ class CassandraToGCSOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        query_timeout: Union[float, None, NotSetType] = NOT_SET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -133,12 +132,13 @@ class CassandraToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
+        self.query_timeout = query_timeout
 
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
-        'BytesType': 'BYTES',
+        'BytesType': 'STRING',
         'DecimalType': 'FLOAT',
-        'UUIDType': 'BYTES',
+        'UUIDType': 'STRING',
         'BooleanType': 'BOOL',
         'ByteType': 'INTEGER',
         'AsciiType': 'STRING',
@@ -152,7 +152,7 @@ class CassandraToGCSOperator(BaseOperator):
         'DateType': 'TIMESTAMP',
         'SimpleDateType': 'DATE',
         'TimestampType': 'TIMESTAMP',
-        'TimeUUIDType': 'BYTES',
+        'TimeUUIDType': 'STRING',
         'ShortType': 'INTEGER',
         'TimeType': 'TIME',
         'DurationType': 'INTEGER',
@@ -160,9 +160,14 @@ class CassandraToGCSOperator(BaseOperator):
         'VarcharType': 'STRING',
     }
 
-    def execute(self, context: Dict[str, str]):
+    def execute(self, context: 'Context'):
         hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
-        cursor = hook.get_conn().execute(self.cql)
+
+        query_extra = {}
+        if self.query_timeout is not NOT_SET:
+            query_extra['timeout'] = self.query_timeout
+
+        cursor = hook.get_conn().execute(self.cql, **query_extra)
 
         files_to_upload = self._write_local_data_files(cursor)
 
@@ -183,7 +188,6 @@ class CassandraToGCSOperator(BaseOperator):
         # Close all sessions and connection associated with this Cassandra cluster
         hook.shutdown_cluster()
 
-    # pylint: disable=consider-using-with
     def _write_local_data_files(self, cursor):
         """
         Takes a cursor, and writes results to a local file.
@@ -210,7 +214,6 @@ class CassandraToGCSOperator(BaseOperator):
 
         return tmp_file_handles
 
-    # pylint: disable=consider-using-with
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a
@@ -251,9 +254,7 @@ class CassandraToGCSOperator(BaseOperator):
         return {n: cls.convert_value(v) for n, v in zip(names, values)}
 
     @classmethod
-    def convert_value(  # pylint: disable=too-many-return-statements
-        cls, value: Optional[Any]
-    ) -> Optional[Any]:
+    def convert_value(cls, value: Optional[Any]) -> Optional[Any]:
         """Convert value to BQ type."""
         if not value:
             return value

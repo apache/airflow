@@ -20,10 +20,6 @@
 Google Cloud Transfer Service Operators
 =======================================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 

@@ -21,6 +21,7 @@ Example Airflow DAG for Google BigQuery service.
 """
 import os
 import time
+from datetime import datetime
 from urllib.parse import urlparse
 
 from airflow import models
@@ -33,13 +34,13 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteTableOperator,
     BigQueryGetDatasetOperator,
     BigQueryGetDatasetTablesOperator,
-    BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
 )
-from airflow.utils.dates import days_ago
+
+START_DATE = datetime(2021, 1, 1)
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
@@ -58,8 +59,9 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 
 with models.DAG(
     "example_bigquery_operations",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=START_DATE,
+    catchup=False,
     tags=["example"],
 ) as dag:
     # [START howto_operator_bigquery_create_table]
@@ -134,14 +136,25 @@ with models.DAG(
     # [START howto_operator_bigquery_create_external_table]
     create_external_table = BigQueryCreateExternalTableOperator(
         task_id="create_external_table",
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
-        destination_project_dataset_table=f"{DATASET_NAME}.external_table",
-        skip_leading_rows=1,
-        schema_fields=[
-            {"name": "name", "type": "STRING"},
-            {"name": "post_abbr", "type": "STRING"},
-        ],
+        table_resource={
+            "tableReference": {
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": "external_table",
+            },
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING"},
+                    {"name": "post_abbr", "type": "STRING"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceFormat": "CSV",
+                "compression": "NONE",
+                "csvOptions": {"skipLeadingRows": 1},
+                "sourceUris": [DATA_SAMPLE_GCS_URL],
+            },
+        },
     )
     # [END howto_operator_bigquery_create_external_table]
 
@@ -180,27 +193,13 @@ with models.DAG(
         task_id="update_table",
         dataset_id=DATASET_NAME,
         table_id="test_table",
-        fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        fields=["friendlyName", "description"],
         table_resource={
             "friendlyName": "Updated Table",
             "description": "Updated Table",
         },
     )
     # [END howto_operator_bigquery_update_table]
-
-    # [START howto_operator_bigquery_patch_dataset]
-    patch_dataset = BigQueryPatchDatasetOperator(
-        task_id="patch_dataset",
-        dataset_id=DATASET_NAME,
-        dataset_resource={
-            "friendlyName": "Patched Dataset",
-            "description": "Patched dataset",
-        },
-    )
-    # [END howto_operator_bigquery_patch_dataset]
 
     # [START howto_operator_bigquery_update_dataset]
     update_dataset = BigQueryUpdateDatasetOperator(
@@ -216,7 +215,7 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_delete_dataset]
 
-    create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
+    create_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
     (
         update_dataset
@@ -238,10 +237,11 @@ with models.DAG(
 
 with models.DAG(
     "example_bigquery_operations_location",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=START_DATE,
+    catchup=False,
     tags=["example"],
-):
+) as dag_with_location:
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset_with_location",
         dataset_id=LOCATION_DATASET_NAME,

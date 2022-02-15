@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.databricks.hooks.databricks import (  # noqa
     CANCEL_RUN_ENDPOINT,
     GET_RUN_ENDPOINT,

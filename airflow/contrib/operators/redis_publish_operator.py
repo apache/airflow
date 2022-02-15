@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.redis.operators.redis_publish import RedisPublishOperator  # noqa
 
 warnings.warn(

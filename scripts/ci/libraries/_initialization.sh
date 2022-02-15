@@ -83,7 +83,15 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
+    # until we have support for ARM images, we set docker default platform to AMD
+    # so that all breeze commands use emulation
+    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+
+    # enable buildkit for builds
+    export DOCKER_BUILDKIT=1
+
     # Default port numbers for forwarded ports
+    export SSH_PORT=${SSH_PORT:="12322"}
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
@@ -102,15 +110,15 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("9.6" "13")
+    CURRENT_POSTGRES_VERSIONS+=("10" "13")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -173,6 +181,7 @@ function initialization::initialize_base_variables() {
 
     # Dry run - only show docker-compose and docker commands but do not execute them
     export DRY_RUN_DOCKER=${DRY_RUN_DOCKER:="false"}
+
 }
 
 # Determine current branch
@@ -186,17 +195,6 @@ function initialization::initialize_branch_variables() {
     # Default branch name for triggered builds is the one configured in default branch
     # We need to read it here as it comes from _common_values.sh
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
-}
-
-# Determine dockerhub user/repo used for push/pull
-function initialization::initialize_dockerhub_variables() {
-    # You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-    # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-
-    # You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
-    # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
 }
 
 # Determine available integrations
@@ -231,7 +229,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/common.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
-        "scripts/docker/install_airflow_from_branch_tip.sh"
+        "scripts/docker/install_airflow_dependencies_from_branch_tip.sh"
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
         "airflow/www/package.json"
@@ -292,21 +290,9 @@ function initialization::initialize_mount_variables() {
 
 # Determine values of force settings
 function initialization::initialize_force_variables() {
-    # By default we do not pull CI/PROD images. We can force-pull them when needed
-    export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
-
-    # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI main and when we manually refresh the images to latest versions
-    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
-
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
-
-    # File to keep the last forced answer. This is useful for pre-commits where you need to
-    # only answer once if the image should be rebuilt or not and your answer is used for
-    # All the subsequent questions
-    export LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
     # Can be set to "yes/no/quit" in order to force specified answer to all questions asked to the user.
     export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:=""}
@@ -314,8 +300,18 @@ function initialization::initialize_force_variables() {
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
 
-    # Should be set to true if you expect image frm GitHub to be present and downloaded
-    export FAIL_ON_GITHUB_DOCKER_PULL_ERROR=${FAIL_ON_GITHUB_DOCKER_PULL_ERROR:="false"}
+    # integrations are disabled by default
+    export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+    # systems are disabled by default
+    export ENABLED_SYSTEMS=${ENABLED_SYSTEMS:=""}
+
+    # no issue id by default (quarantined builds only)
+    export ISSUE_ID=${ISSUE_ID:=""}
+
+    # no NUM_RUNS by default (quarantined builds only)
+    export NUM_RUNS=${NUM_RUNS:=""}
+
 }
 
 # Determine information about the host
@@ -355,6 +351,8 @@ function initialization::initialize_image_build_variables() {
 
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
+
+    export DEBIAN_VERSION=${DEBIAN_VERSION:="buster"}
 
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
@@ -400,39 +398,20 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
     # by default install mysql client
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
+    # by default install mssql client
+    export INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    INSTALLED_PROVIDERS+=(
-        "amazon"
-        "celery"
-        "cncf.kubernetes"
-        "docker"
-        "elasticsearch"
-        "ftp"
-        "grpc"
-        "hashicorp"
-        "http"
-        "imap"
-        "google"
-        "microsoft.azure"
-        "mysql"
-        "postgres"
-        "redis"
-        "sendgrid"
-        "sqlite"
-        "sftp"
-        "slack"
-        "sqlite"
-        "ssh"
-    )
-    export INSTALLED_PROVIDERS
+    SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
+    export SKIP_TWINE_CHECK
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.1"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.3.1"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -450,14 +429,18 @@ function initialization::initialize_image_build_variables() {
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
     export AIRFLOW_SOURCES_TO
 
+    # By default no sources are copied to image
+    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="empty"}
+    export AIRFLOW_SOURCES_WWW_FROM
+
+    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/empty"}
+    export AIRFLOW_SOURCES_WWW_TO
+
     # By default in scripts production docker image is installed from PyPI package
     export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
 
     # Installs different airflow version than current from the sources
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
-
-    # Continue on PIP CHECK failure
-    export CONTINUE_ON_PIP_CHECK_FAILURE=${CONTINUE_ON_PIP_CHECK_FAILURE:="false"}
 
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
@@ -492,6 +475,9 @@ function initialization::initialize_image_build_variables() {
     #   * wheel - replaces airflow with one specified in the sdist file in /dist
     #   * <VERSION> - replaces airflow with the specific version from PyPI
     export USE_AIRFLOW_VERSION=${USE_AIRFLOW_VERSION:=""}
+
+    # whether images should be pushed to registry cache after they are built
+    export PREPARE_BUILDX_CACHE=${PREPARE_BUILDX_CACHE:="false"}
 }
 
 # Determine version suffixes used to build provider packages
@@ -504,16 +490,16 @@ function initialization::initialize_provider_package_building() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.20.2" "v1.19.7" "v1.18.15")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.21.1" "v1.20.2")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.10.0")
+    CURRENT_KIND_VERSIONS+=("v0.11.1")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
-    CURRENT_HELM_VERSIONS+=("v3.2.4")
+    CURRENT_HELM_VERSIONS+=("v3.6.3")
     export CURRENT_HELM_VERSIONS
     # Current executor in chart
     CURRENT_EXECUTOR+=("KubernetesExecutor")
@@ -557,6 +543,11 @@ function initialization::initialize_kubernetes_variables() {
     readonly API_SERVER_PORT
 }
 
+function initialization::initialize_virtualenv_variables() {
+    # The extras to install when initializing a virtual env with breeze
+    export VIRTUALENV_EXTRAS=${VIRTUALENV_EXTRAS:="devel"}
+}
+
 function initialization::initialize_git_variables() {
     # SHA of the commit for the current sources
     COMMIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "Unknown")"
@@ -564,11 +555,6 @@ function initialization::initialize_git_variables() {
 }
 
 function initialization::initialize_github_variables() {
-    # Defaults for interacting with GitHub
-    export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
-    export GITHUB_REGISTRY_IMAGE_SUFFIX=${GITHUB_REGISTRY_IMAGE_SUFFIX:="-v2"}
-    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
-    export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
@@ -583,21 +569,32 @@ function initialization::initialize_github_variables() {
 
 function initialization::initialize_test_variables() {
 
+    #Enables test coverage
+    export ENABLE_TEST_COVERAGE=${ENABLE_TEST_COVERAGE:=""}
+
     # In case we want to force certain test type to run, this variable should be set to this type
     # Otherwise TEST_TYPEs to run will be derived from TEST_TYPES space-separated string
     export FORCE_TEST_TYPE=${FORCE_TEST_TYPE:=""}
+
+    # Do not run tests by default
+    export RUN_TESTS=${RUN_TESTS:="false"}
+
+    # Do not run integration tests by default
+    export LIST_OF_INTEGRATION_TESTS_TO_RUN=${LIST_OF_INTEGRATION_TESTS_TO_RUN:=""}
+
+    # Do not run system tests by default (they can be enabled by setting the RUN_SYSTEM_TESTS variable to "true")
+    export RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS:=""}
+
 }
 
 function initialization::initialize_package_variables() {
+    # default package format
     export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+    # default version suffixes
+    export VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
+    export VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
 }
 
-
-function initialization::initialize_build_image_variables() {
-    REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
-    LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
-    REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
-}
 
 function initialization::set_output_color_variables() {
     COLOR_BLUE=$'\e[34m'
@@ -617,32 +614,27 @@ function initialization::set_output_color_variables() {
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
     initialization::set_output_color_variables
-    initialization::create_directories
     initialization::initialize_base_variables
     initialization::initialize_branch_variables
     initialization::initialize_available_integrations
     initialization::initialize_files_for_rebuild_check
-    initialization::initialize_dockerhub_variables
     initialization::initialize_mount_variables
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
     initialization::initialize_provider_package_building
     initialization::initialize_kubernetes_variables
+    initialization::initialize_virtualenv_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
     initialization::initialize_package_variables
-    initialization::initialize_build_image_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
     # default version of python used to tag the "main" and "latest" images in DockerHub
-    export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
-
-    # default python Major/Minor version
+    export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.7
     export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}}
-
 }
 
 function initialization::summarize_build_environment() {
@@ -656,11 +648,6 @@ Basic variables:
     DB_RESET: ${DB_RESET}
     START_AIRFLOW: ${START_AIRFLOW}
 
-DockerHub variables:
-
-    DOCKERHUB_USER=${DOCKERHUB_USER}
-    DOCKERHUB_REPO=${DOCKERHUB_REPO}
-
 Mount variables:
 
     MOUNT_SELECTED_LOCAL_SOURCES: ${MOUNT_SELECTED_LOCAL_SOURCES}
@@ -668,11 +655,9 @@ Mount variables:
 
 Force variables:
 
-    FORCE_PULL_IMAGES: ${FORCE_PULL_IMAGES}
     FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     FORCE_ANSWER_TO_QUESTIONS: ${FORCE_ANSWER_TO_QUESTIONS}
     SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
-    FAIL_ON_GITHUB_DOCKER_PULL_ERROR: ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR}
 
 Host variables:
 
@@ -701,7 +686,6 @@ Common image build variables:
     INSTALL_FROM_PYPI: '${INSTALL_FROM_PYPI}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
-    CONTINUE_ON_PIP_CHECK_FAILURE: '${CONTINUE_ON_PIP_CHECK_FAILURE}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
     AIRFLOW_CONSTRAINTS_LOCATION: '${AIRFLOW_CONSTRAINTS_LOCATION}'
     AIRFLOW_CONSTRAINTS_REFERENCE: '${AIRFLOW_CONSTRAINTS_REFERENCE}'
@@ -725,15 +709,13 @@ Production image build variables:
     AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
+    AIRFLOW_SOURCES_WWW_FROM: '${AIRFLOW_SOURCES_WWW_FROM}'
+    AIRFLOW_SOURCES_WWW_TO: '${AIRFLOW_SOURCES_WWW_TO}'
 
 Detected GitHub environment:
 
-    USE_GITHUB_REGISTRY: '${USE_GITHUB_REGISTRY}'
-    GITHUB_REGISTRY: '${GITHUB_REGISTRY}'
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
-    GITHUB_TOKEN: '${GITHUB_TOKEN}'
-    GITHUB_REGISTRY_WAIT_FOR_IMAGE: '${GITHUB_REGISTRY_WAIT_FOR_IMAGE}'
     GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
     GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
     GITHUB_ACTIONS: '${GITHUB_ACTIONS=}'
@@ -754,7 +736,7 @@ EOF
     if [[ "${CI}" == "true" ]]; then
         cat <<EOF
 
-Detected CI build environment:
+Detected CI test environment:
 
     CI_TARGET_REPO=${CI_TARGET_REPO}
     CI_TARGET_BRANCH=${CI_TARGET_BRANCH}
@@ -813,7 +795,6 @@ function initialization::make_constants_read_only() {
     readonly KIND_VERSION
     readonly HELM_VERSION
     readonly KUBECTL_VERSION
-    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -871,13 +852,6 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_RUNTIME_APT_DEPS
     readonly ADDITIONAL_RUNTIME_APT_ENV
 
-    readonly DOCKERHUB_USER
-    readonly DOCKERHUB_REPO
-    readonly DOCKER_CACHE
-
-    readonly USE_GITHUB_REGISTRY
-    readonly GITHUB_REGISTRY
-    readonly GITHUB_REGISTRY_WAIT_FOR_IMAGE
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
     readonly GITHUB_REGISTRY_PUSH_IMAGE_TAG
 
@@ -886,29 +860,15 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_USERNAME
 
     readonly FORWARD_CREDENTIALS
-    readonly USE_GITHUB_REGISTRY
 
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
     readonly VERSION_SUFFIX_FOR_PYPI
 
-    readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
-    readonly AIRFLOW_PYTHON_BASE_IMAGE
-    readonly AIRFLOW_CI_BASE_TAG
-    readonly AIRFLOW_CI_IMAGE
-    readonly AIRFLOW_CI_IMAGE_DEFAULT
-    readonly AIRFLOW_PROD_BASE_TAG
-    readonly AIRFLOW_PROD_IMAGE
-    readonly AIRFLOW_PROD_BUILD_IMAGE
-    readonly AIRFLOW_PROD_IMAGE_KUBERNETES
-    readonly AIRFLOW_PROD_IMAGE_DEFAULT
+    readonly AIRFLOW_IMAGE_KUBERNETES
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
-
-    readonly REMOTE_IMAGE_CONTAINER_ID_FILE
-    readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
-    readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
 
     readonly INSTALLED_EXTRAS
     readonly INSTALLED_PROVIDERS
@@ -946,5 +906,49 @@ function initialization::ga_output() {
 function initialization::ga_env() {
     if [[ -n "${GITHUB_ENV=}" ]]; then
         echo "${1}=${2}" >>"${GITHUB_ENV}"
+    fi
+}
+
+function initialization::ver() {
+  # convert SemVer number to comparable string (strips pre-release version)
+  # shellcheck disable=SC2086,SC2183
+  printf "%03d%03d%03d%.0s" ${1//[.-]/ }
+}
+
+function initialization::check_docker_version() {
+    local permission_denied
+    permission_denied=$(docker info 2>/dev/null | grep "ERROR: Got permission denied while trying " || true)
+    if [[ ${permission_denied} != "" ]]; then
+        echo
+        echo "${COLOR_RED}ERROR: You have 'permission denied' error when trying to communicate with docker.${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}Most likely you need to add your user to 'docker' group: https://docs.docker.com/engine/install/linux-postinstall/ .${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    local docker_version
+    # In GitHub Code QL, the version of docker has +azure suffix which we should remove
+    docker_version=$(docker version --format '{{.Client.Version}}' | sed 's/\+.*$//' || true)
+    if [ "${docker_version}" == "" ]; then
+        echo
+        echo "${COLOR_YELLOW}Your version of docker is unknown. If the scripts fail, please make sure to install docker at least: ${min_docker_version} version.${COLOR_RESET}"
+        echo
+        return
+    fi
+    local comparable_docker_version
+    comparable_docker_version=$(initialization::ver "${docker_version}")
+    local min_docker_version="20.10.0"
+    local min_comparable_docker_version
+    min_comparable_docker_version=$(initialization::ver "${min_docker_version}")
+    # The #0 Strips leading zeros
+    if [[ ${comparable_docker_version#0} -lt ${min_comparable_docker_version#0} ]]; then
+        echo
+        echo "${COLOR_RED}Your version of docker is too old: ${docker_version}. Please upgrade to at least ${min_docker_version}.${COLOR_RESET}"
+        echo
+        exit 1
+    else
+        if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
+            echo "${COLOR_GREEN}Good version of docker ${docker_version}.${COLOR_RESET}"
+        fi
     fi
 }

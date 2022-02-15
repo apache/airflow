@@ -38,14 +38,10 @@ Set values for these fields:
 
 .. code-block::
 
-  Conn Id: wasb_default
+  Connection Id: wasb_default
   Login: Storage Account Name
   Password: KEY1
   Extra: {"sas_token": "TOKEN"}
-
-.. contents::
-  :depth: 1
-  :local:
 
 .. _howto/operator:AzureBlobStorageToGCSOperator:
 
@@ -55,10 +51,10 @@ Operator transfers data from Azure Blob Storage to specified bucket in Google Cl
 
 To get information about jobs within a Azure Blob Storage use:
 :class:`~airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`
+
 Example usage:
 
 .. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_azure_blob_to_gcs.py
     :language: python
-    :dedent: 4
     :start-after: [START how_to_azure_blob_to_gcs]
     :end-before: [END how_to_azure_blob_to_gcs]

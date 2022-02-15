@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=c-extension-no-member
+
 import unittest
 from unittest import mock
 
@@ -127,7 +127,7 @@ class TestOracleToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     assert b''.join(SCHEMA_JSON) == file.read()

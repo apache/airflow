@@ -24,7 +24,7 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.operators.sagemaker_endpoint import SageMakerEndpointOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointOperator
 
 role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'

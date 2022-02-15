@@ -14,23 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional
+from typing import Optional
 
 from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
+from airflow.api_connexion.types import UpdateMask
 from airflow.models import Variable
 from airflow.security import permissions
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
-def delete_variable(variable_key: str) -> Response:
+def delete_variable(*, variable_key: str) -> Response:
     """Delete variable"""
     if Variable.delete(variable_key) == 0:
         raise NotFound("Variable not found")
@@ -38,7 +40,7 @@ def delete_variable(variable_key: str) -> Response:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
-def get_variable(variable_key: str) -> Response:
+def get_variable(*, variable_key: str) -> Response:
     """Get a variables by key"""
     try:
         var = Variable.get(variable_key)
@@ -48,10 +50,14 @@ def get_variable(variable_key: str) -> Response:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_variables(
-    session, limit: Optional[int], order_by: str = "id", offset: Optional[int] = None
+    *,
+    limit: Optional[int],
+    order_by: str = "id",
+    offset: Optional[int] = None,
+    session: Session = NEW_SESSION,
 ) -> Response:
     """Get all variable values"""
     total_entries = session.query(func.count(Variable.id)).scalar()
@@ -69,7 +75,7 @@ def get_variables(
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
-def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
+def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Response:
     """Update a variable by key"""
     try:
         data = variable_schema.load(request.json)

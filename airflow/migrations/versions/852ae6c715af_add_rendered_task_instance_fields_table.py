@@ -27,6 +27,8 @@ Create Date: 2020-03-10 22:19:18.034961
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
+
 # revision identifiers, used by Alembic.
 revision = '852ae6c715af'
 down_revision = 'a4c2fd67d16b'
@@ -39,7 +41,7 @@ TABLE_NAME = 'rendered_task_instance_fields'
 def upgrade():
     """Apply Add RenderedTaskInstanceFields table"""
     json_type = sa.JSON
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
 
     if conn.dialect.name != "postgresql":
         # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
@@ -50,9 +52,9 @@ def upgrade():
             json_type = sa.Text
 
     op.create_table(
-        TABLE_NAME,  # pylint: disable=no-member
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
+        TABLE_NAME,
+        sa.Column('dag_id', StringID(), nullable=False),
+        sa.Column('task_id', StringID(), nullable=False),
         sa.Column('execution_date', sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column('rendered_fields', json_type(), nullable=False),
         sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
@@ -61,4 +63,4 @@ def upgrade():
 
 def downgrade():
     """Drop RenderedTaskInstanceFields table"""
-    op.drop_table(TABLE_NAME)  # pylint: disable=no-member
+    op.drop_table(TABLE_NAME)

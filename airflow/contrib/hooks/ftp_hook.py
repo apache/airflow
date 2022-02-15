@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook  # noqa
 
 warnings.warn(

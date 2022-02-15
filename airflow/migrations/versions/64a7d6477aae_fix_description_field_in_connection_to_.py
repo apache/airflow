@@ -24,8 +24,8 @@ Create Date: 2020-11-25 08:56:11.866607
 
 """
 
-import sqlalchemy as sa  # noqa
-from alembic import op  # noqa
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '64a7d6477aae'
@@ -36,7 +36,7 @@ depends_on = None
 
 def upgrade():
     """Apply fix description field in connection to be text"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         # in sqlite TEXT and STRING column types are the same
         return
@@ -55,7 +55,7 @@ def upgrade():
 
 def downgrade():
     """Unapply fix description field in connection to be text"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         # in sqlite TEXT and STRING column types are the same
         return

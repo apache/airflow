@@ -30,6 +30,7 @@ from termcolor import colored
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.executors import executor_constants
 from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import db
 from airflow.www.app import cached_app
 
@@ -71,9 +72,17 @@ class StandaloneCommand:
         self.subcommands["webserver"] = SubCommand(
             self,
             name="webserver",
-            command=["webserver", "--port", "8080"],
+            command=["webserver"],
             env=env,
         )
+        self.subcommands["triggerer"] = SubCommand(
+            self,
+            name="triggerer",
+            command=["triggerer"],
+            env=env,
+        )
+
+        self.web_server_port = conf.getint('webserver', 'WEB_SERVER_PORT', fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()
@@ -123,6 +132,7 @@ class StandaloneCommand:
         color = {
             "webserver": "green",
             "scheduler": "blue",
+            "triggerer": "cyan",
             "standalone": "white",
         }.get(name, "white")
         colorised_name = colored("%10s" % name, color)
@@ -167,7 +177,7 @@ class StandaloneCommand:
         # server. Thus, we make a random password and store it in AIRFLOW_HOME,
         # with the reasoning that if you can read that directory, you can see
         # the database credentials anyway.
-        appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+        appbuilder = cached_app().appbuilder
         user_exists = appbuilder.sm.find_user("admin")
         password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
         we_know_password = os.path.isfile(password_path)
@@ -198,7 +208,11 @@ class StandaloneCommand:
         Detects when all Airflow components are ready to serve.
         For now, it's simply time-based.
         """
-        return self.port_open(8080) and self.job_running(SchedulerJob)
+        return (
+            self.port_open(self.web_server_port)
+            and self.job_running(SchedulerJob)
+            and self.job_running(TriggererJob)
+        )
 
     def port_open(self, port):
         """
@@ -220,7 +234,10 @@ class StandaloneCommand:
         Checks if the given job name is running and heartbeating correctly
         (used to tell if scheduler is alive)
         """
-        return job.most_recent_job().is_alive()
+        recent = job.most_recent_job()
+        if not recent:
+            return False
+        return recent.is_alive()
 
     def print_ready(self):
         """
@@ -257,7 +274,7 @@ class SubCommand(threading.Thread):
 
     def run(self):
         """Runs the actual process and captures it output to a queue"""
-        self.process = subprocess.Popen(  # pylint: disable=consider-using-with,attribute-defined-outside-init
+        self.process = subprocess.Popen(
             ["airflow"] + self.command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

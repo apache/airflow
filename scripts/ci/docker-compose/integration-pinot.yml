@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
+version: "3.7"
 services:
   pinot:
-    image: apachepinot/pinot:latest
+    image: apachepinot/pinot:0.8.0
     ports:
       - "9080:9080"
     volumes:

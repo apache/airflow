@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.oracle.transfers.oracle_to_oracle`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
 
 warnings.warn(

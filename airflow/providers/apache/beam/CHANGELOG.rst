@@ -19,6 +19,32 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use google cloud credentials when executing beam command in subprocess (#18992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.0.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 3.0.0
 .....
 
@@ -39,6 +65,7 @@ Breaking changes
    * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 2.0.0
 .....

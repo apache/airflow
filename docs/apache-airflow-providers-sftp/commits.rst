@@ -28,14 +28,98 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.4.1
+.....
+
+Latest change: 2022-01-08
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`c2fc760c9 <https://github.com/apache/airflow/commit/c2fc760c9024ce9f0bec287679d9981f6ab1fd98>`_  2022-01-08   ``Bugfix: ''SFTPHook'' does not respect ''ssh_conn_id'' arg (#20756)``
+`1c113d6b2 <https://github.com/apache/airflow/commit/1c113d6b2fe2f24a71f0a2c3911e8141fa6e3ff9>`_  2022-01-06   ``fix deprecation messages for SFTPHook (#20692)``
+================================================================================================  ===========  ======================================================================
+
+2.4.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  =================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`f35ad2708 <https://github.com/apache/airflow/commit/f35ad27080a2e1f29efc20a9bd0613af0f6ff2ec>`_  2021-12-14   ``Making SFTPHook's constructor consistent with its superclass SSHHook (#20164)``
+`756b1207a <https://github.com/apache/airflow/commit/756b1207a96ff65f7e0f83864a7ad0386df9fa9d>`_  2021-12-13   ``Fix MyPy Errors for SFTP provider (#20242)``
+================================================================================================  ===========  =================================================================================
+
+2.3.0
+.....
+
+Latest change: 2021-11-30
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`ccb809550 <https://github.com/apache/airflow/commit/ccb809550db95089178385184cc898f5412cd266>`_  2021-11-16   ``Add test_connection method for sftp hook (#19609)``
+================================================================================================  ===========  ======================================================================
+
+2.2.0
+.....
+
+Latest change: 2021-10-29
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`83eb80d4e <https://github.com/apache/airflow/commit/83eb80d4eccb881775dd44bab19818e50e42270b>`_  2021-10-27   ``SFTP hook to prefer the SSH paramiko key over the key file path (#18988)``
+`86a2a19ad <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
+================================================================================================  ===========  ============================================================================
+
+2.1.1
+.....
+
+Latest change: 2021-08-30
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+================================================================================================  ===========  ============================================================================
+
+2.1.0
+.....
+
+Latest change: 2021-07-26
+
+================================================================================================  ===========  ===================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`81be82bfb <https://github.com/apache/airflow/commit/81be82bfb73f263ecd3b2d5f664e9c1ea751408a>`_  2021-07-02   ``Remove redundant logging in SFTP Hook (#16704)``
+`50e334df3 <https://github.com/apache/airflow/commit/50e334df3245072f55ce75c2611dca2df0cbd031>`_  2021-06-24   ``Add support for non-RSA type key for SFTP hook (#16314)``
+================================================================================================  ===========  ===================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-10
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ====================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ====================================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9351e2a2d <https://github.com/apache/airflow/commit/9351e2a2d43b6ec3c019df19afb445a3dcf587ac>`_  2021-06-10   ``Depreciate private_key_pass in SFTPHook conn extra and rename to private_key_passphrase (#14028)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``

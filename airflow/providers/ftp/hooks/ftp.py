@@ -35,7 +35,6 @@ class FTPHook(BaseHook):
 
     :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
         reference.
-    :type ftp_conn_id: str
     """
 
     conn_name_attr = 'ftp_conn_id'
@@ -80,7 +79,6 @@ class FTPHook(BaseHook):
         on the remote system (where the MLSD command is supported).
 
         :param path: full path to the remote directory
-        :type path: str
         """
         conn = self.get_conn()
         conn.cwd(path)
@@ -92,7 +90,6 @@ class FTPHook(BaseHook):
         Returns a list of files on the remote system.
 
         :param path: full path to the remote directory to list
-        :type path: str
         """
         conn = self.get_conn()
         conn.cwd(path)
@@ -105,7 +102,6 @@ class FTPHook(BaseHook):
         Creates a directory on the remote system.
 
         :param path: full path to the remote directory to create
-        :type path: str
         """
         conn = self.get_conn()
         conn.mkd(path)
@@ -115,7 +111,6 @@ class FTPHook(BaseHook):
         Deletes a directory on the remote system.
 
         :param path: full path to the remote directory to delete
-        :type path: str
         """
         conn = self.get_conn()
         conn.rmd(path)
@@ -129,17 +124,14 @@ class FTPHook(BaseHook):
         be written to the buffer but not closed.
 
         :param remote_full_path: full path to the remote file
-        :type remote_full_path: str
         :param local_full_path_or_buffer: full path to the local file or a
             file-like buffer
-        :type local_full_path_or_buffer: str or file-like buffer
         :param callback: callback which is called each time a block of data
             is read. if you do not use a callback, these blocks will be written
             to the file or buffer passed in. if you do pass in a callback, note
             that writing to a file or buffer will need to be handled inside the
             callback.
             [default: output_handle.write()]
-        :type callback: callable
 
         .. code-block:: python
 
@@ -179,7 +171,7 @@ class FTPHook(BaseHook):
         # file-like buffer
         if not callback:
             if is_path:
-                # pylint: disable=consider-using-with
+
                 output_handle = open(local_full_path_or_buffer, 'wb')
             else:
                 output_handle = local_full_path_or_buffer
@@ -205,17 +197,15 @@ class FTPHook(BaseHook):
         be read from the buffer but not closed.
 
         :param remote_full_path: full path to the remote file
-        :type remote_full_path: str
         :param local_full_path_or_buffer: full path to the local file or a
             file-like buffer
-        :type local_full_path_or_buffer: str or file-like buffer
         """
         conn = self.get_conn()
 
         is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
-            # pylint: disable=consider-using-with
+
             input_handle = open(local_full_path_or_buffer, 'rb')
         else:
             input_handle = local_full_path_or_buffer
@@ -231,7 +221,6 @@ class FTPHook(BaseHook):
         Removes a file on the FTP Server.
 
         :param path: full path to the remote file
-        :type path: str
         """
         conn = self.get_conn()
         conn.delete(path)
@@ -251,7 +240,6 @@ class FTPHook(BaseHook):
         Returns a datetime object representing the last time the file was modified
 
         :param path: remote file path
-        :type path: str
         """
         conn = self.get_conn()
         ftp_mdtm = conn.sendcmd('MDTM ' + path)
@@ -267,7 +255,6 @@ class FTPHook(BaseHook):
         Returns the size of a file (in bytes)
 
         :param path: remote file path
-        :type path: str
         """
         conn = self.get_conn()
         size = conn.size(path)

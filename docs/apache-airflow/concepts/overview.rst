@@ -46,7 +46,7 @@ Airflow itself is agnostic to what you're running - it will happily orchestrate 
 Workloads
 ---------
 
-A DAG runs though a series of :doc:`tasks`, and there are three common types of task you will see:
+A DAG runs through a series of :doc:`tasks`, and there are three common types of task you will see:
 
 * :doc:`operators`, predefined tasks that you can string together quickly to build most parts of your DAGs.
 
@@ -60,17 +60,17 @@ Internally, these are all actually subclasses of Airflow's ``BaseOperator``, and
 Control Flow
 ------------
 
-:doc:`dags` are designed to be run many times, and multiple runs of them can happen in parallel. DAGs are parameterized, always including a date they are "running for" (the ``execution_date``), but with other optional parameters as well.
+:doc:`dags` are designed to be run many times, and multiple runs of them can happen in parallel. DAGs are parameterized, always including an interval they are "running for" (the :ref:`data interval <data-interval>`), but with other optional parameters as well.
 
 :doc:`tasks` have dependencies declared on each other. You'll see this in a DAG either using the ``>>`` and ``<<`` operators::
 
     first_task >> [second_task, third_task]
-    third_task << fourth_task
+    fourth_task << third_task
 
 Or, with the ``set_upstream`` and ``set_downstream`` methods::
 
     first_task.set_downstream([second_task, third_task])
-    third_task.set_upstream(fourth_task)
+    fourth_task.set_upstream(third_task)
 
 These dependencies are what make up the "edges" of the graph, and how Airflow works out which order to run your tasks in. By default, a task will wait for all of its upstream tasks to succeed before it runs, but this can be customized using features like :ref:`Branching <concepts:branching>`, :ref:`LatestOnly <concepts:latest-only>`, and :ref:`Trigger Rules <concepts:trigger-rules>`.
 

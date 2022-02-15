@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -46,6 +47,13 @@ class CleanupPodsTest(unittest.TestCase):
             "subPath": "airflow.cfg",
             "readOnly": True,
         } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_should_pass_validation_with_v1beta1_api(self):
+        render_chart(
+            values={"cleanup": {"enabled": True}},
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+            kubernetes_version='1.16.0',
+        )  # checks that no validation exception is raised
 
     def test_should_change_image_when_set_airflow_image(self):
         docs = render_chart(
@@ -103,4 +111,91 @@ class CleanupPodsTest(unittest.TestCase):
         assert "dynamic-pods" == jmespath.search(
             "spec.jobTemplate.spec.template.spec.tolerations[0].key",
             docs[0],
+        )
+
+    def test_default_command_and_args(self):
+        docs = render_chart(
+            values={"cleanup": {"enabled": True}}, show_only=["templates/cleanup/cleanup-cronjob.yaml"]
+        )
+
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]) is None
+        assert ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace=default"] == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]
+        )
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"cleanup": {"enabled": True, "command": command, "args": args}},
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert command == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
+        )
+        assert args == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
+
+    def test_should_set_labels_to_jobs_from_cronjob(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "labels": {"project": "airflow"},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "airflow-cleanup-pods",
+            "release": "RELEASE-NAME",
+            "project": "airflow",
+        } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+
+    def test_cleanup_resources_are_configurable(self):
+        resources = {
+            "requests": {
+                "cpu": "128m",
+                "memory": "256Mi",
+            },
+            "limits": {
+                "cpu": "256m",
+                "memory": "512Mi",
+            },
+        }
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "resources": resources,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert resources == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
         )

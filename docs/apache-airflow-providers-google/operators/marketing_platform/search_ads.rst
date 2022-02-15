@@ -21,10 +21,6 @@ Google Search Ads Operators
 Create, manage, and track high-impact campaigns across multiple search engines with one centralized tool.
 For more information check `Google Search Ads <https://developers.google.com/search-ads/>`__.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

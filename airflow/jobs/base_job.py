@@ -25,11 +25,12 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models import DagRun
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -70,17 +71,18 @@ class BaseJob(Base, LoggingMixin):
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
         Index('idx_job_state_heartbeat', state, latest_heartbeat),
+        Index('idx_job_dag_id', dag_id),
     )
 
     task_instances_enqueued = relationship(
         TaskInstance,
-        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),
+        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),  # type: ignore[has-type]
         backref=backref('queued_by_job', uselist=False),
     )
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=id == foreign(DagRun.creating_job_id),
+        primaryjoin=id == foreign(DagRun.creating_job_id),  # type: ignore[has-type]
         backref=backref('creating_job'),
     )
 
@@ -94,15 +96,22 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = self.executor.__class__.__name__
+        if executor:
+            self.executor = executor
+            self.executor_class = executor.__class__.__name__
+        else:
+            self.executor_class = conf.get('core', 'EXECUTOR')
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getuser()
-        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
+        self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         super().__init__(*args, **kwargs)
+
+    @cached_property
+    def executor(self):
+        return ExecutorLoader.get_default_executor()
 
     @classmethod
     @provide_session
@@ -128,7 +137,6 @@ class BaseJob(Base, LoggingMixin):
 
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
-        :type grace_multiplier: number
         :rtype: boolean
         """
         return (
@@ -144,7 +152,7 @@ class BaseJob(Base, LoggingMixin):
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
         session.commit()
@@ -177,7 +185,6 @@ class BaseJob(Base, LoggingMixin):
 
         :param only_if_necessary: If the heartbeat is not yet due then do
             nothing (don't update column, don't call ``heartbeat_callback``)
-        :type only_if_necessary: boolean
         """
         seconds_remaining = 0
         if self.latest_heartbeat:
@@ -194,7 +201,7 @@ class BaseJob(Base, LoggingMixin):
                 session.merge(self)
                 previous_heartbeat = self.latest_heartbeat
 
-            if self.state == State.SHUTDOWN:
+            if self.state in State.terminating_states:
                 self.kill()
 
             # Figure out how long to sleep for

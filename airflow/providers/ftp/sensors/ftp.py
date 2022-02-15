@@ -17,9 +17,13 @@
 # under the License.
 import ftplib
 import re
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class FTPSensor(BaseSensorOperator):
@@ -27,16 +31,13 @@ class FTPSensor(BaseSensorOperator):
     Waits for a file or directory to be present on FTP.
 
     :param path: Remote file or directory path
-    :type path: str
     :param fail_on_transient_errors: Fail on all errors,
         including 4xx transient errors. Default True.
-    :type fail_on_transient_errors: bool
     :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
         reference to run the sensor against.
-    :type ftp_conn_id: str
     """
 
-    template_fields = ('path',)
+    template_fields: Sequence[str] = ('path',)
 
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
@@ -65,7 +66,7 @@ class FTPSensor(BaseSensorOperator):
         except ValueError:
             return e
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         with self._create_hook() as hook:
             self.log.info('Poking for %s', self.path)
             try:

@@ -18,8 +18,10 @@
 import logging
 import unittest
 from unittest import mock
+from unittest.mock import call
 
 import pytest
+from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 
@@ -33,20 +35,31 @@ except ImportError:
     pass
 
 
+TEMPDIR_MOCK_RETURN_VALUE = '/mkdtemp'
+
+
 class TestDockerOperator(unittest.TestCase):
     def setUp(self):
         self.tempdir_patcher = mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
         self.tempdir_mock = self.tempdir_patcher.start()
-        self.tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
+        self.tempdir_mock.return_value.__enter__.return_value = TEMPDIR_MOCK_RETURN_VALUE
 
         self.client_mock = mock.Mock(spec=APIClient)
         self.client_mock.create_container.return_value = {'Id': 'some_id'}
         self.client_mock.images.return_value = []
-        self.client_mock.attach.return_value = ['container log']
-        self.client_mock.logs.return_value = ['container log']
         self.client_mock.pull.return_value = {"status": "pull log"}
         self.client_mock.wait.return_value = {"StatusCode": 0}
         self.client_mock.create_host_config.return_value = mock.Mock()
+        self.log_messages = ['container log  😁   ', b'byte string container log']
+        self.client_mock.attach.return_value = self.log_messages
+
+        # If logs() is called with tail then only return the last value, otherwise return the whole log.
+        self.client_mock.logs.side_effect = (
+            lambda **kwargs: iter(self.log_messages[-kwargs['tail'] :])
+            if 'tail' in kwargs
+            else iter(self.log_messages)
+        )
+
         self.client_class_patcher = mock.patch(
             'airflow.providers.docker.operators.docker.APIClient',
             return_value=self.client_mock,
@@ -113,6 +126,181 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
         )
+        self.client_mock.logs.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True, tail=1
+        )
+        self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
+        self.client_mock.wait.assert_called_once_with('some_id')
+        assert (
+            operator.cli.pull('ubuntu:latest', stream=True, decode=True) == self.client_mock.pull.return_value
+        )
+
+    def test_execute_no_temp_dir(self):
+        operator = DockerOperator(
+            api_version='1.19',
+            command='env',
+            environment={'UNIT': 'TEST'},
+            private_environment={'PRIVATE': 'MESSAGE'},
+            image='ubuntu:latest',
+            network_mode='bridge',
+            owner='unittest',
+            task_id='unittest',
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            mount_tmp_dir=False,
+            entrypoint='["sh", "-c"]',
+            working_dir='/container/path',
+            shm_size=1000,
+            host_tmp_dir='/host/airflow',
+            container_name='test_container',
+            tty=True,
+        )
+        operator.execute(None)
+
+        self.client_class_mock.assert_called_once_with(
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+        )
+
+        self.client_mock.create_container.assert_called_once_with(
+            command='env',
+            name='test_container',
+            environment={'UNIT': 'TEST', 'PRIVATE': 'MESSAGE'},
+            host_config=self.client_mock.create_host_config.return_value,
+            image='ubuntu:latest',
+            user=None,
+            entrypoint=['sh', '-c'],
+            working_dir='/container/path',
+            tty=True,
+        )
+        self.client_mock.create_host_config.assert_called_once_with(
+            mounts=[
+                Mount(source='/host/path', target='/container/path', type='bind'),
+            ],
+            network_mode='bridge',
+            shm_size=1000,
+            cpu_shares=1024,
+            mem_limit=None,
+            auto_remove=False,
+            dns=None,
+            dns_search=None,
+            cap_add=None,
+            extra_hosts=None,
+            privileged=False,
+        )
+        self.tempdir_mock.assert_not_called()
+        self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
+        self.client_mock.attach.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.logs.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True, tail=1
+        )
+        self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
+        self.client_mock.wait.assert_called_once_with('some_id')
+        assert (
+            operator.cli.pull('ubuntu:latest', stream=True, decode=True) == self.client_mock.pull.return_value
+        )
+
+    def test_execute_fallback_temp_dir(self):
+        self.client_mock.create_container.side_effect = [
+            APIError(message="wrong path: " + TEMPDIR_MOCK_RETURN_VALUE),
+            {'Id': 'some_id'},
+        ]
+        operator = DockerOperator(
+            api_version='1.19',
+            command='env',
+            environment={'UNIT': 'TEST'},
+            private_environment={'PRIVATE': 'MESSAGE'},
+            image='ubuntu:latest',
+            network_mode='bridge',
+            owner='unittest',
+            task_id='unittest',
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            mount_tmp_dir=True,
+            entrypoint='["sh", "-c"]',
+            working_dir='/container/path',
+            shm_size=1000,
+            host_tmp_dir='/host/airflow',
+            container_name='test_container',
+            tty=True,
+        )
+        with self.assertLogs(operator.log, level=logging.WARNING) as captured:
+            operator.execute(None)
+            assert (
+                "WARNING:airflow.task.operators:Using remote engine or docker-in-docker "
+                "and mounting temporary volume from host is not supported" in captured.output[0]
+            )
+        self.client_class_mock.assert_called_once_with(
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+        )
+        self.client_mock.create_container.assert_has_calls(
+            [
+                call(
+                    command='env',
+                    name='test_container',
+                    environment={'AIRFLOW_TMP_DIR': '/tmp/airflow', 'UNIT': 'TEST', 'PRIVATE': 'MESSAGE'},
+                    host_config=self.client_mock.create_host_config.return_value,
+                    image='ubuntu:latest',
+                    user=None,
+                    entrypoint=['sh', '-c'],
+                    working_dir='/container/path',
+                    tty=True,
+                ),
+                call(
+                    command='env',
+                    name='test_container',
+                    environment={'UNIT': 'TEST', 'PRIVATE': 'MESSAGE'},
+                    host_config=self.client_mock.create_host_config.return_value,
+                    image='ubuntu:latest',
+                    user=None,
+                    entrypoint=['sh', '-c'],
+                    working_dir='/container/path',
+                    tty=True,
+                ),
+            ]
+        )
+        self.client_mock.create_host_config.assert_has_calls(
+            [
+                call(
+                    mounts=[
+                        Mount(source='/host/path', target='/container/path', type='bind'),
+                        Mount(source='/mkdtemp', target='/tmp/airflow', type='bind'),
+                    ],
+                    network_mode='bridge',
+                    shm_size=1000,
+                    cpu_shares=1024,
+                    mem_limit=None,
+                    auto_remove=False,
+                    dns=None,
+                    dns_search=None,
+                    cap_add=None,
+                    extra_hosts=None,
+                    privileged=False,
+                ),
+                call(
+                    mounts=[
+                        Mount(source='/host/path', target='/container/path', type='bind'),
+                    ],
+                    network_mode='bridge',
+                    shm_size=1000,
+                    cpu_shares=1024,
+                    mem_limit=None,
+                    auto_remove=False,
+                    dns=None,
+                    dns_search=None,
+                    cap_add=None,
+                    extra_hosts=None,
+                    privileged=False,
+                ),
+            ]
+        )
+        self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
+        self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
+        self.client_mock.attach.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.logs.assert_called_once_with(
+            container='some_id', stdout=True, stderr=True, stream=True, tail=1
+        )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
         assert (
@@ -158,7 +346,7 @@ class TestDockerOperator(unittest.TestCase):
     def test_execute_unicode_logs(self):
         self.client_mock.attach.return_value = ['unicode container log 😁']
 
-        originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
+        originalRaiseExceptions = logging.raiseExceptions
         logging.raiseExceptions = True
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
@@ -169,10 +357,21 @@ class TestDockerOperator(unittest.TestCase):
             print_exception_mock.assert_not_called()
 
     def test_execute_container_fails(self):
-        self.client_mock.wait.return_value = {"StatusCode": 1}
+        failed_msg = {'StatusCode': 1}
+        log_line = ['unicode container log 😁   ', b'byte string container log']
+        expected_message = 'Docker container failed: {failed_msg} lines {expected_log_output}'
+        self.client_mock.attach.return_value = log_line
+        self.client_mock.wait.return_value = failed_msg
+
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
-        with pytest.raises(AirflowException):
+
+        with pytest.raises(AirflowException) as raised_exception:
             operator.execute(None)
+
+        assert str(raised_exception.value) == expected_message.format(
+            failed_msg=failed_msg,
+            expected_log_output=f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}',
+        )
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
@@ -232,6 +431,45 @@ class TestDockerOperator(unittest.TestCase):
 
     def test_execute_xcom_behavior(self):
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
+        kwargs = {
+            'api_version': '1.19',
+            'command': 'env',
+            'environment': {'UNIT': 'TEST'},
+            'private_environment': {'PRIVATE': 'MESSAGE'},
+            'image': 'ubuntu:latest',
+            'network_mode': 'bridge',
+            'owner': 'unittest',
+            'task_id': 'unittest',
+            'mounts': [Mount(source='/host/path', target='/container/path', type='bind')],
+            'working_dir': '/container/path',
+            'shm_size': 1000,
+            'host_tmp_dir': '/host/airflow',
+            'container_name': 'test_container',
+            'tty': True,
+        }
+
+        xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=True, xcom_all=False)
+        xcom_all_operator = DockerOperator(**kwargs, do_xcom_push=True, xcom_all=True)
+        no_xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=False)
+
+        xcom_push_result = xcom_push_operator.execute(None)
+        xcom_all_result = xcom_all_operator.execute(None)
+        no_xcom_push_result = no_xcom_push_operator.execute(None)
+
+        assert xcom_push_result == 'byte string container log'
+        assert xcom_all_result == ['container log  😁', 'byte string container log']
+        assert no_xcom_push_result is None
+
+    def test_execute_xcom_behavior_bytes(self):
+        self.log_messages = [b'container log 1 ', b'container log 2']
+        self.client_mock.pull.return_value = [b'{"status":"pull log"}']
+        self.client_mock.attach.return_value = iter([b'container log 1 ', b'container log 2'])
+        # Make sure the logs side effect is updated after the change
+        self.client_mock.logs.side_effect = (
+            lambda **kwargs: iter(self.log_messages[-kwargs['tail'] :])
+            if 'tail' in kwargs
+            else iter(self.log_messages)
+        )
 
         kwargs = {
             'api_version': '1.19',
@@ -250,13 +488,53 @@ class TestDockerOperator(unittest.TestCase):
             'tty': True,
         }
 
-        xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=True)
+        xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=True, xcom_all=False)
+        xcom_all_operator = DockerOperator(**kwargs, do_xcom_push=True, xcom_all=True)
         no_xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=False)
 
         xcom_push_result = xcom_push_operator.execute(None)
+        xcom_all_result = xcom_all_operator.execute(None)
         no_xcom_push_result = no_xcom_push_operator.execute(None)
 
-        assert xcom_push_result == b'container log'
+        # Those values here are different than log above as they are from setup
+        assert xcom_push_result == 'container log 2'
+        assert xcom_all_result == ['container log 1', 'container log 2']
+        assert no_xcom_push_result is None
+
+    def test_execute_xcom_behavior_no_result(self):
+        self.log_messages = []
+        self.client_mock.pull.return_value = [b'{"status":"pull log"}']
+        self.client_mock.attach.return_value = iter([])
+        # Make sure the logs side effect is updated after the change
+        self.client_mock.logs.side_effect = iter([])
+
+        kwargs = {
+            'api_version': '1.19',
+            'command': 'env',
+            'environment': {'UNIT': 'TEST'},
+            'private_environment': {'PRIVATE': 'MESSAGE'},
+            'image': 'ubuntu:latest',
+            'network_mode': 'bridge',
+            'owner': 'unittest',
+            'task_id': 'unittest',
+            'mounts': [Mount(source='/host/path', target='/container/path', type='bind')],
+            'working_dir': '/container/path',
+            'shm_size': 1000,
+            'host_tmp_dir': '/host/airflow',
+            'container_name': 'test_container',
+            'tty': True,
+        }
+
+        xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=True, xcom_all=False)
+        xcom_all_operator = DockerOperator(**kwargs, do_xcom_push=True, xcom_all=True)
+        no_xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=False)
+
+        xcom_push_result = xcom_push_operator.execute(None)
+        xcom_all_result = xcom_all_operator.execute(None)
+        no_xcom_push_result = no_xcom_push_operator.execute(None)
+
+        assert xcom_push_result is None
+        assert xcom_all_result is None
         assert no_xcom_push_result is None
 
     def test_extra_hosts(self):

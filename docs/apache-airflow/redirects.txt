@@ -23,6 +23,8 @@ security.rst security/index.rst
 howto/operator/external.rst howto/operator/external_task_sensor.rst
 howto/secure-connections.rst howto/connection.rst
 howto/connection/index.rst howto/connection.rst
+howto/customize-dag-ui-page-instance-name.rst howto/customize-ui.rst#customizing-dag-ui-header-and-airflow-page-titles
+howto/customize-state-colors-ui.rst howto/customize-ui.rst#customizing-state-colours
 
 # Web UI
 howto/add-new-role.rst security/access-control.rst
@@ -44,8 +46,14 @@ start.rst start/index.rst
 cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst python-api-ref.rst
 rest-api-ref.rst deprecated-rest-api-ref.rst
+macros-ref.rst templates-ref.rst
 
 # Concepts
 concepts.rst concepts/index.rst
 smart-sensor.rst concepts/smart-sensors.rst
 scheduler.rst concepts/scheduler.rst
+
+# Installation
+installation.rst installation/index.rst
+upgrade-check.rst installation/upgrade-check.rst
+upgrading-to-2.rst upgrading-from-1-10/index.rst

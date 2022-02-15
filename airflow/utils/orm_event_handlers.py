@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 def setup_event_handlers(engine):
     """Setups event handlers."""
-    # pylint: disable=unused-argument, unused-variable
+
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):
         connection_record.info['pid'] = os.getpid()
@@ -58,8 +58,8 @@ def setup_event_handlers(engine):
         if connection_record.info['pid'] != pid:
             connection_record.connection = connection_proxy.connection = None
             raise exc.DisconnectionError(
-                "Connection record belongs to pid {}, "
-                "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
+                f"Connection record belongs to pid {connection_record.info['pid']}, "
+                f"attempting to check out in pid {pid}"
             )
 
     if conf.getboolean('debug', 'sqlalchemy_stats', fallback=False):
@@ -86,5 +86,3 @@ def setup_event_handlers(engine):
                 stack_info,
                 statement.replace("\n", " "),
             )
-
-    # pylint: enable=unused-argument, unused-variable

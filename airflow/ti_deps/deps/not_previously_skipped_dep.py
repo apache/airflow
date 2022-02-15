@@ -28,7 +28,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IGNORABLE = True
     IS_TASK_DEP = True
 
-    def _get_dep_statuses(self, ti, session, dep_context):  # pylint: disable=signature-differs
+    def _get_dep_statuses(self, ti, session, dep_context):
         from airflow.models.skipmixin import (
             XCOM_SKIPMIXIN_FOLLOWED,
             XCOM_SKIPMIXIN_KEY,
@@ -39,9 +39,9 @@ class NotPreviouslySkippedDep(BaseTIDep):
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 
-        finished_tasks = dep_context.ensure_finished_tasks(ti.task.dag, ti.execution_date, session)
+        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
 
-        finished_task_ids = {t.task_id for t in finished_tasks}
+        finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
             if isinstance(parent, SkipMixin):

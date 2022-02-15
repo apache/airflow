@@ -28,7 +28,12 @@ def post_worker_init(_):
 
     This is used by airflow.cli.commands.webserver_command to track the status of the worker.
     """
-    old_title = setproctitle.getproctitle()  # pylint: disable=c-extension-no-member
-    setproctitle.setproctitle(  # pylint: disable=c-extension-no-member
-        settings.GUNICORN_WORKER_READY_PREFIX + old_title
-    )
+    old_title = setproctitle.getproctitle()
+    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+
+
+def on_starting(server):
+    from airflow.providers_manager import ProvidersManager
+
+    # Load providers before forking workers
+    ProvidersManager().connection_form_widgets

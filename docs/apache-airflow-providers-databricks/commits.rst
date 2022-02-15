@@ -28,14 +28,91 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.2.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  ==================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==================================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`0bf424f37 <https://github.com/apache/airflow/commit/0bf424f37fc2786e7a74e7f1df88dc92538abbd4>`_  2021-12-30   ``Fix mypy databricks operator (#20598)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`c5c18c54f <https://github.com/apache/airflow/commit/c5c18c54fa83463bc953249dc28edcbf7179da17>`_  2021-12-29   ``Databricks: fix verification of Managed Identity (#20550)``
+`d3b3161f0 <https://github.com/apache/airflow/commit/d3b3161f0da47975e779255806a0fb0019cd38df>`_  2021-12-28   ``Remove 'host' as an instance attr in 'DatabricksHook' (#20540)``
+`58afc1937 <https://github.com/apache/airflow/commit/58afc193776a8e811e9a210a18f93dabebc904d4>`_  2021-12-28   ``Add 'wait_for_termination' argument for Databricks Operators (#20536)``
+`e7659d08b <https://github.com/apache/airflow/commit/e7659d08b0ca83913bc958f54658385ac77e366a>`_  2021-12-27   ``Update connection object to ''cached_property'' in ''DatabricksHook'' (#20526)``
+`cad39274d <https://github.com/apache/airflow/commit/cad39274d9a8eceba2845dc39e8c870959746478>`_  2021-12-14   ``Fix MyPy Errors for Databricks provider. (#20265)``
+================================================================================================  ===========  ==================================================================================
+
+2.1.0
+.....
+
+Latest change: 2021-12-10
+
+================================================================================================  ===========  =================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================================
+`820bfed51 <https://github.com/apache/airflow/commit/820bfed515bd7d6b2fb7aaa31b2e23f98454f870>`_  2021-12-10   ``Prepare docs for provider's RC2 release (#20205)``
+`66f94f95c <https://github.com/apache/airflow/commit/66f94f95c2e92baad2761b5a1fa405e36c17808a>`_  2021-12-10   ``Remove db call from 'DatabricksHook.__init__()' (#20180)``
+`545ca59ba <https://github.com/apache/airflow/commit/545ca59ba9a0b346cbbf28cc6958f9575e5e6b0b>`_  2021-12-08   ``Unhide changelog entry for databricks (#20128)``
+`637db1a0b <https://github.com/apache/airflow/commit/637db1a0ba9c8173372f1f5d6f60ec4c4f3699d8>`_  2021-12-07   ``Update documentation for RC2 release of November Databricks Provider (#20086)``
+`728e94a47 <https://github.com/apache/airflow/commit/728e94a47e0048829ce67096235d34019be9fac7>`_  2021-12-05   ``Refactor DatabricksHook (#19835)``
+`4925b37b6 <https://github.com/apache/airflow/commit/4925b37b661a1117dc9f1a10be11f03e67e1a413>`_  2021-12-04   ``Databricks hook: fix expiration time check (#20036)``
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`11998848a <https://github.com/apache/airflow/commit/11998848a4b07f255ae8fcd78d6ad549dabea7e6>`_  2021-11-24   ``Databricks: add more methods to represent run state information (#19723)``
+`56bdfe7a8 <https://github.com/apache/airflow/commit/56bdfe7a840c25360d596ca94fd11d2ccfadb4ba>`_  2021-11-22   ``Databricks - allow Azure SP authentication on other Azure clouds (#19722)``
+`244627e3d <https://github.com/apache/airflow/commit/244627e3daa3e416696e5ddb20a2d4ea5e16b96e>`_  2021-11-14   ``Databricks: allow to specify PAT in Password field (#19585)``
+`0a4a8bdb9 <https://github.com/apache/airflow/commit/0a4a8bdb943979820fa7067797764e47f3e0b0c3>`_  2021-11-14   ``Databricks jobs 2.1 (#19544)``
+`8ae878953 <https://github.com/apache/airflow/commit/8ae878953b183b2689481f5e5806bc2ccca4c509>`_  2021-11-09   ``Update Databricks API from 2.0 to 2.1 (#19412)``
+`28b51fb7b <https://github.com/apache/airflow/commit/28b51fb7bd886e6a2de216d877cc69147441818e>`_  2021-11-08   ``Authentication with AAD tokens in Databricks provider (#19335)``
+`3a0c45585 <https://github.com/apache/airflow/commit/3a0c4558558689d7498fe2fc171ad9a8e132119e>`_  2021-11-07   ``Update Databricks operators to match latest version of API 2.0 (#19443)``
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`f5ad26dcd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
+================================================================================================  ===========  =================================================================================
+
+2.0.2
+.....
+
+Latest change: 2021-09-30
+
+================================================================================================  ===========  ======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`0b7b13372 <https://github.com/apache/airflow/commit/0b7b13372f6dbf18a35d5346d3955f65b31dd00d>`_  2021-09-18   ``Move DB call out of ''DatabricksHook.__init__'' (#18339)``
+================================================================================================  ===========  ======================================================================================
+
+2.0.1
+.....
+
+Latest change: 2021-08-30
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ============================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-07
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
 `807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``

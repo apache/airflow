@@ -15,18 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 This is an example dag for using `S3ToRedshiftOperator` to copy a S3 key into a Redshift table.
 """
 
+from datetime import datetime
 from os import getenv
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
+from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
-from airflow.providers.postgres.operators.postgres import PostgresOperator
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_s3_to_redshift_env_variables]
 S3_BUCKET = getenv("S3_BUCKET", "test-bucket")
@@ -35,26 +39,30 @@ REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "test_table")
 # [END howto_operator_s3_to_redshift_env_variables]
 
 
-def _add_sample_data_to_s3():
+@task(task_id='setup__add_sample_data_to_s3')
+def add_sample_data_to_s3():
     s3_hook = S3Hook()
     s3_hook.load_string("0,Airflow", f'{S3_KEY}/{REDSHIFT_TABLE}', S3_BUCKET, replace=True)
 
 
-def _remove_sample_data_from_s3():
+@task(task_id='teardown__remove_sample_data_from_s3')
+def remove_sample_data_from_s3():
     s3_hook = S3Hook()
     if s3_hook.check_for_key(f'{S3_KEY}/{REDSHIFT_TABLE}', S3_BUCKET):
         s3_hook.delete_objects(S3_BUCKET, f'{S3_KEY}/{REDSHIFT_TABLE}')
 
 
 with DAG(
-    dag_id="example_s3_to_redshift", start_date=days_ago(1), schedule_interval=None, tags=['example']
+    dag_id="example_s3_to_redshift",
+    start_date=datetime(2021, 1, 1),
+    schedule_interval=None,
+    catchup=False,
+    tags=['example'],
 ) as dag:
-    setup__task_add_sample_data_to_s3 = PythonOperator(
-        python_callable=_add_sample_data_to_s3, task_id='setup__add_sample_data_to_s3'
-    )
-    setup__task_create_table = PostgresOperator(
+    add_sample_data_to_s3 = add_sample_data_to_s3()
+
+    setup__task_create_table = RedshiftSQLOperator(
         sql=f'CREATE TABLE IF NOT EXISTS {REDSHIFT_TABLE}(Id int, Name varchar)',
-        postgres_conn_id='redshift_default',
         task_id='setup__create_table',
     )
     # [START howto_operator_s3_to_redshift_task_1]
@@ -67,19 +75,15 @@ with DAG(
         task_id='transfer_s3_to_redshift',
     )
     # [END howto_operator_s3_to_redshift_task_1]
-    teardown__task_drop_table = PostgresOperator(
+    teardown__task_drop_table = RedshiftSQLOperator(
         sql=f'DROP TABLE IF EXISTS {REDSHIFT_TABLE}',
-        postgres_conn_id='redshift_default',
         task_id='teardown__drop_table',
     )
-    teardown__task_remove_sample_data_from_s3 = PythonOperator(
-        python_callable=_remove_sample_data_from_s3, task_id='teardown__remove_sample_data_from_s3'
-    )
-    (
-        [setup__task_add_sample_data_to_s3, setup__task_create_table]
-        >> task_transfer_s3_to_redshift
-        >> [
-            teardown__task_drop_table,
-            teardown__task_remove_sample_data_from_s3,
-        ]
+
+    remove_sample_data_from_s3 = remove_sample_data_from_s3()
+
+    chain(
+        [add_sample_data_to_s3, setup__task_create_table],
+        task_transfer_s3_to_redshift,
+        [teardown__task_drop_table, remove_sample_data_from_s3],
     )

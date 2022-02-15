@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.apache.druid.transfers.hive_to_druid`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOperator
 
 warnings.warn(

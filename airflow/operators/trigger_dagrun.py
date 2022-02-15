@@ -19,15 +19,20 @@
 import datetime
 import json
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Sequence, Union
 
-from airflow.api.common.experimental.trigger_dag import trigger_dag
+from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
+from airflow.models.xcom import XCom
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+XCOM_EXECUTION_DATE_ISO = "trigger_execution_date_iso"
+XCOM_RUN_ID = "trigger_run_id"
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -39,7 +44,13 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = 'Triggered DAG'
 
     def get_link(self, operator, dttm):
-        query = {"dag_id": operator.trigger_dag_id, "execution_date": dttm.isoformat()}
+        # Fetch the correct execution date for the triggerED dag which is
+        # stored in xcom during execution of the triggerING task.
+        trigger_execution_date_iso = XCom.get_one(
+            execution_date=dttm, key=XCOM_EXECUTION_DATE_ISO, task_id=operator.task_id, dag_id=operator.dag_id
+        )
+
+        query = {"dag_id": operator.trigger_dag_id, "base_date": trigger_execution_date_iso}
         return build_airflow_url_with_query(query)
 
 
@@ -47,29 +58,23 @@ class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified ``dag_id``
 
-    :param trigger_dag_id: the dag_id to trigger (templated)
-    :type trigger_dag_id: str
-    :param conf: Configuration for the DAG run
-    :type conf: dict
-    :param execution_date: Execution date for the dag (templated)
-    :type execution_date: str or datetime.datetime
+    :param trigger_dag_id: The dag_id to trigger (templated).
+    :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
+        If not provided, a run ID will be automatically generated.
+    :param conf: Configuration for the DAG run (templated).
+    :param execution_date: Execution date for the dag (templated).
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
-    :type reset_dag_run: bool
     :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
-    :type wait_for_completion: bool
     :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
         (default: 60)
-    :type poke_interval: int
-    :param allowed_states: list of allowed states, default is ``['success']``
-    :type allowed_states: list
-    :param failed_states: list of failed or dis-allowed states, default is ``None``
-    :type failed_states: list
+    :param allowed_states: List of allowed states, default is ``['success']``.
+    :param failed_states: List of failed or dis-allowed states, default is ``None``.
     """
 
-    template_fields = ("trigger_dag_id", "execution_date", "conf")
+    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
 
@@ -82,6 +87,7 @@ class TriggerDagRunOperator(BaseOperator):
         self,
         *,
         trigger_dag_id: str,
+        trigger_run_id: Optional[str] = None,
         conf: Optional[Dict] = None,
         execution_date: Optional[Union[str, datetime.datetime]] = None,
         reset_dag_run: bool = False,
@@ -93,6 +99,7 @@ class TriggerDagRunOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_dag_id = trigger_dag_id
+        self.trigger_run_id = trigger_run_id
         self.conf = conf
         self.reset_dag_run = reset_dag_run
         self.wait_for_completion = wait_for_completion
@@ -100,43 +107,42 @@ class TriggerDagRunOperator(BaseOperator):
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
 
-        if not isinstance(execution_date, (str, datetime.datetime, type(None))):
+        if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
-                "Expected str or datetime.datetime type for execution_date."
-                "Got {}".format(type(execution_date))
+                f"Expected str or datetime.datetime type for execution_date.Got {type(execution_date)}"
             )
 
-        self.execution_date: Optional[datetime.datetime] = execution_date  # type: ignore
+        self.execution_date = execution_date
 
         try:
             json.dumps(self.conf)
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         if isinstance(self.execution_date, datetime.datetime):
-            execution_date = self.execution_date
+            parsed_execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
-            execution_date = timezone.parse(self.execution_date)
-            self.execution_date = execution_date
+            parsed_execution_date = timezone.parse(self.execution_date)
         else:
-            execution_date = timezone.utcnow()
+            parsed_execution_date = timezone.utcnow()
 
-        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+        if self.trigger_run_id:
+            run_id = self.trigger_run_id
+        else:
+            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
         try:
-            # Ignore MyPy type for self.execution_date
-            # because it doesn't pick up the timezone.parse() for strings
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
-                execution_date=self.execution_date,
+                execution_date=parsed_execution_date,
                 replace_microseconds=False,
             )
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, self.execution_date)
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
 
                 # Get target dag object and call clear()
 
@@ -145,14 +151,18 @@ class TriggerDagRunOperator(BaseOperator):
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-
-                dag.clear(start_date=self.execution_date, end_date=self.execution_date)
-
+                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e
+        if dag_run is None:
+            raise RuntimeError("The dag_run should be set here!")
+        # Store the execution date from the dag run (either created or found above) to
+        # be used when creating the extra link on the webserver.
+        ti = context['task_instance']
+        ti.xcom_push(key=XCOM_EXECUTION_DATE_ISO, value=dag_run.execution_date.isoformat())
+        ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
             # wait for dag to complete

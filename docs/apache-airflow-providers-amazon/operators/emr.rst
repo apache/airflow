@@ -21,10 +21,6 @@
 Amazon EMR Operators
 ====================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 
@@ -35,12 +31,14 @@ Overview
 
 Airflow to AWS EMR integration provides several operators to create and interact with EMR service.
 
- - :class:`~airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor`
- - :class:`~airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr_modify_cluster.EmrModifyClusterOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrContainerOperator`
 
 Two example_dags are provided which showcase these operators in action.
 
@@ -58,7 +56,7 @@ Create EMR Job Flow with automatic steps
 Purpose
 """""""
 
-This example dag ``example_emr_job_flow_automatic_steps.py`` use ``EmrCreateJobFlowOperator`` to create a new EMR job flow calculating the mathematical constant ``Pi``, and monitor the progress
+This example dag ``example_emr_job_flow_automatic_steps.py`` uses ``EmrCreateJobFlowOperator`` to create a new EMR job flow calculating the mathematical constant ``Pi``, and monitors the progress
 with ``EmrJobFlowSensor``. The cluster will be terminated automatically after finishing the steps.
 
 JobFlow configuration
@@ -73,6 +71,10 @@ To create a job flow at EMR, you need to specify the configuration for the EMR c
 
 Here we create a EMR single-node Cluster *PiCalc*. It only has a single step *calculate_pi* which calculates the value of ``Pi`` using Spark.
 The config ``'KeepJobFlowAliveWhenNoSteps': False`` tells the cluster to shut down after the step is finished.
+
+.. note::
+    EMR clusters launched with the EMR API like this one are not visible to all users by default, so you may not see the cluster in the EMR Management Console - you can change this by adding ``'VisibleToAllUsers': True`` at the end of the ``JOB_FLOW_OVERRIDES`` dict.
+
 For more config information, please refer to `Boto3 EMR client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.run_job_flow>`__.
 
 Defining tasks

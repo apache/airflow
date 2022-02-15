@@ -17,6 +17,7 @@
 
 """Hook for HashiCorp Vault"""
 import json
+import warnings
 from typing import Optional, Tuple
 
 import hvac
@@ -24,7 +25,7 @@ from hvac.exceptions import VaultError
 from requests import Response
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.hashicorp._internal_client.vault_client import (  # noqa
+from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
@@ -63,7 +64,7 @@ class VaultHook(BaseHook):
 
     Login/Password are used as credentials:
 
-        * approle: password -> secret_id
+        * approle: login -> role_id,  password -> secret_id
         * github: password -> token
         * token: password -> token
         * aws_iam: login -> key_id, password -> secret_id
@@ -73,49 +74,35 @@ class VaultHook(BaseHook):
         * radius: password -> radius_secret
 
     :param vault_conn_id: The id of the connection to use
-    :type vault_conn_id: str
     :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
         ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
-    :type auth_type: str
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
-    :type auth_mount_point: str
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
           version defined in connection or ``2`` if not defined in connection.
-    :type kv_engine_version: int
-    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types)
-    :type role_id: str
+    :param role_id: Role ID for ``aws_iam`` Authentication.
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
-    :type kubernetes_role: str
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
-    :type kubernetes_jwt_path: str
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
-    :type token_path: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type)
            Mutually exclusive with gcp_keyfile_dict
-    :type gcp_key_path: str
     :param gcp_scopes: Comma-separated string containing OAuth2  scopes (for ``gcp`` auth_type)
-    :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type)
-    :type azure_tenant_id: str
     :param azure_resource: The configured URL for the application registered in Azure Active Directory
            (for ``azure`` auth_type)
-    :type azure_resource: str
     :param radius_host: Host for radius (for ``radius`` auth_type)
-    :type radius_host: str
     :param radius_port: Port for radius (for ``radius`` auth_type)
-    :type radius_port: int
 
     """
 
     conn_name_attr = 'vault_conn_id'
-    default_conn_name = 'imap_default'
+    default_conn_name = 'vault_default'
     conn_type = 'vault'
     hook_name = 'Hashicorp Vault'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         vault_conn_id: str = default_conn_name,
         auth_type: Optional[str] = None,
@@ -148,7 +135,26 @@ class VaultHook(BaseHook):
             except ValueError:
                 raise VaultError(f"The version is not an int: {conn_version}. ")
 
-        if auth_type in ["approle", "aws_iam"]:
+        if auth_type == "approle":
+            if role_id:
+                warnings.warn(
+                    """The usage of role_id for AppRole authentication has been deprecated.
+                    Please use connection login.""",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            elif self.connection.extra_dejson.get('role_id'):
+                role_id = self.connection.extra_dejson.get('role_id')
+                warnings.warn(
+                    """The usage of role_id in connection extra for AppRole authentication has been
+                    deprecated. Please use connection login.""",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            elif self.connection.login:
+                role_id = self.connection.login
+
+        if auth_type == "aws_iam":
             if not role_id:
                 role_id = self.connection.extra_dejson.get('role_id')
 
@@ -277,15 +283,12 @@ class VaultHook(BaseHook):
         Get secret value from the engine.
 
         :param secret_path: Path of the secret
-        :type secret_path: str
         :param secret_version: Optional version of key to read - can only be used in case of version 2 of KV
-        :type secret_version: int
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html
         and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         :param secret_path: Path of the secret
-        :type secret_path: str
         :rtype: dict
         :return: secret stored in the vault as a dictionary
         """
@@ -296,7 +299,6 @@ class VaultHook(BaseHook):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: Path to read from
-        :type secret_path: str
         :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
@@ -314,9 +316,7 @@ class VaultHook(BaseHook):
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         :param secret_path: Path of the secret
-        :type secret_path: str
         :param secret_version: Optional version of key to read - can only be used in case of version 2 of KV
-        :type secret_version: int
         :rtype: dict
         :return: key info. This is a Dict with "data" mapping keeping secret
             and "metadata" mapping keeping metadata of the secret.
@@ -333,18 +333,14 @@ class VaultHook(BaseHook):
         Creates or updates secret.
 
         :param secret_path: Path to read from
-        :type secret_path: str
         :param secret: Secret to create or update for the path specified
-        :type secret: dict
         :param method: Optional parameter to explicitly request a POST (create) or PUT (update) request to
             the selected kv secret engine. If no argument is provided for this parameter, hvac attempts to
             intelligently determine which method is appropriate. Only valid for KV engine version 1
-        :type method: str
         :param cas: Set the "cas" value to use a Check-And-Set operation. If not set the write will be
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :type cas: int
         :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 

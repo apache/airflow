@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=redefined-outer-name
 
 import boto3
 import pytest

@@ -30,8 +30,8 @@ GlacierToGCSOperator
 Operator task is transfer data from Glacier vault to Google Cloud Storage.
 
 .. note::
-    Please be warn that GlacierToGCSOperator may depends on memory usage.
-    Transferring big files may not working well.
+    Please be aware that GlacierToGCSOperator may depend on memory usage.
+    Transferring big files may not work well.
 
 To get more information about operator visit:
 :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierToGCSOperator`

@@ -19,6 +19,37 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle leading slash in samba path (#18847)``
+* ``Open src and dst in binary for samba copy (#18752)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Switch to 'smbprotocol' library (#17273)``
+
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
 2.0.0
 .....
 
@@ -45,6 +76,7 @@ Features
    * ``Update documentation for broken package releases (#14734)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.1
 .....

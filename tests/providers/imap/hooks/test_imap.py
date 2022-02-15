@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import imaplib
+import json
 import unittest
 from unittest.mock import Mock, mock_open, patch
 
@@ -31,9 +31,13 @@ imaplib_string = 'airflow.providers.imap.hooks.imap.imaplib'
 open_string = 'airflow.providers.imap.hooks.imap.open'
 
 
-def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv'):
-    mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-    mock_imaplib.IMAP4_SSL.return_value = mock_conn
+def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv', use_ssl=True):
+    if use_ssl:
+        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+        mock_imaplib.IMAP4_SSL.return_value = mock_conn
+    else:
+        mock_conn = Mock(spec=imaplib.IMAP4)
+        mock_imaplib.IMAP4.return_value = mock_conn
 
     mock_conn.login.return_value = ('OK', [])
 
@@ -41,9 +45,11 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv'
         mock_conn.select.return_value = ('OK', [])
         mock_conn.search.return_value = ('OK', [b'1'])
         mail_string = (
-            'Content-Type: multipart/mixed; boundary=123\r\n--123\r\n'
-            'Content-Disposition: attachment; filename="{}";'
-            'Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--'.format(attachment_name)
+            f'Content-Type: multipart/mixed; '
+            f'boundary=123\r\n--123\r\n'
+            f'Content-Disposition: attachment; '
+            f'filename="{attachment_name}";'
+            f'Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--'
         )
         mock_conn.fetch.return_value = ('OK', [(b'', mail_string.encode('utf-8'))])
         mock_conn.close.return_value = ('OK', [])
@@ -62,6 +68,18 @@ class TestImapHook(unittest.TestCase):
                 host='imap_server_address',
                 login='imap_user',
                 password='imap_password',
+                port=1993,
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id='imap_nonssl',
+                conn_type='imap',
+                host='imap_server_address',
+                login='imap_user',
+                password='imap_password',
+                port=1143,
+                extra=json.dumps(dict(use_ssl=False)),
             )
         )
 
@@ -72,8 +90,19 @@ class TestImapHook(unittest.TestCase):
         with ImapHook():
             pass
 
-        mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address')
-        mock_conn.login.assert_called_once_with('imap_user', 'imap_password')  # pylint: disable=no-member
+        mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address', 1993)
+        mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    def test_connect_and_disconnect_via_nonssl(self, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib, use_ssl=False)
+
+        with ImapHook(imap_conn_id='imap_nonssl'):
+            pass
+
+        mock_imaplib.IMAP4.assert_called_once_with('imap_server_address', 1143)
+        mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
         assert mock_conn.logout.call_count == 1
 
     @patch(imaplib_string)

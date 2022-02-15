@@ -41,10 +41,10 @@ to create a new connection.
 
 .. image:: ../img/connection_create.png
 
-1. Fill in the ``Conn Id`` field with the desired connection ID. It is
+1. Fill in the ``Connection Id`` field with the desired connection ID. It is
    recommended that you use lower-case characters and separate words with
    underscores.
-2. Choose the connection type with the ``Conn Type`` field.
+2. Choose the connection type with the ``Connection Type`` field.
 3. Fill in the remaining fields. See
    :ref:`manage-connections-connection-types` for a description of the fields
    belonging to the different connection types.
@@ -186,6 +186,12 @@ So if your connection id is ``my_prod_db`` then the variable name should be ``AI
     Connections set using Environment Variables would not appear in the Airflow UI but you will
     be able to use them in your DAG file.
 
+.. warning::
+
+    Connections created this way will not show up in the Airflow UI or using ``airflow connections list``.
+    You can use ``airflow connections get {CONN_ID}`` if you already know the ``CONN_ID``
+
+
 The value of this environment variable must use airflow's URI format for connections.  See the section
 :ref:`Generating a Connection URI <generating_connection_uri>` for more details.
 
@@ -198,10 +204,10 @@ If storing the environment variable in something like ``~/.bashrc``, add as foll
 
     export AIRFLOW_CONN_MY_PROD_DATABASE='my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
-Using docker .env
+Using Docker .env
 ^^^^^^^^^^^^^^^^^
 
-If using with a docker ``.env`` file, you may need to remove the single quotes.
+If using with a Docker ``.env`` file, you may need to remove the single quotes.
 
 .. code-block::
 
@@ -263,8 +269,8 @@ Additionally, if you have created a connection, you can use ``airflow connection
 
     $ airflow connections get sqlite_default
     Id: 40
-    Conn Id: sqlite_default
-    Conn Type: sqlite
+    Connection Id: sqlite_default
+    Connection Type: sqlite
     Host: /tmp/sqlite_default.db
     Schema: null
     Login: null
@@ -401,8 +407,8 @@ custom Hook should not derive from this class, this class is a dummy example to 
 regarding about class fields and methods that your Hook might define. Another good example is
 :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`.
 
-By implementing those methods in your hooks and exposing them via ``hook-class-names`` array in
-the provider meta-data you can customize Airflow by:
+By implementing those methods in your hooks and exposing them via ``connection-types`` array (and
+deprecated ``hook-class-names``) in the provider meta-data, you can customize Airflow by:
 
 * Adding custom connection types
 * Adding automated Hook creation from the connection type
@@ -411,3 +417,11 @@ the provider meta-data you can customize Airflow by:
 * Adding placeholders showing examples of how fields should be formatted
 
 You can read more about details how to add custom provider packages in the :doc:`apache-airflow-providers:index`
+
+.. note:: Deprecated ``hook-class-names``
+
+   Prior to Airflow 2.2.0, the connections in providers have been exposed via ``hook-class-names`` array
+   in provider's meta-data, this however has proven to be not well optimized for using individual hooks
+   in workers and the ``hook-class-names`` array is now replaced by ``connection-types`` array. Until
+   provider supports Airflow below 2.2.0, both ``connection-types`` and ``hook-class-names`` should be
+   present. Automated checks during CI build will verify consistency of those two arrays.

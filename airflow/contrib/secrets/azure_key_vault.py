@@ -16,15 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.secrets.azure_key_vault`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.secrets.key_vault`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.microsoft.azure.secrets.azure_key_vault import AzureKeyVaultBackend  # noqa
+from airflow.providers.microsoft.azure.secrets.key_vault import AzureKeyVaultBackend  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.azure_key_vault`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
     DeprecationWarning,
     stacklevel=2,
 )

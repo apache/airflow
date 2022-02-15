@@ -59,6 +59,9 @@ spec:
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-certificates-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-certificates-secret.yaml") . | sha256sum }}
     spec:
+      {{- if .Values.pgbouncer.priorityClassName }}
+      priorityClassName: {{ .Values.pgbouncer.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
@@ -77,11 +80,12 @@ spec:
         - name: pgbouncer
           image: {{ template "pgbouncer_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncer.pullPolicy }}
-          command:
-            - pgbouncer
-            - -u
-            - nobody
-            - /etc/pgbouncer/pgbouncer.ini
+          {{- if .Values.pgbouncer.command }}
+          command: {{ tpl (toYaml .Values.pgbouncer.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.pgbouncer.args }}
+          args: {{ tpl (toYaml .Values.pgbouncer.args) . | nindent 12 }}
+          {{- end }}
           resources:
 {{ toYaml .Values.pgbouncer.resources | indent 12 }}
           ports:
@@ -120,6 +124,9 @@ spec:
               mountPath: /etc/pgbouncer/server.key
               readOnly: true
 {{- end }}
+{{- if .Values.pgbouncer.extraVolumeMounts }}
+{{ toYaml .Values.pgbouncer.extraVolumeMounts | indent 12 }}
+{{- end }}
           lifecycle:
             preStop:
               exec:
@@ -157,7 +164,12 @@ spec:
         - name: pgbouncer-config
           secret:
             secretName: {{ template "pgbouncer_config_secret" . }}
+{{- if or .Values.pgbouncer.ssl.ca  .Values.pgbouncer.ssl.cert .Values.pgbouncer.ssl.key }}
         - name: pgbouncer-certificates
           secret:
             secretName: {{ template "pgbouncer_certificates_secret" . }}
+{{- end }}
+{{- if .Values.pgbouncer.extraVolumes }}
+{{ toYaml .Values.pgbouncer.extraVolumes | indent 8 }}
+{{- end }}
 {{- end }}

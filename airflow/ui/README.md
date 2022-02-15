@@ -68,4 +68,4 @@ yarn test
 
 ## Contributing
 
-Be sure to check out our [contribution guide](/docs/CONTRIBUTING.md)
+Be sure to check out our [contribution guide](docs/CONTRIBUTING.md)

@@ -28,14 +28,154 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.2
+.....
+
+Latest change: 2022-02-05
+
+================================================================================================  ===========  =======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =======================================================================
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`4a73d8f3d <https://github.com/apache/airflow/commit/4a73d8f3d1f0c2cb52707901f9e9a34198573d5e>`_  2022-02-01   ``Add missed deprecations for cncf (#20031)``
+`cb7305321 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`428bd5f22 <https://github.com/apache/airflow/commit/428bd5f228444ff4c76fd927f64aaa71c8074301>`_  2022-01-10   ``Make ''delete_pod'' change more prominent in K8s changelog (#20753)``
+`5569b868a <https://github.com/apache/airflow/commit/5569b868a990c97dfc63a0e014a814ec1cc0f953>`_  2022-01-09   ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+================================================================================================  ===========  =======================================================================
+
+3.0.1
+.....
+
+Latest change: 2022-01-08
+
+================================================================================================  ===========  ===================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===================================================================
+`da9210e89 <https://github.com/apache/airflow/commit/da9210e89c618611b1e450617277b738ce92ffd7>`_  2022-01-08   ``Add documentation for an ad-hoc release of 2 providers (#20765)``
+`7222f68d3 <https://github.com/apache/airflow/commit/7222f68d374787f95acc7110a1165bd21e7722a1>`_  2022-01-04   ``Update Kubernetes library version (#18797)``
+================================================================================================  ===========  ===================================================================
+
+3.0.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  =================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`746ee587d <https://github.com/apache/airflow/commit/746ee587da485acdc816129fe71df23e4f024e0b>`_  2021-12-31   ``Delete pods by default in KubernetesPodOperator (#20575)``
+`d56ff765e <https://github.com/apache/airflow/commit/d56ff765e15f9fcd582bc6d1ec0e83b0fedf476a>`_  2021-12-30   ``Implement dry_run for KubernetesPodOperator (#20573)``
+`e63417553 <https://github.com/apache/airflow/commit/e63417553ff86ed28f7740500f05179ed5486a7b>`_  2021-12-30   ``Move pod_mutation_hook call from PodManager to KubernetesPodOperator (#20596)``
+`ca6c210b7 <https://github.com/apache/airflow/commit/ca6c210b7de7405b96b0a4b2a6257f0c6f80f5a2>`_  2021-12-30   ``Rename ''PodLauncher'' to ''PodManager'' (#20576)``
+`e07e83194 <https://github.com/apache/airflow/commit/e07e8319465ea4598791b6b61b5fe7c46f159f86>`_  2021-12-30   ``Clarify docstring for ''build_pod_request_obj'' in K8s providers (#20574)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`f200bb197 <https://github.com/apache/airflow/commit/f200bb1977655455f8acb79c9bd265df36f8ffce>`_  2021-12-29   ``Simplify ''KubernetesPodOperator'' (#19572)``
+`4b8a1201a <https://github.com/apache/airflow/commit/4b8a1201ae7635e5a751dd079a887831783bb6cb>`_  2021-12-16   ``Fix Volume/VolumeMount KPO DeprecationWarning (#19726)``
+`2fb5e1d0e <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`f9eab1c18 <https://github.com/apache/airflow/commit/f9eab1c1859dc2a9549e2ffd9af821d0d8d72a4f>`_  2021-12-06   ``Add params config, in_cluster, and cluster_context to KubernetesHook (#19695)``
+================================================================================================  ===========  =================================================================================
+
+2.2.0
+.....
+
+Latest change: 2021-11-30
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`fe682ec3d <https://github.com/apache/airflow/commit/fe682ec3d376f0983410d64beb4f3529fb7b0f99>`_  2021-11-24   ``Fix duplicate changelog entries (#19759)``
+`0d60d1af4 <https://github.com/apache/airflow/commit/0d60d1af41280d3ee70bf9b1582419ada200e5e3>`_  2021-11-23   ``Checking event.status.container_statuses before filtering (#19713)``
+`1e5702295 <https://github.com/apache/airflow/commit/1e570229533c4bbf5d3c901d5db21261fa4b1137>`_  2021-11-19   ``Added namespace as a template field in the KPO. (#19718)``
+`f7410dfba <https://github.com/apache/airflow/commit/f7410dfba268c6b6bbb7832a13c547a6d98afabe>`_  2021-11-19   ``Coalesce 'extra' params to None in KubernetesHook (#19694)``
+`bf5f45241 <https://github.com/apache/airflow/commit/bf5f4524135113053d2c06e7807fe7c0eb3cb659>`_  2021-11-08   ``Change to correct type in KubernetesPodOperator (#19459)``
+`854b70b90 <https://github.com/apache/airflow/commit/854b70b9048c4bbe97abde2252b3992892a4aab0>`_  2021-11-07   ``Decouple name randomization from name kwarg (#19398)``
+================================================================================================  ===========  ======================================================================
+
+2.1.0
+.....
+
+Latest change: 2021-10-29
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`0a6850647 <https://github.com/apache/airflow/commit/0a6850647e531b08f68118ff8ca20577a5b4062c>`_  2021-10-21   ``Update docstring to let users use 'node_selector' (#19057)``
+`1571f8054 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
+`b2045d6d1 <https://github.com/apache/airflow/commit/b2045d6d1d4d2424c02d7d9b40520440aa4e5070>`_  2021-10-13   ``Add more type hints to PodLauncher (#18928)``
+`c8b86e69e <https://github.com/apache/airflow/commit/c8b86e69e49e330ab2f551358a6998d5800adb9a>`_  2021-10-12   ``Add more information to PodLauncher timeout error (#17953)``
+================================================================================================  ===========  ======================================================================
+
+2.0.3
+.....
+
+Latest change: 2021-09-30
+
+================================================================================================  ===========  ======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`7808be7ff <https://github.com/apache/airflow/commit/7808be7ffb693de2e4ea73d0c1e6e2470cde9095>`_  2021-09-21   ``Make Kubernetes job description fit on one log line (#18377)``
+`b8d06e812 <https://github.com/apache/airflow/commit/b8d06e812ac56af6b0d17830c63b705ace9d4959>`_  2021-09-08   ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``
+`64d2f5488 <https://github.com/apache/airflow/commit/64d2f5488f6764194a2f4f8a01f961990c75b840>`_  2021-09-07   ``Do not fail KubernetesPodOperator tasks if log reading fails (#17649)``
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`42e13e1a5 <https://github.com/apache/airflow/commit/42e13e1a5a4c97a2085ddf96f7d93e7bf71949b8>`_  2021-08-30   ``Remove all deprecation warnings in providers (#17900)``
+================================================================================================  ===========  ======================================================================================
+
+2.0.2
+.....
+
+Latest change: 2021-08-24
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`bb5602c65 <https://github.com/apache/airflow/commit/bb5602c652988d0b31ea5e0db8f03725a2f22d34>`_  2021-08-24   ``Prepare release for Kubernetes Provider (#17798)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`73d2b720e <https://github.com/apache/airflow/commit/73d2b720e0c79323a29741882a07eb8962256762>`_  2021-08-21   ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`97428efc4 <https://github.com/apache/airflow/commit/97428efc41e5902183827fb9e4e56d067ca771df>`_  2021-08-02   ``Fix messed-up changelog in 3 providers (#17380)``
+`b0b259107 <https://github.com/apache/airflow/commit/b0b25910713dd39e0193bdcd95b2cfd9e3fed5e7>`_  2021-07-27   ``Fix static checks (#17256)``
+`997f7d0be <https://github.com/apache/airflow/commit/997f7d0beb1f0a954ba0127efeb3b250daf8b290>`_  2021-07-27   ``Update spark_kubernetes.py (#17237)``
+================================================================================================  ===========  ============================================================================
+
+2.0.1
+.....
+
+Latest change: 2021-07-26
+
+================================================================================================  ===========  ==========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`d48b4e0ca <https://github.com/apache/airflow/commit/d48b4e0caf6218558378c7c3349b22adfc5c0785>`_  2021-07-21   ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
+`3939e8416 <https://github.com/apache/airflow/commit/3939e841616d70ea2d930f55e6a5f73a2a99be07>`_  2021-07-20   ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`b2c66e45b <https://github.com/apache/airflow/commit/b2c66e45b7c27d187491ec6a1dd5cc92ac7a1e32>`_  2021-07-11   ``BugFix: Using 'json' string in template_field causes issue with K8s Operators (#16930)``
+`9d6ae609b <https://github.com/apache/airflow/commit/9d6ae609b60449bd274c2f96e72486d73ad2b8f9>`_  2021-06-28   ``Updating task dependencies (#16624)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ==========================================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-14
+Latest change: 2021-06-18
 
-================================================================================================  ===========  ===================================================================================
+================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ===================================================================================
+================================================================================================  ===========  ===============================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`4c9735ff9 <https://github.com/apache/airflow/commit/4c9735ff9b0201758564fcd64166abde318ec8a7>`_  2021-06-17   ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `4752fb3eb <https://github.com/apache/airflow/commit/4752fb3eb8ac8827e6af6022fbcf751829ecb17a>`_  2021-06-14   ``Fix issue with parsing error logs in the KPO (#15638)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `2f16757e1 <https://github.com/apache/airflow/commit/2f16757e1a11ef42ac2b1a62622a5d34f8a1e996>`_  2021-06-03   ``Bug Pod Template File Values Ignored (#16095)``
@@ -44,7 +184,7 @@ Commit                                                                          
 `733bec9a0 <https://github.com/apache/airflow/commit/733bec9a04ab718a0f6289d93f4e2e4ea3e03d54>`_  2021-05-20   ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
 `37d549bde <https://github.com/apache/airflow/commit/37d549bde79cd560d24748ebe7f94730115c0e88>`_  2021-05-14   ``Save pod name to xcom for KubernetesPodOperator (#15755)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
-================================================================================================  ===========  ===================================================================================
+================================================================================================  ===========  ===============================================================================================
 
 1.2.0
 .....

@@ -36,7 +36,7 @@ class FakeSnakeBiteClient:
     def __init__(self):
         self.started = True
 
-    def ls(self, path, include_toplevel=False):  # pylint: disable=invalid-name
+    def ls(self, path, include_toplevel=False):
         """
         the fake snakebite client
 

@@ -16,16 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+import os
+import signal
 from datetime import datetime, timedelta
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from time import sleep
 from unittest import mock
 
 import pytest
 from parameterized import parameterized
 
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DagRun
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
@@ -37,12 +38,27 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-class TestBashOperator(unittest.TestCase):
-    def test_echo_env_variables(self):
+class TestBashOperator:
+    @parameterized.expand(
+        [
+            (False, None, 'MY_PATH_TO_AIRFLOW_HOME'),
+            (True, {'AIRFLOW_HOME': 'OVERRIDDEN_AIRFLOW_HOME'}, 'OVERRIDDEN_AIRFLOW_HOME'),
+        ]
+    )
+    def test_echo_env_variables(self, append_env, user_defined_env, expected_airflow_home):
         """
         Test that env variables are exported correctly to the task bash environment.
         """
         utc_now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        expected = (
+            f"{expected_airflow_home}\n"
+            "AWESOME_PYTHONPATH\n"
+            "bash_op_test\n"
+            "echo_env_vars\n"
+            f"{utc_now.isoformat()}\n"
+            f"manual__{utc_now.isoformat()}\n"
+        )
+
         dag = DAG(
             dag_id='bash_op_test',
             default_args={'owner': 'airflow', 'retries': 100, 'start_date': DEFAULT_DATE},
@@ -68,6 +84,8 @@ class TestBashOperator(unittest.TestCase):
                 'echo $AIRFLOW_CTX_TASK_ID>> {0};'
                 'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
                 'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name),
+                append_env=append_env,
+                env=user_defined_env,
             )
 
             with mock.patch.dict(
@@ -77,13 +95,7 @@ class TestBashOperator(unittest.TestCase):
 
             with open(tmp_file.name) as file:
                 output = ''.join(file.readlines())
-                assert 'MY_PATH_TO_AIRFLOW_HOME' in output
-                # exported in run-tests as part of PYTHONPATH
-                assert 'AWESOME_PYTHONPATH' in output
-                assert 'bash_op_test' in output
-                assert 'echo_env_vars' in output
-                assert utc_now.isoformat() in output
-                assert DagRun.generate_run_id(DagRunType.MANUAL, utc_now) in output
+                assert expected == output
 
     @parameterized.expand(
         [
@@ -101,7 +113,7 @@ class TestBashOperator(unittest.TestCase):
     def test_raise_exception_on_non_zero_exit_code(self):
         bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 42\\."
         ):
             bash_operator.execute(context={})
 
@@ -119,9 +131,41 @@ class TestBashOperator(unittest.TestCase):
 
     def test_command_not_found(self):
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
             BashOperator(task_id='abc', bash_command='set -e; something-that-isnt-on-path').execute({})
+
+    def test_unset_cwd(self):
+        val = "xxxx"
+        op = BashOperator(task_id='abc', bash_command=f'set -e; echo "{val}";')
+        line = op.execute({})
+        assert line == val
+
+    def test_cwd_does_not_exist(self):
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
+        with TemporaryDirectory(prefix='test_command_with_cwd') as tmp_dir:
+            # Get a nonexistent temporary directory to do the test
+            pass
+        # There should be no exceptions when creating the operator even the `cwd` doesn't exist
+        bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_dir)
+        with pytest.raises(AirflowException, match=f"Can not find the cwd: {tmp_dir}"):
+            bash_operator.execute({})
+
+    def test_cwd_is_file(self):
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
+        with NamedTemporaryFile(suffix="var.env") as tmp_file:
+            # Test if the cwd is a file_path
+            with pytest.raises(AirflowException, match=f"The cwd {tmp_file.name} must be a directory"):
+                BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_file.name).execute({})
+
+    def test_valid_cwd(self):
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
+        with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
+            # Test everything went alright
+            result = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})
+            assert result == "xxxx"
+            with open(f'{test_cwd_folder}/outputs.txt') as tmp_file:
+                assert tmp_file.read().splitlines()[0] == "xxxx"
 
     @parameterized.expand(
         [
@@ -137,3 +181,30 @@ class TestBashOperator(unittest.TestCase):
             kwargs.update(**extra_kwargs)
         with pytest.raises(expected_exc):
             BashOperator(**kwargs).execute({})
+
+    def test_bash_operator_multi_byte_output(self):
+        op = BashOperator(
+            task_id='test_multi_byte_bash_operator',
+            bash_command="echo \u2600",
+            output_encoding='utf-8',
+        )
+        op.execute(context={})
+
+    def test_bash_operator_kill(self, dag_maker):
+        import psutil
+
+        sleep_time = "100%d" % os.getpid()
+        with dag_maker():
+            op = BashOperator(
+                task_id='test_bash_operator_kill',
+                execution_timeout=timedelta(microseconds=25),
+                bash_command=f"/bin/bash -c 'sleep {sleep_time}'",
+            )
+        with pytest.raises(AirflowTaskTimeout):
+            op.run()
+        sleep(2)
+        for proc in psutil.process_iter():
+            if proc.cmdline() == ['sleep', sleep_time]:
+                os.kill(proc.pid, signal.SIGTERM)
+                assert False, "BashOperator's subprocess still running after stopping on timeout!"
+                break

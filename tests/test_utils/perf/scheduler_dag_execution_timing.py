@@ -88,7 +88,7 @@ class ShortCircuitExecutorMixin:
 
             if not self.dags_to_watch:
                 self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
+                self.scheduler_job.processor_agent._done = True
                 return
         self.log.warning(
             "WAITING ON %d RUNS", sum(map(attrgetter('waiting_for'), self.dags_to_watch.values()))
@@ -161,20 +161,21 @@ def create_dag_runs(dag, num_runs, session):
     except ImportError:
         from airflow.models.dagrun import DagRun
 
-        id_prefix = DagRun.ID_PREFIX  # pylint: disable=no-member
+        id_prefix = DagRun.ID_PREFIX
 
-    next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
-
+    last_dagrun_data_interval = None
     for _ in range(num_runs):
+        next_info = dag.next_dagrun_info(last_dagrun_data_interval)
+        logical_date = next_info.logical_date
         dag.create_dagrun(
-            run_id=id_prefix + next_run_date.isoformat(),
-            execution_date=next_run_date,
+            run_id=f"{id_prefix}{logical_date.isoformat()}",
+            execution_date=logical_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
             session=session,
         )
-        next_run_date = dag.following_schedule(next_run_date)
+        last_dagrun_data_interval = next_info.data_interval
 
 
 @click.command()
@@ -197,7 +198,7 @@ def create_dag_runs(dag, num_runs, session):
           Dotted path Executor class to test, for example
           'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExecutor which doesn't run tasks.
       '''
-    ),  # pylint: disable=too-many-locals
+    ),
 )
 @click.argument('dag_ids', required=True, nargs=-1)
 def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
@@ -253,17 +254,17 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
             dags.append(dag)
             reset_dag(dag, session)
 
-            next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
+            next_info = dag.next_dagrun_info(None)
 
             for _ in range(num_runs - 1):
-                next_run_date = dag.following_schedule(next_run_date)
+                next_info = dag.next_dagrun_info(next_info.data_interval)
 
             end_date = dag.end_date or dag.default_args.get('end_date')
-            if end_date != next_run_date:
+            if end_date != next_info.logical_date:
                 message = (
                     f"DAG {dag_id} has incorrect end_date ({end_date}) for number of runs! "
                     f"It should be "
-                    f" {next_run_date}"
+                    f" {next_info.logical_date}"
                 )
                 sys.exit(message)
 
@@ -287,7 +288,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     # Need a lambda to refer to the _latest_ value for scheduler_job, not just
     # the initial one
-    code_to_test = lambda: scheduler_job.run()  # pylint: disable=unnecessary-lambda
+    code_to_test = lambda: scheduler_job.run()
 
     for count in range(repeat):
         gc.disable()
@@ -324,4 +325,4 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
 
 if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
+    main()

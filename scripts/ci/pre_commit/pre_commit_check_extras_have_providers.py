@@ -29,7 +29,7 @@ AIRFLOW_SOURCES_DIR = os.path.abspath(os.path.join(dirname(__file__), os.pardir,
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 # flake8: noqa: F401
-# pylint: disable=wrong-import-position
+
 from setup import ALL_PROVIDERS  # noqa
 
 sys.path.append(AIRFLOW_SOURCES_DIR)
@@ -71,7 +71,7 @@ def check_all_providers_are_listed_in_setup_py() -> None:
         if provider_name not in ALL_PROVIDERS:
             errors.append(
                 f"The provider {provider_name} is missing in setup.py "
-                + "[bold]PROVIDERS_REQUIREMENTS[/]: [red]NOK[/]"
+                "[bold]PROVIDERS_REQUIREMENTS[/]: [red]NOK[/]"
             )
 
 

@@ -22,9 +22,13 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 
 # [START build]
+export AIRFLOW_VERSION=2.2.2
+export DEBIAN_VERSION="buster"
+
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-buster" \
-    --build-arg AIRFLOW_VERSION="2.0.2" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
+    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="openmpi-common" \

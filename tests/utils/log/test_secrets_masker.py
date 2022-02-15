@@ -25,6 +25,8 @@ import pytest
 from airflow.utils.log.secrets_masker import SecretsMasker, should_hide_value_for_key
 from tests.test_utils.config import conf_vars
 
+p = "password"
+
 
 @pytest.fixture
 def logger(caplog):
@@ -145,6 +147,80 @@ class TestSecretsMasker:
             """
         )
 
+    def test_masking_in_implicit_context_exceptions(self, logger, caplog):
+        """
+        Show that redacting password works in context exceptions.
+        """
+        try:
+            try:
+                try:
+                    raise RuntimeError(f"Cannot connect to user:{p}")
+                except RuntimeError as ex1:
+                    raise RuntimeError(f'Exception: {ex1}')
+            except RuntimeError as ex2:
+                raise RuntimeError(f'Exception: {ex2}')
+        except RuntimeError:
+            logger.exception("Err")
+
+        line = lineno() - 8
+
+        assert caplog.text == textwrap.dedent(
+            f"""\
+            ERROR Err
+            Traceback (most recent call last):
+              File ".../test_secrets_masker.py", line {line}, in test_masking_in_implicit_context_exceptions
+                raise RuntimeError(f"Cannot connect to user:{{p}}")
+            RuntimeError: Cannot connect to user:***
+
+            During handling of the above exception, another exception occurred:
+
+            Traceback (most recent call last):
+              File ".../test_secrets_masker.py", line {line+2}, in test_masking_in_implicit_context_exceptions
+                raise RuntimeError(f'Exception: {{ex1}}')
+            RuntimeError: Exception: Cannot connect to user:***
+
+            During handling of the above exception, another exception occurred:
+
+            Traceback (most recent call last):
+              File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_implicit_context_exceptions
+                raise RuntimeError(f'Exception: {{ex2}}')
+            RuntimeError: Exception: Exception: Cannot connect to user:***
+            """
+        )
+
+    def test_masking_in_explicit_context_exceptions(self, logger, caplog):
+        """
+        Show that redacting password works in context exceptions.
+        """
+        exception = None
+        try:
+            raise RuntimeError(f"Cannot connect to user:{p}")
+        except RuntimeError as ex:
+            exception = ex
+        try:
+            raise RuntimeError(f'Exception: {exception}') from exception
+        except RuntimeError:
+            logger.exception("Err")
+
+        line = lineno() - 8
+
+        assert caplog.text == textwrap.dedent(
+            f"""\
+            ERROR Err
+            Traceback (most recent call last):
+              File ".../test_secrets_masker.py", line {line}, in test_masking_in_explicit_context_exceptions
+                raise RuntimeError(f"Cannot connect to user:{{p}}")
+            RuntimeError: Cannot connect to user:***
+
+            The above exception was the direct cause of the following exception:
+
+            Traceback (most recent call last):
+              File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_explicit_context_exceptions
+                raise RuntimeError(f'Exception: {{exception}}') from exception
+            RuntimeError: Exception: Cannot connect to user:***
+            """
+        )
+
     @pytest.mark.parametrize(
         ("name", "value", "expected_mask"),
         [
@@ -179,6 +255,8 @@ class TestSecretsMasker:
             ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
             # We don't mask dict _keys_.
             ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            # Non string dict keys
+            ({"secret", "other"}, None, {1: {"secret": "secret"}}, {1: {"secret": "***"}}),
             (
                 # Since this is a sensitive name, all the values should be redacted!
                 {"secret"},
@@ -221,6 +299,7 @@ class TestShouldHideValueForKey:
             ("google_api_key", True),
             ("GOOGLE_API_KEY", True),
             ("GOOGLE_APIKEY", True),
+            (1, False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):

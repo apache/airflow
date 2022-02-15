@@ -84,7 +84,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
         args:
           - --comment-style
           - "|#|"
@@ -94,7 +94,7 @@ repos:
       - id: insert-license
         name: Add license for all Python files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        types: [python]
+        files: \.py$|\.pyi$
         args:
           - --comment-style
           - "|#|"
@@ -143,7 +143,7 @@ repos:
         files: \.mermaid$
         exclude: ^airflow/_vendor/
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.0.0
+    rev: v2.1.0
     hooks:
       - id: doctoc
         name: Add TOC for md files
@@ -154,19 +154,19 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.5b1
+    rev: 21.12b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.10.0
+    rev: v1.12.0
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.5b1]
+        additional_dependencies: [black==21.12b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
+    rev: v4.1.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -195,34 +195,34 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
+  # TODO: Bump to Python 3.7 when support for Python 3.6 is dropped in Airflow 2.3.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.19.0
+    rev: v2.31.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.8.0
+    rev: v1.9.0
     hooks:
       - id: rst-backticks
         exclude: ^airflow/_vendor/
       - id: python-no-log-warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.1
+    rev: v1.26.3
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude:
-          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|^airflow/_vendor/
-  - repo: https://github.com/timothycrosley/isort
-    rev: 5.8.0
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml|pre-commit-config|^airflow/_vendor/
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
-        files: \.py$
+        files: \.py|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$|^airflow/_vendor/
   - repo: https://github.com/pycqa/pydocstyle
@@ -232,19 +232,62 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D107,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D202,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
           ^scripts/.*\.py$|
           ^dev|
           ^provider_packages|
+          ^docker_tests|
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
           ^airflow/_vendor/
+        additional_dependencies: ['toml']
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.3.0
+    hooks:
+      - id: yesqa
+        exclude: |
+          (?x)
+          ^airflow/_vendor/
+        additional_dependencies: ['flake8>=4.0.1']
+  - repo: https://github.com/ikamensh/flynt
+    rev: '0.69'
+    hooks:
+      - id: flynt
+        exclude: |
+          (?x)
+          ^airflow/_vendor/
+        args:
+         # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
+         # to split the text by hand. Too long lines are detected by flake8 (below),
+         # so the user is informed to take action.
+         - --line-length
+         - '99999'
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        name: Run codespell to check for common misspellings in files
+        entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
+          to the codespell dictionary at docs/spelling_wordlist.txt.
+          The word(s) should be in lowercase." && exec codespell "$@"' --
+        language: python
+        types: [text]
+        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
+        args:
+          - --ignore-words=docs/spelling_wordlist.txt
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
+          - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
+      - id: autoflake
+        name: Remove all unused code
+        entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
+        language: python
+        additional_dependencies: ['autoflake']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
@@ -282,7 +325,7 @@ repos:
         name: Update output of breeze command in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh
         language: system
-        files: ^BREEZE\.rst$|^breeze$|^breeze-complete$
+        files: ^BREEZE\.rst$|^breeze$|^breeze-complete|^Dockerfile$
         pass_filenames: false
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -299,14 +342,35 @@ repos:
       - id: build-providers-dependencies
         name: Build cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh
-        language: system
+        language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
+        additional_dependencies: ['setuptools']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
+        pass_filenames: false
+      - id: check-extras-order
+        name: Check order of extras in Dockerfile
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
+        language: python
+        files: ^Dockerfile$
+        pass_filenames: false
+        additional_dependencies: ['rich']
+      - id: update-supported-versions
+        name: Updates supported versions in documentation
+        entry: ./scripts/ci/pre_commit/supported_versions.py
+        language: python
+        files: ^scripts/ci/pre_commit/supported_versions.py$|^README.md$|^docs/apache-airflow/supported-versions.rst$
+        pass_filenames: false
+        additional_dependencies: ['tabulate']
+      - id: update-version
+        name: Update version to the latest version in the documentation
+        entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
+        language: python
+        files: ^docs
         pass_filenames: false
       - id: pydevd
         language: pygrep
@@ -344,6 +408,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow/www/fab_security/manager\.py$|
           ^airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
@@ -352,14 +417,7 @@ repos:
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra\.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
           git|
-          ^pylintrc |
           ^CHANGELOG\.txt$
-      - id: consistent-pylint
-        language: pygrep
-        name: Check for inconsistent pylint disable/enable without space
-        entry: "pylint:disable|pylint:enable"
-        pass_filenames: true
-        files: \.py$
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -477,21 +535,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.7.2 -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-      - id: bats-tests
-        name: Run BATS bash tests for changed Breeze bash files
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/
-        files: ^breeze$|^breeze-complete$|^tests/bats/breeze
-        pass_filenames: false
-      - id: bats-tests
-        name: Run BATS bash tests for changed bash files
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh
-        files: \.sh$|\.bash$|\.bats$
-        exclude: ^tests/bats/in_container|^scripts/in_container|^tests/bats/breeze|^airflow/_vendor/
-        pass_filenames: true
-        require_serial: true
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
       - id: stylelint
         name: stylelint
         entry: "stylelint"
@@ -500,11 +544,18 @@ repos:
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
       - id: providers-init-file
-        name: Provider init file
+        name: Provider init file is missing
         pass_filenames: false
         always_run: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
         language: system
+      - id: providers-subpackages-init-file
+        name: Provider subpackage init files are there
+        pass_filenames: false
+        always_run: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
+        language: python
+        require_serial: true
       - id: provider-yamls
         name: Validate providers.yaml files
         pass_filenames: false
@@ -512,7 +563,12 @@ repos:
         language: python
         require_serial: true
         files: provider\.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$|^docs/
-        additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
+        additional_dependencies:
+          - 'PyYAML==5.3.1'
+          - 'jsonschema==3.2.0'
+          - 'tabulate==0.8.8'
+          - 'jsonpath-ng==1.5.3'
+          - 'rich==10.9.0'
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
@@ -531,8 +587,8 @@ repos:
         args:
           - --max-length=70
         language: python
-        files: ^\.pre-commit-config\.yaml$
-        additional_dependencies: ['pyyaml']
+        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names.py$
+        additional_dependencies: ['pyyaml', 'jinja2', 'black']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
@@ -568,7 +624,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-url
-          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.18.15-standalone/service-v1.json
+          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json
         language: python
         pass_filenames: true
         files: scripts/ci/kubernetes/nodeport.yaml
@@ -597,6 +653,12 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: vendor-k8s-json-schema
+        name: Vendor k8s definitions into values.schema.json
+        entry: ./scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py
+        language: python
+        files: ^chart/values\.schema\.json$
+        additional_dependencies: ['requests==2.25.0']
       - id: json-schema
         name: Lint chart/values.yaml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -621,70 +683,29 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
-      - id: flynt
-        name: Convert to f-strings with flynt
-        entry: flynt
+      - id: persist-credentials-disabled
+        name: Check that workflow files have persist-credentials disabled
+        entry: ./scripts/ci/pre_commit/pre_commit_checkout_no_credentials.py
         language: python
-        language_version: python3
-        additional_dependencies: ['flynt==0.63']
+        pass_filenames: true
+        files: \.github/workflows/.*\.yml$
+        additional_dependencies: ['PyYAML', 'rich']
+      - id: docstring-params
+        name: Check that docstrings do not specify param types
+        entry: ./scripts/ci/pre_commit/pre_commit_docstring_param_type.py
+        language: python
+        pass_filenames: true
         files: \.py$
+        pass_filenames: true
         exclude: ^airflow/_vendor/
-        ## ADD MOST PRE-COMMITS ABOVE THAT LINE
-        # The below pre-commits are those requiring CI image to be built
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
-        language: system
-        always_run: true
+        additional_dependencies: ['rich']
+      - id: chart-schema-lint
+        name: Lint chart/values.schema.json file
+        entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py
+        language: python
         pass_filenames: false
-      - id: mypy
-        name: Run mypy
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
-        files: \.py$
-        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/
-      - id: mypy
-        name: Run mypy for helm chart tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
-        files: ^chart/.*\.py$
-        require_serial: false
-      - id: mypy
-        name: Run mypy for /docs/ folder
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
-        files: ^docs/.*\.py$
-        exclude: rtd-deprecation
-        require_serial: false
-      - id: pylint
-        name: Run pylint for main code
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^tests|^kubernetes_tests|^airflow/_vendor/
-        pass_filenames: true
+        files: ^chart/values\.schema\.json$
         require_serial: true
-      - id: pylint
-        name: Run pylint for tests
-        language: system
-        entry: env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: ^tests/.*\.py$
-        pass_filenames: true
-        require_serial: true
-      - id: pylint
-        name: Run pylint for helm chart tests
-        language: system
-        entry: env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: ^chart/.*\.py$
-        pass_filenames: true
-        require_serial: true
-      - id: flake8
-        name: Run flake8
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_flake8.sh
-        files: \.py$
-        pass_filenames: true
-        exclude: ^airflow/_vendor/
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node
@@ -699,10 +720,39 @@ repos:
         files: ^airflow/www/static/js/
         entry: scripts/ci/static_checks/www_lint.sh
         pass_filenames: false
-      - id: bats-in-container-tests
-        name: Run in container bats tests
+      - id: changelog-duplicates
+        name: Check changelogs for duplicate entries
+        language: python
+        files: CHANGELOG\.txt$|CHANGELOG\.rst$
+        entry: scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
+        pass_filenames: true
+        ## ADD MOST PRE-COMMITS ABOVE THAT LINE
+        # The below pre-commits are those requiring CI image to be built
+      - id: mypy
+        name: Run mypy
         language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
-        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
-        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
+        files: \.py$
+        exclude: ^provider_packages|^chart|^docs|^airflow/_vendor/
+        require_serial: true
+      - id: mypy
+        name: Run mypy for helm chart tests
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        files: ^chart/.*\.py$
+        require_serial: true
+      - id: mypy
+        name: Run mypy for /docs/ folder
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        files: ^docs/.*\.py$
+        exclude: rtd-deprecation
+        require_serial: true
+      - id: flake8
+        name: Run flake8
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_flake8.sh
+        files: \.py$
+        pass_filenames: true
+        exclude: ^airflow/_vendor/
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

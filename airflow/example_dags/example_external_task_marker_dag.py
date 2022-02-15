@@ -43,11 +43,12 @@ from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
-start_date = datetime.datetime(2015, 1, 1)
+start_date = datetime.datetime(2021, 1, 1)
 
 with DAG(
     dag_id="example_external_task_marker_parent",
     start_date=start_date,
+    catchup=False,
     schedule_interval=None,
     tags=['example2'],
 ) as parent_dag:
@@ -63,6 +64,7 @@ with DAG(
     dag_id="example_external_task_marker_child",
     start_date=start_date,
     schedule_interval=None,
+    catchup=False,
     tags=['example2'],
 ) as child_dag:
     # [START howto_operator_external_task_sensor]

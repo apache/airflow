@@ -20,7 +20,12 @@
 #################################
 {{- if .Values.flower.enabled }}
 {{- if and .Values.ingress.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+{{- $apiIsStable := semverCompare ">= 1.19.x" (include "kubeVersion" .) -}}
+{{- if $apiIsStable }}
+apiVersion: networking.k8s.io/v1
+{{- else }}
 apiVersion: networking.k8s.io/v1beta1
+{{- end }}
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}-flower-ingress
@@ -30,27 +35,71 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-  {{- if .Values.ingress.flower.annotations }}
-  annotations: {{ toYaml .Values.ingress.flower.annotations | nindent 4 }}
+    {{- with .Values.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.ingress.flower.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.ingress.flower.tls.enabled }}
+  {{- if and .Values.ingress.flower.hosts (.Values.ingress.flower.hosts | first | kindIs "string" | not) }}
+  {{- $anyTlsHosts := false -}}
+  {{- range .Values.ingress.flower.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+  {{- $anyTlsHosts = true -}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if $anyTlsHosts }}
+  tls:
+  {{- range .Values.ingress.flower.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+    - hosts:
+        - {{ .name | quote }}
+      secretName: {{ .tls.secretName }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- else if .Values.ingress.flower.tls.enabled }}
   tls:
     - hosts:
-        - {{ .Values.ingress.flower.host }}
+        {{- .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) | toYaml | nindent 8 }}
       secretName: {{ .Values.ingress.flower.tls.secretName }}
   {{- end }}
   rules:
+    {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
     - http:
         paths:
           - backend:
-              serviceName: {{ .Release.Name }}-flower
+              {{- if $apiIsStable }}
+              service:
+                name: {{ $.Release.Name }}-flower
+                port:
+                  name: flower-ui
+              {{- else }}
+              serviceName: {{ $.Release.Name }}-flower
               servicePort: flower-ui
-            {{- if .Values.ingress.flower.path }}
-            path: {{ .Values.ingress.flower.path }}
+              {{- end }}
+            {{- if $.Values.ingress.flower.path }}
+            path: {{ $.Values.ingress.flower.path }}
+            {{- if $apiIsStable }}
+            pathType: {{ $.Values.ingress.flower.pathType }}
             {{- end }}
-      {{- if .Values.ingress.flower.host }}
-      host: {{ .Values.ingress.flower.host }}
+            {{- end }}
+      {{- $hostname := . -}}
+      {{- if . | kindIs "string" | not }}
+      {{- $hostname = .name -}}
       {{- end }}
+      {{- if $hostname }}
+      host: {{ $hostname | quote }}
+      {{- end }}
+    {{- end }}
+  {{- if and .Values.ingress.flower.ingressClassName $apiIsStable }}
+  ingressClassName: {{ .Values.ingress.flower.ingressClassName }}
+  {{- end }}
 {{- end }}
 {{- end }}

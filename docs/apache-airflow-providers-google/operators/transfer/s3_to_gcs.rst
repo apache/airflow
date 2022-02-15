@@ -24,10 +24,6 @@ The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used 
 data from various applications. This is also the same with `Amazon Simple Storage Service <https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html>`__.
 This page shows how to transfer data from Amazon S3 to GCS.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

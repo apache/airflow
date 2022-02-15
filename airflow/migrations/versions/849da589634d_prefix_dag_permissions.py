@@ -25,10 +25,10 @@ Create Date: 2020-10-01 17:25:10.006322
 """
 
 from flask_appbuilder import SQLA
-from flask_appbuilder.security.sqla.models import Permission, PermissionView, ViewMenu
 
 from airflow import settings
 from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
 # revision identifiers, used by Alembic.
 revision = '849da589634d'
@@ -37,30 +37,46 @@ branch_labels = None
 depends_on = None
 
 
-def prefix_individual_dag_permissions(session):  # noqa: D103
+def prefix_individual_dag_permissions(session):
     dag_perms = ['can_dag_read', 'can_dag_edit']
     prefix = "DAG:"
     perms = (
-        session.query(PermissionView)
-        .join(Permission)
-        .filter(Permission.name.in_(dag_perms))
-        .join(ViewMenu)
-        .filter(ViewMenu.name != 'all_dags')
-        .filter(ViewMenu.name.notlike(prefix + '%'))
+        session.query(Permission)
+        .join(Action)
+        .filter(Action.name.in_(dag_perms))
+        .join(Resource)
+        .filter(Resource.name != 'all_dags')
+        .filter(Resource.name.notlike(prefix + '%'))
         .all()
     )
-    resource_ids = {permission.view_menu.id for permission in perms}
-    vm_query = session.query(ViewMenu).filter(ViewMenu.id.in_(resource_ids))
-    vm_query.update({ViewMenu.name: prefix + ViewMenu.name}, synchronize_session=False)
+    resource_ids = {permission.resource.id for permission in perms}
+    vm_query = session.query(Resource).filter(Resource.id.in_(resource_ids))
+    vm_query.update({Resource.name: prefix + Resource.name}, synchronize_session=False)
     session.commit()
 
 
-def get_or_create_dag_resource(session):  # noqa: D103
+def remove_prefix_in_individual_dag_permissions(session):
+    dag_perms = ['can_read', 'can_edit']
+    prefix = "DAG:"
+    perms = (
+        session.query(Permission)
+        .join(Action)
+        .filter(Action.name.in_(dag_perms))
+        .join(Resource)
+        .filter(Resource.name.like(prefix + '%'))
+        .all()
+    )
+    for permission in perms:
+        permission.resource.name = permission.resource.name[len(prefix) :]
+    session.commit()
+
+
+def get_or_create_dag_resource(session):
     dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
     if dag_resource:
         return dag_resource
 
-    dag_resource = ViewMenu()
+    dag_resource = Resource()
     dag_resource.name = permissions.RESOURCE_DAG
     session.add(dag_resource)
     session.commit()
@@ -68,12 +84,25 @@ def get_or_create_dag_resource(session):  # noqa: D103
     return dag_resource
 
 
-def get_or_create_action(session, action_name):  # noqa: D103
+def get_or_create_all_dag_resource(session):
+    all_dag_resource = get_resource_query(session, 'all_dags').first()
+    if all_dag_resource:
+        return all_dag_resource
+
+    all_dag_resource = Resource()
+    all_dag_resource.name = 'all_dags'
+    session.add(all_dag_resource)
+    session.commit()
+
+    return all_dag_resource
+
+
+def get_or_create_action(session, action_name):
     action = get_action_query(session, action_name).first()
     if action:
         return action
 
-    action = Permission()
+    action = Action()
     action.name = action_name
     session.add(action)
     session.commit()
@@ -81,47 +110,47 @@ def get_or_create_action(session, action_name):  # noqa: D103
     return action
 
 
-def get_resource_query(session, resource_name):  # noqa: D103
-    return session.query(ViewMenu).filter(ViewMenu.name == resource_name)
+def get_resource_query(session, resource_name):
+    return session.query(Resource).filter(Resource.name == resource_name)
 
 
-def get_action_query(session, action_name):  # noqa: D103
-    return session.query(Permission).filter(Permission.name == action_name)
+def get_action_query(session, action_name):
+    return session.query(Action).filter(Action.name == action_name)
 
 
-def get_permission_with_action_query(session, action):  # noqa: D103
-    return session.query(PermissionView).filter(PermissionView.permission == action)
+def get_permission_with_action_query(session, action):
+    return session.query(Permission).filter(Permission.action == action)
 
 
-def get_permission_with_resource_query(session, resource):  # noqa: D103
-    return session.query(PermissionView).filter(PermissionView.view_menu_id == resource.id)
+def get_permission_with_resource_query(session, resource):
+    return session.query(Permission).filter(Permission.resource_id == resource.id)
 
 
-def update_permission_action(session, permission_query, action):  # noqa: D103
-    permission_query.update({PermissionView.permission_id: action.id}, synchronize_session=False)
+def update_permission_action(session, permission_query, action):
+    permission_query.update({Permission.action_id: action.id}, synchronize_session=False)
     session.commit()
 
 
-def get_permission(session, resource, action):  # noqa: D103
+def get_permission(session, resource, action):
     return (
-        session.query(PermissionView)
-        .filter(PermissionView.view_menu == resource)
-        .filter(PermissionView.permission == action)
+        session.query(Permission)
+        .filter(Permission.resource == resource)
+        .filter(Permission.action == action)
         .first()
     )
 
 
-def update_permission_resource(session, permission_query, resource):  # noqa: D103
-    for permission in permission_query.all():  # noqa: D103
-        if not get_permission(session, resource, permission.permission):  # noqa: D103
-            permission.view_menu = resource
+def update_permission_resource(session, permission_query, resource):
+    for permission in permission_query.all():
+        if not get_permission(session, resource, permission.action):
+            permission.resource = resource
         else:
             session.delete(permission)
 
     session.commit()
 
 
-def migrate_to_new_dag_permissions(db):  # noqa: D103
+def migrate_to_new_dag_permissions(db):
     # Prefix individual dag perms with `DAG:`
     prefix_individual_dag_permissions(db.session)
 
@@ -158,7 +187,44 @@ def migrate_to_new_dag_permissions(db):  # noqa: D103
     db.session.commit()
 
 
-def upgrade():  # noqa: D103
+def undo_migrate_to_new_dag_permissions(session):
+    # Remove prefix from individual dag perms
+    remove_prefix_in_individual_dag_permissions(session)
+
+    # Update existing permissions to use `can_dag_read` instead of `can_read`
+    can_read_action = get_action_query(session, 'can_read').first()
+    new_can_read_permissions = get_permission_with_action_query(session, can_read_action)
+    can_dag_read_action = get_or_create_action(session, 'can_dag_read')
+    update_permission_action(session, new_can_read_permissions, can_dag_read_action)
+
+    # Update existing permissions to use `can_dag_edit` instead of `can_edit`
+    can_edit_action = get_action_query(session, 'can_edit').first()
+    new_can_edit_permissions = get_permission_with_action_query(session, can_edit_action)
+    can_dag_edit_action = get_or_create_action(session, 'can_dag_edit')
+    update_permission_action(session, new_can_edit_permissions, can_dag_edit_action)
+
+    # Update existing permissions for `DAGs` resource to use `all_dags` resource.
+    dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
+    if dag_resource:
+        new_dag_permission = get_permission_with_resource_query(session, dag_resource)
+        old_all_dag_resource = get_or_create_all_dag_resource(session)
+        update_permission_resource(session, new_dag_permission, old_all_dag_resource)
+
+        # Delete the `DAG` resource
+        session.delete(dag_resource)
+
+    # Delete `can_read` action
+    if can_read_action:
+        session.delete(can_read_action)
+
+    # Delete `can_edit` action
+    if can_edit_action:
+        session.delete(can_edit_action)
+
+    session.commit()
+
+
+def upgrade():
     db = SQLA()
     db.session = settings.Session
     migrate_to_new_dag_permissions(db)
@@ -166,5 +232,7 @@ def upgrade():  # noqa: D103
     db.session.close()
 
 
-def downgrade():  # noqa: D103
-    pass
+def downgrade():
+    db = SQLA()
+    db.session = settings.Session
+    undo_migrate_to_new_dag_permissions(db.session)

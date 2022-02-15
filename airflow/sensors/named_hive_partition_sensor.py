@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor  # noqa
 
 warnings.warn(

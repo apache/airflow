@@ -17,18 +17,19 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
-from airflow.utils.dates import days_ago
 
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "test28397yeo")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1234567890qwerty")
 
 with models.DAG(
     "example_sheets_to_gcs",
-    start_date=days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=["example"],
 ) as dag:
     # [START upload_sheet_to_gcs]

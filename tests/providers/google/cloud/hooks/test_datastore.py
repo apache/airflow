@@ -34,7 +34,7 @@ def mock_init(
     gcp_conn_id,
     delegate_to=None,
     impersonation_chain=None,
-):  # pylint: disable=unused-argument
+):
     pass
 
 
@@ -82,9 +82,7 @@ class TestDatastoreHook(unittest.TestCase):
         partial_keys = []
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.allocate_ids(  # pylint: disable=no-value-for-parameter
-                partial_keys=partial_keys
-            )
+            self.datastore_hook.allocate_ids(partial_keys=partial_keys)
         assert "project_id" in str(ctx.value)
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -113,7 +111,7 @@ class TestDatastoreHook(unittest.TestCase):
     def test_begin_transaction_no_project_id(self, mock_get_conn, mock_project_id):
         self.datastore_hook.connection = mock_get_conn.return_value
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.begin_transaction()  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.begin_transaction()
         assert "project_id" in str(ctx.value)
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -142,7 +140,7 @@ class TestDatastoreHook(unittest.TestCase):
         body = {'item': 'a'}
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.commit(body=body)  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.commit(body=body)
         assert "project_id" in str(ctx.value)
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -180,7 +178,7 @@ class TestDatastoreHook(unittest.TestCase):
         transaction = 'transaction'
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.lookup(  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.lookup(
                 keys=keys,
                 read_consistency=read_consistency,
                 transaction=transaction,
@@ -212,7 +210,7 @@ class TestDatastoreHook(unittest.TestCase):
         transaction = 'transaction'
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.rollback(transaction=transaction)  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.rollback(transaction=transaction)
         assert "project_id" in str(ctx.value)
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -241,7 +239,7 @@ class TestDatastoreHook(unittest.TestCase):
         body = {'item': 'a'}
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.run_query(body=body)  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.run_query(body=body)
         assert "project_id" in str(ctx.value)
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -341,7 +339,7 @@ class TestDatastoreHook(unittest.TestCase):
         labels = {}
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.export_to_storage_bucket(  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.export_to_storage_bucket(
                 bucket=bucket,
                 namespace=namespace,
                 entity_filter=entity_filter,
@@ -397,7 +395,7 @@ class TestDatastoreHook(unittest.TestCase):
         labels = {}
 
         with pytest.raises(AirflowException) as ctx:
-            self.datastore_hook.import_from_storage_bucket(  # pylint: disable=no-value-for-parameter
+            self.datastore_hook.import_from_storage_bucket(
                 bucket=bucket,
                 file=file,
                 namespace=namespace,

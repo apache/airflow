@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Module to covert Airflow configs in config.yml to default_airflow.cfg file
+Module to convert Airflow configs in config.yml to default_airflow.cfg file
 """
 
 import os
@@ -81,7 +81,7 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
         configfile.writelines(FILE_HEADER)
         config_yaml = read_default_config_yaml(yaml_config_file_path)
 
-        for section in config_yaml:  # pylint: disable=too-many-nested-blocks
+        for section in config_yaml:
             _write_section(configfile, section)
 
 
@@ -126,8 +126,8 @@ def _write_option(configfile, idx, option):
     if option["default"] is not None:
         if not isinstance(option["default"], str):
             raise Exception(
-                "Key \"default\" in element with name=\"{}\" has an invalid type. "
-                "Current type: {}".format(option["name"], type(option["default"]))
+                f"Key \"default\" in element with name=\"{option['name']}\" has an invalid type. "
+                f"Current type: {type(option['default'])}"
             )
         # Remove trailing whitespace on empty string
         if option["default"]:

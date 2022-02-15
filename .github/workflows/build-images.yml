@@ -22,32 +22,30 @@ on:  # yamllint disable-line rule:truthy
     - cron: '28 0 * * *'
   pull_request_target:
   push:
-    branches: ['main', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['main', 'v[0-9]+-[0-9]+-test']
+permissions:
+  # all other permissions are set to none
+  contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
-  FORCE_PULL_IMAGES: "false"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  # This token should not be empty in pull_request_target type of event.
-  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
-  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
-  TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
+  GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -60,9 +58,7 @@ jobs:
     name: "Build Info"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
       targetBranch: ${{ github.event.pull_request.base.ref }}
-      pullRequestLabels: "${{ toJSON(github.event.pull_request.labels.*.name) }}"
     outputs:
       runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
       pythonVersions: "${{ steps.selective-checks.python-versions }}"
@@ -74,7 +70,37 @@ jobs:
       image-build: ${{ steps.dynamic-outputs.outputs.image-build }}
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
+      targetCommitSha: "${{steps.discover-pr-merge-commit.outputs.targetCommitSha ||
+          github.event.pull_request.head.sha ||
+          github.sha
+        }}"
     steps:
+      - name: Discover PR merge commit
+        id: discover-pr-merge-commit
+        run: |
+          TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
+          echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> $GITHUB_ENV
+          echo "::set-output name=targetCommitSha::${TARGET_COMMIT_SHA}"
+        if: github.event_name == 'pull_request_target'
+      # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
+      # up-to-date values
+      - name: Get latest PR labels
+        id: get-latest-pr-labels
+        run: |
+          echo -n "::set-output name=pullRequestLabels::"
+          gh api graphql --paginate -F node_id=${{github.event.pull_request.node_id}} -f query='
+            query($node_id: ID!, $endCursor: String) {
+              node(id:$node_id) {
+                ... on PullRequest {
+                  labels(first: 100, after: $endCursor) {
+                    nodes { name }
+                    pageInfo { hasNextPage endCursor }
+                  }
+                }
+              }
+            }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]'
+        if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
       - uses: actions/checkout@v2
@@ -91,10 +117,12 @@ jobs:
         run: printenv
         env:
           dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
+          GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: ${{ env.pullRequestLabels }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
         run: |
           if [[ ${GITHUB_EVENT_NAME} == "pull_request_target" ]]; then
             # Run selective checks
@@ -120,18 +148,19 @@ jobs:
               echo "::set-output name=cacheDirective::pulled"
           fi
 
-          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" && "$BUILD_IMAGES_OVERRIDE" != "false" ]]; then
+          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
               echo "::set-output name=image-build::true"
           else
               echo "::set-output name=image-build::false"
           fi
         env:
           SELECTIVE_CHECKS_IMAGE_BUILD: ${{ steps.selective-checks.outputs.image-build }}
-          BUILD_IMAGES_OVERRIDE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE }}
 
   build-ci-images:
+    permissions:
+      packages: write
     timeout-minutes: 80
-    name: "Build CI images ${{matrix.python-version}}"
+    name: "Build CI image ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     strategy:
@@ -146,25 +175,18 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      FORCE_PULL_BASE_PYTHON_IMAGE: >
-        ${{ github.event_name == 'schedule' && 'true' || 'false' }}
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
-      - name: Set envs
-        # Can't refer to "global" env to set a var in a job's env context
-        run: |
-          echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
-          ref: ${{ env.TARGET_COMMIT_SHA }}
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -174,6 +196,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -196,16 +221,24 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: airflow-freespace
+      - name: "Build CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
+      - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
 
   build-prod-images:
+    permissions:
+      packages: write
     timeout-minutes: 80
-    name: "Build PROD images ${{matrix.python-version}}"
+    name: "Build PROD image ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
     strategy:
@@ -221,23 +254,19 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      FORCE_PULL_BASE_PYTHON_IMAGE: >
-        ${{ github.event_name == 'schedule' && 'true' || 'false' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      INSTALL_PROVIDERS_FROM_SOURCES: >
+        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
     steps:
-      - name: Set envs
-        run: |
-          echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
-          echo "GITHUB_REGISTRY_PULL_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
-          ref: ${{ env.TARGET_COMMIT_SHA }}
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -247,6 +276,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            cut -d "=" -f 3 | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -269,20 +301,27 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # Pull images built in the previous step
+        run: airflow-freespace
+      - name: "Pull CI image for PROD ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
         env:
-          GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
-      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: "Build PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
+      - name: "Push PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
 
   cancel-on-ci-build:
-    name: "Cancel 'CI Build' jobs on workflow failed/cancelled"
+    permissions:
+      actions: write
+    name: "Cancel `Tests` jobs on workflow failed/cancelled"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     if: failure() || cancelled()
     needs: [build-ci-images, build-prod-images]
@@ -290,7 +329,7 @@ jobs:
       branch: ${{ github.event.pull_request.head.ref }}
       thisRun: ${{ github.run_id }}
     steps:
-      - name: Find running CI Build jobs for ${{ env.TARGET_COMMIT_SHA }}
+      - name: "Find running `Tests` jobs for ${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: |
           if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
             event_filter="event=pull_request&"
@@ -303,7 +342,7 @@ jobs:
               gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" \
                   jq -r '
                     .workflow_runs[] |
-                    select(.head_sha == $ENV.TARGET_COMMIT_SHA and .status != "completed") |
+                    select(.head_sha == $ENV.GITHUB_REGISTRY_PUSH_IMAGE_TAG and .status != "completed") |
                     .cancel_url
                   ' \
           ); do

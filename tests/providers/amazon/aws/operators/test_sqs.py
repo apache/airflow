@@ -23,38 +23,41 @@ from unittest.mock import MagicMock
 from moto import mock_sqs
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook
-from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
+from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
+QUEUE_NAME = 'test-queue'
+QUEUE_URL = f'https://{QUEUE_NAME}'
 
-class TestSQSPublishOperator(unittest.TestCase):
+
+class TestSqsPublishOperator(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
-        self.operator = SQSPublishOperator(
+        self.operator = SqsPublishOperator(
             task_id='test_task',
             dag=self.dag,
-            sqs_queue='test',
+            sqs_queue=QUEUE_URL,
             message_content='hello',
             aws_conn_id='aws_default',
         )
 
         self.mock_context = MagicMock()
-        self.sqs_hook = SQSHook()
+        self.sqs_hook = SqsHook()
 
     @mock_sqs
     def test_execute_success(self):
-        self.sqs_hook.create_queue('test')
+        self.sqs_hook.create_queue(QUEUE_NAME)
 
         result = self.operator.execute(self.mock_context)
         assert 'MD5OfMessageBody' in result
         assert 'MessageId' in result
 
-        message = self.sqs_hook.get_conn().receive_message(QueueUrl='test')
+        message = self.sqs_hook.get_conn().receive_message(QueueUrl=QUEUE_URL)
 
         assert len(message['Messages']) == 1
         assert message['Messages'][0]['MessageId'] == result['MessageId']

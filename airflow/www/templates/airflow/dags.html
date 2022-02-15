@@ -19,6 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
+{% from 'airflow/_messages.html' import show_message %}
 
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
@@ -29,8 +30,8 @@
   <meta name="dags_index" content="{{ url_for('Airflow.index') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="status_filter" content="{{ status_filter }}">
-  <meta name="autocomplete_url" content="{{ url_for('DagModelView.autocomplete') }}">
-  <meta name="graph_url" content="{{ url_for('Airflow.graph') }}">
+  <meta name="autocomplete_url" content="{{ url_for('AutocompleteView.autocomplete') }}">
+  <meta name="graph_url" content="{{ url_for('Airflow.legacy_graph') }}">
   <meta name="dag_run_url" content="{{ url_for('DagRunModelView.list') }}">
   <meta name="task_instance_url" content="{{ url_for('TaskInstanceModelView.list') }}">
   <meta name="blocked_url" content="{{ url_for('Airflow.blocked') }}">
@@ -38,6 +39,7 @@
   <meta name="last_dag_runs_url" content="{{ url_for('Airflow.last_dagruns') }}">
   <meta name="dag_stats_url" content="{{ url_for('Airflow.dag_stats') }}">
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
+  <meta name="tree_url" content="{{ url_for('Airflow.tree') }}">
 {% endblock %}
 
 {% block head_css %}
@@ -46,44 +48,73 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('dags.css') }}">
 {% endblock %}
 
+{% block messages %}
+  {% for m in dashboard_alerts %}
+    {{ show_message(m.message, m.category) }}
+  {% endfor %}
+  {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
+    {% call show_message(category='error', dismissible=false) %}
+      Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
+      metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
+      to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
+      the <code>{{ moved_table_name }}</code> table to dismiss this warning. Read more about it
+      in <a href={{ get_docs_url("installation/upgrading.html") }}><b>Upgrading</b></a>.
+    {% endcall %}
+  {% endfor %}
+  {{ super() }}
+  {% if sqlite_warning | default(true) %}
+    {% call show_message(category='warning', dismissible=false)  %}
+      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing.
+      We recommend using Postgres or MySQL.
+      <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
+    {% endcall %}
+  {% endif %}
+  {% if sequential_executor_warning | default(false) %}
+    {% call show_message(category='warning', dismissible=false)  %}
+      Do not use <b>SequentialExecutor</b> in production.
+      <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
+    {% endcall %}
+  {% endif %}
+{% endblock %}
+
 {% block content %}
   <h2>{{ page_title }}</h2>
   <div id="main_content">
-    <div class="dags-table-wrap">
-      <div class="row dags-table-header">
-        <div class="col-md-4">
-          <div class="form-group btn-group">
-            <a href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'all' else 'btn-default'}}" title="Show active and paused DAGS">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
-            <a href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'active' else 'btn-default'}}" title="Show only active DAGS">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
-            <a href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'paused' else 'btn-default'}}" title="Show only paused DAGS">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
-          </div>
-        </div>
-        <div class="col-sm-6 col-md-3">
-          <form id="tags_form" style="width: 100%; text-align: left;">
-            <div class="form-group search-input" style="width:100%;">
-              <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 100%;">
-                {% for tag in tags %}
-                  <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
-                {% endfor %}
-              </select>
-              {% if tags_filter|length > 0 %}
-                <button type="reset" aria-label="Clear all tags" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
-              {% endif %}
-            </div>
-          </form>
-        </div>
-        <div class="col-sm-6 col-md-3 col-md-offset-2">
-          <form id="search_form">
-            <div class="form-group search-input" style="width: 100%;">
-              <label for="dag_query" class="sr-only">Search DAGs</label>
-              <input type="search" id="dag_query" class="typeahead form-control search-input__input" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
-              {% if search_query %}
-                <button type="reset" aria-label="Clear DAG Search Term" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
-              {% endif %}
-            </div>
-          </form>
+    <div class="row dags-table-header">
+      <div class="col-md-4 no-x-padding">
+        <div class="form-group btn-group">
+          <a href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'all' else 'btn-default'}}" title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
+          <a href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'active' else 'btn-default'}}" title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
+          <a href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'paused' else 'btn-default'}}" title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
         </div>
       </div>
+      <div class="col-sm-6 col-md-3">
+        <form id="tags_form" style="width: 100%; text-align: left;">
+          <div class="form-group search-input" style="width:100%;">
+            <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 100%;">
+              {% for tag in tags %}
+                <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
+              {% endfor %}
+            </select>
+            {% if tags_filter|length > 0 %}
+              <button type="reset" aria-label="Clear all tags" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+      <div class="col-sm-6 col-md-3 col-md-offset-2 no-x-padding">
+        <form id="search_form">
+          <div class="form-group search-input" style="width: 100%;">
+            <label for="dag_query" class="sr-only">Search DAGs</label>
+            <input type="search" id="dag_query" class="typeahead form-control search-input__input" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+            {% if search_query %}
+              <button type="reset" aria-label="Clear DAG Search Term" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="dags-table-wrap">
       <div class="dags-table-body">
         <table class="table table-striped table-bordered table-hover">
           <thead>
@@ -98,7 +129,10 @@
               </th>
               <th>Schedule</th>
               <th style="width:180px;">Last Run
-                <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Execution Date/Time of Highest Dag Run.">info</span>
+                <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Date/Time of the latest Dag Run.">info</span>
+              </th>
+              <th style="width:180px;">Next Run
+                <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Expected Date/Time of the next Dag Run.">info</span>
               </th>
               <th>Recent Tasks
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run.">info</span>
@@ -109,25 +143,24 @@
           </thead>
           <tbody>
             {% if dags|length == 0 %}
-              <tr><td colspan="9">No results</td></tr>
+              <tr><td colspan="10">No results</td></tr>
             {% endif %}
             {% for dag in dags %}
+            {% set dag_is_paused = dag.get_is_paused() %}
               <tr>
-                {# Column 1: Turn dag on/off #}
                 <td style="padding-right:0;">
                   {% if dag.can_edit %}
                     {% set switch_tooltip = 'Pause/Unpause DAG' %}
                   {% else %}
-                    {% set switch_tooltip = 'DAG is Paused' if dag.is_paused else 'DAG is Active' %}
+                    {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
                   {% endif %}
                   <label class="switch-label{{' disabled' if not dag.can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
                     <input class="switch-input"  id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}" type="checkbox"
-                           {{ " checked" if not dag.is_paused else "" }}
+                           {{ " checked" if not dag_is_paused else "" }}
                            {{ " disabled" if not dag.can_edit else "" }}>
                     <span class="switch" aria-hidden="true"></span>
                   </label>
                 </td>
-                {# Column 2: Name #}
                 <td>
                   <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}"
                      title="{{ dag.description[0:80] + '…' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
@@ -143,7 +176,6 @@
                     {% endfor %}
                   </div>
                 </td>
-                {# Column 3: Dag Owners #}
                 <td>
                   {% for owner in dag.owners.split(",") %}
                   <a class="label label-default"
@@ -153,34 +185,57 @@
                   </a>
                   {% endfor %}
                 </td>
-                {# Column 4: Dag Runs #}
-                <td style="padding:0; width:120px;">
+                <td style="padding:0; width:130px;">
                   {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
                   <svg height="10" width="10" id="dag-run-{{ dag.safe_dag_id }}" style="display: block;"></svg>
                 </td>
-                {# Column 5: Dag Schedule #}
                 <td>
                   <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}">
                     {{ dag.schedule_interval }}
                   </a>
+                  {% if dag is defined and dag.timetable_description %}
+                      <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Schedule: {{ dag.timetable_description|string }}">info</span>
+                  {% endif %}
                 </td>
-                {# Column 6: Last Run #}
                 <td id="last-run-{{ dag.safe_dag_id }}" class="text-nowrap latest_dag_run">
                   {{ loading_dots(classes='js-loading-last-run text-muted') }}
                   <a></a>
-                  <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
+                  <span
+                    aria-hidden="true"
+                    title=""
+                    class="material-icons text-muted js-tooltip js-last-run-tooltip"
+                    data-html="true"
+                    style="display:none"
+                  >
+                    info
+                  </span>
                 </td>
-                {# Column 7: Recent Tasks #}
+                <td class="text-nowrap">
+                  {% if dag.next_dagrun is not none %}
+                    <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
+                  {% endif %}
+                  {% if dag.next_dagrun_create_after %}
+                    {# data-nextrun is being used to pass next_dagrun dates to js to build the full tooltip #}
+                    <span
+                      aria-hidden="true"
+                      data-nextrun="{{ dag.next_dagrun_create_after }},{{ dag.next_dagrun_data_interval_start }},{{ dag.next_dagrun_data_interval_end }}"
+                      title=""
+                      class="material-icons text-muted js-tooltip js-next-run-tooltip"
+                      data-html="true"
+                    >
+                      info
+                    </span>
+                  {% endif %}
+                </td>
                 <td style="padding:0; width:323px; height:10px;">
                   {{ loading_dots(classes='js-loading-task-stats text-muted') }}
                   <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
-                {# Column 8: Actions #}
                 <td class="text-center">
                   <div class="btn-group">
                     {% if dag %}
                     <div class="dropdown">
-                      <a aria-label="Trigger DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn" data-toggle="dropdown">
+                      <a aria-label="Trigger DAG" class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn" data-toggle="dropdown">
                         <span class="material-icons" aria-hidden="true">play_arrow</span>
                       </a>
                       <ul class="dropdown-menu trigger-dropdown-menu">
@@ -188,15 +243,13 @@
                           <form method="POST" action="{{ url_for('Airflow.trigger') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                            <input type="hidden" name="unpause" value="True">
                             <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
                           </form>
                         </li>
                         <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">Trigger DAG w/ config</a></li>
                       </ul>
                     </div>
-                      <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" title="Refresh DAG" aria-label="Refresh DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_edit }}">
-                        <span class="material-icons" aria-hidden="true">refresh</span>
-                      </a>
                     {% endif %}
                     {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
                     <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG" aria-label="Delete DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_delete }}">
@@ -204,7 +257,6 @@
                     </a>
                   </div>
                 </td>
-                {# Column 9: Links #}
                 <td class="dags-table-more">
                   {% if dag %}
                     <div class="dags-table-more__menu">
@@ -241,9 +293,9 @@
                           <span class="material-icons" aria-hidden="true">account_tree</span>
                           Graph
                         </a>
-                        <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
-                          <span class="material-icons" aria-hidden="true">nature</span>
-                          Tree
+                        <a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
+                          <span class="material-icons" aria-hidden="true">grid_on</span>
+                          Grid
                         </a>
                       </div>
                       <span class="dags-table-more__toggle"><span class="material-icons">more_horiz</span></span>

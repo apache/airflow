@@ -22,12 +22,19 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 versions:
+  - 2.2.0
+  - 2.1.0
+  - 2.0.3
+  - 2.0.2
   - 2.0.1
   - 1.0.4
   - 1.0.3
   - 1.0.2
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Elasticsearch
@@ -40,5 +47,12 @@ hooks:
     python-modules:
       - airflow.providers.elasticsearch.hooks.elasticsearch
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+
+connection-types:
+  - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+    connection-type: elasticsearch
+
+logging:
+  - airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler

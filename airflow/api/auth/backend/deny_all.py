@@ -28,14 +28,14 @@ def init_app(_):
     """Initializes authentication"""
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
 
     @wraps(function)
-    def decorated(*args, **kwargs):  # pylint: disable=unused-argument
+    def decorated(*args, **kwargs):
         return Response("Forbidden", 403)
 
     return cast(T, decorated)

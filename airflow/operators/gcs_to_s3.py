@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator  # noqa
 
 warnings.warn(

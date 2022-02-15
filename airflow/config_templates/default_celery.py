@@ -48,6 +48,7 @@ DEFAULT_CELERY_CONFIG = {
     'broker_transport_options': broker_transport_options,
     'result_backend': conf.get('celery', 'RESULT_BACKEND'),
     'worker_concurrency': conf.getint('celery', 'WORKER_CONCURRENCY'),
+    'worker_enable_remote_control': conf.get('celery', 'worker_enable_remote_control'),
 }
 
 celery_ssl_active = False
@@ -87,9 +88,8 @@ except AirflowConfigException:
     )
 except Exception as e:
     raise AirflowException(
-        'Exception: There was an unknown Celery SSL Error. '
-        'Please ensure you want to use '
-        'SSL and/or have all necessary certs and key ({}).'.format(e)
+        f'Exception: There was an unknown Celery SSL Error. Please ensure you want to use SSL and/or have '
+        f'all necessary certs and key ({e}).'
     )
 
 result_backend = DEFAULT_CELERY_CONFIG['result_backend']

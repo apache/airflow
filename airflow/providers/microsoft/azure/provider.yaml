@@ -20,14 +20,23 @@ package-name: apache-airflow-providers-microsoft-azure
 name: Microsoft Azure
 description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
-
 versions:
+  - 3.6.0
+  - 3.5.0
+  - 3.4.0
+  - 3.3.0
+  - 3.2.0
+  - 3.1.1
+  - 3.1.0
   - 3.0.0
   - 2.0.0
   - 1.3.0
   - 1.2.0
   - 1.1.0
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Microsoft Azure Batch
@@ -65,6 +74,8 @@ integrations:
     logo: /integration-logos/azure/Microsoft-Azure-Fileshare.png
     tags: [azure]
   - integration-name: Microsoft Azure Data Factory
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/adf_run_pipeline.rst
     external-doc-url: https://azure.microsoft.com/en-us/services/data-factory/
     logo: /integration-logos/azure/Azure Data Factory.svg
     tags: [azure]
@@ -78,33 +89,47 @@ operators:
     python-modules:
       - airflow.providers.microsoft.azure.operators.adls_list
       - airflow.providers.microsoft.azure.operators.adls_delete
+      - airflow.providers.microsoft.azure.operators.adls
   - integration-name: Microsoft Azure Data Explorer
     python-modules:
       - airflow.providers.microsoft.azure.operators.adx
   - integration-name: Microsoft Azure Batch
     python-modules:
+      - airflow.providers.microsoft.azure.operators.batch
       - airflow.providers.microsoft.azure.operators.azure_batch
   - integration-name: Microsoft Azure Container Instances
     python-modules:
+      - airflow.providers.microsoft.azure.operators.container_instances
       - airflow.providers.microsoft.azure.operators.azure_container_instances
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
+      - airflow.providers.microsoft.azure.operators.cosmos
       - airflow.providers.microsoft.azure.operators.azure_cosmos
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.operators.wasb_delete_blob
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.data_factory
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
+      - airflow.providers.microsoft.azure.sensors.cosmos
       - airflow.providers.microsoft.azure.sensors.azure_cosmos
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.sensors.wasb
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.data_factory
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
     python-modules:
+      - airflow.providers.microsoft.azure.hooks.container_volume
+      - airflow.providers.microsoft.azure.hooks.container_registry
+      - airflow.providers.microsoft.azure.hooks.container_instance
       - airflow.providers.microsoft.azure.hooks.azure_container_volume
       - airflow.providers.microsoft.azure.hooks.azure_container_registry
       - airflow.providers.microsoft.azure.hooks.azure_container_instance
@@ -113,24 +138,29 @@ hooks:
       - airflow.providers.microsoft.azure.hooks.adx
   - integration-name: Microsoft Azure FileShare
     python-modules:
+      - airflow.providers.microsoft.azure.hooks.fileshare
       - airflow.providers.microsoft.azure.hooks.azure_fileshare
   - integration-name: Microsoft Azure
     python-modules:
       - airflow.providers.microsoft.azure.hooks.base_azure
   - integration-name: Microsoft Azure Batch
     python-modules:
+      - airflow.providers.microsoft.azure.hooks.batch
       - airflow.providers.microsoft.azure.hooks.azure_batch
   - integration-name: Microsoft Azure Data Lake Storage
     python-modules:
+      - airflow.providers.microsoft.azure.hooks.data_lake
       - airflow.providers.microsoft.azure.hooks.azure_data_lake
   - integration-name: Microsoft Azure Cosmos DB
     python-modules:
+      - airflow.providers.microsoft.azure.hooks.cosmos
       - airflow.providers.microsoft.azure.hooks.azure_cosmos
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.hooks.wasb
   - integration-name: Microsoft Azure Data Factory
     python-modules:
+      - airflow.providers.microsoft.azure.hooks.data_factory
       - airflow.providers.microsoft.azure.hooks.azure_data_factory
 
 transfers:
@@ -144,20 +174,63 @@ transfers:
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Blob Storage
     python-module: airflow.providers.microsoft.azure.transfers.file_to_wasb
+  - source-integration-name: Local
+    target-integration-name: Microsoft Azure Blob Storage
+    python-module: airflow.providers.microsoft.azure.transfers.local_to_wasb
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/azure_blob_to_gcs.rst
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
+  - source-integration-name: SSH File Transfer Protocol (SFTP)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
   - airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
-  - airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook
-  - airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook
-  - airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook
-  - airflow.providers.microsoft.azure.hooks.azure_fileshare.AzureFileShareHook
-  - airflow.providers.microsoft.azure.hooks.azure_container_volume.AzureContainerVolumeHook
-  - airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook
+  - airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook
+  - airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook
+  - airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook
+  - airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook
+  - airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
+  - airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
-  - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
-  - airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook
+  - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
+  - airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+
+connection-types:
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
+    connection-type: azure
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
+    connection-type: azure_data_explorer
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook
+    connection-type: azure_batch
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook
+    connection-type: azure_cosmos
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook
+    connection-type: azure_data_lake
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook
+    connection-type: azure_fileshare
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
+    connection-type: azure_container_volume
+  - hook-class-name: >-
+      airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
+    connection-type: azure_container_instance
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.wasb.WasbHook
+    connection-type: wasb
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
+    connection-type: azure_data_factory
+  - hook-class-name: >-
+      airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+    connection-type: azure_container_registry
+
+secrets-backends:
+  - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
+  - airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+
+logging:
+  - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
+
+extra-links:
+  - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink

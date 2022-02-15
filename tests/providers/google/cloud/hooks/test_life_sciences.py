@@ -90,10 +90,10 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
             .get.return_value \
             .execute.return_value = TEST_DONE_OPERATION
 
-        result = self.hook.run_pipeline(body={},  # pylint: disable=no-value-for-parameter
+        result = self.hook.run_pipeline(body={},
                                         location=TEST_LOCATION)
         parent = self.hook. \
-            _location_path(location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
+            _location_path(location=TEST_LOCATION)
         service_mock.projects.return_value.locations.return_value \
             .pipelines.return_value.run \
             .assert_called_once_with(body={},
@@ -231,7 +231,6 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             .execute = execute_mock
         # fmt: on
 
-        # pylint: disable=no-value-for-parameter
         result = self.hook.run_pipeline(body={}, location=TEST_LOCATION)
         assert result == TEST_OPERATION
 
@@ -261,7 +260,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         # fmt: on
 
         with pytest.raises(AirflowException, match="error"):
-            self.hook.run_pipeline(body={}, location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
+            self.hook.run_pipeline(body={}, location=TEST_LOCATION)
 
 
 class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
@@ -288,9 +287,9 @@ class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
         return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
-    def test_run_pipeline(self, get_conn_mock, mock_project_id):  # pylint: disable=unused-argument
+    def test_run_pipeline(self, get_conn_mock, mock_project_id):
         with pytest.raises(AirflowException) as ctx:
-            self.hook.run_pipeline(body={}, location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
+            self.hook.run_pipeline(body={}, location=TEST_LOCATION)
 
         assert (
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "

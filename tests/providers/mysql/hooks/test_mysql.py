@@ -298,8 +298,8 @@ class TestMySqlHook(unittest.TestCase):
         sql = ['SQL1', 'SQL2']
         self.db_hook.run(sql, autocommit=True)
         self.conn.autocommit.assert_called_once_with(True)
-        for i in range(len(self.cur.execute.call_args_list)):
-            args, kwargs = self.cur.execute.call_args_list[i]
+        for i, item in enumerate(self.cur.execute.call_args_list):
+            args, kwargs = item
             assert len(args) == 1
             assert args[0] == sql[i]
             assert kwargs == {}
@@ -440,7 +440,7 @@ class TestMySql(unittest.TestCase):
             elif priv == ("",):
                 hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
             else:
-                self.skipTest("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
+                raise pytest.skip("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
 
     @parameterized.expand(
         [

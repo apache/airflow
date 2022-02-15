@@ -84,3 +84,87 @@ class CreateUserJobTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    def test_create_user_job_resources_are_configurable(self):
+        resources = {
+            "requests": {
+                "cpu": "128m",
+                "memory": "256Mi",
+            },
+            "limits": {
+                "cpu": "256m",
+                "memory": "512Mi",
+            },
+        }
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "resources": resources,
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert resources == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
+
+    def test_should_disable_default_helm_hooks(self):
+        docs = render_chart(
+            values={"createUserJob": {"useHelmHooks": False}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
+        assert annotations is None
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=[
+                "templates/jobs/create-user-job.yaml",
+            ],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "2"
+
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_volumes(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+
+    def test_should_add_extra_volume_mounts(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "extraVolumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
+        )

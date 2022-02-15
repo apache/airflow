@@ -17,11 +17,10 @@
 # under the License.
 #
 
-from distutils.util import strtobool
-
 import jenkins
 
 from airflow.hooks.base import BaseHook
+from airflow.utils.strings import to_boolean
 
 
 class JenkinsHook(BaseHook):
@@ -38,11 +37,7 @@ class JenkinsHook(BaseHook):
         self.connection = connection
         connection_prefix = 'http'
         # connection.extra contains info about using https (true) or http (false)
-        if connection.extra is None or connection.extra == '':
-            connection.extra = 'false'
-            # set a default value to connection.extra
-            # to avoid rising ValueError in strtobool
-        if strtobool(connection.extra):
+        if to_boolean(connection.extra):
             connection_prefix = 'https'
         url = f'{connection_prefix}://{connection.host}:{connection.port}'
         self.log.info('Trying to connect to %s', url)

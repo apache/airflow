@@ -21,25 +21,14 @@ This is an example dag for using the AzureContainerInstancesOperator.
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.operators.azure_container_instances import (
-    AzureContainerInstancesOperator,
-)
-
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
+from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
 
 with DAG(
     dag_id='aci_example',
-    default_args=default_args,
-    schedule_interval=timedelta(1),
+    default_args={'retries': 1},
+    schedule_interval=timedelta(days=1),
     start_date=datetime(2018, 11, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
 

@@ -17,11 +17,11 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
-from airflow.utils.dates import days_ago
 
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "test28397yeo")
 OBJECT = os.environ.get("GCP_GCS_OBJECT", "abc123xyz")
@@ -30,8 +30,9 @@ FILE_NAME = os.environ.get("FILE_NAME", "file.pdf")
 
 with models.DAG(
     "example_gdrive_to_gcs_with_gdrive_sensor",
-    start_date=days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    schedule_interval='@once',  # Override to match your needs
     tags=["example"],
 ) as dag:
     # [START detect_file]
@@ -44,8 +45,8 @@ with models.DAG(
         task_id="upload_gdrive_object_to_gcs",
         folder_id=FOLDER_ID,
         file_name=FILE_NAME,
-        destination_bucket=BUCKET,
-        destination_object=OBJECT,
+        bucket_name=BUCKET,
+        object_name=OBJECT,
     )
     # [END upload_gdrive_to_gcs]
     detect_file >> upload_gdrive_to_gcs

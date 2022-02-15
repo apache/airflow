@@ -19,6 +19,51 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Misc
+~~~~
+
+* ``Fix: pin pymongo < 4.0.0 (#20511)``
+* ``add mongo_db param to function doc string (#19280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix duplicate changelog entries (#19759)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``#19223 add mongo_db param to MongoSensor (#19276)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Mongo projections to hook and transfer (#17379)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0 (#17682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+
 2.0.0
 .....
 
@@ -41,6 +86,7 @@ Breaking changes
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add Connection Documentation for Popular Providers (#15393)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.1
 .....

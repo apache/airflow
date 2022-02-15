@@ -379,9 +379,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         total_wildcards = operator.source_object.count(WILDCARD)
 
-        error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. Found {}".format(
-            total_wildcards
-        )
+        error_msg = f"Only one wildcard '[*]' is allowed in source_object parameter. Found {total_wildcards}"
 
         with pytest.raises(AirflowException, match=error_msg):
             operator.execute(None)
@@ -530,3 +528,38 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file3.json', DESTINATION_BUCKET, 'test_object/file3.json'),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
+    def test_execute_wildcard_with_replace_flag_false_with_destination_object(self, mock_hook):
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX,
+            replace=False,
+        )
+
+        operator.execute(None)
+        mock_calls = [
+            mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter=""),
+        ]
+        mock_hook.return_value.list.assert_has_calls(mock_calls)
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
+    def test_execute_source_object_required_flag_true(self, mock_hook):
+        mock_hook.return_value.exists.return_value = False
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=SOURCE_OBJECTS_SINGLE_FILE,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX,
+            source_object_required=True,
+        )
+
+        with pytest.raises(
+            AirflowException, match=f"{SOURCE_OBJECTS_SINGLE_FILE} does not exist in bucket {TEST_BUCKET}"
+        ):
+            operator.execute(None)

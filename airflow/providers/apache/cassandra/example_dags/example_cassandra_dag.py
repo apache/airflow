@@ -16,39 +16,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 """
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.
 """
+from datetime import datetime
+
 from airflow.models import DAG
 from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
-from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'Airflow',
-}
-
+# [START howto_operator_cassandra_sensors]
 with DAG(
     dag_id='example_cassandra_operator',
-    default_args=args,
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    default_args={'table': 'keyspace_name.table_name'},
+    catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_operator_cassandra_table_sensor]
-    table_sensor = CassandraTableSensor(
-        task_id="cassandra_table_sensor",
-        cassandra_conn_id="cassandra_default",
-        table="keyspace_name.table_name",
-    )
-    # [END howto_operator_cassandra_table_sensor]
+    table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor")
 
-    # [START howto_operator_cassandra_record_sensor]
-    record_sensor = CassandraRecordSensor(
-        task_id="cassandra_record_sensor",
-        cassandra_conn_id="cassandra_default",
-        table="keyspace_name.table_name",
-        keys={"p1": "v1", "p2": "v2"},
-    )
-    # [END howto_operator_cassandra_record_sensor]
+    record_sensor = CassandraRecordSensor(task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"})
+# [END howto_operator_cassandra_sensors]

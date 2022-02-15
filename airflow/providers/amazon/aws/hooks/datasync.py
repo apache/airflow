@@ -18,13 +18,14 @@
 """Interact with AWS DataSync, using the AWS ``boto3`` library."""
 
 import time
+import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSDataSyncHook(AwsBaseHook):
+class DataSyncHook(AwsBaseHook):
     """
     Interact with AWS DataSync.
 
@@ -33,11 +34,10 @@ class AWSDataSyncHook(AwsBaseHook):
 
     .. seealso::
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-        :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`
+        :class:`~airflow.providers.amazon.aws.operators.datasync.DataSyncOperator`
 
     :param wait_interval_seconds: Time to wait between two
-        consecutive calls to check TaskExecution status. Defaults to 5 seconds.
-    :type wait_interval_seconds: Optional[int]
+        consecutive calls to check TaskExecution status. Defaults to 30 seconds.
     :raises ValueError: If wait_interval_seconds is not between 0 and 15*60 seconds.
     """
 
@@ -52,7 +52,7 @@ class AWSDataSyncHook(AwsBaseHook):
     TASK_EXECUTION_FAILURE_STATES = ("ERROR",)
     TASK_EXECUTION_SUCCESS_STATES = ("SUCCESS",)
 
-    def __init__(self, wait_interval_seconds: int = 5, *args, **kwargs) -> None:
+    def __init__(self, wait_interval_seconds: int = 30, *args, **kwargs) -> None:
         super().__init__(client_type='datasync', *args, **kwargs)  # type: ignore[misc]
         self.locations: list = []
         self.tasks: list = []
@@ -279,7 +279,7 @@ class AWSDataSyncHook(AwsBaseHook):
             return task_description["CurrentTaskExecutionArn"]
         return None
 
-    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 2 * 180) -> bool:
+    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 60) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.
@@ -316,3 +316,18 @@ class AWSDataSyncHook(AwsBaseHook):
         if iterations <= 0:
             raise AirflowTaskTimeout("Max iterations exceeded!")
         raise AirflowException(f"Unknown status: {status}")  # Should never happen
+
+
+class AWSDataSyncHook(DataSyncHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.datasync.DataSyncHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.datasync.DataSyncHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

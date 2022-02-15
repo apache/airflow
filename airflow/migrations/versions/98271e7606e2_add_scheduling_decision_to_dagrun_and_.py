@@ -26,7 +26,8 @@ Create Date: 2020-10-01 12:13:32.968148
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import mssql, mysql
+
+from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = '98271e7606e2'
@@ -35,44 +36,23 @@ branch_labels = None
 depends_on = None
 
 
-def _use_date_time2(conn):
-    result = conn.execute(
-        """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
-    ).fetchone()
-    mssql_version = result[0]
-    return mssql_version not in ("2000", "2005")
-
-
-def _get_timestamp(conn):
-    dialect_name = conn.dialect.name
-    if dialect_name == "mssql":
-        return mssql.DATETIME2(precision=6) if _use_date_time2(conn) else mssql.DATETIME
-    elif dialect_name != "mysql":
-        return sa.TIMESTAMP(timezone=True)
-    else:
-        return mysql.TIMESTAMP(fsp=6, timezone=True)
-
-
 def upgrade():
     """Apply Add scheduling_decision to DagRun and DAG"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
     is_mssql = bool(conn.dialect.name == "mssql")
-    timestamp = _get_timestamp(conn)
 
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
 
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('last_scheduling_decision', timestamp, nullable=True))
+        batch_op.add_column(sa.Column('last_scheduling_decision', TIMESTAMP, nullable=True))
         batch_op.create_index('idx_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
         batch_op.add_column(sa.Column('dag_hash', sa.String(32), nullable=True))
 
     with op.batch_alter_table('dag', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('next_dagrun', timestamp, nullable=True))
-        batch_op.add_column(sa.Column('next_dagrun_create_after', timestamp, nullable=True))
+        batch_op.add_column(sa.Column('next_dagrun', TIMESTAMP, nullable=True))
+        batch_op.add_column(sa.Column('next_dagrun_create_after', TIMESTAMP, nullable=True))
         # Create with nullable and no default, then ALTER to set values, to avoid table level lock
         batch_op.add_column(sa.Column('concurrency', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('has_task_concurrency_limits', sa.Boolean(), nullable=True))
@@ -90,9 +70,12 @@ def upgrade():
     # DagParser it will get set to correct value.
 
     op.execute(
-        "UPDATE dag SET concurrency={}, has_task_concurrency_limits={} where concurrency IS NULL".format(
-            concurrency, 1 if is_sqlite or is_mssql else sa.true()
-        )
+        f"""
+        UPDATE dag SET
+            concurrency={concurrency},
+            has_task_concurrency_limits={1 if is_sqlite or is_mssql else sa.true()}
+        where concurrency IS NULL
+        """
     )
 
     with op.batch_alter_table('dag', schema=None) as batch_op:
@@ -105,7 +88,7 @@ def upgrade():
 
 def downgrade():
     """Unapply Add scheduling_decision to DagRun and DAG"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
 
     if is_sqlite:

@@ -71,15 +71,13 @@ Add the following settings in ``airflow.cfg``:
 .. code-block:: ini
 
     [core]
-    store_dag_code = True
 
     # You can also update the following default configurations based on your needs
     min_serialized_dag_update_interval = 30
     min_serialized_dag_fetch_interval = 10
     max_num_rendered_ti_fields_per_task = 30
+    compress_serialized_dags = False
 
-*   ``store_dag_code``: This option decides whether to persist DAG files code in DB.
-    If set to True, the Webserver reads file contents from the DB instead of trying to access files in the DAG folder.
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAGs in the DB should be updated. This helps in reducing database write rate.
 *   ``min_serialized_dag_fetch_interval``: This option controls how often the Serialized DAG will be re-fetched
@@ -87,6 +85,8 @@ Add the following settings in ``airflow.cfg``:
     load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
 *   ``max_num_rendered_ti_fields_per_task``: This option controls the maximum number of Rendered Task Instance
     Fields (Template Fields) per task to store in the Database.
+*   ``compress_serialized_dags``: This option controls whether to compress the Serialized DAG to the Database.
+    It is useful when there are very large DAGs in your cluster. When ``True``, this will disable the DAG dependencies view.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
 
@@ -96,7 +96,7 @@ Limitations
 
 *   When using user-defined filters and macros, the Rendered View in the Webserver might show incorrect results
     for TIs that have not yet executed as it might be using external modules that the Webserver won't have access to.
-    Use ``airflow tasks render`` cli command in such situation to debug or test rendering of your template_fields.
+    Use ``airflow tasks render`` CLI command in such situation to debug or test rendering of your template_fields.
     Once the tasks execution starts the Rendered Template Fields will be stored in the DB in a separate table and
     after which the correct values would be showed in the Webserver (Rendered View tab).
 

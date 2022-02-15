@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.google.cloud.operators.video_intelligence`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.video_intelligence import (  # noqa
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
     CloudVideoIntelligenceDetectVideoLabelsOperator,

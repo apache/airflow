@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.segment.hooks.segment import SegmentHook, analytics  # noqa
 
 warnings.warn(

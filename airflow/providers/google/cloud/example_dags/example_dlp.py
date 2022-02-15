@@ -25,6 +25,7 @@ Cloud DLP service in the Google Cloud:
 """
 
 import os
+from datetime import datetime
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
@@ -41,7 +42,8 @@ from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPUpdateJobTriggerOperator,
     CloudDLPUpdateStoredInfoTypeOperator,
 )
-from airflow.utils.dates import days_ago
+
+START_DATE = datetime(2021, 1, 1)
 
 GCP_PROJECT = os.environ.get("GCP_PROJECT_ID", "example-project")
 TEMPLATE_ID = "dlp-inspect-838746"
@@ -61,8 +63,9 @@ OBJECT_GCS_OUTPUT_URI = os.path.join(OUTPUT_BUCKET, "tmp", OUTPUT_FILENAME)
 
 with models.DAG(
     "example_gcp_dlp",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag1:
     # [START howto_operator_dlp_create_inspect_template]
@@ -110,8 +113,9 @@ UPDATE_CUSTOM_INFO_TYPE = {
 
 with models.DAG(
     "example_gcp_dlp_info_types",
-    schedule_interval=None,
-    start_date=days_ago(1),
+    schedule_interval='@once',
+    start_date=START_DATE,
+    catchup=False,
     tags=["example", "dlp", "info-types"],
 ) as dag2:
     # [START howto_operator_dlp_create_info_type]
@@ -152,7 +156,11 @@ JOB_TRIGGER = {
 TRIGGER_ID = "example_trigger"
 
 with models.DAG(
-    "example_gcp_dlp_job", schedule_interval=None, start_date=days_ago(1), tags=["example", "dlp_job"]
+    "example_gcp_dlp_job",
+    schedule_interval='@once',
+    start_date=START_DATE,
+    catchup=False,
+    tags=["example", "dlp_job"],
 ) as dag3:  # [START howto_operator_dlp_create_job_trigger]
     create_trigger = CloudDLPCreateJobTriggerOperator(
         project_id=GCP_PROJECT,
@@ -195,8 +203,9 @@ DEIDENTIFY_CONFIG = {
 
 with models.DAG(
     "example_gcp_dlp_deidentify_content",
-    schedule_interval=None,
-    start_date=days_ago(1),
+    schedule_interval='@once',
+    start_date=START_DATE,
+    catchup=False,
     tags=["example", "dlp", "deidentify"],
 ) as dag4:
     # [START _howto_operator_dlp_deidentify_content]

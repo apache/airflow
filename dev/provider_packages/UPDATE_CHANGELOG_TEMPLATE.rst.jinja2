@@ -25,5 +25,5 @@
 #}
 .. Review and move the new changes to one of the sections above:
    {%- for change in new_changes %}
-   * ``{{ change.message_without_backticks }}``
+   * ``{{ change.message_without_backticks | safe }}``
    {%- endfor %}

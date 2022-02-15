@@ -38,6 +38,7 @@ For more information on setting the configuration, see :doc:`../howto/set-config
 **IDE setup steps:**
 
 1. Add ``main`` block at the end of your DAG file to make it runnable.
+
 It will run a backfill job:
 
 .. code-block:: python
@@ -45,7 +46,7 @@ It will run a backfill job:
   if __name__ == "__main__":
       from airflow.utils.state import State
 
-      dag.clear(dag_run_state=State.NONE)
+      dag.clear()
       dag.run()
 
 

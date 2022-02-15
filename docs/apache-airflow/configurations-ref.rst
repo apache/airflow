@@ -22,6 +22,11 @@ Configuration Reference
 This page contains the list of all the available Airflow configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
 
+Use the same configuration across all the Airflow components. While each component
+does not require all, some configurations need to be same otherwise they would not
+work as expected. A good example for that is :ref:`secret_key<config:webserver__secret_key>` which
+should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.
+
 .. note::
     For more information on setting the configuration, see :doc:`howto/set-config`
 

@@ -223,6 +223,75 @@ class PgbouncerTest(unittest.TestCase):
             },
         } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
 
+    def test_default_command_and_args(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) is None
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True, "command": command, "args": args}},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_should_add_extra_volume_and_extra_volume_mount(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "extraVolumes": [
+                        {
+                            "name": "pgbouncer-client-certificates",
+                            "secret": {"secretName": "pgbouncer-client-tls-certificate"},
+                        }
+                    ],
+                    "extraVolumeMounts": [
+                        {"name": "pgbouncer-client-certificates", "mountPath": "/etc/pgbouncer/certs"}
+                    ],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert "pgbouncer-client-certificates" in jmespath.search(
+            "spec.template.spec.volumes[*].name", docs[0]
+        )
+        assert "pgbouncer-client-certificates" in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+
 
 class PgbouncerConfigTest(unittest.TestCase):
     def test_config_not_created_by_default(self):
@@ -384,7 +453,7 @@ class PgbouncerExporterTest(unittest.TestCase):
     def test_exporter_secret_with_overrides(self):
         connection = self._get_connection(
             {
-                "pgbouncer": {"enabled": True},
+                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "require"}},
                 "data": {
                     "metadataConnection": {
                         "user": "username@123123",
@@ -399,5 +468,5 @@ class PgbouncerExporterTest(unittest.TestCase):
         )
         assert (
             "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
-            "/pgbouncer?sslmode=disable" == connection
+            "/pgbouncer?sslmode=require" == connection
         )

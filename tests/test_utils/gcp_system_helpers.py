@@ -28,7 +28,7 @@ from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.logging_command_executor import get_executor
+from tests.test_utils.logging_command_executor import CommandExecutor
 from tests.test_utils.system_tests_class import SystemTest
 
 CLOUD_DAG_FOLDER = os.path.join(
@@ -56,7 +56,6 @@ def resolve_full_gcp_key_path(key: str) -> str:
     Returns path full path to provided GCP key.
 
     :param key: Name of the GCP key, for example ``my_service.json``
-    :type key: str
     :returns: Full path to the key
     """
     path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
@@ -82,12 +81,9 @@ def provide_gcp_context(
     as ``key_file_path``.
 
     :param key_file_path: Path to file with GCP credentials .json file.
-    :type key_file_path: str
     :param scopes: OAuth scopes for the connection
-    :type scopes: Sequence
     :param project_id: The id of GCP project for the connection.
         Default: ``os.environ["GCP_PROJECT_ID"]`` or None
-    :type project_id: str
     """
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
     if project_id is None:
@@ -97,10 +93,8 @@ def provide_gcp_context(
     ), tempfile.TemporaryDirectory() as gcloud_config_tmp, mock.patch.dict(
         'os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}
     ):
-        executor = get_executor()
+        executor = CommandExecutor()
 
-        if project_id:
-            executor.execute_cmd(["gcloud", "config", "set", "core/project", project_id])
         if key_file_path:
             executor.execute_cmd(
                 [
@@ -110,6 +104,8 @@ def provide_gcp_context(
                     f"--key-file={key_file_path}",
                 ]
             )
+        if project_id:
+            executor.execute_cmd(["gcloud", "config", "set", "core/project", project_id])
         yield
 
 
@@ -123,6 +119,11 @@ def provide_gcs_bucket(bucket_name: str):
 
 @pytest.mark.system("google")
 class GoogleSystemTest(SystemTest):
+    @staticmethod
+    def execute_cmd(*args, **kwargs):
+        executor = CommandExecutor()
+        return executor.execute_cmd(*args, **kwargs)
+
     @staticmethod
     def _project_id():
         return os.environ.get("GCP_PROJECT_ID")
@@ -139,10 +140,9 @@ class GoogleSystemTest(SystemTest):
         Executes command with context created by provide_gcp_context and activated
         service key.
         """
-        executor = get_executor()
         current_project_id = project_id or cls._project_id()
         with provide_gcp_context(key, project_id=current_project_id, scopes=scopes):
-            executor.execute_cmd(cmd=cmd, silent=silent)
+            cls.execute_cmd(cmd=cmd, silent=silent)
 
     @classmethod
     def create_gcs_bucket(cls, name: str, location: Optional[str] = None) -> None:

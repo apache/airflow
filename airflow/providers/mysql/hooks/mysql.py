@@ -45,9 +45,7 @@ class MySqlHook(DbApiHook):
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
 
     :param schema: The MySQL database schema to connect to.
-    :type schema: Optional[str]
     :param connection: The :ref:`MySQL connection id <howto/connection:mysql>` used for MySQL credentials.
-    :type connection: Optional[Dict]
     """
 
     conn_name_attr = 'mysql_conn_id'
@@ -67,9 +65,7 @@ class MySqlHook(DbApiHook):
         than an `autocommit` property to set the autocommit setting
 
         :param conn: connection to set autocommit setting
-        :type MySQLConnectionTypes: connection object.
         :param autocommit: autocommit setting
-        :type bool: True to enable autocommit, False to disable autocommit
         :rtype: None
         """
         if hasattr(conn.__class__, 'autocommit') and isinstance(conn.__class__.autocommit, property):
@@ -83,7 +79,6 @@ class MySqlHook(DbApiHook):
         rather than an `autocommit` property to get the autocommit setting
 
         :param conn: connection to get autocommit setting from.
-        :type MySQLConnectionTypes: connection object.
         :return: connection autocommit setting
         :rtype: bool
         """
@@ -160,9 +155,7 @@ class MySqlHook(DbApiHook):
 
         :return: a mysql connection object
         """
-        conn = self.connection or self.get_connection(
-            getattr(self, self.conn_name_attr)
-        )  # pylint: disable=no-member
+        conn = self.connection or self.get_connection(getattr(self, self.conn_name_attr))
 
         client_name = conn.extra_dejson.get('client', 'mysqlclient')
 
@@ -173,10 +166,10 @@ class MySqlHook(DbApiHook):
             return MySQLdb.connect(**conn_config)
 
         if client_name == 'mysql-connector-python':
-            import mysql.connector  # pylint: disable=no-name-in-module
+            import mysql.connector
 
             conn_config = self._get_conn_config_mysql_connector_python(conn)
-            return mysql.connector.connect(**conn_config)  # pylint: disable=no-member
+            return mysql.connector.connect(**conn_config)
 
         raise ValueError('Unknown MySQL client name provided!')
 
@@ -213,17 +206,13 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(
-        cell: object, conn: Optional[Connection] = None
-    ) -> object:  # pylint: disable=signature-differs   # noqa: D403
+    def _serialize_cell(cell: object, conn: Optional[Connection] = None) -> object:
         """
-        MySQLdb converts an argument to a literal
+        The package MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
 
         :param cell: The cell to insert into the table
-        :type cell: object
         :param conn: The database connection
-        :type conn: connection object
         :return: The same cell
         :rtype: object
         """
@@ -258,19 +247,15 @@ class MySqlHook(DbApiHook):
             This depends on the mysql client library used.
 
         :param table: The table were the file will be loaded into.
-        :type table: str
         :param tmp_file: The file (name) that contains the data.
-        :type tmp_file: str
         :param duplicate_key_handling: Specify what should happen to duplicate data.
             You can choose either `IGNORE` or `REPLACE`.
 
             .. seealso::
                 https://dev.mysql.com/doc/refman/8.0/en/load-data.html#load-data-duplicate-key-handling
-        :type duplicate_key_handling: str
         :param extra_options: More sql options to specify exactly how to load the data.
 
             .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
-        :type extra_options: str
         """
         conn = self.get_conn()
         cursor = conn.cursor()

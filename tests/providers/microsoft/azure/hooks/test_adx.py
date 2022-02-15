@@ -52,7 +52,7 @@ class TestAzureDataExplorerHook(unittest.TestCase):
         )
         with pytest.raises(AirflowException) as ctx:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-            assert 'missing required parameter: `auth_method`' in str(ctx.value)
+            assert 'is missing: `extra__azure_data_explorer__auth_method`' in str(ctx.value)
 
     def test_conn_unknown_method(self):
         db.merge_conn(
@@ -62,7 +62,7 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 login='client_id',
                 password='client secret',
                 host='https://help.kusto.windows.net',
-                extra=json.dumps({'auth_method': 'AAD_OTHER'}),
+                extra=json.dumps({'extra__azure_data_explorer__auth_method': 'AAD_OTHER'}),
             )
         )
         with pytest.raises(AirflowException) as ctx:
@@ -93,7 +93,12 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 login='client_id',
                 password='client secret',
                 host='https://help.kusto.windows.net',
-                extra=json.dumps({'tenant': 'tenant', 'auth_method': 'AAD_CREDS'}),
+                extra=json.dumps(
+                    {
+                        'extra__azure_data_explorer__tenant': 'tenant',
+                        'extra__azure_data_explorer__auth_method': 'AAD_CREDS',
+                    }
+                ),
             )
         )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
@@ -113,7 +118,12 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 login='app_id',
                 password='app key',
                 host='https://help.kusto.windows.net',
-                extra=json.dumps({'tenant': 'tenant', 'auth_method': 'AAD_APP'}),
+                extra=json.dumps(
+                    {
+                        'extra__azure_data_explorer__tenant': 'tenant',
+                        'extra__azure_data_explorer__auth_method': 'AAD_APP',
+                    }
+                ),
             )
         )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
@@ -134,10 +144,10 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 host='https://help.kusto.windows.net',
                 extra=json.dumps(
                     {
-                        'tenant': 'tenant',
-                        'auth_method': 'AAD_APP_CERT',
-                        'certificate': 'PEM',
-                        'thumbprint': 'thumbprint',
+                        'extra__azure_data_explorer__tenant': 'tenant',
+                        'extra__azure_data_explorer__auth_method': 'AAD_APP_CERT',
+                        'extra__azure_data_explorer__certificate': 'PEM',
+                        'extra__azure_data_explorer__thumbprint': 'thumbprint',
                     }
                 ),
             )
@@ -157,7 +167,7 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 conn_id=ADX_TEST_CONN_ID,
                 conn_type='azure_data_explorer',
                 host='https://help.kusto.windows.net',
-                extra=json.dumps({'auth_method': 'AAD_DEVICE'}),
+                extra=json.dumps({'extra__azure_data_explorer__auth_method': 'AAD_DEVICE'}),
             )
         )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
@@ -173,7 +183,7 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 conn_id=ADX_TEST_CONN_ID,
                 conn_type='azure_data_explorer',
                 host='https://help.kusto.windows.net',
-                extra=json.dumps({'auth_method': 'AAD_DEVICE'}),
+                extra=json.dumps({'extra__azure_data_explorer__auth_method': 'AAD_DEVICE'}),
             )
         )
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)

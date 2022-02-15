@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=no-value-for-parameter
+
 
 import unittest
 from unittest.mock import Mock, patch
@@ -32,7 +32,8 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances without dagruns should fail this dep
         """
         dag = DAG('test_dag', max_active_runs=2)
-        ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=None))
+        dagrun = DagRun(state=State.QUEUED)
+        ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=dagrun))
         assert not DagrunRunningDep().is_met(ti=ti)
 
     def test_dagrun_exists(self):

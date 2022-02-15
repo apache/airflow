@@ -31,11 +31,6 @@ The latest version of the Sheets API lets developers programmatically:
 
 For more information check `official documentation <https://developers.google.com/sheets/api>`__.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

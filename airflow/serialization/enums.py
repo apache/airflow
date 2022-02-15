@@ -47,3 +47,5 @@ class DagAttributeTypes(str, Enum):
     POD = 'k8s.V1Pod'
     TASK_GROUP = 'taskgroup'
     EDGE_INFO = 'edgeinfo'
+    PARAM = 'param'
+    XCOM_REF = 'xcomref'

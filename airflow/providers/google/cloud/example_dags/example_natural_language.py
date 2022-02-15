@@ -20,6 +20,8 @@
 Example Airflow DAG for Google Cloud Natural Language service
 """
 
+from datetime import datetime
+
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow import models
@@ -30,7 +32,6 @@ from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeSentimentOperator,
     CloudNaturalLanguageClassifyTextOperator,
 )
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_natural_language_document_text]
 TEXT = """Airflow is a platform to programmatically author, schedule and monitor workflows.
@@ -51,8 +52,9 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 
 with models.DAG(
     "example_gcp_natural_language",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_gcp_natural_language_analyze_entities]
@@ -63,7 +65,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_natural_language_analyze_entities_result]
     analyze_entities_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('analyze_entities') }}\"",
+        bash_command=f"echo {analyze_entities.output}",
         task_id="analyze_entities_result",
     )
     # [END howto_operator_gcp_natural_language_analyze_entities_result]
@@ -76,7 +78,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
     analyze_entity_sentiment_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('analyze_entity_sentiment') }}\"",
+        bash_command=f"echo {analyze_entity_sentiment.output}",
         task_id="analyze_entity_sentiment_result",
     )
     # [END howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
@@ -89,7 +91,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_natural_language_analyze_sentiment_result]
     analyze_sentiment_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('analyze_sentiment') }}\"",
+        bash_command=f"echo {analyze_sentiment.output}",
         task_id="analyze_sentiment_result",
     )
     # [END howto_operator_gcp_natural_language_analyze_sentiment_result]
@@ -102,7 +104,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_natural_language_analyze_classify_text_result]
     analyze_classify_text_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('analyze_classify_text') }}\"",
+        bash_command=f"echo {analyze_classify_text.output}",
         task_id="analyze_classify_text_result",
     )
     # [END howto_operator_gcp_natural_language_analyze_classify_text_result]

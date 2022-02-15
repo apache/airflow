@@ -160,7 +160,7 @@ class TestTrinoToGCSOperator(unittest.TestCase):
     def test_save_as_json_with_schema_file(self, mock_gcs_hook, mock_trino_hook):
         """Test writing schema files."""
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
                     assert SCHEMA_JSON == file.read()
@@ -296,7 +296,7 @@ class TestTrinoToGCSOperator(unittest.TestCase):
     def test_save_as_csv_with_schema_file(self, mock_gcs_hook, mock_trino_hook):
         """Test writing schema files."""
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
                     assert SCHEMA_JSON == file.read()

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook  # noqa
 
 warnings.warn(

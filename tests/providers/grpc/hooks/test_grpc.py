@@ -27,13 +27,11 @@ from airflow.providers.grpc.hooks.grpc import GrpcHook
 
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):
-    extra = (
-        '{{"extra__grpc__auth_type": "{auth_type}",'
-        '"extra__grpc__credential_pem_file": "{credential_pem_file}",'
-        '"extra__grpc__scopes": "{scopes}"}}'.format(
-            auth_type=auth_type, credential_pem_file=credential_pem_file, scopes=scopes
-        )
-    )
+    extra = {
+        "extra__grpc__auth_type": f"{auth_type}",
+        "extra__grpc__credential_pem_file": f"{credential_pem_file}",
+        "extra__grpc__scopes": f"{scopes}",
+    }
 
     return Connection(conn_id='grpc_default', conn_type='grpc', host='test:8080', extra=extra)
 
@@ -49,13 +47,13 @@ def get_airflow_connection_with_port():
 
 
 class StubClass:
-    def __init__(self, _):  # pylint: disable=unused-argument
+    def __init__(self, _):
         pass
 
-    def single_call(self, data):  # noqa
+    def single_call(self, data):
         return data
 
-    def stream_call(self, data):  # noqa pylint: disable=unused-argument
+    def stream_call(self, data):
         return ["streaming", "call"]
 
 

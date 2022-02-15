@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.sagemaker_endpoint import SageMakerEndpointOperator  # noqa
 
 warnings.warn(

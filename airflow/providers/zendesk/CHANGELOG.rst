@@ -19,6 +19,41 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Misc
+~~~
+``ZendeskHook`` moved from using ``zdesk`` to ``zenpy`` package.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+Changed the return type of ``ZendeskHook.get_conn`` to return a ``zenpy.Zenpy`` object instead of a ``zdesk.Zendesk`` object.
+Deleted the ``ZendeskHook.call``, alternatively you can use the ``ZendeskHook.get`` method to make custom get calls to Zendesk API.
+``Zendesk`` and ``ZendeskError`` classes are removed from ``airflow.hooks.zendesk_hook`` imports.
+
+* ``Switch from zdesk to zenpy in ZendeskHook (#21349)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 
@@ -40,6 +75,7 @@ Breaking changes
    * ``Update documentation for broken package releases (#14734)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.1
 .....

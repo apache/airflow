@@ -15,45 +15,49 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
-import shutil
 import tempfile
-import unittest
-from datetime import datetime
 from unittest import mock
 
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
+import pytest
+
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
+from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
-class TestGCSTaskHandler(unittest.TestCase):
-    def setUp(self) -> None:
-        date = datetime(2020, 1, 1)
-        self.gcs_log_folder = "test"
-        self.logger = logging.getLogger("logger")
-        self.dag = DAG("dag_for_testing_task_handler", start_date=date)
-        task = DummyOperator(task_id="task_for_testing_gcs_task_handler")
-        self.ti = TaskInstance(task=task, execution_date=date)
-        self.ti.try_number = 1
-        self.ti.state = State.RUNNING
+class TestGCSTaskHandler:
+    @pytest.fixture(autouse=True)
+    def task_instance(self, create_task_instance):
+        self.ti = ti = create_task_instance(
+            dag_id="dag_for_testing_gcs_task_handler",
+            task_id="task_for_testing_gcs_task_handler",
+            execution_date=datetime(2020, 1, 1),
+            state=TaskInstanceState.RUNNING,
+        )
+        ti.try_number = 1
+        ti.raw = False
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.fixture(autouse=True)
+    def local_log_location(self):
+        with tempfile.TemporaryDirectory() as td:
+            self.local_log_location = td
+            yield td
+
+    @pytest.fixture(autouse=True)
+    def gcs_task_handler(self, local_log_location):
         self.remote_log_base = "gs://bucket/remote/log/location"
-        self.remote_log_location = "gs://my-bucket/path/to/1.log"
-        self.local_log_location = tempfile.mkdtemp()
         self.filename_template = "{try_number}.log"
-        self.addCleanup(self.dag.clear)
         self.gcs_task_handler = GCSTaskHandler(
-            base_log_folder=self.local_log_location,
+            base_log_folder=local_log_location,
             gcs_log_folder=self.remote_log_base,
             filename_template=self.filename_template,
         )
-
-    def tearDown(self) -> None:
-        clear_db_runs()
-        shutil.rmtree(self.local_log_location, ignore_errors=True)
+        yield self.gcs_task_handler
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -147,7 +151,8 @@ class TestGCSTaskHandler(unittest.TestCase):
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_failed_write_to_remote_on_close(self, mock_blob, mock_client, mock_creds):
+    def test_failed_write_to_remote_on_close(self, mock_blob, mock_client, mock_creds, caplog):
+        caplog.at_level(logging.ERROR, logger=self.gcs_task_handler.log.name)
         mock_blob.from_string.return_value.upload_from_string.side_effect = Exception("Failed to connect")
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"Old log"
 
@@ -163,12 +168,14 @@ class TestGCSTaskHandler(unittest.TestCase):
                 exc_info=None,
             )
         )
-        with self.assertLogs(self.gcs_task_handler.log) as cm:
-            self.gcs_task_handler.close()
+        self.gcs_task_handler.close()
 
-        assert cm.output == [
-            'ERROR:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Could '
-            'not write logs to gs://bucket/remote/log/location/1.log: Failed to connect',
+        assert caplog.record_tuples == [
+            (
+                "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
+                logging.ERROR,
+                "Could not write logs to gs://bucket/remote/log/location/1.log: Failed to connect",
+            ),
         ]
         mock_blob.assert_has_calls(
             [

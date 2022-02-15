@@ -25,10 +25,6 @@ KubernetesPodOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows
 you to create and run Pods on a Kubernetes cluster.
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. note::
   If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
   using the
@@ -52,6 +48,31 @@ resource configuration and is optimal for custom Python
 dependencies that are not available through the public PyPI repository. It also allows users to supply a template
 YAML file using the ``pod_template_file`` parameter.
 Ultimately, it allows Airflow to act a job orchestrator - no matter the language those jobs are written in.
+
+Debugging KubernetesPodOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can print out the Kubernetes manifest for the pod that would be created at runtime by calling
+:meth:`~.KubernetesPodOperator.dry_run` on an instance of the operator.
+
+.. code-block:: python
+
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+        KubernetesPodOperator,
+    )
+
+    k = KubernetesPodOperator(
+        name="hello-dry-run",
+        image="debian",
+        cmds=["bash", "-cx"],
+        arguments=["echo", "10"],
+        labels={"foo": "bar"},
+        task_id="dry_run_demo",
+        do_xcom_push=True,
+    )
+
+    k.dry_run()
+
 
 How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -119,10 +140,12 @@ See the following example on how this occurs:
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom]
     :end-before: [END howto_operator_k8s_write_xcom]
+.. note::
+  XCOMs will be pushed only for tasks marked as ``State.SUCCESS``.
 
 Reference
 ^^^^^^^^^
 For further information, look at:
 
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
-* `Pull and Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__
+* `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__

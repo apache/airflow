@@ -17,9 +17,11 @@
 
 import unittest
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
-from google.cloud.dataproc_v1beta2.types import JobStatus
+from google.api_core.exceptions import ServerError
+from google.cloud.dataproc_v1.types import JobStatus
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
@@ -51,7 +53,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -60,7 +62,7 @@ class TestDataprocJobSensor(unittest.TestCase):
         ret = sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
         assert ret
 
@@ -72,7 +74,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -83,7 +85,7 @@ class TestDataprocJobSensor(unittest.TestCase):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -94,7 +96,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -103,7 +105,7 @@ class TestDataprocJobSensor(unittest.TestCase):
         ret = sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
         assert not ret
 
@@ -115,7 +117,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -125,5 +127,84 @@ class TestDataprocJobSensor(unittest.TestCase):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_location_deprecation_warning(self, mock_hook):
+        job = self.create_job(JobStatus.State.DONE)
+        job_id = "job_id"
+        mock_hook.return_value.get_job.return_value = job
+        warning_message = (
+            "Parameter `location` will be deprecated. "
+            "Please provide value through `region` parameter instead."
+        )
+
+        with pytest.warns(DeprecationWarning) as warnings:
+            sensor = DataprocJobSensor(
+                task_id=TASK_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                dataproc_job_id=job_id,
+                gcp_conn_id=GCP_CONN_ID,
+                timeout=TIMEOUT,
+            )
+            assert warning_message == str(warnings[0].message)
+            ret = sensor.poke(context={})
+
+            mock_hook.return_value.get_job.assert_called_once_with(
+                job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
+            )
+            assert ret
+
+        with pytest.raises(TypeError):
+            sensor = DataprocJobSensor(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                dataproc_job_id=job_id,
+                gcp_conn_id=GCP_CONN_ID,
+                timeout=TIMEOUT,
+            )
+            sensor.poke(context={})
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_wait_timeout(self, mock_hook):
+        job_id = "job_id"
+        mock_hook.return_value.get_job.side_effect = ServerError("Job are not ready")
+
+        sensor = DataprocJobSensor(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataproc_job_id=job_id,
+            gcp_conn_id=GCP_CONN_ID,
+            timeout=TIMEOUT,
+            wait_timeout=300,
+        )
+
+        sensor._duration = Mock()
+        sensor._duration.return_value = 200
+
+        result = sensor.poke(context={})
+        assert not result
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_wait_timeout_raise_exception(self, mock_hook):
+        job_id = "job_id"
+        mock_hook.return_value.get_job.side_effect = ServerError("Job are not ready")
+
+        sensor = DataprocJobSensor(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataproc_job_id=job_id,
+            gcp_conn_id=GCP_CONN_ID,
+            timeout=TIMEOUT,
+            wait_timeout=300,
+        )
+
+        sensor._duration = Mock()
+        sensor._duration.return_value = 301
+
+        with pytest.raises(AirflowException, match="Timeout: dataproc job job_id is not ready after 300s"):
+            sensor.poke(context={})

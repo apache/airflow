@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=C0111
+
 """
 This module contains various unit tests for
 example_gcp_dlp DAG
@@ -40,6 +40,9 @@ def helper():
 @pytest.mark.usefixtures("helper")
 @pytest.mark.credential_file(GCP_DLP_KEY)
 class GcpDLPExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_DLP_KEY)
     def test_run_example_dag(self):
         self.run_dag('example_gcp_dlp', CLOUD_DAG_FOLDER)
@@ -55,3 +58,6 @@ class GcpDLPExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_DLP_KEY)
     def test_run_example_dlp_deidentify_content(self):
         self.run_dag('example_gcp_dlp_deidentify_content', CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

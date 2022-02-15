@@ -59,10 +59,10 @@ class MockExecutor(BaseExecutor):
             # for tests!
             def sort_by(item):
                 key, val = item
-                (dag_id, task_id, date, try_number) = key
+                (dag_id, task_id, date, try_number, map_index) = key
                 (_, prio, _, _) = val
                 # Sort by priority (DESC), then date,task, try
-                return -prio, date, dag_id, task_id, try_number
+                return -prio, date, dag_id, task_id, map_index, try_number
 
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
@@ -86,7 +86,7 @@ class MockExecutor(BaseExecutor):
         # a list of all events for testing
         self.sorted_tasks.append((key, (state, info)))
 
-    def mock_task_fail(self, dag_id, task_id, date, try_number=1):
+    def mock_task_fail(self, dag_id, task_id, run_id: str, try_number=1):
         """
         Set the mock outcome of running this particular task instances to
         FAILED.
@@ -94,4 +94,5 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED
+        assert isinstance(run_id, str)
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED

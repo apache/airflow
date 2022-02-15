@@ -141,7 +141,7 @@ is capable of retrieving the authentication token.
 
 The best practice to implement proper security mechanism in this case is to make sure that worker
 workloads have no access to the Keytab but only have access to the periodically refreshed, temporary
-authentication tokens. This can be achieved in docker environment by running the ``airflow kerberos``
+authentication tokens. This can be achieved in Docker environment by running the ``airflow kerberos``
 command and the worker command in separate containers - where only the ``airflow kerberos`` token has
 access to the Keytab file (preferably configured as secret resource). Those two containers should share
 a volume where the temporary token should be written by the ``airflow kerberos`` and read by the workers.

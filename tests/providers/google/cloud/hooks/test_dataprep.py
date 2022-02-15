@@ -63,7 +63,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         side_effect=[mock.MagicMock(), HTTPError()],
     )
     def test_get_jobs_for_job_group_should_not_retry_after_success(self, mock_get_request):
-        # pylint: disable=no-member
+
         self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         self.hook.get_jobs_for_job_group(JOB_ID)
         assert mock_get_request.call_count == 1
@@ -73,7 +73,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock()],
     )
     def test_get_jobs_for_job_group_should_retry_after_four_errors(self, mock_get_request):
-        # pylint: disable=no-member
+
         self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         self.hook.get_jobs_for_job_group(JOB_ID)
         assert mock_get_request.call_count == 5
@@ -84,7 +84,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
     )
     def test_get_jobs_for_job_group_raise_error_after_five_calls(self, mock_get_request):
         with pytest.raises(RetryError) as ctx:
-            # pylint: disable=no-member
+
             self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
             self.hook.get_jobs_for_job_group(JOB_ID)
         assert "HTTPError" in str(ctx.value)
@@ -115,7 +115,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         side_effect=[mock.MagicMock(), HTTPError()],
     )
     def test_get_job_group_should_not_retry_after_success(self, mock_get_request):
-        self.hook.get_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member
+        self.hook.get_job_group.retry.sleep = mock.Mock()
         self.hook.get_job_group(JOB_ID, EMBED, INCLUDE_DELETED)
         assert mock_get_request.call_count == 1
 
@@ -130,7 +130,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         ],
     )
     def test_get_job_group_should_retry_after_four_errors(self, mock_get_request):
-        self.hook.get_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member
+        self.hook.get_job_group.retry.sleep = mock.Mock()
         self.hook.get_job_group(JOB_ID, EMBED, INCLUDE_DELETED)
         assert mock_get_request.call_count == 5
 
@@ -140,7 +140,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
     )
     def test_get_job_group_raise_error_after_five_calls(self, mock_get_request):
         with pytest.raises(RetryError) as ctx:
-            # pylint: disable=no-member
+
             self.hook.get_job_group.retry.sleep = mock.Mock()
             self.hook.get_job_group(JOB_ID, EMBED, INCLUDE_DELETED)
         assert "HTTPError" in str(ctx.value)
@@ -172,7 +172,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         side_effect=[mock.MagicMock(), HTTPError()],
     )
     def test_run_job_group_should_not_retry_after_success(self, mock_get_request):
-        self.hook.run_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member
+        self.hook.run_job_group.retry.sleep = mock.Mock()
         self.hook.run_job_group(body_request=DATA)
         assert mock_get_request.call_count == 1
 
@@ -187,7 +187,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         ],
     )
     def test_run_job_group_should_retry_after_four_errors(self, mock_get_request):
-        self.hook.run_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member
+        self.hook.run_job_group.retry.sleep = mock.Mock()
         self.hook.run_job_group(body_request=DATA)
         assert mock_get_request.call_count == 5
 
@@ -197,7 +197,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
     )
     def test_run_job_group_raise_error_after_five_calls(self, mock_get_request):
         with pytest.raises(RetryError) as ctx:
-            # pylint: disable=no-member
+
             self.hook.run_job_group.retry.sleep = mock.Mock()
             self.hook.run_job_group(body_request=DATA)
         assert "HTTPError" in str(ctx.value)

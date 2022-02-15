@@ -25,7 +25,6 @@ from sqlalchemy.sql.expression import literal
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.base import Base
-from airflow.settings import STORE_DAG_CODE
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import provide_session
@@ -38,9 +37,6 @@ class DagCode(Base):
     """A table for DAGs code.
 
     dag_code table contains code of DAG files synchronized by scheduler.
-    This feature is controlled by:
-
-    * ``[core] store_dag_code = True``: enable this feature
 
     For details on dag serialization see SerializedDagModel
     """
@@ -98,10 +94,11 @@ class DagCode(Base):
             hashes_to_filelocs = {DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs}
             message = ""
             for fileloc in conflicting_filelocs:
+                filename = hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)]
                 message += (
-                    "Filename '{}' causes a hash collision in the "
-                    + "database with '{}'. Please rename the file."
-                ).format(hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)], fileloc)
+                    f"Filename '{filename}' causes a hash collision in the "
+                    f"database with '{fileloc}'. Please rename the file."
+                )
             raise AirflowException(message)
 
         existing_filelocs = {dag_code.fileloc for dag_code in existing_orm_dag_codes}
@@ -165,10 +162,7 @@ class DagCode(Base):
 
         :return: source code as string
         """
-        if STORE_DAG_CODE:
-            return cls._get_code_from_db(fileloc)
-        else:
-            return cls._get_code_from_file(fileloc)
+        return cls._get_code_from_db(fileloc)
 
     @staticmethod
     def _get_code_from_file(fileloc):

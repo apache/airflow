@@ -28,14 +28,57 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.0.0
+2.2.0
 .....
 
-Latest change: 2021-06-07
+Latest change: 2021-12-31
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`6b70813fe <https://github.com/apache/airflow/commit/6b70813fe301223978b4e833fc55184971c26231>`_  2021-12-30   ``Fix mypy facebook ads hooks (#20589)``
+`2fb5e1d0e <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`1570519a9 <https://github.com/apache/airflow/commit/1570519a976dfb9de1aba9c2c0bee169e7ab5ee1>`_  2021-12-14   ``Fix MyPy errors for google.cloud.transfers (#20229)``
+`ed8b63ba2 <https://github.com/apache/airflow/commit/ed8b63ba2460f47744f4dcf40019592816bb89b5>`_  2021-12-08   ``Providers facebook hook multiple account (#19377)``
+================================================================================================  ===========  =========================================================================
+
+2.1.0
+.....
+
+Latest change: 2021-10-29
 
 ================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`d5aebf149 <https://github.com/apache/airflow/commit/d5aebf149ac81e3e81a903762a4a153568e67728>`_  2021-10-14   ``Align the default version with Facebook business SDK (#18883)``
+================================================================================================  ===========  =================================================================
+
+2.0.1
+.....
+
+Latest change: 2021-08-30
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+================================================================================================  ===========  ============================================================================
+
+2.0.0
+.....
+
+Latest change: 2021-06-18
+
+================================================================================================  ===========  =================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 ================================================================================================  ===========  =================================================================
 

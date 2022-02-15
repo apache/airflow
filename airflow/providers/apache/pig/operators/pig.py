@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PigOperator(BaseOperator):
@@ -27,21 +30,17 @@ class PigOperator(BaseOperator):
     Executes pig script.
 
     :param pig: the pig latin script to be executed. (templated)
-    :type pig: str
     :param pig_cli_conn_id: reference to the Hive database
-    :type pig_cli_conn_id: str
     :param pigparams_jinja_translate: when True, pig params-type templating
         ${var} gets translated into jinja-type templating {{ var }}. Note that
         you may want to use this along with the
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
-    :type pigparams_jinja_translate: bool
     :param pig_opts: pig options, such as: -x tez, -useHCatalog, ...
-    :type pig_opts: str
     """
 
-    template_fields = ('pig',)
-    template_ext = (
+    template_fields: Sequence[str] = ('pig',)
+    template_ext: Sequence[str] = (
         '.pig',
         '.piglatin',
     )
@@ -62,13 +61,13 @@ class PigOperator(BaseOperator):
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
         self.pig_opts = pig_opts
-        self.hook = None
+        self.hook: Optional[PigCliHook] = None
 
     def prepare_template(self):
         if self.pigparams_jinja_translate:
             self.pig = re.sub(r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Executing: %s', self.pig)
         self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)

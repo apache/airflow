@@ -15,14 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
 import jmespath
+import pytest
 
 from tests.helm_template_generator import render_chart
 
 
-class MigrateDatabaseJobTest(unittest.TestCase):
+class TestMigrateDatabaseJob:
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
         assert "Job" == docs[0]["kind"]
@@ -83,4 +82,121 @@ class MigrateDatabaseJobTest(unittest.TestCase):
         assert "dynamic-pods" == jmespath.search(
             "spec.template.spec.tolerations[0].key",
             docs[0],
+        )
+
+    @pytest.mark.parametrize(
+        "use_default_image,expected_image",
+        [
+            (True, "apache/airflow:2.1.0"),
+            (False, "apache/airflow:user-image"),
+        ],
+    )
+    def test_should_use_correct_image(self, use_default_image, expected_image):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "2.1.0",
+                "images": {
+                    "airflow": {
+                        "repository": "apache/airflow",
+                        "tag": "user-image",
+                    },
+                    "useDefaultImageForMigration": use_default_image,
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert expected_image == jmespath.search("spec.template.spec.containers[0].image", docs[0])
+
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_set_resources(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "resources": {
+                        "requests": {
+                            "cpu": "1000mi",
+                            "memory": "512Mi",
+                        },
+                        "limits": {
+                            "cpu": "1000mi",
+                            "memory": "512Mi",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {
+            "requests": {
+                "cpu": "1000mi",
+                "memory": "512Mi",
+            },
+            "limits": {
+                "cpu": "1000mi",
+                "memory": "512Mi",
+            },
+        } == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
+
+    def test_should_disable_default_helm_hooks(self):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"useHelmHooks": False}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations is None
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=[
+                "templates/jobs/migrate-database-job.yaml",
+            ],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "1"
+
+    def test_should_add_extra_volumes(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+
+    def test_should_add_extra_volume_mounts(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraVolumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )

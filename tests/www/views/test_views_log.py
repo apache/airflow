@@ -27,14 +27,16 @@ import pytest
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DAG, DagBag, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.models import DagBag, DagRun
+from airflow.models.tasklog import LogTemplate
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 from airflow.www.app import create_app
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login
 
@@ -52,7 +54,7 @@ def backup_modules():
 
 
 @pytest.fixture(scope="module")
-def log_app(backup_modules):  # pylint: disable=unused-argument
+def log_app(backup_modules):
     @dont_initialize_flask_app_submodules(
         skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
     )
@@ -61,7 +63,7 @@ def log_app(backup_modules):  # pylint: disable=unused-argument
         app = create_app(testing=True)
         app.config["WTF_CSRF_ENABLED"] = False
         settings.configure_orm()
-        security_manager = app.appbuilder.sm  # pylint: disable=no-member
+        security_manager = app.appbuilder.sm
         if not security_manager.find_user(username='test'):
             security_manager.add_user(
                 username='test',
@@ -102,46 +104,61 @@ def reset_modules_after_every_test(backup_modules):
 
 
 @pytest.fixture(autouse=True)
-def dags(log_app):
-    dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-    dag_removed = DAG(DAG_ID_REMOVED, start_date=DEFAULT_DATE)
+def dags(log_app, create_dummy_dag, session):
+    dag, _ = create_dummy_dag(
+        dag_id=DAG_ID,
+        task_id=TASK_ID,
+        start_date=DEFAULT_DATE,
+        with_dagrun_type=None,
+        session=session,
+    )
+    dag_removed, _ = create_dummy_dag(
+        dag_id=DAG_ID_REMOVED,
+        task_id=TASK_ID,
+        start_date=DEFAULT_DATE,
+        with_dagrun_type=None,
+        session=session,
+    )
 
     bag = DagBag(include_examples=False)
     bag.bag_dag(dag=dag, root_dag=dag)
     bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
-
-    # Since we don't want to store the code for the DAG defined in this file
-    with unittest.mock.patch.object(settings, "STORE_DAG_CODE", False):
-        dag.sync_to_db()
-        dag_removed.sync_to_db()
-        bag.sync_to_db()
-
+    bag.sync_to_db(session=session)
     log_app.dag_bag = bag
-    return dag, dag_removed
+
+    yield dag, dag_removed
+
+    clear_db_dags()
 
 
 @pytest.fixture(autouse=True)
-def tis(dags):
+def tis(dags, session):
     dag, dag_removed = dags
-    ti = TaskInstance(
-        task=DummyOperator(task_id=TASK_ID, dag=dag),
+    dagrun = dag.create_dagrun(
+        run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=DEFAULT_DATE,
+        state=DagRunState.RUNNING,
+        session=session,
     )
+    (ti,) = dagrun.task_instances
     ti.try_number = 1
-    ti_removed_dag = TaskInstance(
-        task=DummyOperator(task_id=TASK_ID, dag=dag_removed),
+    ti.hostname = 'localhost'
+    dagrun_removed = dag_removed.create_dagrun(
+        run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=DEFAULT_DATE,
+        state=DagRunState.RUNNING,
+        session=session,
     )
+    (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1
-
-    with create_session() as session:
-        session.merge(ti)
-        session.merge(ti_removed_dag)
 
     yield ti, ti_removed_dag
 
-    with create_session() as session:
-        session.query(TaskInstance).delete()
+    clear_db_runs()
 
 
 @pytest.fixture()
@@ -152,13 +169,13 @@ def log_admin_client(log_app):
 @pytest.mark.parametrize(
     "state, try_number, num_logs",
     [
-        (State.NONE, 0, 0),
-        (State.UP_FOR_RETRY, 2, 2),
-        (State.UP_FOR_RESCHEDULE, 0, 1),
-        (State.UP_FOR_RESCHEDULE, 1, 2),
-        (State.RUNNING, 1, 1),
-        (State.SUCCESS, 1, 1),
-        (State.FAILED, 3, 3),
+        (None, 0, 0),
+        (TaskInstanceState.UP_FOR_RETRY, 2, 2),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 0, 1),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 1, 2),
+        (TaskInstanceState.RUNNING, 1, 1),
+        (TaskInstanceState.SUCCESS, 1, 1),
+        (TaskInstanceState.FAILED, 3, 3),
     ],
     ids=[
         "none",
@@ -199,10 +216,11 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
         "try_number={}&metadata={}&format=file"
     )
     try_number = 1
+    date = DEFAULT_DATE.isoformat()
     url = url_template.format(
         DAG_ID,
         TASK_ID,
-        urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
+        urllib.parse.quote_plus(date),
         try_number,
         "{}",
     )
@@ -210,9 +228,54 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
 
     content_disposition = response.headers['Content-Disposition']
     assert content_disposition.startswith('attachment')
-    assert f'{DAG_ID}/{TASK_ID}/{DEFAULT_DATE.isoformat()}/{try_number}.log' in content_disposition
+    assert (
+        f'dag_id={DAG_ID}/run_id=scheduled__{date}/task_id={TASK_ID}/attempt={try_number}.log'
+        in content_disposition
+    )
     assert 200 == response.status_code
     assert 'Log for testing.' in response.data.decode('utf-8')
+    assert 'localhost\n' in response.data.decode('utf-8')
+
+
+DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
+
+
+@pytest.fixture()
+def dag_run_with_log_filename():
+    run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
+    with create_session() as session:
+        log_template = session.merge(
+            LogTemplate(filename=DIFFERENT_LOG_FILENAME, elasticsearch_id="irrelevant")
+        )
+        session.flush()  # To populate 'log_template.id'.
+        run_query = session.query(DagRun).filter(*run_filters)
+        run_query.update({"log_template_id": log_template.id})
+        dag_run = run_query.one()
+    yield dag_run
+    with create_session() as session:
+        session.query(DagRun).filter(*run_filters).update({"log_template_id": None})
+        session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
+
+
+def test_get_logs_for_changed_filename_format_db(log_admin_client, dag_run_with_log_filename):
+    try_number = 1
+    url = (
+        f"get_logs_with_metadata?dag_id={dag_run_with_log_filename.dag_id}&"
+        f"task_id={TASK_ID}&"
+        f"execution_date={urllib.parse.quote_plus(dag_run_with_log_filename.logical_date.isoformat())}&"
+        f"try_number={try_number}&metadata={{}}&format=file"
+    )
+    response = log_admin_client.get(url)
+
+    # Should find the log under corresponding db entry.
+    assert 200 == response.status_code
+    assert "Log for testing." in response.data.decode("utf-8")
+    content_disposition = response.headers['Content-Disposition']
+    expected_filename = (
+        f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
+    )
+    assert content_disposition.startswith("attachment")
+    assert expected_filename in content_disposition
 
 
 @unittest.mock.patch(

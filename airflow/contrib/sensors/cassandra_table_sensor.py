@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor  # noqa
 
 warnings.warn(

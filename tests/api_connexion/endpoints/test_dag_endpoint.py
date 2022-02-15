@@ -59,11 +59,11 @@ def configured_app(minimal_app_for_api):
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
@@ -122,6 +122,7 @@ class TestDagEndpoint:
                 fileloc=f"/tmp/dag_{num}.py",
                 schedule_interval="2 2 * * *",
                 is_active=True,
+                is_paused=False,
             )
             session.add(dag_model)
 
@@ -162,6 +163,7 @@ class TestGetDag(TestDagEndpoint):
             dag_id="TEST_DAG_1",
             fileloc="/tmp/dag_1.py",
             schedule_interval=None,
+            is_paused=False,
         )
         session.add(dag_model)
         session.commit()
@@ -235,7 +237,14 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": ['airflow'],
-            "params": {"foo": 1},
+            "params": {
+                "foo": {
+                    '__class': 'airflow.models.param.Param',
+                    'value': 1,
+                    'description': None,
+                    'schema': {},
+                }
+            },
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -341,7 +350,14 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": ['airflow'],
-            "params": {"foo": 1},
+            "params": {
+                "foo": {
+                    '__class': 'airflow.models.param.Param',
+                    'value': 1,
+                    'description': None,
+                    'schema': {},
+                }
+            },
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -381,7 +397,14 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_subdag': False,
             'orientation': 'LR',
             'owners': ['airflow'],
-            "params": {"foo": 1},
+            "params": {
+                "foo": {
+                    '__class': 'airflow.models.param.Param',
+                    'value': 1,
+                    'description': None,
+                    'schema': {},
+                }
+            },
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
             'tags': [{'name': 'example'}],
@@ -531,6 +554,58 @@ class TestGetDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+
+    @parameterized.expand(
+        [
+            ("api/v1/dags?tags=t1", ['TEST_DAG_1', 'TEST_DAG_3']),
+            ("api/v1/dags?tags=t2", ['TEST_DAG_2', 'TEST_DAG_3']),
+            ("api/v1/dags?tags=t1,t2", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3"]),
+            ("api/v1/dags", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3", "TEST_DAG_4"]),
+        ]
+    )
+    def test_filter_dags_by_tags_works(self, url, expected_dag_ids):
+        # test filter by tags
+        dag1 = DAG(dag_id="TEST_DAG_1", tags=['t1'])
+        dag2 = DAG(dag_id="TEST_DAG_2", tags=['t2'])
+        dag3 = DAG(dag_id="TEST_DAG_3", tags=['t1', 't2'])
+        dag4 = DAG(dag_id="TEST_DAG_4")
+        dag1.sync_to_db()
+        dag2.sync_to_db()
+        dag3.sync_to_db()
+        dag4.sync_to_db()
+
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dag_ids = [dag["dag_id"] for dag in response.json["dags"]]
+
+        assert expected_dag_ids == dag_ids
+
+    @parameterized.expand(
+        [
+            ("api/v1/dags?dag_id_pattern=DAG_1", {'TEST_DAG_1', 'SAMPLE_DAG_1'}),
+            ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {'SAMPLE_DAG_1', 'SAMPLE_DAG_2'}),
+            (
+                "api/v1/dags?dag_id_pattern=_DAG_",
+                {"TEST_DAG_1", "TEST_DAG_2", 'SAMPLE_DAG_1', 'SAMPLE_DAG_2'},
+            ),
+        ]
+    )
+    def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
+        # test filter by tags
+        dag1 = DAG(dag_id="TEST_DAG_1")
+        dag2 = DAG(dag_id="TEST_DAG_2")
+        dag3 = DAG(dag_id="SAMPLE_DAG_1")
+        dag4 = DAG(dag_id="SAMPLE_DAG_2")
+        dag1.sync_to_db()
+        dag2.sync_to_db()
+        dag3.sync_to_db()
+        dag4.sync_to_db()
+
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
+
+        assert expected_dag_ids == dag_ids
 
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(3)

@@ -55,7 +55,7 @@ def mock_init(
     gcp_conn_id,
     delegate_to=None,
     impersonation_chain=None,
-):  # pylint: disable=unused-argument
+):
     pass
 
 
@@ -69,7 +69,7 @@ class TestPubSubHook(unittest.TestCase):
             ReceivedMessage(
                 ack_id=str(i),
                 message={
-                    "data": f'Message {i}'.encode('utf8'),
+                    "data": f'Message {i}'.encode(),
                     "attributes": {"type": "generated message"},
                 },
             )
@@ -201,9 +201,7 @@ class TestPubSubHook(unittest.TestCase):
             subscription=TEST_SUBSCRIPTION,
             subscription_project_id='a-different-project',
         )
-        expected_subscription = 'projects/{}/subscriptions/{}'.format(
-            'a-different-project', TEST_SUBSCRIPTION
-        )
+        expected_subscription = f'projects/a-different-project/subscriptions/{TEST_SUBSCRIPTION}'
         create_method.assert_called_once_with(
             request=dict(
                 name=expected_subscription,
@@ -257,9 +255,7 @@ class TestPubSubHook(unittest.TestCase):
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
     @mock.patch(PUBSUB_STRING.format('uuid4'), new_callable=mock.Mock(return_value=lambda: TEST_UUID))
-    def test_create_subscription_without_subscription_name(
-        self, mock_uuid, mock_service
-    ):  # noqa  # pylint: disable=unused-argument,line-too-long
+    def test_create_subscription_without_subscription_name(self, mock_uuid, mock_service):
         create_method = mock_service.create_subscription
         expected_name = EXPANDED_SUBSCRIPTION.replace(TEST_SUBSCRIPTION, f'sub-{TEST_UUID}')
 

@@ -20,18 +20,20 @@
 Running Airflow locally
 -----------------------
 
-This quick start guide will help you bootstrap a Airflow standalone instance on your local machine.
+This quick start guide will help you bootstrap an Airflow standalone instance on your local machine.
 
 .. note::
 
+   Successful installation requires a Python 3 environment.
+
    Only ``pip`` installation is currently officially supported.
 
-   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   While there have been successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
-   If you wish to install airflow using those tools you should use the constraint files and convert
+   If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
 The installation of Airflow is painless if you are following the instructions below. Airflow uses
@@ -62,6 +64,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
+You can override defaults using environment variables, see :doc:`/configurations-ref`.
 You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``

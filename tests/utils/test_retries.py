@@ -85,7 +85,7 @@ class TestRetries(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "has no `session` argument"):
 
             @retry_db_transaction
-            def test_function():  # pylint: disable=unused-variable
+            def test_function():
                 print("hi")
                 raise OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
 
@@ -100,4 +100,4 @@ class TestRetries(unittest.TestCase):
         with self.assertRaisesRegex(
             TypeError, f"session is a required argument for {test_function.__qualname__}"
         ):
-            test_function()  # pylint: disable=no-value-for-parameter
+            test_function()

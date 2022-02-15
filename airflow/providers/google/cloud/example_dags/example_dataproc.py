@@ -21,18 +21,24 @@ operators to manage a cluster and submit jobs.
 """
 
 import os
+from datetime import datetime
+from uuid import uuid4
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
+    ClusterGenerator,
+    DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
     DataprocCreateWorkflowTemplateOperator,
+    DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
+    DataprocGetBatchOperator,
     DataprocInstantiateWorkflowTemplateOperator,
+    DataprocListBatchesOperator,
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-cluster")
@@ -63,6 +69,30 @@ CLUSTER_CONFIG = {
 }
 
 # [END how_to_cloud_dataproc_create_cluster]
+
+# Cluster definition: Generating Cluster Config for DataprocCreateClusterOperator
+# [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+path = "gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
+    project_id="test",
+    zone="us-central1-a",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test",
+    init_actions_uris=[path],
+    metadata={'PIP_PACKAGES': 'pyyaml requests pandas openpyxl'},
+).make()
+
+create_cluster_operator = DataprocCreateClusterOperator(
+    task_id='create_dataproc_cluster',
+    cluster_name="test",
+    project_id="test",
+    region="us-central1",
+    cluster_config=CLUSTER_GENERATOR_CONFIG,
+)
+# [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 
 # Update options
 # [START how_to_cloud_dataproc_updatemask_cluster_operator]
@@ -149,9 +179,46 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
 }
+BATCH_ID = f"test-batch-id-{str(uuid4())}"
+BATCH_CONFIG = {
+    "spark_batch": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+}
+CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
+    project_id=PROJECT_ID,
+    region=REGION,
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=0,
+    properties={
+        "spark:spark.history.fs.logDirectory": f"gs://{BUCKET}/logging",
+    },
+    enable_component_gateway=True,
+).make()
+CLUSTER_NAME_FOR_PHS = "phs-cluster-name"
+BATCH_CONFIG_WITH_PHS = {
+    "spark_batch": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+    "environment_config": {
+        "peripherals_config": {
+            "spark_history_server_config": {
+                "dataproc_cluster": f"projects/{PROJECT_ID}/regions/{REGION}/clusters/{CLUSTER_NAME_FOR_PHS}"
+            }
+        }
+    },
+}
 
 
-with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None) as dag:
+with models.DAG(
+    "example_gcp_dataproc",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
@@ -170,7 +237,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
         update_mask=UPDATE_MASK,
         graceful_decommission_timeout=TIMEOUT,
         project_id=PROJECT_ID,
-        location=REGION,
+        region=REGION,
     )
     # [END how_to_cloud_dataproc_update_cluster_operator]
 
@@ -179,7 +246,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
         task_id="create_workflow_template",
         template=WORKFLOW_TEMPLATE,
         project_id=PROJECT_ID,
-        location=REGION,
+        region=REGION,
     )
     # [END how_to_cloud_dataproc_create_workflow_template]
 
@@ -190,46 +257,46 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     # [END how_to_cloud_dataproc_trigger_workflow_template]
 
     pig_task = DataprocSubmitJobOperator(
-        task_id="pig_task", job=PIG_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="pig_task", job=PIG_JOB, region=REGION, project_id=PROJECT_ID
     )
     spark_sql_task = DataprocSubmitJobOperator(
-        task_id="spark_sql_task", job=SPARK_SQL_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="spark_sql_task", job=SPARK_SQL_JOB, region=REGION, project_id=PROJECT_ID
     )
 
     spark_task = DataprocSubmitJobOperator(
-        task_id="spark_task", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="spark_task", job=SPARK_JOB, region=REGION, project_id=PROJECT_ID
     )
 
     # [START cloud_dataproc_async_submit_sensor]
     spark_task_async = DataprocSubmitJobOperator(
-        task_id="spark_task_async", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID, asynchronous=True
+        task_id="spark_task_async", job=SPARK_JOB, region=REGION, project_id=PROJECT_ID, asynchronous=True
     )
 
     spark_task_async_sensor = DataprocJobSensor(
         task_id='spark_task_async_sensor_task',
-        location=REGION,
+        region=REGION,
         project_id=PROJECT_ID,
-        dataproc_job_id="{{task_instance.xcom_pull(task_ids='spark_task_async')}}",
+        dataproc_job_id=spark_task_async.output,
         poke_interval=10,
     )
     # [END cloud_dataproc_async_submit_sensor]
 
     # [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     pyspark_task = DataprocSubmitJobOperator(
-        task_id="pyspark_task", job=PYSPARK_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="pyspark_task", job=PYSPARK_JOB, region=REGION, project_id=PROJECT_ID
     )
     # [END how_to_cloud_dataproc_submit_job_to_cluster_operator]
 
     sparkr_task = DataprocSubmitJobOperator(
-        task_id="sparkr_task", job=SPARKR_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="sparkr_task", job=SPARKR_JOB, region=REGION, project_id=PROJECT_ID
     )
 
     hive_task = DataprocSubmitJobOperator(
-        task_id="hive_task", job=HIVE_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="hive_task", job=HIVE_JOB, region=REGION, project_id=PROJECT_ID
     )
 
     hadoop_task = DataprocSubmitJobOperator(
-        task_id="hadoop_task", job=HADOOP_JOB, location=REGION, project_id=PROJECT_ID
+        task_id="hadoop_task", job=HADOOP_JOB, region=REGION, project_id=PROJECT_ID
     )
 
     # [START how_to_cloud_dataproc_delete_cluster_operator]
@@ -244,7 +311,70 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     scale_cluster >> pig_task >> delete_cluster
     scale_cluster >> spark_sql_task >> delete_cluster
     scale_cluster >> spark_task >> delete_cluster
-    scale_cluster >> spark_task_async >> spark_task_async_sensor >> delete_cluster
+    scale_cluster >> spark_task_async
+    spark_task_async_sensor >> delete_cluster
     scale_cluster >> pyspark_task >> delete_cluster
     scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster
+
+    # Task dependency created via `XComArgs`:
+    #   spark_task_async >> spark_task_async_sensor
+
+with models.DAG(
+    "example_gcp_batch_dataproc",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag_batch:
+    # [START how_to_cloud_dataproc_create_batch_operator]
+    create_batch = DataprocCreateBatchOperator(
+        task_id="create_batch",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG,
+        batch_id=BATCH_ID,
+    )
+    # [END how_to_cloud_dataproc_create_batch_operator]
+
+    # [START how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+    create_cluster_for_phs = DataprocCreateClusterOperator(
+        task_id="create_cluster_for_phs",
+        project_id=PROJECT_ID,
+        cluster_config=CLUSTER_GENERATOR_CONFIG_FOR_PHS,
+        region=REGION,
+        cluster_name=CLUSTER_NAME_FOR_PHS,
+    )
+    # [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+
+    # [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+    create_batch_with_phs = DataprocCreateBatchOperator(
+        task_id="create_batch_with_phs",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG_WITH_PHS,
+        batch_id=BATCH_ID,
+    )
+    # [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+
+    # [START how_to_cloud_dataproc_get_batch_operator]
+    get_batch = DataprocGetBatchOperator(
+        task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
+    )
+    # [END how_to_cloud_dataproc_get_batch_operator]
+
+    # [START how_to_cloud_dataproc_list_batches_operator]
+    list_batches = DataprocListBatchesOperator(
+        task_id="list_batches",
+        project_id=PROJECT_ID,
+        region=REGION,
+    )
+    # [END how_to_cloud_dataproc_list_batches_operator]
+
+    # [START how_to_cloud_dataproc_delete_batch_operator]
+    delete_batch = DataprocDeleteBatchOperator(
+        task_id="delete_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
+    )
+    # [END how_to_cloud_dataproc_delete_batch_operator]
+
+    create_batch >> get_batch >> list_batches >> delete_batch
+    create_cluster_for_phs >> create_batch_with_phs

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator  # noqa
 
 warnings.warn(

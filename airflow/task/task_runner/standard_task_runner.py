@@ -21,7 +21,7 @@ import os
 from typing import Optional
 
 import psutil
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -46,22 +46,22 @@ class StandardTaskRunner(BaseTaskRunner):
         subprocess = self.run_command()
         return psutil.Process(subprocess.pid)
 
-    def _start_by_fork(self):  # pylint: disable=inconsistent-return-statements
+    def _start_by_fork(self):
         pid = os.fork()
         if pid:
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
+            # Start a new process group
+            os.setpgid(0, 0)
             import signal
+
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
             from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
-            signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            # Start a new process group
-            os.setpgid(0, 0)
 
             # Force a new SQLAlchemy session. We can't share open DB handles
             # between process. The cli code will re-create this as part of its
@@ -84,13 +84,18 @@ class StandardTaskRunner(BaseTaskRunner):
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 return_code = 1
+                self.log.exception(
+                    "Failed to execute job %s for task %s",
+                    self._task_instance.job_id,
+                    self._task_instance.task_id,
+                )
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
                 logging.shutdown()
-                os._exit(return_code)  # pylint: disable=protected-access
+                os._exit(return_code)
 
     def return_code(self, timeout: int = 0) -> Optional[int]:
         # We call this multiple times, but we can only wait on the process once

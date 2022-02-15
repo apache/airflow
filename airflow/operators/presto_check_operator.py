@@ -19,8 +19,7 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator  # noqa
+from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.sql`.", DeprecationWarning, stacklevel=2

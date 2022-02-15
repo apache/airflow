@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.sensors.sagemaker_transform import SageMakerTransformSensor  # noqa
 
 warnings.warn(

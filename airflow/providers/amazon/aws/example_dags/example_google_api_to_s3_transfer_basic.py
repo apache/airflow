@@ -20,11 +20,11 @@ This is a basic example dag for using `GoogleApiToS3Transfer` to retrieve Google
 You need to set all env variables to request the data.
 """
 
+from datetime import datetime
 from os import getenv
 
 from airflow import DAG
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_google_api_to_s3_transfer_basic_env_variables]
 GOOGLE_SHEET_ID = getenv("GOOGLE_SHEET_ID")
@@ -36,7 +36,8 @@ S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://bucket/key.json")
 with DAG(
     dag_id="example_google_api_to_s3_transfer_basic",
     schedule_interval=None,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_basic_task_1]
@@ -47,6 +48,5 @@ with DAG(
         google_api_endpoint_params={'spreadsheetId': GOOGLE_SHEET_ID, 'range': GOOGLE_SHEET_RANGE},
         s3_destination_key=S3_DESTINATION_KEY,
         task_id='google_sheets_values_to_s3',
-        dag=dag,
     )
     # [END howto_operator_google_api_to_s3_transfer_basic_task_1]

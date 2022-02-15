@@ -43,6 +43,7 @@ class TestDbApiHook(unittest.TestCase):
                 return conn
 
         self.db_hook = UnitTestDbApiHook()
+        self.db_hook_schema_override = UnitTestDbApiHook(schema='schema-override')
 
     def test_get_records(self):
         statement = "SQL"
@@ -159,13 +160,26 @@ class TestDbApiHook(unittest.TestCase):
         )
         assert "conn_type://login:password@host:1/schema" == self.db_hook.get_uri()
 
+    def test_get_uri_schema_override(self):
+        self.db_hook_schema_override.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn_type",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
+        assert "conn_type://login:password@host:1/schema-override" == self.db_hook_schema_override.get_uri()
+
     def test_get_uri_schema_none(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
                 conn_type="conn_type", host="host", login="login", password="password", schema=None, port=1
             )
         )
-        assert "conn_type://login:password@host:1/" == self.db_hook.get_uri()
+        assert "conn_type://login:password@host:1" == self.db_hook.get_uri()
 
     def test_get_uri_special_characters(self):
         self.db_hook.get_connection = mock.MagicMock(

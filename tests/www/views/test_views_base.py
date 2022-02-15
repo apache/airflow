@@ -18,22 +18,19 @@
 import datetime
 import json
 
-import flask
 import pytest
 
 from airflow import version
 from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
-from airflow.www.views import FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 
 def test_index(admin_client):
-    with assert_queries_count(44):
+    with assert_queries_count(11):
         resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response('DAGs', resp)
 
@@ -49,28 +46,6 @@ def test_doc_urls(admin_client):
 
     check_content_in_response(airflow_doc_site, resp)
     check_content_in_response("/api/v1/ui", resp)
-
-
-def test_home(capture_templates, admin_client):
-    with capture_templates() as templates:
-        resp = admin_client.get('home', follow_redirects=True)
-        check_content_in_response('DAGs', resp)
-        val_state_color_mapping = (
-            'const STATE_COLOR = {"failed": "red", '
-            '"null": "lightblue", "queued": "gray", '
-            '"removed": "lightgrey", "running": "lime", '
-            '"scheduled": "tan", "sensing": "lightseagreen", '
-            '"shutdown": "blue", "skipped": "pink", '
-            '"success": "green", "up_for_reschedule": "turquoise", '
-            '"up_for_retry": "gold", "upstream_failed": "orange"};'
-        )
-        check_content_in_response(val_state_color_mapping, resp)
-
-    assert len(templates) == 1
-    assert templates[0].name == 'airflow/dags.html'
-    state_color_mapping = State.state_color.copy()
-    state_color_mapping["null"] = state_color_mapping.pop(None)
-    assert templates[0].local_context['state_color'] == state_color_mapping
 
 
 @pytest.fixture()
@@ -234,12 +209,12 @@ def test_roles_delete_unauthorized(app, viewer_client, exist_role, exist_role_na
     [
         ("userstatschartview/chart/", "admin_client", "User Statistics"),
         ("userstatschartview/chart/", "viewer_client", "Access is Denied"),
-        ("permissions/list", "admin_client", "List Base Permissions"),
-        ("permissions/list", "viewer_client", "Access is Denied"),
-        ("viewmenus/list/", "admin_client", "List View Menus"),
-        ("viewmenus/list/", "viewer_client", "Access is Denied"),
-        ("permissionviews/list/", "admin_client", "List Permissions on Views/Menus"),
-        ("permissionviews/list/", "viewer_client", "Access is Denied"),
+        ("actions/list", "admin_client", "List Actions"),
+        ("actions/list", "viewer_client", "Access is Denied"),
+        ("resources/list/", "admin_client", "List Resources"),
+        ("resources/list/", "viewer_client", "Access is Denied"),
+        ("permissions/list/", "admin_client", "List Permissions"),
+        ("permissions/list/", "viewer_client", "Access is Denied"),
         ("resetpassword/form?pk=1", "admin_client", "Reset Password Form"),
         ("resetpassword/form?pk=1", "viewer_client", "Access is Denied"),
         ("users/list", "admin_client", "List Users"),
@@ -248,12 +223,12 @@ def test_roles_delete_unauthorized(app, viewer_client, exist_role, exist_role_na
     ids=[
         "userstatschertview-admin",
         "userstatschertview-viewer",
+        "actions-admin",
+        "actions-viewer",
+        "resources-admin",
+        "resources-viewer",
         "permissions-admin",
         "permissions-viewer",
-        "viewmenus-admin",
-        "viewmenus-viewer",
-        "permissionviews-admin",
-        "permissionviews-viewer",
         "resetpassword-admin",
         "resetpassword-viewer",
         "users-admin",
@@ -285,17 +260,18 @@ def test_views_post(admin_client, url, check_response):
 
 
 @pytest.mark.parametrize(
-    "url, client, content",
+    "url, client, content, username",
     [
-        ("resetmypassword/form", "viewer_client", "Password Changed"),
-        ("resetpassword/form?pk=1", "admin_client", "Password Changed"),
-        ("resetpassword/form?pk=1", "viewer_client", "Access is Denied"),
+        ("resetmypassword/form", "viewer_client", "Password Changed", "test_viewer"),
+        ("resetpassword/form?pk={}", "admin_client", "Password Changed", "test_admin"),
+        ("resetpassword/form?pk={}", "viewer_client", "Access is Denied", "test_viewer"),
     ],
     ids=["my-viewer", "pk-admin", "pk-viewer"],
 )
-def test_resetmypasswordview_edit(request, url, client, content):
+def test_resetmypasswordview_edit(app, request, url, client, content, username):
+    user = app.appbuilder.sm.find_user(username)
     resp = request.getfixturevalue(client).post(
-        url, data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
+        url.format(user.id), data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
     )
     check_content_in_response(content, resp)
 
@@ -350,6 +326,7 @@ def test_create_user(app, admin_client, non_exist_username):
             'last_name': 'fake_last_name',
             'username': non_exist_username,
             'email': 'fake_email@email.com',
+            'roles': [1],
             'password': 'test',
             'conf_password': 'test',
         },
@@ -394,30 +371,6 @@ def test_delete_user(app, admin_client, exist_username):
     check_content_in_response("Deleted Row", resp)
 
 
-def test_home_filter_tags(admin_client):
-    with admin_client:
-        admin_client.get('home?tags=example&tags=data', follow_redirects=True)
-        assert 'example,data' == flask.session[FILTER_TAGS_COOKIE]
-
-        admin_client.get('home?reset_tags', follow_redirects=True)
-        assert flask.session[FILTER_TAGS_COOKIE] is None
-
-
-def test_home_status_filter_cookie(admin_client):
-    with admin_client:
-        admin_client.get('home', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
-
-        admin_client.get('home?status=active', follow_redirects=True)
-        assert 'active' == flask.session[FILTER_STATUS_COOKIE]
-
-        admin_client.get('home?status=paused', follow_redirects=True)
-        assert 'paused' == flask.session[FILTER_STATUS_COOKIE]
-
-        admin_client.get('home?status=all', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
-
-
 @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
 def test_task_stats_only_noncompleted(admin_client):
     resp = admin_client.post('task_stats', follow_redirects=True)
@@ -437,3 +390,14 @@ def test_page_instance_name_xss_prevention(admin_client):
         escaped_xss_string = "&lt;script&gt;alert(&#39;Give me your credit card number&#39;)&lt;/script&gt;"
         check_content_in_response(escaped_xss_string, resp)
         check_content_not_in_response(xss_string, resp)
+
+
+@conf_vars(
+    {
+        ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
+        ("webserver", "instance_name_has_markup"): "True",
+    }
+)
+def test_page_instance_name_with_markup(admin_client):
+    resp = admin_client.get('home', follow_redirects=True)
+    check_content_in_response('<b>Bold Site Title Test</b>', resp)

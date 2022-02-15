@@ -14,12 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from typing import Collection, Optional
+
+from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
+from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import or_
 
 from airflow import DAG
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
@@ -27,15 +33,16 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
-from airflow.exceptions import SerializedDagNotFound
-from airflow.models.dag import DagModel
+from airflow.api_connexion.types import APIResponse, UpdateMask
+from airflow.exceptions import AirflowException, DagNotFound
+from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @provide_session
-def get_dag(dag_id, session):
+def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get basic information about a DAG."""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
 
@@ -46,13 +53,10 @@ def get_dag(dag_id, session):
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
-def get_dag_details(dag_id):
+def get_dag_details(*, dag_id: str) -> APIResponse:
     """Get details of DAG."""
-    try:
-        dag: DAG = current_app.dag_bag.get_dag(dag_id)
-    except SerializedDagNotFound:
-        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-    if dag is None:
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)
 
@@ -60,16 +64,31 @@ def get_dag_details(dag_id):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_dags(limit, session, offset=0, only_active=True):
+def get_dags(
+    *,
+    limit: int,
+    offset: int = 0,
+    tags: Optional[Collection[str]] = None,
+    dag_id_pattern: Optional[str] = None,
+    only_active: bool = True,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get all DAGs."""
     if only_active:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
     else:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
 
+    if dag_id_pattern:
+        dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
+
     readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
     dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
+    if tags:
+        cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
+        dags_query = dags_query.filter(or_(*cond))
+
     total_entries = len(dags_query.all())
 
     dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
@@ -79,7 +98,7 @@ def get_dags(limit, session, offset=0, only_active=True):
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
-def patch_dag(session, dag_id, update_mask=None):
+def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
     """Update the specific DAG"""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
@@ -100,3 +119,19 @@ def patch_dag(session, dag_id, update_mask=None):
     setattr(dag, 'is_paused', patch_body['is_paused'])
     session.commit()
     return dag_schema.dump(dag)
+
+
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
+@provide_session
+def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Delete the specific DAG."""
+    from airflow.api.common import delete_dag as delete_dag_module
+
+    try:
+        delete_dag_module.delete_dag(dag_id, session=session)
+    except DagNotFound:
+        raise NotFound(f"Dag with id: '{dag_id}' not found")
+    except AirflowException:
+        raise AlreadyExists(detail=f"Task instances of dag with id: '{dag_id}' are still running")
+
+    return NoContent, 204

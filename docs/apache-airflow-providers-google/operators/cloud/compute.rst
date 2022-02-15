@@ -20,10 +20,6 @@
 Google Compute Engine Operators
 ===============================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

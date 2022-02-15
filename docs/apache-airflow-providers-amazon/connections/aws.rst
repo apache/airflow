@@ -159,6 +159,12 @@ This assumes all other Connection fields eg **Login** are empty.
           "headers":{"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
           "verify":false
         },
+        "idp_request_retry_kwargs": {
+          "total": 10,
+          "backoff_factor":1,
+          "status":10,
+          "status_forcelist": [400, 429, 500, 502, 503, 504]
+        },
         "log_idp_response":false,
         "saml_response_xpath":"////INPUT[@NAME='SAMLResponse']/@VALUE",
       },
@@ -173,6 +179,7 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     * ``idp_auth_method``: Specify "http_spegno_auth" to use the Python ``requests_gssapi`` library. This library is more up to date than ``requests_kerberos`` and is backward compatible. See ``requests_gssapi`` documentation on PyPI.
     * ``mutual_authentication``: Can be "REQUIRED", "OPTIONAL" or "DISABLED". See ``requests_gssapi`` documentation on PyPI.
     * ``idp_request_kwargs``: Additional ``kwargs`` passed to ``requests`` when requesting from the IDP (over HTTP/S).
+    * ``idp_request_retry_kwargs``: Additional ``kwargs`` to construct a ``urllib3.util.Retry`` used as a retry strategy when requesting from the IDP. See the ``urllib3`` documentation for more details.
     * ``log_idp_response``: Useful for debugging - if specified, print the IDP response content to the log. Note that a successful response will contain sensitive information!
     * ``saml_response_xpath``: How to query the IDP response using XML / HTML xpath.
     * ``assume_role_kwargs``: Additional ``kwargs`` passed to ``sts_client.assume_role_with_saml``.
@@ -408,3 +415,19 @@ You can configure connection, also using environmental variable :envvar:`AIRFLOW
     assume_role_method=assume_role_with_web_identity&\
     assume_role_with_web_identity_federation=google&\
     assume_role_with_web_identity_federation_audience=aaa.polidea.com"
+
+Using IAM Roles for Service Accounts (IRSA) on EKS
+----------------------------------------------------------------
+
+If you are running Airflow on Amazon EKS, you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service by granting the IAM role to it's service account.  To activate this, the following steps must be followed:
+
+1. Create an IAM OIDC Provider on EKS cluster.
+2. Create an IAM Role and Policy to attach to the Airflow service account with web identity provider created at 1.
+3. Add the corresponding IAM Role to the Airflow service account as an annotation.
+
+.. seealso::
+    https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+
+Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that `Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added. Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__ will configure credentials using those variables.
+
+In order to use IRSA in Airflow, you have to create an aws connection with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because it manually create a session using connection fields. If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.

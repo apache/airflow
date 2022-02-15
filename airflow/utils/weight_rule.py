@@ -26,7 +26,7 @@ class WeightRule:
     UPSTREAM = 'upstream'
     ABSOLUTE = 'absolute'
 
-    _ALL_WEIGHT_RULES = set()  # type: Set[str]
+    _ALL_WEIGHT_RULES: Set[str] = set()
 
     @classmethod
     def is_valid(cls, weight_rule):
@@ -34,7 +34,7 @@ class WeightRule:
         return weight_rule in cls.all_weight_rules()
 
     @classmethod
-    def all_weight_rules(cls):
+    def all_weight_rules(cls) -> Set[str]:
         """Returns all weight rules"""
         if not cls._ALL_WEIGHT_RULES:
             cls._ALL_WEIGHT_RULES = {

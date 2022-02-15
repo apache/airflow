@@ -19,9 +19,13 @@
 
 # Require SEMAPHORE_NAME
 
+
 function parallel::initialize_monitoring() {
     PARALLEL_MONITORED_DIR="$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
+
+    PARALLEL_TAIL_LENGTH=${PARALLEL_TAIL_LENGTH:=2}
+    export PARALLEL_TAIL_LENGTH
 }
 
 function parallel::make_sure_gnu_parallel_is_installed() {
@@ -48,6 +52,7 @@ function parallel::kill_stale_semaphore_locks() {
             rm -f "${s}" 2>/dev/null
         fi
     done
+    rm -rf "${HOME}/.parallel"
 }
 
 
@@ -60,31 +65,47 @@ function parallel::monitor_loop() {
     local progress_report_number=1
     local start_time
     local end_time
+    # To continue supporting Bash v3 we can't use associative arrays - so use a
+    # normal array and just check if the value is in it -- it will only ever be
+    # a few items long so it won't be too expensive
+    declare -a finished_jobs=()
     start_time=${SECONDS}
     while true
     do
         echo
-        echo "${COLOR_YELLOW}########### Monitoring progress start: ${progress_report_number} #################${COLOR_RESET}"
+        echo "${COLOR_YELLOW}########## Monitoring progress start: ${progress_report_number}  ##########${COLOR_RESET}"
         echo
-        echo "${COLOR_BLUE}########### STATISTICS #################"
-        docker_engine_resources::print_overall_stats
-        echo "########### STATISTICS #################${COLOR_RESET}"
+        if [[ ${PR_LABELS} == *debug-ci-resources* || ${GITHUB_EVENT_NAME} == "push" ]]; then
+            # Only print stats in `main` or when "debug-ci-resources" label is set on PR.
+            echo "${COLOR_BLUE}########### STATISTICS #################"
+            docker_engine_resources::print_overall_stats
+            echo "########### STATISTICS #################${COLOR_RESET}"
+        fi
         for directory in "${PARALLEL_MONITORED_DIR}"/*/*
         do
             parallel_process=$(basename "${directory}")
+            if ( IFS=$'\x1F';  [[ "$IFS${finished_jobs[*]}$IFS" == *"$IFS${parallel_process}$IFS"* ]] ) ; then
+              # Already finished, so don't print anything
+              continue
+            fi
 
-            echo "${COLOR_BLUE}### The last lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
+            echo "${COLOR_BLUE}### The last ${PARALLEL_TAIL_LENGTH} lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
+            tail "-${PARALLEL_TAIL_LENGTH}" "${directory}/stdout" || true
             echo
-            tail -2 "${directory}/stdout" || true
+
+            if [[ -s "${directory}/status" ]]; then
+              finished_jobs+=("$parallel_process")
+              # The last line of output (which we've already shown) will be a line about the success/failure
+              # of this job
+            fi
+
             echo
-            echo
+
         done
-        echo
-        echo "${COLOR_YELLOW}########### Monitoring progress end: ${progress_report_number} #################${COLOR_RESET}"
-        echo
+
         end_time=${SECONDS}
-        echo "${COLOR_YELLOW}############## $((end_time - start_time)) seconds passed since start ####################### ${COLOR_RESET}"
-        sleep 10
+        echo "${COLOR_YELLOW}########## $((end_time - start_time)) seconds passed since start ##########${COLOR_RESET}"
+        sleep 15
         progress_report_number=$((progress_report_number + 1))
     done
 }
@@ -144,10 +165,17 @@ function parallel::output_log_for_failed_job(){
 function parallel::print_job_summary_and_return_status_code() {
     local return_code="0"
     local job
+    local status_file
     for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/"*
     do
         job="$(basename "${job_path}")"
-        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status")
+        status_file="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status"
+        if [[ -s "${status_file}"  ]]; then
+            status=$(cat "${status_file}")
+        else
+            echo "${COLOR_RED}Missing ${status_file} file"
+            status="1"
+        fi
         if [[ ${status} == "0" ]]; then
             parallel::output_log_for_successful_job "${job}"
         else
@@ -186,9 +214,7 @@ function parallel::cleanup_runner() {
     start_end::group_start "Cleanup runner"
     parallel::kill_all_running_docker_containers
     parallel::system_prune_docker
-    docker_engine_resources::get_available_memory_in_docker
-    docker_engine_resources::get_available_cpus_in_docker
-    docker_engine_resources::get_available_disk_space_in_docker
+    docker_engine_resources::check_all_resources
     docker_engine_resources::print_overall_stats
     parallel::kill_stale_semaphore_locks
     start_end::group_end
@@ -216,4 +242,72 @@ function parallel::make_sure_kubernetes_versions_are_specified() {
     echo
     echo "${COLOR_BLUE}Running parallel builds for those Kubernetes versions: ${CURRENT_KUBERNETES_VERSIONS_AS_STRING}${COLOR_RESET}"
     echo
+}
+
+function parallel::get_maximum_parallel_k8s_jobs() {
+    docker_engine_resources::get_available_cpus_in_docker
+    if [[ -n ${RUNS_ON=} && ${RUNS_ON} != *"self-hosted"* ]]; then
+        echo
+        echo "${COLOR_YELLOW}This is a Github Public runner - for now we are forcing max parallel K8S tests jobs to 1 for those${COLOR_RESET}"
+        echo
+        export MAX_PARALLEL_K8S_JOBS="1"
+    else
+        if [[ ${MAX_PARALLEL_K8S_JOBS=} != "" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Maximum parallel k8s jobs forced vi MAX_PARALLEL_K8S_JOBS = ${MAX_PARALLEL_K8S_JOBS}${COLOR_RESET}"
+            echo
+        else
+            MAX_PARALLEL_K8S_JOBS=${CPUS_AVAILABLE_FOR_DOCKER}
+            echo
+            echo "${COLOR_YELLOW}Maximum parallel k8s jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_K8S_JOBS}${COLOR_RESET}"
+            echo
+        fi
+    fi
+    export MAX_PARALLEL_K8S_JOBS
+}
+
+# Launches parallel building of images. Redirects output to log set the right directories
+function parallel::run_single_helm_test() {
+    local kubernetes_version=$1
+    local python_version=$2
+    local executor=$3
+    local single_job_filename=$4
+    local job="Cluster-${kubernetes_version}-python-${python_version}"
+
+    mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/stdout"
+    export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status"
+    echo "Starting helm tests for kubernetes version ${kubernetes_version}, python version: ${python_version}"
+    parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
+        --jobs "${MAX_PARALLEL_K8S_JOBS}" "${single_job_filename}" \
+                "${kubernetes_version}" "${python_version}" "${executor}" >"${JOB_LOG}" 2>&1
+}
+
+function parallel::run_helm_tests_in_parallel() {
+    parallel::cleanup_runner
+    start_end::group_start "Monitoring helm tests"
+    parallel::initialize_monitoring
+    parallel::monitor_progress
+    local single_job_filename=$1
+    # In case there are more kubernetes versions than strings, we can reuse python versions so we add it twice here
+    local repeated_python_versions
+    # shellcheck disable=SC2206
+    repeated_python_versions=(${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING} ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING})
+    local index=0
+    for kubernetes_version in ${CURRENT_KUBERNETES_VERSIONS_AS_STRING}
+    do
+        index=$((index + 1))
+        python_version=${repeated_python_versions[${index}]}
+        FORWARDED_PORT_NUMBER=$((38080 + index))
+        export FORWARDED_PORT_NUMBER
+        API_SERVER_PORT=$((19090 + index))
+        export API_SERVER_PORT
+        # shellcheck disable=SC2153
+        parallel::run_single_helm_test "${kubernetes_version}" "${python_version}" "${EXECUTOR}" "${single_job_filename}" "${@}"
+    done
+    set +e
+    parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
+    parallel::kill_monitor
+    set -e
+    start_end::group_end
 }

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook  # noqa
 
 warnings.warn(

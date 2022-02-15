@@ -20,7 +20,6 @@ Please use :mod:`airflow.providers.google.cloud.log.stackdriver_task_handler`.
 """
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverTaskHandler  # noqa
 
 warnings.warn(

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook  # noqa
 
 warnings.warn(

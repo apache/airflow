@@ -23,11 +23,11 @@ This article will show you how to install Airflow using Helm Chart on `Kind <htt
 Install kind, and create a cluster
 ----------------------------------
 
-We recommend testing with Kubernetes 1.16+, example:
+We recommend testing with Kubernetes 1.20+, example:
 
 .. code-block:: bash
 
-   kind create cluster --image kindest/node:v1.18.15
+   kind create cluster --image kindest/node:v1.21.1
 
 Confirm it’s up:
 
@@ -43,16 +43,30 @@ Add Airflow Helm Stable Repo
    helm repo add apache-airflow https://airflow.apache.org
    helm repo update
 
-Create namespace and Install the chart
---------------------------------------
+Create namespace
+----------------
+
+.. code-block:: bash
+
+  export NAMESPACE=example-namespace
+  kubectl create namespace $NAMESPACE
+
+Install the chart
+-----------------
 
 .. code-block:: bash
 
   export RELEASE_NAME=example-release
-  export NAMESPACE=example-namespace
-
-  kubectl create namespace $NAMESPACE
   helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
+
+Use the following code to install the chart with Example DAGs:
+
+.. code-block:: bash
+
+  export NAMESPACE=example-namespace
+  helm install $RELEASE_NAME apache-airflow/airflow \
+    --namespace $NAMESPACE \
+    --set 'env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES,env[0].value=True'
 
 It may take a few minutes. Confirm the pods are up:
 
@@ -61,15 +75,19 @@ It may take a few minutes. Confirm the pods are up:
    kubectl get pods --namespace $NAMESPACE
    helm list --namespace $NAMESPACE
 
-Run ``kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow``
+Run the following command
 to port-forward the Airflow UI to http://localhost:8080/ to confirm
 Airflow is working.
+
+.. code-block:: bash
+
+   kubectl port-forward svc/$RELEASE_NAME-webserver 8080:8080 --namespace $NAMESPACE
 
 Extending Airflow Image
 -----------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However when you try it out you want to add your own DAGS, custom dependencies,
+However when you try it out you want to add your own DAGs, custom dependencies,
 packages or even custom providers.
 
 The best way to achieve it, is to build your own, custom image.
@@ -93,7 +111,7 @@ Adding DAGs to your image
 
     .. code-block:: bash
 
-        docker build --tag my-dags:0.0.1 .
+        docker build --pull --tag my-dags:0.0.1 .
 
 
 3. Load the image into kind:
@@ -137,7 +155,7 @@ Example below adds ``vim`` apt package.
 
     .. code-block:: bash
 
-        docker build --tag my-image:0.0.1 .
+        docker build --pull --tag my-image:0.0.1 .
 
 
 3. Load the image into kind:
@@ -174,7 +192,7 @@ Example below adds ``lxml`` PyPI package.
 
     .. code-block:: bash
 
-        docker build --tag my-image:0.0.1 .
+        docker build --pull --tag my-image:0.0.1 .
 
 
 3. Load the image into kind:

@@ -17,11 +17,11 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDriveToLocalOperator
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
-from airflow.utils.dates import days_ago
 
 FOLDER_ID = os.environ.get("FILE_ID", "1234567890qwerty")
 FILE_NAME = os.environ.get("FILE_NAME", "file.pdf")
@@ -29,7 +29,8 @@ OUTPUT_FILE = os.environ.get("OUTPUT_FILE", "out_file.pdf")
 
 with models.DAG(
     "example_gdrive_to_local_with_gdrive_sensor",
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval=None,  # Override to match your needs
     tags=["example"],
 ) as dag:

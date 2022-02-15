@@ -20,9 +20,7 @@ import unittest
 from unittest import mock
 
 import pytest
-import requests
-from docker import APIClient
-from docker.types import Mount
+from docker import APIClient, types
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -66,22 +64,33 @@ class TestDockerSwarmOperator(unittest.TestCase):
             mem_limit='128m',
             user='unittest',
             task_id='unittest',
-            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            mounts=[types.Mount(source='/host/path', target='/container/path', type='bind')],
             auto_remove=True,
             tty=True,
+            configs=[types.ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
+            secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
+            mode=types.ServiceMode(mode="replicated", replicas=3),
+            networks=["dummy_network"],
+            placement=types.Placement(constraints=["node.labels.region==east"]),
         )
         operator.execute(None)
 
         types_mock.TaskTemplate.assert_called_once_with(
-            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
+            container_spec=mock_obj,
+            restart_policy=mock_obj,
+            resources=mock_obj,
+            networks=["dummy_network"],
+            placement=types.Placement(constraints=["node.labels.region==east"]),
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest',
             command='env',
             user='unittest',
-            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            mounts=[types.Mount(source='/host/path', target='/container/path', type='bind')],
             tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
+            configs=[types.ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
+            secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
@@ -99,6 +108,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         assert csargs == (mock_obj,)
         assert cskwargs['labels'] == {'name': 'airflow__adhoc_airflow__unittest'}
         assert cskwargs['name'].startswith('airflow-')
+        assert cskwargs['mode'] == types.ServiceMode(mode="replicated", replicas=3)
         assert client_mock.tasks.call_count == 5
         client_mock.remove_service.assert_called_once_with('some_id')
 
@@ -174,53 +184,6 @@ class TestDockerSwarmOperator(unittest.TestCase):
         with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
         assert str(ctx.value) == msg
-
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
-    @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
-    def test_logging_with_requests_timeout(self, types_mock, client_class_mock):
-
-        mock_obj = mock.Mock()
-
-        def _client_tasks_side_effect():
-            for _ in range(2):
-                yield [{'Status': {'State': 'pending'}}]
-            while True:
-                yield [{'Status': {'State': 'complete'}}]
-
-        def _client_service_logs_effect():
-            yield b'Testing is awesome.'
-            raise requests.exceptions.ConnectionError('')
-
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_service.return_value = {'ID': 'some_id'}
-        client_mock.service_logs.return_value = _client_service_logs_effect()
-        client_mock.images.return_value = []
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.side_effect = _client_tasks_side_effect()
-        types_mock.TaskTemplate.return_value = mock_obj
-        types_mock.ContainerSpec.return_value = mock_obj
-        types_mock.RestartPolicy.return_value = mock_obj
-        types_mock.Resources.return_value = mock_obj
-
-        client_class_mock.return_value = client_mock
-
-        operator = DockerSwarmOperator(
-            api_version='1.19',
-            command='env',
-            environment={'UNIT': 'TEST'},
-            image='ubuntu:latest',
-            mem_limit='128m',
-            user='unittest',
-            task_id='unittest',
-            auto_remove=True,
-            tty=True,
-            enable_logging=True,
-        )
-        operator.execute(None)
-
-        client_mock.service_logs.assert_called_once_with(
-            'some_id', follow=True, stdout=True, stderr=True, is_tty=True
-        )
 
     def test_on_kill(self):
         client_mock = mock.Mock(spec=APIClient)

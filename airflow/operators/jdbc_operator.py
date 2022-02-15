@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator  # noqa
 
 warnings.warn(

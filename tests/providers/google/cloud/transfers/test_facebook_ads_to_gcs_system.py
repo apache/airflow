@@ -43,7 +43,6 @@ def provide_facebook_connection(key_file_path: str):
     required scopes and project id.
 
     :param key_file_path: Path to file with FACEBOOK credentials .json file.
-    :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")
@@ -62,7 +61,13 @@ def provide_facebook_connection(key_file_path: str):
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 @pytest.mark.system("google.cloud")
 class FacebookAdsToGcsExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_facebook_connection(FACEBOOK_CREDENTIALS_PATH)
     def test_dag_example(self):
         self.run_dag("example_facebook_ads_to_gcs", CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

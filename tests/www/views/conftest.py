@@ -25,7 +25,7 @@ import pytest
 from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
-from tests.test_utils.api_connexion_utils import create_user, delete_roles
+from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login
 
@@ -65,43 +65,48 @@ def app(examples_dag_bag):
     app.dag_bag = examples_dag_bag
     app.jinja_env.undefined = jinja2.StrictUndefined
 
-    security_manager = app.appbuilder.sm  # pylint: disable=no-member
-    if not security_manager.find_user(username='test'):
-        security_manager.add_user(
-            username='test',
-            first_name='test',
-            last_name='test',
-            email='test@fab.org',
-            role=security_manager.find_role('Admin'),
-            password='test',
-        )
-    if not security_manager.find_user(username='test_user'):
-        security_manager.add_user(
-            username='test_user',
-            first_name='test_user',
-            last_name='test_user',
-            email='test_user@fab.org',
-            role=security_manager.find_role('User'),
-            password='test_user',
-        )
-    if not security_manager.find_user(username='test_viewer'):
-        security_manager.add_user(
-            username='test_viewer',
-            first_name='test_viewer',
-            last_name='test_viewer',
-            email='test_viewer@fab.org',
-            role=security_manager.find_role('Viewer'),
-            password='test_viewer',
-        )
+    security_manager = app.appbuilder.sm
+
+    test_users = [
+        {
+            'username': 'test_admin',
+            'first_name': 'test_admin_first_name',
+            'last_name': 'test_admin_last_name',
+            'email': 'test_admin@fab.org',
+            'role': security_manager.find_role('Admin'),
+            'password': 'test_admin_password',
+        },
+        {
+            'username': 'test_user',
+            'first_name': 'test_user_first_name',
+            'last_name': 'test_user_last_name',
+            'email': 'test_user@fab.org',
+            'role': security_manager.find_role('User'),
+            'password': 'test_user_password',
+        },
+        {
+            'username': 'test_viewer',
+            'first_name': 'test_viewer_first_name',
+            'last_name': 'test_viewer_last_name',
+            'email': 'test_viewer@fab.org',
+            'role': security_manager.find_role('Viewer'),
+            'password': 'test_viewer_password',
+        },
+    ]
+
+    for user_dict in test_users:
+        if not security_manager.find_user(username=user_dict['username']):
+            security_manager.add_user(**user_dict)
 
     yield app
 
-    delete_roles(app)
+    for user_dict in test_users:
+        delete_user(app, user_dict['username'])
 
 
 @pytest.fixture()
 def admin_client(app):
-    return client_with_login(app, username="test", password="test")
+    return client_with_login(app, username="test_admin", password="test_admin")
 
 
 @pytest.fixture()
@@ -112,18 +117,6 @@ def viewer_client(app):
 @pytest.fixture()
 def user_client(app):
     return client_with_login(app, username="test_user", password="test_user")
-
-
-@pytest.fixture(scope="module")
-def client_factory(app):
-    def factory(name, role_name, permissions):
-        create_user(app, name, role_name, permissions)
-        client = app.test_client()
-        resp = client.post("/login/", data={"username": name, "password": name})
-        assert resp.status_code == 302
-        return client
-
-    return factory
 
 
 class _TemplateWithContext(NamedTuple):
@@ -181,7 +174,7 @@ def capture_templates(app):
     def manager() -> Generator[List[_TemplateWithContext], None, None]:
         recorded = []
 
-        def record(sender, template, context, **extra):  # pylint: disable=unused-argument
+        def record(sender, template, context, **extra):
             recorded.append(_TemplateWithContext(template, context))
 
         flask.template_rendered.connect(record, app)  # type: ignore

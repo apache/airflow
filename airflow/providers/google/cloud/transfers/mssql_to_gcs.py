@@ -29,7 +29,6 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     in JSON or CSV format.
 
     :param mssql_conn_id: Reference to a specific MSSQL hook.
-    :type mssql_conn_id: str
 
     **Example**:
         The following operator will export data from the Customers table
@@ -46,6 +45,11 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
                 google_cloud_storage_conn_id='google_cloud_default',
                 dag=dag
             )
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MSSQLToGCSOperator`
+
     """
 
     ui_color = '#e0a98c'

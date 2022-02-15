@@ -27,6 +27,17 @@ pytest "${@}"
 
 RES=$?
 
+if [[ ${RES} == "139" ]]; then
+    echo "${COLOR_YELLOW}Sometimes Pytest fails at exiting with segfault, but all tests actually passed${COLOR_RESET}"
+    echo "${COLOR_YELLOW}We should ignore such case. Checking if junitxml file ${RESULT_LOG_FILE} is there with 0 errors and failures${COLOR_RESET}"
+    if [[ -f ${RESULT_LOG_FILE} ]]; then
+        python "${AIRFLOW_SOURCES}/scripts/in_container/check_junitxml_result.py" "${RESULT_LOG_FILE}"
+        RES=$?
+    else
+        echo "${COLOR_YELLOW}JunitXML file ${RESULT_LOG_FILE} does not exist. Proceeding with failure as we cannot check if there were no failures.${COLOR_RESET}"
+    fi
+fi
+
 set +x
 if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
     echo "All tests successful"

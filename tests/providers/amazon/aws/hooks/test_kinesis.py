@@ -16,30 +16,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import uuid
 
-from airflow.providers.amazon.aws.hooks.kinesis import AwsFirehoseHook
+import boto3
+import pytest
+
+from airflow.providers.amazon.aws.hooks.kinesis import FirehoseHook
 
 try:
-    from moto import mock_kinesis
+    from moto import mock_firehose, mock_s3
 except ImportError:
-    mock_kinesis = None
+    mock_firehose = None
 
 
-class TestAwsFirehoseHook(unittest.TestCase):
-    @unittest.skipIf(mock_kinesis is None, 'mock_kinesis package not present')
-    @mock_kinesis
+@pytest.mark.skipif(mock_firehose is None, reason='moto package not present')
+class TestFirehoseHook:
+    @mock_firehose
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AwsFirehoseHook(
+        hook = FirehoseHook(
             aws_conn_id='aws_default', delivery_stream="test_airflow", region_name="us-east-1"
         )
         assert hook.get_conn() is not None
 
-    @unittest.skipIf(mock_kinesis is None, 'mock_kinesis package not present')
-    @mock_kinesis
+    @mock_firehose
+    @mock_s3
     def test_insert_batch_records_kinesis_firehose(self):
-        hook = AwsFirehoseHook(
+        boto3.client('s3').create_bucket(Bucket='kinesis-test')
+        hook = FirehoseHook(
             aws_conn_id='aws_default', delivery_stream="test_airflow", region_name="us-east-1"
         )
 
@@ -55,7 +58,7 @@ class TestAwsFirehoseHook(unittest.TestCase):
         )
 
         stream_arn = response['DeliveryStreamARN']
-        assert stream_arn == "arn:aws:firehose:us-east-1:123456789012:deliverystream/test_airflow"
+        assert stream_arn == "arn:aws:firehose:us-east-1:123456789012:/delivery_stream/test_airflow"
 
         records = [{"Data": str(uuid.uuid4())} for _ in range(100)]
 

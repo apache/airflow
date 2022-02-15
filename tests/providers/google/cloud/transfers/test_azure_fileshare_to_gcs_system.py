@@ -51,7 +51,7 @@ def provide_azure_fileshare_with_directory():
             login=AZURE_LOGIN,
             password=AZURE_KEY,
         )
-        session.add(azure_fileshare_conn_id)  # pylint: disable=expression-not-assigned
+        session.add(azure_fileshare_conn_id)
 
     with provide_azure_fileshare(
         share_name=AZURE_SHARE_NAME,
@@ -73,7 +73,13 @@ def provide_gcs_bucket_basic():
 @pytest.mark.credential_file(GCP_GCS_KEY)
 @pytest.mark.system("google.cloud")
 class AzureFileShareToGCSOperatorExampleDAGsTest(GoogleSystemTest, AzureSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @pytest.mark.usefixtures('provide_gcs_bucket_basic', 'provide_azure_fileshare_with_directory')
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag_azure_fileshare_to_gcs(self):
         self.run_dag('azure_fileshare_to_gcs_example', CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

@@ -21,7 +21,7 @@ import os
 import re
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Pattern, Union
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Pattern, Union, overload
 
 from airflow.configuration import conf
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
+def TemporaryDirectory(*args, **kwargs):
     """This function is deprecated. Please use `tempfile.TemporaryDirectory`"""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
@@ -41,7 +41,7 @@ def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
         DeprecationWarning,
         stacklevel=2,
     )
-    # pylint: disable=consider-using-with
+
     return TmpDir(*args, **kwargs)
 
 
@@ -51,9 +51,7 @@ def mkdirs(path, mode):
     as necessary. If directory already exists, this is a no-op.
 
     :param path: The directory to create
-    :type path: str
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
-    :type mode: int
     """
     import warnings
 
@@ -68,12 +66,27 @@ def mkdirs(path, mode):
 ZIP_REGEX = re.compile(fr'((.*\.zip){re.escape(os.sep)})?(.*)')
 
 
-def correct_maybe_zipped(fileloc):
+@overload
+def correct_maybe_zipped(fileloc: None) -> None:
+    ...
+
+
+@overload
+def correct_maybe_zipped(fileloc: Union[str, Path]) -> Union[str, Path]:
+    ...
+
+
+def correct_maybe_zipped(fileloc: Union[None, str, Path]) -> Union[None, str, Path]:
     """
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
-    _, archive, _ = ZIP_REGEX.search(fileloc).groups()
+    if not fileloc:
+        return fileloc
+    search_ = ZIP_REGEX.search(str(fileloc))
+    if not search_:
+        return fileloc
+    _, archive, _ = search_.groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
     else:
@@ -91,7 +104,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
-        # pylint: disable=consider-using-with
+
         return open(fileloc, mode=mode)
 
 
@@ -145,16 +158,12 @@ def list_py_file_paths(
     Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
-    :type directory: unicode
     :param safe_mode: whether to use a heuristic to determine whether a file
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
-    :type safe_mode: bool
     :param include_examples: include example DAGs
-    :type include_examples: bool
     :param include_smart_sensor: include smart sensor native control DAGs
-    :type include_examples: bool
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
@@ -195,7 +204,7 @@ def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) 
                 continue
 
             file_paths.append(file_path)
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             log.exception("Error while examining %s", file_path)
 
     return file_paths
@@ -211,7 +220,7 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
     :param file_path: Path to the file to be checked.
     :param safe_mode: Is safe mode active?. If no, this function always returns True.
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
-    :return: True, if file might contain DAGS.
+    :return: True, if file might contain DAGs.
     """
     if not safe_mode:
         return True

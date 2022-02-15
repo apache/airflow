@@ -54,7 +54,6 @@ def set_common_options(
     return spark_source
 
 
-# pylint: disable=too-many-arguments
 def spark_write_to_jdbc(
     spark_session: SparkSession,
     url: str,
@@ -87,7 +86,6 @@ def spark_write_to_jdbc(
     writer.save(mode=save_mode)
 
 
-# pylint: disable=too-many-arguments
 def spark_read_from_jdbc(
     spark_session: SparkSession,
     url: str,

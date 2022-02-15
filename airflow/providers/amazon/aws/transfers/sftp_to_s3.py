@@ -16,11 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SFTPToS3Operator(BaseOperator):
@@ -28,24 +32,25 @@ class SFTPToS3Operator(BaseOperator):
     This operator enables the transferring of files from a SFTP server to
     Amazon S3.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SFTPToS3Operator`
+
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :type sftp_conn_id: str
     :param sftp_path: The sftp remote path. This is the specified file path
         for downloading the file from the SFTP server.
-    :type sftp_path: str
     :param s3_conn_id: The s3 connection id. The name or identifier for
         establishing a connection to S3
-    :type s3_conn_id: str
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket to where
         the file is uploaded.
-    :type s3_bucket: str
     :param s3_key: The targeted s3 key. This is the specified path for
         uploading the file to S3.
-    :type s3_key: str
+    :param use_temp_file: If True, copies file first to local,
+        if False streams file from SFTP to S3.
     """
 
-    template_fields = ('s3_key', 'sftp_path')
+    template_fields: Sequence[str] = ('s3_key', 'sftp_path')
 
     def __init__(
         self,
@@ -55,6 +60,7 @@ class SFTPToS3Operator(BaseOperator):
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
         s3_conn_id: str = 'aws_default',
+        use_temp_file: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -63,6 +69,7 @@ class SFTPToS3Operator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.s3_conn_id = s3_conn_id
+        self.use_temp_file = use_temp_file
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -70,14 +77,18 @@ class SFTPToS3Operator(BaseOperator):
         parsed_s3_key = urlparse(s3_key)
         return parsed_s3_key.path.lstrip('/')
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.s3_conn_id)
 
         sftp_client = ssh_hook.get_conn().open_sftp()
 
-        with NamedTemporaryFile("w") as f:
-            sftp_client.get(self.sftp_path, f.name)
+        if self.use_temp_file:
+            with NamedTemporaryFile("w") as f:
+                sftp_client.get(self.sftp_path, f.name)
 
-            s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
+                s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
+        else:
+            with sftp_client.file(self.sftp_path, mode='rb') as data:
+                s3_hook.get_conn().upload_fileobj(data, self.s3_bucket, self.s3_key, Callback=self.log.info)

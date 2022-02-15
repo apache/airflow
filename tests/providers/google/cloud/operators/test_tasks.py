@@ -69,7 +69,7 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
             queue_name=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -94,7 +94,7 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
             update_mask=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -117,7 +117,7 @@ class TestCloudTasksQueueGet(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -141,7 +141,7 @@ class TestCloudTasksQueuesList(unittest.TestCase):
             page_size=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -163,7 +163,7 @@ class TestCloudTasksQueueDelete(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -186,7 +186,7 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -209,7 +209,7 @@ class TestCloudTasksQueuePause(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -232,7 +232,7 @@ class TestCloudTasksQueueResume(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -266,7 +266,7 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
             response_view=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -299,7 +299,7 @@ class TestCloudTasksTaskGet(unittest.TestCase):
             response_view=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -337,7 +337,7 @@ class TestCloudTasksTasksList(unittest.TestCase):
             page_size=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -362,7 +362,7 @@ class TestCloudTasksTaskDelete(unittest.TestCase):
             project_id=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -395,5 +395,5 @@ class TestCloudTasksTaskRun(unittest.TestCase):
             response_view=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )

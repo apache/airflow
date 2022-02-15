@@ -45,7 +45,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         new_callable=mock.PropertyMock,
     )
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook." "_get_credentials"
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook._get_credentials"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.natural_language.LanguageServiceClient")
     def test_language_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
@@ -66,7 +66,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_entities.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -79,7 +79,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_entity_sentiment.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -92,7 +92,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_sentiment.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -105,7 +105,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_syntax.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -123,7 +123,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             features=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(
@@ -136,5 +136,5 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.classify_text.assert_called_once_with(
-            document=DOCUMENT, retry=None, timeout=None, metadata=None
+            document=DOCUMENT, retry=None, timeout=None, metadata=()
         )

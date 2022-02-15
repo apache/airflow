@@ -20,7 +20,7 @@ import argparse
 import os
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_COMPUTE_KEY, GcpAuthenticator
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 
 GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -30,7 +30,7 @@ GCE_TEMPLATE_NAME = os.environ.get('GCE_TEMPLATE_NAME', 'instance-template-test'
 GCE_NEW_TEMPLATE_NAME = os.environ.get('GCE_NEW_TEMPLATE_NAME', 'instance-template-test-new')
 
 
-class GCPComputeTestHelper(LoggingCommandExecutor):
+class GCPComputeTestHelper(CommandExecutor):
     def delete_instance(self):
         self.execute_cmd(
             [

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.pig.hooks.pig import PigCliHook  # noqa
 
 warnings.warn(

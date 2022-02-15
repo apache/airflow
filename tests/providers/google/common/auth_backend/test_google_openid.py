@@ -39,7 +39,7 @@ def google_openid_app():
 
 @pytest.fixture(scope="module")
 def admin_user(google_openid_app):
-    appbuilder = google_openid_app.appbuilder  # pylint: disable=no-member
+    appbuilder = google_openid_app.appbuilder
     role_admin = appbuilder.sm.find_role("Admin")
     tester = appbuilder.sm.find_user(username="test")
     if not tester:

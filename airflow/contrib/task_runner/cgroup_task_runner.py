@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner  # noqa
 
 warnings.warn(

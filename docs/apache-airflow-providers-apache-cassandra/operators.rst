@@ -22,10 +22,6 @@ Apache Cassandra Operators
 
 `Apache Cassandra <https://cassandra.apache.org/>`__ is an open source distributed NoSQL database that can be used when you need scalability and high availability without compromising performance. It offers linear scalability and fault-tolerance on commodity hardware or cloud infrastructure which makes it the perfect platform for mission-critical data. It supports multi-datacenter replication with lower latencies.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite
 ------------
 
@@ -38,14 +34,7 @@ Waiting for a Table to be created
 
 The :class:`~airflow.providers.apache.cassandra.sensors.table.CassandraTableSensor` operator is used to check for the existence of a table in a Cassandra cluster.
 
-Use the ``table`` parameter to poke until the provided table is found. Use dot notation to target a specific keyspace.
-
-.. exampleinclude:: /../../airflow/providers/apache/cassandra/example_dags/example_cassandra_dag.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_cassandra_table_sensor]
-    :end-before: [END howto_operator_cassandra_table_sensor]
-
+Use the ``table`` parameter (set in ``default_args`` in the example below) to poke until the provided table is found. Use dot notation to target a specific keyspace.
 
 .. _howto/operator:CassandraRecordSensor:
 
@@ -54,15 +43,17 @@ Waiting for a Record to be created
 
 The :class:`~airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor` operator is used to check for the existence of a record of a table in the Cassandra cluster.
 
-Use the ``table`` parameter to mention the keyspace and table for the record. Use dot notation to target a specific keyspace.
+Use the ``table`` parameter (set in ``default_args`` in the example below) to mention the keyspace and table for the record. Use dot notation to target a specific keyspace.
 
 Use the ``keys`` parameter to poke until the provided record is found. The existence of record is identified using key value pairs. In the given example, we're are looking for value ``v1`` in column ``p1`` and ``v2`` in column ``p2``.
 
+Example use of these sensors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 .. exampleinclude:: /../../airflow/providers/apache/cassandra/example_dags/example_cassandra_dag.py
     :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_cassandra_record_sensor]
-    :end-before: [END howto_operator_cassandra_record_sensor]
+    :start-after: [START howto_operator_cassandra_sensors]
+    :end-before: [END howto_operator_cassandra_sensors]
 
 Reference
 ^^^^^^^^^

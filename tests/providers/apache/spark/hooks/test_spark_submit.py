@@ -88,9 +88,11 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id='spark_k8s_cluster',
                 conn_type='spark',
                 host='k8s://https://k8s-master',
-                extra='{"spark-home": "/opt/spark", '
-                + '"deploy-mode": "cluster", '
-                + '"namespace": "mynamespace"}',
+                extra=(
+                    '{"spark-home": "/opt/spark", '
+                    ' "deploy-mode": "cluster", '
+                    ' "namespace": "mynamespace"}'
+                ),
             )
         )
         db.merge_conn(
@@ -120,7 +122,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id='spark_binary_and_home_set',
                 conn_type='spark',
                 host='yarn',
-                extra='{"spark-home": "/path/to/spark_home", ' + '"spark-binary": "custom-spark-submit"}',
+                extra='{"spark-home": "/path/to/spark_home", "spark-binary": "custom-spark-submit"}',
             )
         )
         db.merge_conn(
@@ -628,11 +630,11 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
             'WARN NativeCodeLoader: Unable to load native-hadoop library for your '
-            + 'platform... using builtin-java classes where applicable',
+            'platform... using builtin-java classes where applicable',
             'WARN DomainSocketFactory: The short-circuit local reads feature cannot '
             'be used because libhadoop cannot be loaded.',
             'INFO Client: Requesting a new application from cluster with 10 NodeManagers',
-            'INFO Client: Submitting application application_1486558679801_1820 ' + 'to ResourceManager',
+            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager',
         ]
         # When
         hook._process_spark_submit_log(log_lines)
@@ -646,25 +648,25 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
         log_lines = [
             'INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
-            + 'spark-role -> driver'
-            + 'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
-            + 'creation time: 2018-03-05T10:26:55Z'
-            + 'service account name: spark'
-            + 'volumes: spark-init-properties, download-jars-volume,'
-            + 'download-files-volume, spark-token-2vmlm'
-            + 'node name: N/A'
-            + 'start time: N/A'
-            + 'container images: N/A'
-            + 'phase: Pending'
-            + 'status: []'
-            + '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
-            + ' new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'Exit code: 999'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
+            'spark-role -> driver'
+            'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
+            'creation time: 2018-03-05T10:26:55Z'
+            'service account name: spark'
+            'volumes: spark-init-properties, download-jars-volume,'
+            'download-files-volume, spark-token-2vmlm'
+            'node name: N/A'
+            'start time: N/A'
+            'container images: N/A'
+            'phase: Pending'
+            'status: []'
+            '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
+            ' new state:'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'Exit code: 999'
         ]
 
         # When
@@ -693,7 +695,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request '
             'to launch an application in spark://spark-standalone-master:6066',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully '
-            + 'created as driver-20171128111415-0001. Polling submission state...',
+            'created as driver-20171128111415-0001. Polling submission state...',
         ]
         # When
         hook._process_spark_submit_log(log_lines)
@@ -707,9 +709,8 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
         log_lines = [
             'Submitting a request for the status of submission '
-            + 'driver-20171128111415-0001 in spark://spark-standalone-master:6066',
-            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with '
-            + 'SubmissionStatusResponse:',
+            'driver-20171128111415-0001 in spark://spark-standalone-master:6066',
+            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with SubmissionStatusResponse:',
             '{',
             '"action" : "SubmissionStatusResponse",',
             '"driverState" : "RUNNING",',
@@ -727,6 +728,21 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         assert hook._driver_status == 'RUNNING'
 
+    def test_process_spark_driver_status_log_bad_response(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
+        log_lines = [
+            'curl: Failed to connect to http://spark-standalone-master:6066'
+            'This is an invalid Spark response',
+            'Timed out',
+        ]
+        # When
+        hook._process_spark_status_log(log_lines)
+
+        # Then
+
+        assert hook._driver_status is None
+
     @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
     def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
@@ -738,12 +754,12 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
             'WARN NativeCodeLoader: Unable to load native-hadoop library for your '
-            + 'platform... using builtin-java classes where applicable',
+            'platform... using builtin-java classes where applicable',
             'WARN DomainSocketFactory: The short-circuit local reads feature cannot '
-            + 'be used because libhadoop cannot be loaded.',
+            'be used because libhadoop cannot be loaded.',
             'INFO Client: Requesting a new application from cluster with 10 '
-            + 'NodeManagerapplication_1486558679801_1820s',
-            'INFO Client: Submitting application application_1486558679801_1820 ' + 'to ResourceManager',
+            'NodeManagerapplication_1486558679801_1820s',
+            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager',
         ]
         env = {"PATH": "hadoop/bin"}
         hook = SparkSubmitHook(conn_id='spark_yarn_cluster', env_vars=env)
@@ -792,9 +808,9 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'Running Spark using the REST application submission protocol.',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request '
-            + 'to launch an application in spark://spark-standalone-master:6066',
+            'to launch an application in spark://spark-standalone-master:6066',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully '
-            + 'created as driver-20171128111415-0001. Polling submission state...',
+            'created as driver-20171128111415-0001. Polling submission state...',
         ]
         hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
         hook._process_spark_submit_log(log_lines)
@@ -821,25 +837,25 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
         log_lines = [
             'INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
-            + 'spark-role -> driver'
-            + 'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
-            + 'creation time: 2018-03-05T10:26:55Z'
-            + 'service account name: spark'
-            + 'volumes: spark-init-properties, download-jars-volume,'
-            + 'download-files-volume, spark-token-2vmlm'
-            + 'node name: N/A'
-            + 'start time: N/A'
-            + 'container images: N/A'
-            + 'phase: Pending'
-            + 'status: []'
-            + '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
-            + ' new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'Exit code: 0'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
+            'spark-role -> driver'
+            'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
+            'creation time: 2018-03-05T10:26:55Z'
+            'service account name: spark'
+            'volumes: spark-init-properties, download-jars-volume,'
+            'download-files-volume, spark-token-2vmlm'
+            'node name: N/A'
+            'start time: N/A'
+            'container images: N/A'
+            'phase: Pending'
+            'status: []'
+            '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
+            ' new state:'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'Exit code: 0'
         ]
         hook._process_spark_submit_log(log_lines)
         hook.submit()

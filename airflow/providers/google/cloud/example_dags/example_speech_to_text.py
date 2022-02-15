@@ -17,11 +17,11 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
-from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "INVALID BUCKET NAME")
@@ -43,8 +43,9 @@ AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
 
 with models.DAG(
     "example_gcp_speech_to_text",
-    start_date=dates.days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(

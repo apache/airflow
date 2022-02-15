@@ -31,13 +31,14 @@
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
   - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation](#prepare-documentation)
+  - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release by PMC members](#verify-the-release-by-pmc-members)
   - [Verify by Contributors](#verify-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
+  - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
@@ -109,7 +110,6 @@ are updated, run it in non-interactive mode:
 ./breeze --non-interactive prepare-provider-documentation [packages]
 ```
 
-
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
@@ -135,7 +135,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --package-format both
 ```
 
-if you ony build few packages, run:
+if you only build few packages, run:
 
 ```shell script
 ./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
@@ -200,7 +200,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
-if you ony build few packages, run:
+if you only build few packages, run:
 
 ```shell script
 ./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
@@ -287,7 +287,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 
-If you have providers as list of provider ids becuse you just released them you can build them with
+If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
@@ -338,6 +338,21 @@ git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
 git push --set-upstream origin "${branch}"
 ```
 
+## Prepare issue in GitHub to keep status of testing
+
+Create a GitHub issue with the content generated via manual
+execution of the script below. You will use link to that issue in the next step. You need a GITHUB_TOKEN
+set as your environment variable.
+
+You can also pass the token as `--github-token` option in the script.
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+```
+
+You can also generate the token by following
+[this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
 ## Prepare voting email for Providers release candidate
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/providers/
@@ -350,7 +365,7 @@ subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers - release prepared $(date "+%Y-%m-%d%n")
+[VOTE] Airflow Providers prepared on $(date "+%B %d, %Y")
 EOF
 ```
 
@@ -363,12 +378,12 @@ which will last for 72 hours - which means that it will end on $(date -d '+3 day
 
 Consider this my (binding) +1.
 
-<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
+<ADD ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
 
 Airflow Providers are available at:
 https://dist.apache.org/repos/dist/dev/airflow/providers/
 
-*apache-airflow-providers-<PROVIDER>-*-bin.tar.gz* are the binary
+*apache-airflow-providers-<PROVIDER>-*.tar.gz* are the binary
  Python "sdist" release - they are also official "sources" for the provider packages.
 
 *apache_airflow_providers_<PROVIDER>-*.whl are the binary
@@ -399,6 +414,9 @@ Please note that the version number excludes the 'rcX' string.
 This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
+The status of testing the providers by the community is kept here:
+<TODO COPY LINK TO THE ISSUE CREATED>
+
 You can find packages as well as detailed changelog following the below links:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
@@ -423,11 +441,10 @@ Please modify the message above accordingly to clearly exclude those packages.
 The files should be present in
 [Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
-The following files should be present (9 files):
+The following files should be present (6 files):
 
-* -source.tar.gz + .asc + .sha512 (one set of files)
-* -bin-tar.gz + .asc + .sha512 (one set of files per provider)
-* -.whl + .asc + .sha512 (one set of files per provider)
+* .tar.gz + .asc + .sha512 (one set of files per provider)
+* -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -441,7 +458,7 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check.files.py` script to verify that all expected files are
+Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
@@ -454,8 +471,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
@@ -465,7 +482,7 @@ where `.rat-excludes` is the file in the root of Airflow source code.
 
 ### Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
@@ -479,7 +496,7 @@ retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
 ```shell script
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -489,7 +506,7 @@ errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
 ```shell script
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
@@ -497,26 +514,28 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
 gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
@@ -525,6 +544,7 @@ gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
 gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
@@ -549,7 +569,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-providers-google-1.0.0rc1-bin.tar.gz.sha512
+Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
 Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
 ```
 
@@ -591,9 +611,9 @@ provider packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
-FROM apache/airflow:2.0.0
+FROM apache/airflow:2.2.3
 
-RUN pip install --upgrade --user apache-airflow-providers-google==2.0.0.rc1
+RUN pip install  --user apache-airflow-providers-google==2.2.2.rc1
 
 USER ${AIRFLOW_UID}
 ```
@@ -716,13 +736,13 @@ Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
-## Publish the Regular convenience package to PyPI
+## Publish the packages to PyPI
 
-By that time the packages with proper name (renamed from rc* to final version should be in your dist
-folder.
+By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
+git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -745,6 +765,8 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
+
+Copy links to updated packages.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -783,17 +805,15 @@ Dear Airflow community,
 
 I'm happy to announce that new versions of Airflow Providers packages were just released.
 
+TODO: If there is just a few packages to release - paste the links to PyPI packages. Otherwise delete this TODO (too many links make the message unclear).
+
 The source release, as well as the binary releases, are available here:
 
-https://dist.apache.org/repos/dist/release/airflow/providers/
+https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-We also made those versions available on PyPi for convenience ('pip install apache-airflow-providers-*'):
+You can install the providers via PyPI  https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
 
-https://pypi.org/search/?q=apache-airflow-providers
-
-The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
-
-<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
 Cheers,
 <your name>

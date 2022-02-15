@@ -22,20 +22,30 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 versions:
+  - 3.4.0
+  - 3.3.0
+  - 3.2.0
+  - 3.1.0
   - 3.0.0
   - 2.0.0
   - 1.0.1
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-salesforce/operators/salesforce_apex_rest.rst
     logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 
 operators:
   - integration-name: Salesforce
     python-modules:
+      - airflow.providers.salesforce.operators.salesforce_apex_rest
       - airflow.providers.salesforce.operators.tableau_refresh_workbook
 
 sensors:
@@ -51,5 +61,9 @@ hooks:
     python-modules:
       - airflow.providers.salesforce.hooks.salesforce
 
-hook-class-names:
-  - airflow.providers.salesforce.hooks.tableau.TableauHook
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+  - airflow.providers.salesforce.hooks.salesforce.SalesforceHook
+
+connection-types:
+  - hook-class-name: airflow.providers.salesforce.hooks.salesforce.SalesforceHook
+    connection-type: salesforce

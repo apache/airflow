@@ -15,6 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
+ .. WARNING:
+    IF YOU ARE UPDATING THIS FILE, CONSIDER UPDATING README.MD TOO.
+
 .. image:: /img/docker-logo.png
     :width: 100
 
@@ -44,15 +47,15 @@ Every time a new version of Airflow is released, the images are prepared in the
 `apache/airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
 for all the supported Python versions.
 
-You can find the following images there (Assuming Airflow version |version|):
+You can find the following images there (Assuming Airflow version :subst-code:`|airflow-version|`):
 
-* ``apache/airflow:latest``              - the latest released Airflow image with default Python version (3.6 currently)
-* ``apache/airflow:latest-pythonX.Y``    - the latest released Airflow image with specific Python version
-* ``apache/airflow:|version|``           - the versioned Airflow image with default Python version (3.6 currently)
-* ``apache/airflow:|version|-pythonX.Y`` - the versioned Airflow image with specific Python version
+* :subst-code:`apache/airflow:latest`              - the latest released Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:latest-pythonX.Y`    - the latest released Airflow image with specific Python version
+* :subst-code:`apache/airflow:|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 Those are "reference" images. They contain the most common set of extras, dependencies and providers that are
-often used by the users and they are good to "try-things-out" when you want to just take airflow for a spin,
+often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
 
 The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases

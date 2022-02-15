@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator  # noqa
 
 warnings.warn(

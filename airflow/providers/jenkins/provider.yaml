@@ -22,10 +22,17 @@ description: |
     `Jenkins <https://jenkins.io/>`__
 
 versions:
+  - 2.0.4
+  - 2.0.3
+  - 2.0.2
+  - 2.0.1
   - 2.0.0
   - 1.1.0
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Jenkins
@@ -42,5 +49,9 @@ hooks:
     python-modules:
       - airflow.providers.jenkins.hooks.jenkins
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.jenkins.hooks.jenkins.JenkinsHook
+
+connection-types:
+  - hook-class-name: airflow.providers.jenkins.hooks.jenkins.JenkinsHook
+    connection-type: jenkins

@@ -44,6 +44,7 @@ class TestPoolSchema(unittest.TestCase):
             "running_slots": 0,
             "queued_slots": 0,
             "open_slots": 2,
+            "description": None,
         }
 
     @provide_session
@@ -73,6 +74,7 @@ class TestPoolCollectionSchema(unittest.TestCase):
                     "running_slots": 0,
                     "queued_slots": 0,
                     "open_slots": 3,
+                    "description": None,
                 },
                 {
                     "name": "test_pool_b",
@@ -81,6 +83,7 @@ class TestPoolCollectionSchema(unittest.TestCase):
                     "running_slots": 0,
                     "queued_slots": 0,
                     "open_slots": 3,
+                    "description": None,
                 },
             ],
             "total_entries": 2,

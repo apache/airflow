@@ -25,20 +25,25 @@ import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Callable, Dict, Optional
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Optional
 from uuid import uuid4
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 def _convert_item_to_json_bytes(item: Dict[str, Any]) -> bytes:
     return (json.dumps(item) + '\n').encode('utf-8')
 
 
-def _upload_file_to_s3(file_obj: IO, bucket_name: str, s3_key_prefix: str) -> None:
-    s3_client = S3Hook().get_conn()
+def _upload_file_to_s3(
+    file_obj: IO, bucket_name: str, s3_key_prefix: str, aws_conn_id: str = 'aws_default'
+) -> None:
+    s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
         Filename=file_obj.name,
@@ -83,17 +88,16 @@ class DynamoDBToS3Operator(BaseOperator):
        )
 
     :param dynamodb_table_name: Dynamodb table to replicate data from
-    :type dynamodb_table_name: str
     :param s3_bucket_name: S3 bucket to replicate data to
-    :type s3_bucket_name: str
     :param file_size: Flush file to s3 if file size >= file_size
-    :type file_size: int
-    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>  # noqa: E501 pylint: disable=line-too-long
-    :type dynamodb_scan_kwargs: Optional[Dict[str, Any]]
+    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>  # noqa: E501
     :param s3_key_prefix: Prefix of s3 object key
-    :type s3_key_prefix: Optional[str]
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
-    :type process_func: Callable[[Dict[str, Any]], bytes]
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     def __init__(
@@ -105,6 +109,7 @@ class DynamoDBToS3Operator(BaseOperator):
         dynamodb_scan_kwargs: Optional[Dict[str, Any]] = None,
         s3_key_prefix: str = '',
         process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -114,9 +119,12 @@ class DynamoDBToS3Operator(BaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
+        self.aws_conn_id = aws_conn_id
 
-    def execute(self, context) -> None:
-        table = AwsDynamoDBHook().get_conn().Table(self.dynamodb_table_name)
+    def execute(self, context: 'Context') -> None:
+        hook = DynamoDBHook(aws_conn_id=self.aws_conn_id)
+        table = hook.get_conn().Table(self.dynamodb_table_name)
+
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         with NamedTemporaryFile() as f:
@@ -127,7 +135,7 @@ class DynamoDBToS3Operator(BaseOperator):
                 raise e
             finally:
                 if err is None:
-                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
+                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix, self.aws_conn_id)
 
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
@@ -145,8 +153,8 @@ class DynamoDBToS3Operator(BaseOperator):
 
             # Upload the file to S3 if reach file size limit
             if getsize(temp_file.name) >= self.file_size:
-                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix)
+                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.aws_conn_id)
                 temp_file.close()
-                # pylint: disable=consider-using-with
+
                 temp_file = NamedTemporaryFile()
         return temp_file

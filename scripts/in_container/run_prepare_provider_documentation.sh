@@ -18,12 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-function import_all_provider_classes() {
-    group_start "Importing all classes"
-    python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
-    group_end
-}
-
 function verify_provider_packages_named_properly() {
     python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
         verify-provider-classes
@@ -96,19 +90,19 @@ function run_prepare_documentation() {
     echo
     if [[ "${#prepared_documentation[@]}" != "0" ]]; then
         echo "${COLOR_GREEN}   Success:${COLOR_RESET}"
-        echo "${prepared_documentation[@]}" | fold -w 100
+        echo "${prepared_documentation[@]}" | fold -sw 100
     fi
     if [[ "${#skipped_documentation[@]}" != "0" ]]; then
         echo "${COLOR_YELLOW}   Skipped:${COLOR_RESET}"
-        echo "${skipped_documentation[@]}" | fold -w 100
+        echo "${skipped_documentation[@]}" | fold -sw 100
     fi
     if [[ "${#doc_only_documentation[@]}" != "0" ]]; then
         echo "${COLOR_YELLOW}   Marked as doc-only (please commit those!):${COLOR_RESET}"
-        echo "${doc_only_documentation[@]}" | fold -w 100
+        echo "${doc_only_documentation[@]}" | fold -sw 100
     fi
     if [[ "${#error_documentation[@]}" != "0" ]]; then
         echo "${COLOR_RED}   Errors:${COLOR_RESET}"
-        echo "${error_documentation[@]}" | fold -w 100
+        echo "${error_documentation[@]}" | fold -sw 100 | sed "s/^/  /" | sed "s/$/\\/"
     fi
     echo
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
@@ -117,12 +111,30 @@ function run_prepare_documentation() {
         echo "${COLOR_RED}There were errors when preparing documentation. Exiting! ${COLOR_RESET}"
         exit 1
     else
+        if [[ ${GENERATE_PROVIDERS_ISSUE=} == "true" ]]; then
+            echo
+            python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content "${prepared_documentation[@]}"
+            echo
+        fi
+        echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}You can separately generate content of the issue to create to track testing status by running this command${COLOR_RESET}"
+        echo "${COLOR_YELLOW}You can optionally exclude some PRs via --excluded-pr-list option containing coma-separated list of pr numbers${COLOR_RESET}"
+        echo
+        echo "python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content \\"
+        echo "${prepared_documentation[@]}"  | fold -sw 100 | sed "s/^/  /" | sed "s/$/ \\\\/"
+        echo "  [--excluded-pr-list=\"\" ]"
+        echo
+        echo "${COLOR_YELLOW}You can also run it here by rerunning the prepare-providers-documentation${COLOR_RESET}"
+        echo "${COLOR_YELLOW}with --generate-providers-issue and --forward-credentials flag (you have to have GITHUB_TOKEN variable set)${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Please review the updated files, classify the changelog entries and commit the changes!${COLOR_RESET}"
         echo
+
     fi
 }
-
 
 setup_provider_packages
 
@@ -131,7 +143,11 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 install_supported_pip_version
-import_all_provider_classes
+
+group_start "Importing all classes"
+python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
+group_end
+
 verify_provider_packages_named_properly
 
 OPTIONAL_RELEASE_VERSION_ARGUMENT=()

@@ -23,16 +23,18 @@ import textwrap
 from collections import Counter
 from glob import glob
 from itertools import chain, product
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Set
 
 import jsonschema
 import yaml
+from jsonpath_ng.ext import parse
+from rich.console import Console
 from tabulate import tabulate
 
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
-    from yaml import SafeLoader  # type: ignore[no-redef]
+    from yaml import SafeLoader  # type: ignore
 
 if __name__ != "__main__":
     raise Exception(
@@ -42,6 +44,9 @@ if __name__ != "__main__":
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
 PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
+PROVIDER_ISSUE_TEMPLATE_PATH = os.path.join(
+    ROOT_DIR, ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
+)
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
 errors = []
@@ -75,7 +80,7 @@ def _load_package_data(package_paths: Iterable[str]):
     return result
 
 
-def get_all_integration_names(yaml_files):
+def get_all_integration_names(yaml_files) -> List[str]:
     all_integrations = [
         i['integration-name'] for f in yaml_files.values() if 'integrations' in f for i in f["integrations"]
     ]
@@ -96,7 +101,7 @@ def check_integration_duplicates(yaml_files: Dict[str, Dict]):
             "Please delete duplicates."
         )
         print(tabulate(duplicates, headers=["Integration name", "Number of occurrences"]))
-        sys.exit(0)
+        sys.exit(3)
 
 
 def assert_sets_equal(set1, set2):
@@ -119,20 +124,20 @@ def assert_sets_equal(set1, set2):
 
     lines = []
     if difference1:
-        lines.append('Items in the first set but not the second:')
+        lines.append('    -- Items in the left set but not the right:')
         for item in sorted(difference1):
-            lines.append(repr(item))
+            lines.append(f'       {item!r}')
     if difference2:
-        lines.append('Items in the second set but not the first:')
+        lines.append('    -- Items in the right set but not the left:')
         for item in sorted(difference2):
-            lines.append(repr(item))
+            lines.append(f'       {item!r}')
 
     standard_msg = '\n'.join(lines)
     raise AssertionError(standard_msg)
 
 
 def check_if_objects_belongs_to_package(
-    object_names: List[str], provider_package: str, yaml_file_path: str, resource_type: str
+    object_names: Set[str], provider_package: str, yaml_file_path: str, resource_type: str
 ):
     for object_name in object_names:
         if not object_name.startswith(provider_package):
@@ -146,7 +151,10 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
     package_dir = ROOT_DIR + "/" + os.path.dirname(yaml_file_path)
     provider_package = os.path.dirname(yaml_file_path).replace(os.sep, ".")
     py_files = chain(
-        glob(f"{package_dir}/**/{resource_type}/*.py"), glob(f"{package_dir}/{resource_type}/*.py")
+        glob(f"{package_dir}/**/{resource_type}/*.py"),
+        glob(f"{package_dir}/{resource_type}/*.py"),
+        glob(f"{package_dir}/**/{resource_type}/**/*.py"),
+        glob(f"{package_dir}/{resource_type}/**/*.py"),
     )
     expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
     resource_data = provider_data.get(resource_type, [])
@@ -155,6 +163,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 
 def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of {sensors, hooks, operators}")
+    print(" -- {sensors, hooks, operators} - Expected modules(Left): Current Modules(Right)")
     for (yaml_file_path, provider_data), resource_type in product(
         yaml_files.items(), ["sensors", "operators", "hooks"]
     ):
@@ -193,6 +202,8 @@ def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files
 def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of transfers")
     resource_type = 'transfers'
+
+    print(" -- Expected transfers modules(Left): Current transfers Modules(Right)")
     for yaml_file_path, provider_data in yaml_files.items():
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -275,8 +286,8 @@ def check_invalid_integration(yaml_files: Dict[str, Dict]):
 
 def check_doc_files(yaml_files: Dict[str, Dict]):
     print("Checking doc files")
-    current_doc_urls = []
-    current_logo_urls = []
+    current_doc_urls: List[str] = []
+    current_logo_urls: List[str] = []
     for provider in yaml_files.values():
         if 'integrations' in provider:
             current_doc_urls.extend(
@@ -309,7 +320,10 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
     }
 
     try:
+        print(" -- Checking document urls: expected(left), current(right)")
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
+
+        print(" -- Checking logo urls: expected(left), current(right)")
         assert_sets_equal(set(expected_logo_urls), set(current_logo_urls))
     except AssertionError as ex:
         print(ex)
@@ -321,6 +335,37 @@ def check_unique_provider_name(yaml_files: Dict[str, Dict]):
     duplicates = {x for x in provider_names if provider_names.count(x) > 1}
     if duplicates:
         errors.append(f"Provider name must be unique. Duplicates: {duplicates}")
+
+
+def check_providers_are_mentioned_in_issue_template(yaml_files: Dict[str, Dict]):
+    prefix_len = len("apache-airflow-providers-")
+    short_provider_names = [d['package-name'][prefix_len:] for d in yaml_files.values()]
+    jsonpath_expr = parse('$.body[?(@.attributes.label == "Apache Airflow Provider(s)")]..options[*]')
+    with open(PROVIDER_ISSUE_TEMPLATE_PATH) as issue_file:
+        issue_template = yaml.safe_load(issue_file)
+    all_mentioned_providers = [match.value for match in jsonpath_expr.find(issue_template)]
+    try:
+        print(
+            f" -- Checking providers: present in code(left), "
+            f"mentioned in {PROVIDER_ISSUE_TEMPLATE_PATH} (right)"
+        )
+        assert_sets_equal(set(short_provider_names), set(all_mentioned_providers))
+    except AssertionError as ex:
+        print(ex)
+        sys.exit(1)
+
+
+def check_providers_have_all_documentation_files(yaml_files: Dict[str, Dict]):
+    expected_files = ["commits.rst", "index.rst", "installing-providers-from-sources.rst"]
+    for package_info in yaml_files.values():
+        package_name = package_info['package-name']
+        provider_dir = os.path.join(DOCS_DIR, package_name)
+        for file in expected_files:
+            if not os.path.isfile(os.path.join(provider_dir, file)):
+                errors.append(
+                    f"The provider {package_name} misses `{file}` in documentation. "
+                    f"Please add the file to {provider_dir}"
+                )
 
 
 if __name__ == '__main__':
@@ -342,6 +387,8 @@ if __name__ == '__main__':
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_hook_classes(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
+    check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
+    check_providers_have_all_documentation_files(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded
@@ -349,8 +396,8 @@ if __name__ == '__main__':
         check_invalid_integration(all_parsed_yaml_files)
 
     if errors:
-        print(f"Found {len(errors)} errors")
+        console = Console(width=400, color_system="standard")
+        console.print(f"[red]Found {len(errors)} errors in providers[/]")
         for error in errors:
-            print(error)
-            print()
+            console.print(f"[red]Error:[/] {error}")
         sys.exit(1)

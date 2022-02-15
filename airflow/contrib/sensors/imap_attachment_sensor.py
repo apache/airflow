@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.imap.sensors.imap_attachment import ImapAttachmentSensor  # noqa
 
 warnings.warn(

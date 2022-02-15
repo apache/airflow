@@ -19,19 +19,18 @@
 import json
 import unittest
 
-from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 
 try:
     from moto import mock_cloudformation
-    from moto.ec2.models import NetworkInterface as some_model
 except ImportError:
     mock_cloudformation = None
 
 
 @unittest.skipIf(mock_cloudformation is None, 'moto package not present')
-class TestAWSCloudFormationHook(unittest.TestCase):
+class TestCloudFormationHook(unittest.TestCase):
     def setUp(self):
-        self.hook = AWSCloudFormationHook(aws_conn_id='aws_default')
+        self.hook = CloudFormationHook(aws_conn_id='aws_default')
 
     def create_stack(self, stack_name):
         timeout = 15
@@ -39,19 +38,29 @@ class TestAWSCloudFormationHook(unittest.TestCase):
             {
                 'Resources': {
                     "myResource": {
-                        "Type": some_model.cloudformation_type(),
-                        "Properties": {"myProperty": "myPropertyValue"},
+                        "Type": "AWS::EC2::VPC",
+                        "Properties": {
+                            "CidrBlock": {"Ref": "VPCCidr"},
+                            "Tags": [{"Key": "Name", "Value": "Primary_CF_VPC"}],
+                        },
                     }
-                }
+                },
+                "Parameters": {
+                    "VPCCidr": {
+                        "Type": "String",
+                        "Default": "10.0.0.0/16",
+                        "Description": "Enter the CIDR block for the VPC. Default is 10.0.0.0/16.",
+                    }
+                },
             }
         )
 
         self.hook.create_stack(
             stack_name=stack_name,
-            params={
+            cloudformation_parameters={
                 'TimeoutInMinutes': timeout,
                 'TemplateBody': template_body,
-                'Parameters': [{'ParameterKey': 'myParam', 'ParameterValue': 'myParamValue'}],
+                'Parameters': [{'ParameterKey': "VPCCidr", 'ParameterValue': '10.0.0.0/16'}],
             },
         )
 

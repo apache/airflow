@@ -20,10 +20,10 @@ Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
-from airflow.utils.dates import days_ago
 
 BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-sftp-gcs")
 
@@ -36,7 +36,12 @@ OBJECT_SRC_2 = "parent-2.bin"
 OBJECT_SRC_3 = "parent-3.txt"
 
 
-with models.DAG("example_sftp_to_gcs", start_date=days_ago(1), schedule_interval=None) as dag:
+with models.DAG(
+    "example_sftp_to_gcs",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
     # [START howto_operator_sftp_to_gcs_copy_single_file]
     copy_file_from_sftp_to_gcs = SFTPToGCSOperator(
         task_id="file-copy-sftp-to-gcs",

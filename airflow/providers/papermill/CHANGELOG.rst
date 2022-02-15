@@ -19,6 +19,51 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support to specify kernel name in PapermillOperator (#20035)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for templated fields in PapermillOperator (#18357)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix usage of range(len() to enumerate (#18174)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
+
 2.0.0
 .....
 
@@ -44,6 +89,7 @@ Features
    * ``Remove Backport Providers (#14886)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.2
 .....

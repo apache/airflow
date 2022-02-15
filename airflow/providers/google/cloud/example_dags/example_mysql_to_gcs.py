@@ -16,10 +16,10 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
-from airflow.utils import dates
 
 GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-airflow-mysql-gcs")
 FILENAME = 'test_file'
@@ -28,8 +28,9 @@ SQL_QUERY = "SELECT * from test_table"
 
 with models.DAG(
     'example_mysql_to_gcs',
-    default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_mysql_to_gcs]

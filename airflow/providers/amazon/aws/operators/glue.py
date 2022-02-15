@@ -17,46 +17,44 @@
 # under the License.
 
 import os.path
-from typing import Optional
+import warnings
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
-class AwsGlueJobOperator(BaseOperator):
+
+class GlueJobOperator(BaseOperator):
     """
     Creates an AWS Glue Job. AWS Glue is a serverless Spark
     ETL service for running Spark Jobs on the AWS cloud.
     Language support: Python and Scala
 
     :param job_name: unique job name per AWS Account
-    :type job_name: Optional[str]
     :param script_location: location of ETL script. Must be a local or S3 path
-    :type script_location: Optional[str]
     :param job_desc: job description details
-    :type job_desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
-    :type concurrent_run_limit: Optional[int]
     :param script_args: etl script arguments and AWS Glue arguments (templated)
-    :type script_args: dict
     :param retry_limit: The maximum number of times to retry this job if it fails
-    :type retry_limit: Optional[int]
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
-    :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
-    :type region_name: str
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :type s3_bucket: Optional[str]
     :param iam_role_name: AWS IAM Role for Glue Job Execution
-    :type iam_role_name: Optional[str]
     :param create_job_kwargs: Extra arguments for Glue Job Creation
-    :type create_job_kwargs: Optional[dict]
+    :param run_job_kwargs: Extra arguments for Glue Job Run
+    :param wait_for_completion: Whether or not wait for job run completion. (default: True)
     """
 
-    template_fields = ('script_args',)
-    template_ext = ()
-    template_fields_renderers = {"script_args": "py"}
+    template_fields: Sequence[str] = ('script_args',)
+    template_ext: Sequence[str] = ()
+    template_fields_renderers = {
+        "script_args": "json",
+        "create_job_kwargs": "json",
+    }
     ui_color = '#ededed'
 
     def __init__(
@@ -64,18 +62,20 @@ class AwsGlueJobOperator(BaseOperator):
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: Optional[str] = None,
+        script_location: str,
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
-        retry_limit: Optional[int] = None,
-        num_of_dpus: int = 6,
+        retry_limit: int = 0,
+        num_of_dpus: Optional[int] = None,
         aws_conn_id: str = 'aws_default',
         region_name: Optional[str] = None,
         s3_bucket: Optional[str] = None,
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
+        run_job_kwargs: Optional[dict] = None,
+        wait_for_completion: bool = True,
         **kwargs,
-    ):  # pylint: disable=too-many-arguments
+    ):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
@@ -91,26 +91,29 @@ class AwsGlueJobOperator(BaseOperator):
         self.s3_protocol = "s3://"
         self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
         self.create_job_kwargs = create_job_kwargs
+        self.run_job_kwargs = run_job_kwargs or {}
+        self.wait_for_completion = wait_for_completion
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """
         Executes AWS Glue Job from Airflow
 
         :return: the id of the current glue job.
         """
-        if self.script_location and not self.script_location.startswith(self.s3_protocol):
+        if not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(
-                filename=self.script_location,
-                key=self.s3_artifacts_prefix + script_name,
-                bucket_name=self.s3_bucket,
+                self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket
             )
-        glue_job = AwsGlueJobHook(
+            s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
+        else:
+            s3_script_location = self.script_location
+        glue_job = GlueJobHook(
             job_name=self.job_name,
             desc=self.job_desc,
             concurrent_run_limit=self.concurrent_run_limit,
-            script_location=self.script_location,
+            script_location=s3_script_location,
             retry_limit=self.retry_limit,
             num_of_dpus=self.num_of_dpus,
             aws_conn_id=self.aws_conn_id,
@@ -119,13 +122,36 @@ class AwsGlueJobOperator(BaseOperator):
             iam_role_name=self.iam_role_name,
             create_job_kwargs=self.create_job_kwargs,
         )
-        self.log.info("Initializing AWS Glue Job: %s", self.job_name)
-        glue_job_run = glue_job.initialize_job(self.script_args)
-        glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
         self.log.info(
-            "AWS Glue Job: %s status: %s. Run Id: %s",
+            "Initializing AWS Glue Job: %s. Wait for completion: %s",
             self.job_name,
-            glue_job_run['JobRunState'],
-            glue_job_run['JobRunId'],
+            self.wait_for_completion,
         )
+        glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
+        if self.wait_for_completion:
+            glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
+            self.log.info(
+                "AWS Glue Job: %s status: %s. Run Id: %s",
+                self.job_name,
+                glue_job_run['JobRunState'],
+                glue_job_run['JobRunId'],
+            )
+        else:
+            self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']
+
+
+class AwsGlueJobOperator(GlueJobOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

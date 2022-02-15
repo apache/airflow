@@ -94,14 +94,11 @@ class PodGenerator:
     the first container in the list of containers.
 
     :param pod: The fully specified pod. Mutually exclusive with `path_or_string`
-    :type pod: Optional[kubernetes.client.models.V1Pod]
     :param pod_template_file: Path to YAML file. Mutually exclusive with `pod`
-    :type pod_template_file: Optional[str]
     :param extract_xcom: Whether to bring up a container for xcom
-    :type extract_xcom: bool
     """
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(
         self,
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
@@ -225,9 +222,7 @@ class PodGenerator:
         """
         :param base_pod: has the base attributes which are overwritten if they exist
             in the client pod and remain if they do not exist in the client_pod
-        :type base_pod: k8s.V1Pod
         :param client_pod: the pod that the client wants to create.
-        :type client_pod: k8s.V1Pod
         :return: the merged pods
 
         This can't be done recursively as certain fields some overwritten, and some concatenated.
@@ -248,9 +243,7 @@ class PodGenerator:
         Merge kubernetes Metadata objects
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
-        :type base_meta: k8s.V1ObjectMeta
         :param client_meta: the spec that the client wants to create.
-        :type client_meta: k8s.V1ObjectMeta
         :return: the merged specs
         """
         if base_meta and not client_meta:
@@ -274,9 +267,7 @@ class PodGenerator:
         """
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
-        :type base_spec: k8s.V1PodSpec
         :param client_spec: the spec that the client wants to create.
-        :type client_spec: k8s.V1PodSpec
         :return: the merged specs
         """
         if base_spec and not client_spec:
@@ -287,7 +278,8 @@ class PodGenerator:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
-            merged_spec = extend_object_field(base_spec, client_spec, 'volumes')
+            merged_spec = extend_object_field(base_spec, client_spec, 'init_containers')
+            merged_spec = extend_object_field(base_spec, merged_spec, 'volumes')
             return merge_objects(base_spec, merged_spec)
 
         return None
@@ -299,9 +291,7 @@ class PodGenerator:
         """
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
-        :type base_containers: List[k8s.V1Container]
         :param client_containers: the containers that the client wants to create.
-        :type client_containers: List[k8s.V1Container]
         :return: the merged containers
 
         The runs recursively over the list of containers.
@@ -325,18 +315,19 @@ class PodGenerator:
         )
 
     @staticmethod
-    def construct_pod(  # pylint: disable=too-many-arguments
+    def construct_pod(
         dag_id: str,
         task_id: str,
         pod_id: str,
         try_number: int,
         kube_image: str,
-        date: datetime.datetime,
+        date: Optional[datetime.datetime],
         args: List[str],
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: int,
+        scheduler_job_id: str,
+        run_id: Optional[str] = None,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -348,28 +339,35 @@ class PodGenerator:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
                 image = kube_image
-        except Exception:  # pylint: disable=W0703
+        except Exception:
             image = kube_image
+
+        annotations = {
+            'dag_id': dag_id,
+            'task_id': task_id,
+            'try_number': str(try_number),
+        }
+        labels = {
+            'airflow-worker': make_safe_label_value(scheduler_job_id),
+            'dag_id': make_safe_label_value(dag_id),
+            'task_id': make_safe_label_value(task_id),
+            'try_number': str(try_number),
+            'airflow_version': airflow_version.replace('+', '-'),
+            'kubernetes_executor': 'True',
+        }
+        if date:
+            annotations['execution_date'] = date.isoformat()
+            labels['execution_date'] = datetime_to_label_safe_datestring(date)
+        if run_id:
+            annotations['run_id'] = run_id
+            labels['run_id'] = make_safe_label_value(run_id)
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
-                annotations={
-                    'dag_id': dag_id,
-                    'task_id': task_id,
-                    'execution_date': date.isoformat(),
-                    'try_number': str(try_number),
-                },
+                annotations=annotations,
                 name=PodGenerator.make_unique_pod_id(pod_id),
-                labels={
-                    'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
-                    'dag_id': make_safe_label_value(dag_id),
-                    'task_id': make_safe_label_value(task_id),
-                    'execution_date': datetime_to_label_safe_datestring(date),
-                    'try_number': str(try_number),
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_executor': 'True',
-                },
+                labels=labels,
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -417,7 +415,6 @@ class PodGenerator:
         else:
             pod = yaml.safe_load(path)
 
-        # pylint: disable=protected-access
         return PodGenerator.deserialize_model_dict(pod)
 
     @staticmethod
@@ -429,10 +426,10 @@ class PodGenerator:
         :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient()
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)  # pylint: disable=W0212
+        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(pod_id: str) -> str:
+    def make_unique_pod_id(pod_id: str) -> Optional[str]:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
@@ -451,11 +448,14 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-        # Strip trailing '-' and '.' as they can't be followed by '.'
-        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
-        return safe_pod_id
+        # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
+        # end of podID ('.' can't be followed by '-').
+        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
+        trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
+
+        # previously used a '.' as the separator, but this could create errors in some situations
+        return f"{trimmed_pod_id}-{safe_uuid}"
 
 
 def merge_objects(base_obj, client_obj):
@@ -493,7 +493,6 @@ def extend_object_field(base_obj, client_obj, field_name):
     :param client_obj: an object which has a property `field_name` that is a list.
         A copy of this object is returned with `field_name` modified
     :param field_name: the name of the list field
-    :type field_name: str
     :return: the client_obj with the property `field_name` being the two properties appended
     """
     client_obj_cp = copy.deepcopy(client_obj)

@@ -55,7 +55,7 @@
     {% if dag.catchup %}
       <tr>
         <th>Start Date</th>
-        <td class="js-format-date">{{ dag.start_date }}</td>
+        <td><time datetime="{{ dag.start_date }}">{{ dag.start_date }}</time></td>
       </tr>
     {% else %}
       <tr>
@@ -65,7 +65,7 @@
     {% endif %}
     <tr>
       <th>End Date</th>
-      <td class="js-format-date">{{ dag.end_date }}</td>
+      <td><time datetime="{{ dag.end_date }}">{{ dag.end_date }}</time></td>
     </tr>
     <tr>
       <th>Max Active Runs</th>
@@ -88,8 +88,8 @@
       <td>{{ dag.task_ids }}</td>
     </tr>
     <tr>
-      <th>Filepath</th>
-      <td>{{ dag.filepath }}</td>
+      <th>Relative file location</th>
+      <td>{{ dag.relative_fileloc }}</td>
     </tr>
     <tr>
       <th>Owner</th>

@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend  # noqa
 
 warnings.warn(

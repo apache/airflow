@@ -22,12 +22,16 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 
 # [START build]
+export AIRFLOW_VERSION=2.2.2
+export DEBIAN_VERSION="buster"
+
 docker build . -f Dockerfile \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_VERSION="2.0.2" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
+    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack,odbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS=" \
-        azure-storage-blob \
+        azure-storage-blob<12.9.0 \
         oauth2client \
         beautifulsoup4 \
         dateparser \

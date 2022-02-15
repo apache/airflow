@@ -46,8 +46,9 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-postgres/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -63,7 +64,7 @@ Package apache-airflow-providers-postgres
 `PostgreSQL <https://www.postgresql.org/>`__
 
 
-Release: 2.0.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -74,7 +75,7 @@ are in ``airflow.providers.postgres`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-postgres``
 
 PIP requirements
@@ -83,6 +84,7 @@ PIP requirements
 ===================  ==================
 PIP package          Version required
 ===================  ==================
+``apache-airflow``   ``>=2.1.0``
 ``psycopg2-binary``  ``>=2.7.4``
 ===================  ==================
 
@@ -111,7 +113,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-postgres 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-2.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-postgres 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-2.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-postgres 3.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-3.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-3.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-3.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-postgres 3.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-3.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-3.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-3.0.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/postgres/CHANGELOG.rst

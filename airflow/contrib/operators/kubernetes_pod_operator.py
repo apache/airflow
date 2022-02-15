@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator  # noqa
 
 warnings.warn(

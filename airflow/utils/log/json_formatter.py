@@ -27,7 +27,6 @@ from airflow.utils.helpers import merge_dicts
 class JSONFormatter(logging.Formatter):
     """JSONFormatter instances are used to convert a log record to json."""
 
-    # pylint: disable=too-many-arguments
     def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
         super().__init__(fmt, datefmt, style)
         if extras is None:

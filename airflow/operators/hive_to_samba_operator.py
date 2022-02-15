@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator  # noqa
 
 warnings.warn(

@@ -17,9 +17,11 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
 
 import getMetaValue from './meta_value';
+import tiTooltip from './task_instances';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -34,6 +36,7 @@ const csrfToken = getMetaValue('csrf_token');
 const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
+const treeUrl = getMetaValue('tree_url');
 
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
@@ -86,12 +89,14 @@ const encodedDagIds = new URLSearchParams();
 $.each($('[id^=toggle]'), function toggleId() {
   const $input = $(this);
   const dagId = $input.data('dag-id');
-  encodedDagIds.append('dagIds', dagId);
+  encodedDagIds.append('dag_ids', dagId);
 
   $input.on('change', () => {
     const isPaused = $input.is(':checked');
     const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(dagId)}`;
     $input.removeClass('switch-input--error');
+    // Remove focus on element so the tooltip will go away
+    $input.trigger('blur');
     $.post(url).fail(() => {
       setTimeout(() => {
         $input.prop('checked', !isPaused);
@@ -114,11 +119,11 @@ $('.typeahead').typeahead({
   },
   autoSelect: false,
   afterSelect(value) {
-    const searchQuery = value.trim();
-    if (searchQuery) {
+    const dagId = value.trim();
+    if (dagId) {
       const query = new URLSearchParams(window.location.search);
-      query.set('search', searchQuery);
-      window.location = `${DAGS_INDEX}?${query}`;
+      query.set('dag_id', dagId);
+      window.location = `${treeUrl}?${query}`;
     }
   },
 });
@@ -147,27 +152,35 @@ function blockedHandler(error, json) {
 }
 
 function lastDagRunsHandler(error, json) {
+  $('.js-loading-last-run').remove();
   Object.keys(json).forEach((safeDagId) => {
     const dagId = json[safeDagId].dag_id;
     const executionDate = json[safeDagId].execution_date;
-    const startDate = json[safeDagId].start_date;
     const g = d3.select(`#last-run-${safeDagId}`);
+
+    // Show last run as a link to the graph view
     g.selectAll('a')
       .attr('href', `${graphUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`)
       .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
+
+    // Only show the tooltip when we have a last run and add the json to a custom data- attribute
     g.selectAll('span')
-    // We don't translate the timezone in the tooltip, that stays in UTC.
-      .attr('data-original-title', `Start Date: ${startDate}`)
-      .style('display', null);
-    g.selectAll('.js-loading-last-run').remove();
-    $('.js-loading-last-run').remove();
+      .style('display', null)
+      .attr('data-lastrun', JSON.stringify(json[safeDagId]));
   });
 }
+
+// Load data-lastrun attribute data to populate the tooltip on hover
+d3.selectAll('.js-last-run-tooltip')
+  .on('mouseover', function mouseoverLastRun() {
+    const lastRunData = JSON.parse(d3.select(this).attr('data-lastrun'));
+    d3.select(this).attr('data-original-title', tiTooltip(lastRunData));
+  });
 
 function drawDagStatsForDag(dagId, states) {
   const g = d3.select(`svg#dag-run-${dagId.replace(/\./g, '__dot__')}`)
     .attr('height', diameter + (strokeWidthHover * 2))
-    .attr('width', '110px')
+    .attr('width', '120px')
     .selectAll('g')
     .data(states)
     .enter()
@@ -221,7 +234,7 @@ function drawDagStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));
@@ -291,7 +304,7 @@ function drawTaskStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));
@@ -304,7 +317,7 @@ function taskStatsHandler(error, json) {
   });
 }
 
-if (encodedDagIds.has('dagIds')) {
+if (encodedDagIds.has('dag_ids')) {
   // dags on page fetch stats
   d3.json(blockedUrl)
     .header('X-CSRFToken', csrfToken)
@@ -349,5 +362,21 @@ $(window).on('load', () => {
 
   $('body').on('mouseout', '.has-svg-tooltip', () => {
     hideSvgTooltip();
+  });
+});
+
+$('.js-next-run-tooltip').each((i, run) => {
+  $(run).on('mouseover', () => {
+    $(run).attr('data-original-title', () => {
+      const nextRunData = $(run).attr('data-nextrun');
+      const [createAfter, intervalStart, intervalEnd] = nextRunData.split(',');
+      let newTitle = '';
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(createAfter)}<br><br>`;
+      newTitle += '<strong>Data Interval</strong><br>';
+      newTitle += `Start: ${formatDateTime(intervalStart)}<br>`;
+      newTitle += `End: ${formatDateTime(intervalEnd)}`;
+      return newTitle;
+    });
   });
 });

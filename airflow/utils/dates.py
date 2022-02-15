@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from croniter import croniter
-from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
+from dateutil.relativedelta import relativedelta  # for doctest
 
 from airflow.utils import timezone
 
@@ -34,7 +35,6 @@ cron_presets: Dict[str, str] = {
 }
 
 
-# pylint: disable=too-many-branches
 def date_range(
     start_date: datetime,
     end_date: Optional[datetime] = None,
@@ -63,16 +63,18 @@ def date_range(
         datetime.datetime(2016, 3, 1, 0, 0, tzinfo=Timezone('UTC'))]
 
     :param start_date: anchor date to start the series from
-    :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
-    :type end_date: datetime.datetime
     :param num: alternatively to end_date, you can specify the number of
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
-    :type num: int
     :param delta: step length. It can be datetime.timedelta or cron expression as string
-    :type delta: datetime.timedelta or str or dateutil.relativedelta
     """
+    warnings.warn(
+        "`airflow.utils.dates.date_range()` is deprecated. Please use `airflow.timetables`.",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
     if not delta:
         return []
     if end_date:

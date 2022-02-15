@@ -19,15 +19,18 @@
 
 import logging
 import random
-from typing import List, Optional
+import warnings
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
+from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
-# pylint: disable=too-many-instance-attributes, too-many-arguments
-class AWSDataSyncOperator(BaseOperator):
+class DataSyncOperator(BaseOperator):
     r"""Find, Create, Update, Execute and Delete AWS DataSync Tasks.
 
     If ``do_xcom_push`` is True, then the DataSync TaskArn and TaskExecutionArn
@@ -35,67 +38,56 @@ class AWSDataSyncOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AWSDataSyncOperator`
+        :ref:`howto/operator:DataSyncOperator`
 
     .. note:: There may be 0, 1, or many existing DataSync Tasks defined in your AWS
         environment. The default behavior is to create a new Task if there are 0, or
         execute the Task if there was 1 Task, or fail if there were many Tasks.
 
     :param aws_conn_id: AWS connection to use.
-    :type aws_conn_id: str
     :param wait_interval_seconds: Time to wait between two
         consecutive calls to check TaskExecution status.
-    :type wait_interval_seconds: int
+    :param max_iterations: Maximum number of
+        consecutive calls to check TaskExecution status.
     :param task_arn: AWS DataSync TaskArn to use. If None, then this operator will
         attempt to either search for an existing Task or attempt to create a new Task.
-    :type task_arn: str
     :param source_location_uri: Source location URI to search for. All DataSync
         Tasks with a LocationArn with this URI will be considered.
         Example: ``smb://server/subdir``
-    :type source_location_uri: str
     :param destination_location_uri: Destination location URI to search for.
         All DataSync Tasks with a LocationArn with this URI will be considered.
         Example: ``s3://airflow_bucket/stuff``
-    :type destination_location_uri: str
     :param allow_random_task_choice: If multiple Tasks match, one must be chosen to
         execute. If allow_random_task_choice is True then a random one is chosen.
-    :type allow_random_task_choice: bool
     :param allow_random_location_choice: If multiple Locations match, one must be chosen
         when creating a task. If allow_random_location_choice is True then a random one is chosen.
-    :type allow_random_location_choice: bool
     :param create_task_kwargs: If no suitable TaskArn is identified,
         it will be created if ``create_task_kwargs`` is defined.
         ``create_task_kwargs`` is then used internally like this:
         ``boto3.create_task(**create_task_kwargs)``
         Example:  ``{'Name': 'xyz', 'Options': ..., 'Excludes': ..., 'Tags': ...}``
-    :type create_task_kwargs: dict
     :param create_source_location_kwargs: If no suitable LocationArn is found,
         a Location will be created if ``create_source_location_kwargs`` is defined.
         ``create_source_location_kwargs`` is then used internally like this:
         ``boto3.create_location_xyz(**create_source_location_kwargs)``
         The xyz is determined from the prefix of source_location_uri, eg ``smb:/...`` or ``s3:/...``
         Example:  ``{'Subdirectory': ..., 'ServerHostname': ..., ...}``
-    :type create_source_location_kwargs: dict
     :param create_destination_location_kwargs: If no suitable LocationArn is found,
         a Location will be created if ``create_destination_location_kwargs`` is defined.
         ``create_destination_location_kwargs`` is used internally like this:
         ``boto3.create_location_xyz(**create_destination_location_kwargs)``
         The xyz is determined from the prefix of destination_location_uri, eg ``smb:/...` or ``s3:/...``
         Example:  ``{'S3BucketArn': ..., 'S3Config': {'BucketAccessRoleArn': ...}, ...}``
-    :type create_destination_location_kwargs: dict
     :param update_task_kwargs:  If a suitable TaskArn is found or created,
         it will be updated if ``update_task_kwargs`` is defined.
         ``update_task_kwargs`` is used internally like this:
         ``boto3.update_task(TaskArn=task_arn, **update_task_kwargs)``
         Example:  ``{'Name': 'xyz', 'Options': ..., 'Excludes': ...}``
-    :type update_task_kwargs: dict
     :param task_execution_kwargs: Additional kwargs passed directly when starting the
         Task execution, used internally like this:
         ``boto3.start_task_execution(TaskArn=task_arn, **task_execution_kwargs)``
-    :type task_execution_kwargs: dict
     :param  delete_task_after_execution: If True then the TaskArn which was executed
         will be deleted from AWS DataSync on successful completion.
-    :type delete_task_after_execution: bool
     :raises AirflowException: If ``task_arn`` was not specified, or if
         either ``source_location_uri`` or ``destination_location_uri`` were
         not specified.
@@ -105,7 +97,7 @@ class AWSDataSyncOperator(BaseOperator):
     :raises AirflowException: If Task creation, update, execution or delete fails.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "task_arn",
         "source_location_uri",
         "destination_location_uri",
@@ -116,11 +108,11 @@ class AWSDataSyncOperator(BaseOperator):
         "task_execution_kwargs",
     )
     template_fields_renderers = {
-        "create_task_kwargs": "py",
-        "create_source_location_kwargs": "py",
-        "create_destination_location_kwargs": "py",
-        "update_task_kwargs": "py",
-        "task_execution_kwargs": "py",
+        "create_task_kwargs": "json",
+        "create_source_location_kwargs": "json",
+        "create_destination_location_kwargs": "json",
+        "update_task_kwargs": "json",
+        "task_execution_kwargs": "json",
     }
     ui_color = "#44b5e2"
 
@@ -128,7 +120,8 @@ class AWSDataSyncOperator(BaseOperator):
         self,
         *,
         aws_conn_id: str = "aws_default",
-        wait_interval_seconds: int = 5,
+        wait_interval_seconds: int = 30,
+        max_iterations: int = 60,
         task_arn: Optional[str] = None,
         source_location_uri: Optional[str] = None,
         destination_location_uri: Optional[str] = None,
@@ -147,6 +140,7 @@ class AWSDataSyncOperator(BaseOperator):
         # Assignments
         self.aws_conn_id = aws_conn_id
         self.wait_interval_seconds = wait_interval_seconds
+        self.max_iterations = max_iterations
 
         self.task_arn = task_arn
 
@@ -175,14 +169,13 @@ class AWSDataSyncOperator(BaseOperator):
             valid = True
         if not valid:
             raise AirflowException(
-                "Either specify task_arn or both source_location_uri and destination_location_uri. "
-                "task_arn={} source_location_uri={} destination_location_uri={}".format(
-                    task_arn, source_location_uri, destination_location_uri
-                )
+                f"Either specify task_arn or both source_location_uri and destination_location_uri. "
+                f"task_arn={task_arn!r}, source_location_uri={source_location_uri!r}, "
+                f"destination_location_uri={destination_location_uri!r}"
             )
 
         # Others
-        self.hook: Optional[AWSDataSyncHook] = None
+        self.hook: Optional[DataSyncHook] = None
         # Candidates - these are found in AWS as possible things
         # for us to use
         self.candidate_source_location_arns: Optional[List[str]] = None
@@ -193,21 +186,21 @@ class AWSDataSyncOperator(BaseOperator):
         self.destination_location_arn: Optional[str] = None
         self.task_execution_arn: Optional[str] = None
 
-    def get_hook(self) -> AWSDataSyncHook:
-        """Create and return AWSDataSyncHook.
+    def get_hook(self) -> DataSyncHook:
+        """Create and return DataSyncHook.
 
-        :return AWSDataSyncHook: An AWSDataSyncHook instance.
+        :return DataSyncHook: An DataSyncHook instance.
         """
         if self.hook:
             return self.hook
 
-        self.hook = AWSDataSyncHook(
+        self.hook = DataSyncHook(
             aws_conn_id=self.aws_conn_id,
             wait_interval_seconds=self.wait_interval_seconds,
         )
         return self.hook
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         # If task_arn was not specified then try to
         # find 0, 1 or many candidate DataSync Tasks to run
         if not self.task_arn:
@@ -342,7 +335,7 @@ class AWSDataSyncOperator(BaseOperator):
         self.log.info("Updated TaskArn %s", self.task_arn)
 
     def _execute_datasync_task(self) -> None:
-        """Create and monitor an AWSDataSync TaskExecution for a Task."""
+        """Create and monitor an AWS DataSync TaskExecution for a Task."""
         if not self.task_arn:
             raise AirflowException("Missing TaskArn")
 
@@ -355,8 +348,14 @@ class AWSDataSyncOperator(BaseOperator):
 
         # Wait for task execution to complete
         self.log.info("Waiting for TaskExecutionArn %s", self.task_execution_arn)
-        result = hook.wait_for_task_execution(self.task_execution_arn)
+        try:
+            result = hook.wait_for_task_execution(self.task_execution_arn, max_iterations=self.max_iterations)
+        except (AirflowTaskTimeout, AirflowException) as e:
+            self.log.error('Cancelling TaskExecution after Exception: %s', e)
+            self._cancel_datasync_task_execution()
+            raise
         self.log.info("Completed TaskExecutionArn %s", self.task_execution_arn)
+
         task_execution_description = hook.describe_task_execution(task_execution_arn=self.task_execution_arn)
         self.log.info("task_execution_description=%s", task_execution_description)
 
@@ -371,13 +370,17 @@ class AWSDataSyncOperator(BaseOperator):
         if not result:
             raise AirflowException(f"Failed TaskExecutionArn {self.task_execution_arn}")
 
-    def on_kill(self) -> None:
+    def _cancel_datasync_task_execution(self):
         """Cancel the submitted DataSync task."""
         hook = self.get_hook()
         if self.task_execution_arn:
             self.log.info("Cancelling TaskExecutionArn %s", self.task_execution_arn)
             hook.cancel_task_execution(task_execution_arn=self.task_execution_arn)
             self.log.info("Cancelled TaskExecutionArn %s", self.task_execution_arn)
+
+    def on_kill(self):
+        self.log.error('Cancelling TaskExecution after task was killed')
+        self._cancel_datasync_task_execution()
 
     def _delete_datasync_task(self) -> None:
         """Deletes an AWS DataSync Task."""
@@ -394,3 +397,19 @@ class AWSDataSyncOperator(BaseOperator):
         location_arns = self.get_hook().get_location_arns(location_uri)
         self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
         return location_arns
+
+
+class AWSDataSyncOperator(DataSyncOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.datasync.DataSyncOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. Please use "
+            "`airflow.providers.amazon.aws.operators.datasync.DataSyncHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

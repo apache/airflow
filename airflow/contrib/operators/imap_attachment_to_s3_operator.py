@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.amazon.aws.transfers.imap_attachment_to_s3`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator  # noqa
 
 warnings.warn(

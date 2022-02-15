@@ -18,6 +18,7 @@
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.weekday import WeekDay
 
 
@@ -63,40 +64,25 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :type week_day: set or str or airflow.utils.weekday.WeekDay
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
-    :type use_task_execution_day: bool
     """
 
     def __init__(self, *, week_day, use_task_execution_day=False, **kwargs):
         super().__init__(**kwargs)
         self.week_day = week_day
         self.use_task_execution_day = use_task_execution_day
-        if isinstance(self.week_day, str):
-            self._week_day_num = {WeekDay.get_weekday_number(week_day_str=self.week_day)}
-        elif isinstance(self.week_day, WeekDay):
-            self._week_day_num = {self.week_day}
-        elif isinstance(self.week_day, set):
-            if all(isinstance(day, str) for day in self.week_day):
-                self._week_day_num = {WeekDay.get_weekday_number(day) for day in week_day}
-            elif all(isinstance(day, WeekDay) for day in self.week_day):
-                self._week_day_num = self.week_day
-        else:
-            raise TypeError(
-                'Unsupported Type for week_day parameter: {}. It should be one of str'
-                ', set or Weekday enum type'.format(type(week_day))
-            )
+        self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def poke(self, context):
+    def poke(self, context: Context):
         self.log.info(
             'Poking until weekday is in %s, Today is %s',
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
         if self.use_task_execution_day:
-            return context['execution_date'].isoweekday() in self._week_day_num
+            return context['logical_date'].isoweekday() in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

@@ -25,7 +25,7 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class GCPTextToSpeechExampleDagSystemTest(GoogleSystemTest):
+class GCPSpeechToTextExampleDagSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()

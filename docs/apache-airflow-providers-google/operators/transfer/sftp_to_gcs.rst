@@ -24,11 +24,6 @@ used to store large data from various applications.
 SFTP (SSH File Transfer Protocol) is a secure file transfer protocol.
 It runs over the SSH protocol. It supports the full security and authentication functionality of the SSH.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

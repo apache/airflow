@@ -23,9 +23,11 @@ Smart Sensors
 
 .. warning::
 
-  This is an **early-access** feature and might change in incompatible ways in future Airflow versions.
-  However this feature can be considered bug-free, and Airbnb has been using this feature in production
-  since early 2020 and has significantly reduced their costs for heavy use of sensors.
+  This is a **deprecated early-access** feature that will be removed in Airflow 2.4.0.
+  It is superseded by :doc:`Deferrable Operators <deferring>`, which offer a more flexible way to
+  achieve efficient long-running sensors, as well as allowing operators to also achieve similar
+  efficiency gains. If you are considering writing a new Smart Sensor, you should instead write it
+  as a Deferrable Operator.
 
 The smart sensor is a service (run by a builtin DAG) which greatly reduces Airflow’s infrastructure
 cost by consolidating multiple instances of small, light-weight Sensors into a single process.
@@ -49,7 +51,7 @@ store poke context at sensor_instance table and then exits with a ‘sensing’ 
 
 When the smart sensor mode is enabled, a special set of builtin smart sensor DAGs
 (named smart_sensor_group_shard_xxx) is created by the system; These DAGs contain ``SmartSensorOperator``
-task and manage the smart sensor jobs for the airflow cluster. The SmartSensorOperator task can fetch
+task and manage the smart sensor jobs for the Airflow cluster. The SmartSensorOperator task can fetch
 hundreds of ‘sensing’ instances from sensor_instance table and poke on behalf of them in batches.
 Users don’t need to change their existing DAGs.
 
@@ -73,7 +75,7 @@ Add the following settings in the ``airflow.cfg``:
 
 *   ``use_smart_sensor``: This config indicates if the smart sensor is enabled.
 *   ``shards``: This config indicates the number of concurrently running smart sensor jobs for
-    the airflow cluster.
+    the Airflow cluster.
 *   ``sensors_enabled``: This config is a list of sensor class names that will use the smart sensor.
     The users use the same class names (e.g. HivePartitionSensor) in their DAGs and they don’t have
     the control to use smart sensors or not, unless they exclude their tasks explicitly.
@@ -90,3 +92,15 @@ Support new operators in the smart sensor service
     include all key names used for initializing a sensor object.
 *   In ``airflow.cfg``, add the new operator's classname to ``[smart_sensor] sensors_enabled``.
     All supported sensors' classname should be comma separated.
+
+Migrating to Deferrable Operators
+----------------------------------
+
+There is not a direct migration path from Smart Sensors to :doc:`Deferrable Operators <deferring>`.
+You have a few paths forward, depending on your needs and situation:
+
+*   Do nothing - your DAGs will continue to run as-is, however they will no longer get the optimization smart sensors brought
+*   Deferrable Operator - move to a Deferrable Operator that alleviates the need for a sensor all-together
+*   Deferrable Sensor - move to an async version of the sensor you are already using
+
+See :ref:`Writing Deferrable Operators <deferring/writing>` for details on writing Deferrable Operators and Sensors.

@@ -20,7 +20,7 @@ Azure Key Vault Backend
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable the Azure Key Vault as secrets backend, specify
-:py:class:`~airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend`
+:py:class:`~airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
@@ -28,11 +28,13 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+    backend = airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "vault_url": "https://example-akv-resource-name.vault.azure.net/"}
 
 For client authentication, the ``DefaultAzureCredential`` from the Azure Python SDK is used as credential provider,
 which supports service principal, managed identity and user credentials.
+
+For example, to specify a service principal with secret you can set the environment variables ``AZURE_TENANT_ID``, ``AZURE_CLIENT_ID`` and ``AZURE_CLIENT_SECRET``.
 
 Optional lookup
 """""""""""""""
@@ -47,7 +49,7 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow-c
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+    backend = airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": null, "vault_url": "https://example-akv-resource-name.vault.azure.net/"}
 
 Storing and Retrieving Connections
@@ -64,3 +66,8 @@ Storing and Retrieving Variables
 
 If you have set ``variables_prefix`` as ``airflow-variables``, then for an Variable key of ``hello``,
 you would want to store your Variable at ``airflow-variables-hello``.
+
+Reference
+"""""""""
+
+For more details on client authentication refer to the `DefaultAzureCredential Class reference <https://docs.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python>`_.

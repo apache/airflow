@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator, SparkSubmitOperator  # noqa
 
 warnings.warn(

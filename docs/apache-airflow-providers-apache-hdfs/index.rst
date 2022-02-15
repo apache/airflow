@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-hdfs``
-=================================
+``apache-airflow-providers-apache-hdfs``
+========================================
 
 
 Content
@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections>
-    Operators <operators>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
@@ -35,8 +35,9 @@ Content
 
     Python API <_api/airflow/providers/apache/hdfs/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hdfs/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -53,7 +54,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 2.0.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -64,16 +65,18 @@ are in ``airflow.providers.apache.hdfs`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-hdfs``
 
 PIP requirements
 ----------------
 
-=================  ==================
-PIP package        Version required
-=================  ==================
+=================================  ==================
+PIP package                        Version required
+=================================  ==================
+``apache-airflow``                 ``>=2.1.0``
+``hdfs[avro,dataframe,kerberos]``  ``>=2.0.4``
 ``snakebite-py3``
-=================  ==================
+=================================  ==================
 
 .. include:: ../../airflow/providers/apache/hdfs/CHANGELOG.rst

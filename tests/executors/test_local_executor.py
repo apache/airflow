@@ -35,7 +35,7 @@ class TestLocalExecutor(unittest.TestCase):
         success_command = ['airflow', 'tasks', 'run', 'true', 'some_parameter', '2020-10-07']
         fail_command = ['airflow', 'tasks', 'run', 'false', 'task_id', '2020-10-07']
 
-        def fake_execute_command(command, close_fds=True):  # pylint: disable=unused-argument
+        def fake_execute_command(command, close_fds=True):
             if command != success_command:
                 raise subprocess.CalledProcessError(returncode=1, cmd=command)
             else:
@@ -95,22 +95,22 @@ class TestLocalExecutor(unittest.TestCase):
             settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', new_callable=mock.PropertyMock
         ) as option:
             option.return_value = True
-            self.execution_parallelism_subprocess(parallelism=0)  # pylint: disable=no-value-for-parameter
+            self.execution_parallelism_subprocess(parallelism=0)
 
     def test_execution_subprocess_limited_parallelism(self):
         with mock.patch.object(
             settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', new_callable=mock.PropertyMock
         ) as option:
             option.return_value = True
-            self.execution_parallelism_subprocess(parallelism=2)  # pylint: disable=no-value-for-parameter
+            self.execution_parallelism_subprocess(parallelism=2)
 
     @mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', False)
     def test_execution_unlimited_parallelism_fork(self):
-        self.execution_parallelism_fork(parallelism=0)  # pylint: disable=no-value-for-parameter
+        self.execution_parallelism_fork(parallelism=0)
 
     @mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', False)
     def test_execution_limited_parallelism_fork(self):
-        self.execution_parallelism_fork(parallelism=2)  # pylint: disable=no-value-for-parameter
+        self.execution_parallelism_fork(parallelism=2)
 
     @mock.patch('airflow.executors.local_executor.LocalExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')

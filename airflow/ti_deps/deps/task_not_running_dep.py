@@ -29,7 +29,7 @@ class TaskNotRunningDep(BaseTIDep):
     IGNORABLE = False
 
     def __eq__(self, other):
-        return type(self) == type(other)  # pylint: disable=C0123
+        return type(self) == type(other)
 
     def __hash__(self):
         return hash(type(self))

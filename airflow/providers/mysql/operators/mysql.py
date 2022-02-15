@@ -15,10 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Iterable, Mapping, Optional, Union
+import ast
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.www import utils as wwwutils
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MySqlOperator(BaseOperator):
@@ -33,26 +38,28 @@ class MySqlOperator(BaseOperator):
         sql statement, a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
         (templated)
-    :type sql: str or list[str]
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
+        Template reference are recognized by str ending in '.json'
+        (templated)
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     :param database: name of database which overwrite defined one in connection
-    :type database: str
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'parameters')
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        'sql': 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql',
+        'parameters': 'json',
+    }
+    template_ext: Sequence[str] = ('.sql', '.json')
     ui_color = '#ededed'
 
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, List[str]],
         mysql_conn_id: str = 'mysql_default',
         parameters: Optional[Union[Mapping, Iterable]] = None,
         autocommit: bool = False,
@@ -66,7 +73,12 @@ class MySqlOperator(BaseOperator):
         self.parameters = parameters
         self.database = database
 
-    def execute(self, context: Dict) -> None:
+    def prepare_template(self) -> None:
+        """Parse template file for attribute parameters."""
+        if isinstance(self.parameters, str):
+            self.parameters = ast.literal_eval(self.parameters)
+
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

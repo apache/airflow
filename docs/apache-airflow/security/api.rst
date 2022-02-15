@@ -18,10 +18,6 @@
 API
 ===
 
-.. contents::
-  :depth: 1
-  :local:
-
 API Authentication
 ------------------
 
@@ -84,8 +80,7 @@ principal exists in the keytab file.
 Basic authentication
 ''''''''''''''''''''
 
-`Basic username password authentication <https://tools.ietf.org/html/rfc7617
-https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
+`Basic username password authentication <https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the API. This works for users created through LDAP login or
 within Airflow Metadata DB using password.
 
@@ -145,7 +140,7 @@ from scripts running in the browser.
 ``Access-Control-Allow-Headers``, ``Access-Control-Allow-Methods``, and
 ``Access-Control-Allow-Origin`` headers can be added by setting values for
 ``access_control_allow_headers``, ``access_control_allow_methods``, and
-``access_control_allow_origin`` options in the ``[api]`` section of the
+``access_control_allow_origins`` options in the ``[api]`` section of the
 ``airflow.cfg`` file.
 
 .. code-block:: ini
@@ -153,7 +148,7 @@ from scripts running in the browser.
     [api]
     access_control_allow_headers = origin, content-type, accept
     access_control_allow_methods = POST, GET, OPTIONS, DELETE
-    access_control_allow_origin = https://exampleclientapp.com
+    access_control_allow_origins = https://exampleclientapp1.com https://exampleclientapp2.com
 
 Page size limit
 ---------------

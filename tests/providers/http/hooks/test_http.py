@@ -353,5 +353,21 @@ class TestHttpHook(unittest.TestCase):
                 verify=False,
             )
 
+    @requests_mock.mock()
+    def test_connection_success(self, m):
+        m.get('http://test:8080', status_code=200, json={"status": {"status": 200}}, reason='OK')
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            status, msg = self.get_hook.test_connection()
+            assert status is True
+            assert msg == 'Connection successfully tested'
+
+    @requests_mock.mock()
+    def test_connection_failure(self, m):
+        m.get('http://test:8080', status_code=500, json={"message": "internal server error"}, reason='NOT_OK')
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            status, msg = self.get_hook.test_connection()
+            assert status is False
+            assert msg == '500:NOT_OK'
+
 
 send_email_test = mock.Mock()

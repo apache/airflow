@@ -23,8 +23,8 @@ Airflow has limited support for `Microsoft Azure <https://azure.microsoft.com/>`
 Some hooks are based on :mod:`airflow.providers.microsoft.azure.hooks.base_azure`
 which authenticate Azure's Python SDK Clients.
 
-Service operators and hooks
-'''''''''''''''''''''''''''
+Services
+''''''''
 
 These integrations allow you to perform various operations within the Microsoft Azure.
 
@@ -32,8 +32,8 @@ These integrations allow you to perform various operations within the Microsoft 
    :tags: azure
    :header-separator: "
 
-Transfer operators and hooks
-''''''''''''''''''''''''''''
+Transfers
+'''''''''
 
 These integrations allow you to copy data from/to Microsoft Azure.
 

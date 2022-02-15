@@ -25,6 +25,10 @@ source "${LIBRARIES_DIR}/_all_libs.sh"
 
 initialization::set_output_color_variables
 
+python3 "$( dirname "${BASH_SOURCE[0]}" )/ci_run_docker_tests.py" "--initialize"
+
+export PARALLEL_TAIL_LENGTH=5
+
 parallel::make_sure_gnu_parallel_is_installed
 
 parallel::make_sure_python_versions_are_specified
@@ -36,6 +40,8 @@ echo
 parallel::initialize_monitoring
 
 parallel::monitor_progress
+
+build_images::login_to_docker_registry
 
 # shellcheck disable=SC2086
 parallel --results "${PARALLEL_MONITORED_DIR}" \

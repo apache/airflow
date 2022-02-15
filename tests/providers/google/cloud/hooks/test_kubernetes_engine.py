@@ -74,9 +74,7 @@ class TestGKEHookDelete(unittest.TestCase):
         )
 
         client_delete.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
-            cluster_id=CLUSTER_NAME,
+            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -115,7 +113,7 @@ class TestGKEHookDelete(unittest.TestCase):
         self.gke_hook._client.delete_cluster.side_effect = AirflowException('400')
 
         with pytest.raises(AirflowException):
-            self.gke_hook.delete_cluster(name='a-cluster')  # pylint: disable=no-value-for-parameter
+            self.gke_hook.delete_cluster(name='a-cluster')
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 
@@ -145,8 +143,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
+            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
             cluster=mock_cluster_proto,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -173,8 +170,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
+            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
             cluster=proto_mock,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -189,7 +185,7 @@ class TestGKEHookCreate(unittest.TestCase):
         mock_cluster_proto = None
 
         with pytest.raises(AirflowException):
-            self.gke_hook.create_cluster(mock_cluster_proto)  # pylint: disable=no-value-for-parameter
+            self.gke_hook.create_cluster(mock_cluster_proto)
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 
@@ -228,9 +224,7 @@ class TestGKEHookGet(unittest.TestCase):
         )
 
         client_get.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
-            cluster_id=CLUSTER_NAME,
+            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -256,7 +250,7 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook._client.get_operation = mock.Mock()
         self.gke_hook.get_operation('TEST_OP', project_id=TEST_GCP_PROJECT_ID)
         self.gke_hook._client.get_operation.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID, zone=GKE_ZONE, operation_id='TEST_OP'
+            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/TEST_OP'
         )
 
     def test_append_label(self):

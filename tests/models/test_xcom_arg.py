@@ -14,23 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
-
 import pytest
 
-from airflow import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from tests.test_utils.config import conf_vars
-
-DEFAULT_ARGS = {
-    "owner": "test",
-    "depends_on_past": True,
-    "start_date": datetime.today(),
-    "retries": 1,
-    "retry_delay": timedelta(minutes=1),
-}
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 VALUE = 42
 
@@ -40,22 +30,30 @@ def assert_is_value(num: int):
         raise Exception("The test has failed")
 
 
-def build_python_op():
+def build_python_op(dag_maker):
     def f(task_id):
         return f"OP:{task_id}"
 
-    with DAG(dag_id="test_xcom_dag", default_args=DEFAULT_ARGS):
+    with dag_maker(dag_id="test_xcom_dag"):
         operator = PythonOperator(
             python_callable=f,
             task_id="test_xcom_op",
             do_xcom_push=True,
         )
-        return operator
+    dag_maker.create_dagrun()
+    return operator
+
+
+@pytest.fixture(autouse=True)
+def clear_db():
+    clear_db_runs()
+    clear_db_dags()
+    yield
 
 
 class TestXComArgBuild:
-    def test_xcom_ctor(self):
-        python_op = build_python_op()
+    def test_xcom_ctor(self, dag_maker):
+        python_op = build_python_op(dag_maker)
         actual = XComArg(python_op, "test_key")
         assert actual
         assert actual.operator == python_op
@@ -72,8 +70,8 @@ class TestXComArgBuild:
             "dag_id='test_xcom_dag', key='test_key') }}"
         )
 
-    def test_xcom_key_is_empty_str(self):
-        python_op = build_python_op()
+    def test_xcom_key_is_empty_str(self, dag_maker):
+        python_op = build_python_op(dag_maker)
         actual = XComArg(python_op, key="")
         assert actual.key == ""
         assert (
@@ -81,8 +79,8 @@ class TestXComArgBuild:
             "dag_id='test_xcom_dag', key='') }}"
         )
 
-    def test_set_downstream(self):
-        with DAG("test_set_downstream", default_args=DEFAULT_ARGS):
+    def test_set_downstream(self, dag_maker):
+        with dag_maker("test_set_downstream"):
             op_a = BashOperator(task_id="a", bash_command="echo a")
             op_b = BashOperator(task_id="b", bash_command="echo b")
             bash_op1 = BashOperator(task_id="c", bash_command="echo c")
@@ -91,13 +89,13 @@ class TestXComArgBuild:
             xcom_args_b = XComArg(op_b)
 
             bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2
-
+        dag_maker.create_dagrun()
         assert op_a in bash_op1.downstream_list
         assert op_b in op_a.downstream_list
         assert bash_op2 in op_b.downstream_list
 
-    def test_set_upstream(self):
-        with DAG("test_set_upstream", default_args=DEFAULT_ARGS):
+    def test_set_upstream(self, dag_maker):
+        with dag_maker("test_set_upstream"):
             op_a = BashOperator(task_id="a", bash_command="echo a")
             op_b = BashOperator(task_id="b", bash_command="echo b")
             bash_op1 = BashOperator(task_id="c", bash_command="echo c")
@@ -106,19 +104,20 @@ class TestXComArgBuild:
             xcom_args_b = XComArg(op_b)
 
             bash_op1 << xcom_args_a << xcom_args_b << bash_op2
-
+        dag_maker.create_dagrun()
         assert op_a in bash_op1.upstream_list
         assert op_b in op_a.upstream_list
         assert bash_op2 in op_b.upstream_list
 
-    def test_xcom_arg_property_of_base_operator(self):
-        with DAG("test_xcom_arg_property_of_base_operator", default_args=DEFAULT_ARGS):
+    def test_xcom_arg_property_of_base_operator(self, dag_maker):
+        with dag_maker("test_xcom_arg_property_of_base_operator"):
             op_a = BashOperator(task_id="a", bash_command="echo a")
+        dag_maker.create_dagrun()
 
         assert op_a.output == XComArg(op_a)
 
-    def test_xcom_key_getitem(self):
-        python_op = build_python_op()
+    def test_xcom_key_getitem(self, dag_maker):
+        python_op = build_python_op(dag_maker)
         actual = XComArg(python_op, key="another_key")
         assert actual.key == "another_key"
         actual_new_key = actual["another_key_2"]
@@ -128,8 +127,8 @@ class TestXComArgBuild:
 @pytest.mark.system("core")
 class TestXComArgRuntime:
     @conf_vars({("core", "executor"): "DebugExecutor"})
-    def test_xcom_pass_to_op(self):
-        with DAG(dag_id="test_xcom_pass_to_op", default_args=DEFAULT_ARGS) as dag:
+    def test_xcom_pass_to_op(self, dag_maker):
+        with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
             operator = PythonOperator(
                 python_callable=lambda: VALUE,
                 task_id="return_value_1",
@@ -145,12 +144,12 @@ class TestXComArgRuntime:
         dag.run()
 
     @conf_vars({("core", "executor"): "DebugExecutor"})
-    def test_xcom_push_and_pass(self):
+    def test_xcom_push_and_pass(self, dag_maker):
         def push_xcom_value(key, value, **context):
             ti = context["task_instance"]
             ti.xcom_push(key, value)
 
-        with DAG(dag_id="test_xcom_push_and_pass", default_args=DEFAULT_ARGS) as dag:
+        with dag_maker(dag_id="test_xcom_push_and_pass") as dag:
             op1 = PythonOperator(
                 python_callable=push_xcom_value,
                 task_id="push_xcom_value",

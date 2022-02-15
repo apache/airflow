@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.http.operators.http import SimpleHttpOperator  # noqa
 
 warnings.warn(

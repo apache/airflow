@@ -31,8 +31,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.host == 'host'
 
     @mock_secretsmanager
-    def test_get_conn_uri(self):
-
+    def test_get_conn_uri_full_url_mode(self):
         secret_id = 'airflow/connections/test_postgres'
         create_param = {
             'Name': secret_id,
@@ -49,6 +48,58 @@ class TestSecretsManagerBackend(TestCase):
 
         returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
         assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+
+    @mock_secretsmanager
+    def test_get_conn_uri_broken_field_mode(self):
+        secret_id = 'airflow/connections/test_postgres'
+        create_param = {
+            'Name': secret_id,
+        }
+
+        param = {
+            'SecretId': secret_id,
+            'SecretString': '{"user": "airflow", "pass": "airflow", "host": "host", '
+            '"port": 5432, "schema": "airflow", "engine": "postgresql",}',
+        }
+
+        secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
+        secrets_manager_backend.client.create_secret(**create_param)
+        secrets_manager_backend.client.put_secret_value(**param)
+
+        returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
+        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+
+    @mock_secretsmanager
+    def test_get_conn_uri_broken_field_mode_extra_words_added(self):
+        secret_id = 'airflow/connections/test_postgres'
+        create_param = {
+            'Name': secret_id,
+        }
+
+        param = {
+            'SecretId': secret_id,
+            'SecretString': '{"usuario": "airflow", "pass": "airflow", "host": "host", '
+            '"port": 5432, "schema": "airflow", "engine": "postgresql",}',
+        }
+
+        secrets_manager_backend = SecretsManagerBackend(
+            full_url_mode=False, extra_conn_words={"user": ["usuario"]}
+        )
+        secrets_manager_backend.client.create_secret(**create_param)
+        secrets_manager_backend.client.put_secret_value(**param)
+
+        returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
+        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+
+    @mock_secretsmanager
+    def test_format_uri_with_extra(self):
+        secret = {'extra': '{"key1": "value1", "key2": "value2"}'}
+        conn_string = 'CS'
+        secrets_manager_backend = SecretsManagerBackend()
+
+        conn_string_with_extra = secrets_manager_backend._format_uri_with_extra(secret, conn_string)
+
+        assert conn_string_with_extra == 'CS?key1=value1&key2=value2'
 
     @mock_secretsmanager
     def test_get_conn_uri_non_existent_key(self):
@@ -122,7 +173,6 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend = SecretsManagerBackend(**kwargs)
 
         assert secrets_manager_backend.get_conn_uri("test_mysql") is None
-        mock_get_secret.assert_not_called()
 
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):

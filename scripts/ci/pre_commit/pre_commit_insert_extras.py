@@ -25,7 +25,7 @@ AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.p
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 # flake8: noqa: F401
-# pylint: disable=wrong-import-position
+
 from setup import EXTRAS_REQUIREMENTS  # isort:skip
 
 sys.path.append(AIRFLOW_SOURCES_DIR)

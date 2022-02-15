@@ -48,7 +48,10 @@
       }
     },
     "timezone": {
-      "type": "string"
+      "anyOf": [
+        { "type": "string" },
+        { "type": "integer" }
+      ]
     },
     "dict": {
       "description": "A python dictionary containing values of any type",
@@ -75,7 +78,7 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": { "$ref": "#/definitions/dict" },
+        "params": { "$ref": "#/definitions/params_dict" },
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
@@ -86,6 +89,13 @@
             { "$ref": "#/definitions/typed_timedelta" },
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
+        },
+        "timetable": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "value": { "$ref": "#/definitions/dict" }
+          }
         },
         "catchup": { "type": "boolean" },
         "is_subdag": { "type": "boolean" },
@@ -125,6 +135,24 @@
       "type": "array",
       "additionalProperties": { "$ref": "#/definitions/operator" }
     },
+    "params_dict": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/definitions/param" }
+    },
+    "param": {
+      "$comment": "A param for a dag / operator",
+      "type": "object",
+      "required": [
+        "__class",
+        "default"
+      ],
+      "properties": {
+        "__class": { "type": "string" },
+        "default": {},
+        "description": {"anyOf": [{"type":"string"}, {"type":"null"}]},
+        "schema": { "$ref": "#/definitions/dict" }
+      }
+    },
     "operator": {
       "$comment": "A task/operator in a DAG",
       "type": "object",
@@ -156,7 +184,7 @@
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
-        "params": { "$ref": "#/definitions/dict" },
+        "params": { "$ref": "#/definitions/params_dict" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
@@ -168,7 +196,7 @@
           "items": { "type": "string" }
         },
         "subdag": { "$ref": "#/definitions/dag" },
-        "_downstream_task_ids": {
+        "downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }
         },
@@ -183,7 +211,15 @@
         "doc_md":  { "type": "string" },
         "doc_json":  { "type": "string" },
         "doc_yaml":  { "type": "string" },
-        "doc_rst":  { "type": "string" }
+        "doc_rst":  { "type": "string" },
+        "_is_mapped": { "const": true, "$comment": "only present when True" },
+        "mapped_kwargs": { "type": "object" },
+        "partial_kwargs": { "type": "object" }
+      },
+      "dependencies": {
+        "mapped_kwargs": ["partial_kwargs", "_is_mapped"],
+        "partial_kwargs": ["mapped_kwargs", "_is_mapped"],
+        "_is_mapped": ["mapped_kwargs", "partial_kwargs"]
       },
       "additionalProperties": true
     },

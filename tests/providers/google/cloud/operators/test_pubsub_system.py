@@ -24,6 +24,9 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_PUBSUB_KEY)
 class PubSubSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_PUBSUB_KEY)
     def test_run_example_sensor_dag(self):
         self.run_dag(dag_id="example_gcp_pubsub_sensor", dag_folder=CLOUD_DAG_FOLDER)
@@ -31,3 +34,6 @@ class PubSubSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_PUBSUB_KEY)
     def test_run_example_operator_dag(self):
         self.run_dag(dag_id="example_gcp_pubsub_operator", dag_folder=CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

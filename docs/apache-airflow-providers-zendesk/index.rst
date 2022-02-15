@@ -27,9 +27,11 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/zendesk/index>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/zendesk/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-zendesk/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -45,7 +47,7 @@ Package apache-airflow-providers-zendesk
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 2.0.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -56,16 +58,17 @@ are in ``airflow.providers.zendesk`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-zendesk``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``zdesk``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``zenpy``           ``>=2.0.24``
+==================  ==================
 
 .. include:: ../../airflow/providers/zendesk/CHANGELOG.rst

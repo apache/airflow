@@ -71,6 +71,29 @@ class TestOperatorHelpers(unittest.TestCase):
             'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com',
         }
 
+    def test_context_to_airflow_vars_with_default_context_vars(self):
+        with mock.patch('airflow.settings.get_airflow_context_vars') as mock_method:
+            airflow_cluster = 'cluster-a'
+            mock_method.return_value = {'airflow_cluster': airflow_cluster}
+
+            context_vars = operator_helpers.context_to_airflow_vars(self.context)
+            assert context_vars['airflow.ctx.airflow_cluster'] == airflow_cluster
+
+            context_vars = operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True)
+            assert context_vars['AIRFLOW_CTX_AIRFLOW_CLUSTER'] == airflow_cluster
+
+        with mock.patch('airflow.settings.get_airflow_context_vars') as mock_method:
+            mock_method.return_value = {'airflow_cluster': [1, 2]}
+            with pytest.raises(TypeError) as error:
+                operator_helpers.context_to_airflow_vars(self.context)
+            assert "value of key <airflow_cluster> must be string, not <class 'list'>" == str(error.value)
+
+        with mock.patch('airflow.settings.get_airflow_context_vars') as mock_method:
+            mock_method.return_value = {1: "value"}
+            with pytest.raises(TypeError) as error:
+                operator_helpers.context_to_airflow_vars(self.context)
+            assert 'key <1> must be string' == str(error.value)
+
 
 def callable1(ds_nodash):
     return (ds_nodash,)

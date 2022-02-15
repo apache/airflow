@@ -19,10 +19,6 @@
 Amazon S3 Operators
 ====================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 
@@ -33,19 +29,19 @@ Overview
 
 Airflow to Amazon Simple Storage Service (S3) integration provides several operators to create and interact with S3 buckets.
 
- - :class:`~airflow.providers.amazon.aws.sensors.s3_key.S3KeySensor`
- - :class:`~airflow.providers.amazon.aws.sensors.s3_key.S3KeySizeSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor`
- - :class:`~airflow.providers.amazon.aws.operators.s3_bucket.S3CreateBucketOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_bucket.S3DeleteBucketOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3DeleteBucketTaggingOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3GetBucketTaggingOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3PutBucketTaggingOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_copy_object.S3CopyObjectOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_delete_objects.S3DeleteObjectsOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`
- - :class:`~airflow.providers.amazon.aws.operators.s3_list.S3ListOperator`
+ - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeysUnchangedSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3ListOperator`
 
 Two example_dags are provided which showcase these operators in action.
 

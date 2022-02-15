@@ -22,11 +22,6 @@ Google Analytics 360 operators allow you to lists all accounts to which the user
 For more information about the Google Analytics 360 API check
 `official documentation <https://developers.google.com/analytics/devguides/config/mgmt/v3>`__.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

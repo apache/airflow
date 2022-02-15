@@ -20,7 +20,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
+from airflow.models.errors import ImportError
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session

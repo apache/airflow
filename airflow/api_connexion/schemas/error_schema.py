@@ -19,7 +19,7 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
+from airflow.models.errors import ImportError
 
 
 class ImportErrorSchema(SQLAlchemySchema):

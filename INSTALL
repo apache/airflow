@@ -1,14 +1,20 @@
 # INSTALL / BUILD instructions for Apache Airflow
 
-This ia a generic installation method that requires a number of dependencies to be installed.
+This is a generic installation method that requires a number of dependencies to be installed.
 
 Depending on your system you might need different prerequisites, but the following
 systems/prerequisites are known to work:
 
 Linux (Debian Buster and Linux Mint Tricia):
 
-sudo apt install build-essentials python3.6-dev python3.7-dev python-dev openssl \
-                 sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresq
+sudo apt install build-essential python3-dev libsqlite3-dev openssl \
+                 sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+
+On Ubuntu 20.04 you may get an error of mariadb_config not found
+and mysql_config not found.
+
+Install MariaDB development headers:
+sudo apt-get install libmariadb-dev libmariadbclient-dev
 
 MacOS (Mojave/Catalina):
 
@@ -89,18 +95,24 @@ The list of available extras:
 
 # START EXTRAS HERE
 
-airbyte, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid,
-apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark,
-apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
-cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel, devel_all, devel_ci,
-devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp,
-gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
-jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql,
-microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, papermill,
-password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
-segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau,
-telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
+apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
+apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
+cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
+devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
+facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs,
+hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb,
+microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
+openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto,
+qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity,
+slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv,
+webhdfs, winrm, yandex, zendesk
 
 # END EXTRAS HERE
 
 # For installing Airflow in development environments - see CONTRIBUTING.rst
+
+# COMPILING FRONT-END ASSETS (in case you see "Please make sure to build the frontend in static/ directory and then restart the server")
+# Optional : Installing yarn - https://classic.yarnpkg.com/en/docs/install
+
+python setup.py compile_assets

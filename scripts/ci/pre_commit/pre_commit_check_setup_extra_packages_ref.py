@@ -92,7 +92,7 @@ def get_deprecated_extras_from_docs() -> Dict[str, str]:
     docs_content = get_file_content(DOCS_FILE)
 
     deprecated_extras_section_regex = re.compile(
-        r'\| Deprecated extra    \| Extra to be used instead    \|\n(.*)\n', re.DOTALL  # noqa
+        r'\| Deprecated extra    \| Extra to be used instead    \|\n(.*)\n', re.DOTALL
     )
     deprecated_extras_content = deprecated_extras_section_regex.findall(docs_content)[0]
 

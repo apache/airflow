@@ -19,20 +19,21 @@
 Example Airflow DAG that shows how to use FacebookAdsReportToGcsOperator.
 """
 import os
+from datetime import datetime
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
+    BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.utils.dates import days_ago
 
 # [START howto_GCS_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "free-tier-1997")
@@ -51,13 +52,14 @@ FIELDS = [
     AdsInsights.Field.clicks,
     AdsInsights.Field.impressions,
 ]
-PARAMS = {'level': 'ad', 'date_preset': 'yesterday'}
+PARAMETERS = {'level': 'ad', 'date_preset': 'yesterday'}
 # [END howto_FB_ADS_variables]
 
 with models.DAG(
     "example_facebook_ads_to_gcs",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(
@@ -87,10 +89,9 @@ with models.DAG(
     # [START howto_operator_facebook_ads_to_gcs]
     run_operator = FacebookAdsReportToGcsOperator(
         task_id='run_fetch_data',
-        start_date=days_ago(2),
         owner='airflow',
         bucket_name=GCS_BUCKET,
-        params=PARAMS,
+        parameters=PARAMETERS,
         fields=FIELDS,
         gcp_conn_id=GCS_CONN_ID,
         object_name=GCS_OBJ_PATH,
@@ -105,10 +106,14 @@ with models.DAG(
         write_disposition='WRITE_TRUNCATE',
     )
 
-    read_data_from_gcs_many_chunks = BigQueryExecuteQueryOperator(
+    read_data_from_gcs_many_chunks = BigQueryInsertJobOperator(
         task_id="read_data_from_gcs_many_chunks",
-        sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
-        use_legacy_sql=False,
+        configuration={
+            "query": {
+                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
+                "useLegacySql": False,
+            }
+        },
     )
 
     delete_bucket = GCSDeleteBucketOperator(
@@ -123,5 +128,13 @@ with models.DAG(
         delete_contents=True,
     )
 
-    create_bucket >> create_dataset >> create_table >> run_operator >> load_csv
-    load_csv >> read_data_from_gcs_many_chunks >> delete_bucket >> delete_dataset
+    chain(
+        create_bucket,
+        create_dataset,
+        create_table,
+        run_operator,
+        load_csv,
+        read_data_from_gcs_many_chunks,
+        delete_bucket,
+        delete_dataset,
+    )

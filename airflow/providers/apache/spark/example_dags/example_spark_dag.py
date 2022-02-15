@@ -20,21 +20,18 @@
 Example Airflow DAG to submit Apache Spark applications using
 `SparkSubmitOperator`, `SparkJDBCOperator` and `SparkSqlOperator`.
 """
+from datetime import datetime
+
 from airflow.models import DAG
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator
 from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils.dates import days_ago
-
-args = {
-    'owner': 'Airflow',
-}
 
 with DAG(
     dag_id='example_spark_operator',
-    default_args=args,
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_spark_submit]

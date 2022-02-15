@@ -18,7 +18,6 @@
 """This module is deprecated. Please use :mod:`airflow.operators.latest_only`"""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.operators.latest_only import LatestOnlyOperator  # noqa
 
 warnings.warn(

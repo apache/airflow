@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import logging
 import socket
 import string
-import textwrap
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -50,7 +50,7 @@ class TimerProtocol(Protocol):
 
 
 class StatsLogger(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
+    """This class is only used for TypeChecking (for IDEs, mypy, etc)"""
 
     @classmethod
     def incr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
@@ -65,7 +65,7 @@ class StatsLogger(Protocol):
         """Gauge stat"""
 
     @classmethod
-    def timing(cls, stat: str, dt) -> None:
+    def timing(cls, stat: str, dt: Union[float, datetime.timedelta]) -> None:
         """Stats timing"""
 
     @classmethod
@@ -144,7 +144,7 @@ class Timer:
         self._start_time = time.perf_counter()
         return self
 
-    def stop(self, send=True):  # pylint: disable=unused-argument
+    def stop(self, send=True):
         """Stop the timer, and optionally send it to stats backend"""
         self.duration = time.perf_counter() - self._start_time
         if send and self.real_timer:
@@ -189,24 +189,11 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
         raise InvalidStatsNameException(
-            textwrap.dedent(
-                """\
-            The stat_name ({stat_name}) has to be less than {max_length} characters.
-        """.format(
-                    stat_name=stat_name, max_length=max_length
-                )
-            )
+            f"The stat_name ({stat_name}) has to be less than {max_length} characters."
         )
     if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
         raise InvalidStatsNameException(
-            textwrap.dedent(
-                """\
-            The stat name ({stat_name}) has to be composed with characters in
-            {allowed_characters}.
-            """.format(
-                    stat_name=stat_name, allowed_characters=ALLOWED_CHARACTERS
-                )
-            )
+            f"The stat name ({stat_name}) has to be composed with characters in {ALLOWED_CHARACTERS}."
         )
     return stat_name
 
@@ -216,7 +203,7 @@ def get_current_handler_stat_name_func() -> Callable[[str], str]:
     return conf.getimport('metrics', 'stat_name_handler') or stat_name_default_handler
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def validate_stat(fn: T) -> T:
@@ -243,7 +230,7 @@ class AllowListValidator:
 
     def __init__(self, allow_list=None):
         if allow_list:
-            # pylint: disable=consider-using-generator
+
             self.allow_list = tuple(item.strip().lower() for item in allow_list.split(','))
         else:
             self.allow_list = None
@@ -323,7 +310,7 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def gauge(self, stat, value, rate=1, delta=False, tags=None):  # pylint: disable=unused-argument
+    def gauge(self, stat, value, rate=1, delta=False, tags=None):
         """Gauge stat"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
@@ -331,10 +318,12 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def timing(self, stat, dt, tags=None):
+    def timing(self, stat, dt: Union[float, datetime.timedelta], tags: Optional[List[str]] = None):
         """Stats timing"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
+            if isinstance(dt, datetime.timedelta):
+                dt = dt.total_seconds()
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
         return None
 
@@ -432,5 +421,5 @@ if TYPE_CHECKING:
     Stats: StatsLogger
 else:
 
-    class Stats(metaclass=_Stats):  # noqa: D101
+    class Stats(metaclass=_Stats):
         """Empty class for Stats - we use metaclass to inject the right one"""

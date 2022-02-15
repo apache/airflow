@@ -47,7 +47,7 @@ def init_jinja_globals(app):
 
     try:
         airflow_version = airflow.__version__
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         airflow_version = None
         logging.error(e)
 

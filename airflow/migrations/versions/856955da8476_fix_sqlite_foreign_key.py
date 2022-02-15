@@ -67,6 +67,6 @@ def upgrade():
             batch_op.create_foreign_key('chart_user_id_fkey', 'users', ['user_id'], ['id'])
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     # Downgrade would fail because the broken FK constraint can't be re-created.
     pass

@@ -19,11 +19,11 @@
 Example Airflow DAG that shows how to use GoogleAdsToGcsOperator.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
-from airflow.utils import dates
 
 # [START howto_google_ads_env_variables]
 CLIENT_IDS = ["1111111111", "2222222222"]
@@ -67,7 +67,8 @@ FIELDS_TO_EXTRACT = [
 with models.DAG(
     "example_google_ads",
     schedule_interval=None,  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
     # [START howto_google_ads_to_gcs_operator]
     run_operator = GoogleAdsToGcsOperator(

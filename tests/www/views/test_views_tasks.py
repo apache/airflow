@@ -25,8 +25,9 @@ import pytest
 
 from airflow import settings
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.models import DagBag, DagModel, TaskInstance
+from airflow.models import DagBag, DagModel, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
+from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -34,13 +35,16 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView
+from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 DEFAULT_DATE = dates.days_ago(2)
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
+
+DEFAULT_DAGRUN = 'TEST_DAGRUN'
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -50,27 +54,59 @@ def reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
+def init_dagruns(app, reset_dagruns):
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     app.dag_bag.get_dag("example_xcom").create_dagrun(
+        run_id=DEFAULT_DAGRUN,
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
     yield
     clear_db_runs()
+
+
+@pytest.fixture(scope="module")
+def client_ti_without_dag_edit(app):
+    create_user(
+        app,
+        username="all_ti_permissions_except_dag_edit",
+        role_name="all_ti_permissions_except_dag_edit",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+        ],
+    )
+
+    yield client_with_login(
+        app,
+        username="all_ti_permissions_except_dag_edit",
+        password="all_ti_permissions_except_dag_edit",
+    )
+
+    delete_user(app, username="all_ti_permissions_except_dag_edit")  # type: ignore
+    delete_roles(app)
 
 
 @pytest.mark.parametrize(
@@ -103,15 +139,25 @@ def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
         pytest.param(
             'dag_details?dag_id=example_bash_operator',
             ['DAG Details'],
-            id="dag-details",
+            id="dag-details-url-param",
         ),
         pytest.param(
             'dag_details?dag_id=example_subdag_operator.section-1',
+            ['DAG Details'],
+            id="dag-details-subdag-url-param",
+        ),
+        pytest.param(
+            'dags/example_subdag_operator.section-1/details',
             ['DAG Details'],
             id="dag-details-subdag",
         ),
         pytest.param(
             'graph?dag_id=example_bash_operator',
+            ['runme_1'],
+            id='graph-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/graph',
             ['runme_1'],
             id='graph',
         ),
@@ -121,32 +167,67 @@ def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
             id='tree',
         ),
         pytest.param(
+            'dags/example_bash_operator/grid',
+            ['runme_1'],
+            id='grid',
+        ),
+        pytest.param(
             'tree?dag_id=example_subdag_operator.section-1',
             ['section-1-task-1'],
-            id="tree-subdag",
+            id="tree-subdag-url-param",
+        ),
+        pytest.param(
+            'dags/example_subdag_operator.section-1/grid',
+            ['section-1-task-1'],
+            id="grid-subdag",
         ),
         pytest.param(
             'duration?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='duration-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/duration?days=30',
             ['example_bash_operator'],
             id='duration',
         ),
         pytest.param(
             'duration?days=30&dag_id=missing_dag',
             ['seems to be missing'],
+            id='duration-missing-url-param',
+        ),
+        pytest.param(
+            'dags/missing_dag/duration?days=30',
+            ['seems to be missing'],
             id='duration-missing',
         ),
         pytest.param(
             'tries?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='tries-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/tries?days=30',
             ['example_bash_operator'],
             id='tries',
         ),
         pytest.param(
             'landing_times?days=30&dag_id=example_bash_operator',
             ['example_bash_operator'],
+            id='landing-times-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/landing-times?days=30',
+            ['example_bash_operator'],
             id='landing-times',
         ),
         pytest.param(
             'gantt?dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id="gantt-url-param",
+        ),
+        pytest.param(
+            'dags/example_bash_operator/gantt',
             ['example_bash_operator'],
             id="gantt",
         ),
@@ -160,48 +241,68 @@ def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
         pytest.param(
             "graph?dag_id=example_bash_operator",
             ["example_bash_operator"],
+            id="existing-dagbag-graph-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/graph",
+            ["example_bash_operator"],
             id="existing-dagbag-graph",
         ),
         pytest.param(
             "tree?dag_id=example_bash_operator",
             ["example_bash_operator"],
-            id="existing-dagbag-tree",
+            id="existing-dagbag-tree-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/grid",
+            ["example_bash_operator"],
+            id="existing-dagbag-grid",
         ),
         pytest.param(
             "calendar?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-calendar-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/calendar",
             ["example_bash_operator"],
             id="existing-dagbag-calendar",
         ),
         pytest.param(
             "dag_details?dag_id=example_bash_operator",
             ["example_bash_operator"],
+            id="existing-dagbag-dag-details-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/details",
+            ["example_bash_operator"],
             id="existing-dagbag-dag-details",
         ),
         pytest.param(
             f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=success'
-            f'&execution_date={DEFAULT_VAL}',
-            ['Wait a minute.'],
+            f'&dag_run_id={DEFAULT_DAGRUN}',
+            ['Wait a minute'],
             id="confirm-success",
         ),
         pytest.param(
-            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&execution_date={DEFAULT_VAL}',
-            ['Wait a minute.'],
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&dag_run_id={DEFAULT_DAGRUN}',
+            ['Wait a minute'],
             id="confirm-failed",
         ),
         pytest.param(
-            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&execution_date={DEFAULT_VAL}',
+            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&dag_run_id={DEFAULT_DAGRUN}',
             ['DAG invalid_dag not found'],
             id="confirm-failed",
         ),
         pytest.param(
             f'confirm?task_id=invalid_task&dag_id=example_bash_operator&state=failed'
-            f'&execution_date={DEFAULT_VAL}',
+            f'&dag_run_id={DEFAULT_DAGRUN}',
             ['Task invalid_task not found'],
             id="confirm-failed",
         ),
         pytest.param(
             f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=invalid'
-            f'&execution_date={DEFAULT_VAL}',
+            f'&dag_run_id={DEFAULT_DAGRUN}',
             ["Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"],
             id="confirm-invalid",
         ),
@@ -227,55 +328,50 @@ def test_rendered_k8s_without_k8s(admin_client):
     assert 404 == resp.status_code
 
 
-@pytest.mark.parametrize(
-    "test_str, expected_text",
-    [
-        ("hello\nworld", r'\"conf\":{\"abc\":\"hello\\nworld\"}'),
-        ("hello'world", r'\"conf\":{\"abc\":\"hello\\u0027world\"}'),
-        ("<script>", r'\"conf\":{\"abc\":\"\\u003cscript\\u003e\"}'),
-        ("\"", r'\"conf\":{\"abc\":\"\\\"\"}'),
-    ],
-)
-def test_escape_in_tree_view(app, admin_client, test_str, expected_text):
+def test_tree_trigger_origin_tree_view(app, admin_client):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
+        run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
-        run_type=DagRunType.MANUAL,
         state=State.RUNNING,
-        conf={"abc": test_str},
     )
 
     url = 'tree?dag_id=test_tree_view'
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(expected_text, resp)
-
-
-def test_dag_details_trigger_origin_tree_view(app, admin_client):
-    app.dag_bag.get_dag('test_tree_view').create_dagrun(
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-
-    url = 'dag_details?dag_id=test_tree_view'
-    resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/dags/test_tree_view/grid'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
-def test_dag_details_trigger_origin_graph_view(app, admin_client):
-    app.dag_bag.get_dag('test_graph_view').create_dagrun(
+def test_graph_trigger_origin_graph_view(app, admin_client):
+    app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
 
-    url = 'dag_details?dag_id=test_graph_view'
+    url = '/dags/test_tree_view/graph'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_graph_view', 'origin': '/graph?dag_id=test_graph_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/dags/test_tree_view/graph'}
+    href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    check_content_in_response(href, resp)
+
+
+def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
+    app.dag_bag.get_dag('test_graph_view').create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+    )
+
+    url = '/dags/test_graph_view/details'
+    resp = admin_client.get(url, follow_redirects=True)
+    params = {'dag_id': 'test_graph_view', 'origin': '/dags/test_graph_view/details'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
@@ -309,40 +405,26 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
 def test_code(admin_client):
     url = 'code?dag_id=example_bash_operator'
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_not_in_response('Failed to load file', resp)
+    check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
 
-def test_code_no_file(admin_client):
-    url = 'code?dag_id=example_bash_operator'
-    mock_open_patch = unittest.mock.mock_open(read_data='')
-    mock_open_patch.side_effect = FileNotFoundError
-    with unittest.mock.patch('builtins.open', mock_open_patch), unittest.mock.patch(
-        "airflow.models.dagcode.STORE_DAG_CODE", False
-    ):
-        resp = admin_client.get(url, follow_redirects=True)
-        check_content_in_response('Failed to load file', resp)
-        check_content_in_response('example_bash_operator', resp)
-
-
-@conf_vars({("core", "store_dag_code"): "True"})
 def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
     DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
-    resp = admin_client.get(url)
-    check_content_not_in_response('Failed to load file', resp)
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
 
-@conf_vars({("core", "store_dag_code"): "True"})
 def test_code_from_db_all_example_dags(admin_client):
     dagbag = DagBag(include_examples=True)
     for dag in dagbag.dags.values():
         DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
-    resp = admin_client.get(url)
-    check_content_not_in_response('Failed to load file', resp)
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
 
@@ -355,7 +437,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
+                dag_run_id=DEFAULT_DAGRUN,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -369,7 +451,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
+                dag_run_id=DEFAULT_DAGRUN,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -457,16 +539,13 @@ def test_run_with_runnable_states(_, admin_client, session, state):
         dag_id="example_bash_operator",
         ignore_all_deps="false",
         ignore_ti_state="false",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_DAGRUN,
         origin='/home',
     )
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39 state."
     assert not re.search(msg, resp.get_data(as_text=True))
 
 
@@ -489,29 +568,14 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
         dag_id="example_bash_operator",
         ignore_all_deps="false",
         ignore_ti_state="false",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_DAGRUN,
         origin='/home',
     )
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39; state."
     assert re.search(msg, resp.get_data(as_text=True))
-
-
-def test_refresh(admin_client):
-    resp = admin_client.post('refresh?dag_id=example_bash_operator')
-    check_content_in_response('', resp, resp_code=302)
-
-
-def test_refresh_all(app, admin_client):
-    with unittest.mock.patch.object(app.dag_bag, 'collect_dags_from_db') as collect_dags_from_db:
-        resp = admin_client.post("/refresh_all", follow_redirects=True)
-        check_content_in_response('', resp)
-        collect_dags_from_db.assert_called_once_with()
 
 
 @pytest.fixture()
@@ -620,6 +684,37 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
 
 
+def test_task_instance_delete(session, admin_client, create_task_instance):
+    task_instance_to_delete = create_task_instance(
+        task_id="test_task_instance_delete",
+        execution_date=timezone.utcnow(),
+        state=State.DEFERRED,
+    )
+    composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
+    task_id = task_instance_to_delete.task_id
+
+    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
+
+
+def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
+    task_instance_to_delete = create_task_instance(
+        task_id="test_task_instance_delete_permission_denied",
+        execution_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        session=session,
+    )
+    session.commit()
+    composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
+    task_id = task_instance_to_delete.task_id
+
+    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    check_content_in_response(f"Access denied for dag_id {task_instance_to_delete.dag_id}", resp)
+    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+
+
 def test_task_instance_clear(session, admin_client):
     task_id = "runme_0"
 
@@ -660,8 +755,9 @@ def test_task_instance_clear_failure(admin_client):
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
+        ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry"],
+    ids=["running", "failed", "success", "retry", "skipped"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -688,6 +784,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
         "set_failed",
         "set_success",
         "set_retry",
+        "set_skipped",
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
@@ -699,3 +796,60 @@ def test_task_instance_set_state_failure(admin_client, action):
     )
     assert resp.status_code == 200
     check_content_in_response("Failed to set state", resp)
+
+
+@pytest.mark.parametrize(
+    "task_search_tuples",
+    [
+        [("example_xcom", "bash_push"), ("example_bash_operator", "run_this_last")],
+        [("example_subdag_operator", "some-other-task")],
+    ],
+    ids=['multiple_tasks', 'one_task'],
+)
+def test_action_muldelete_task_instance(session, admin_client, task_search_tuples):
+    # get task instances to delete
+    tasks_to_delete = []
+    for task_search_tuple in task_search_tuples:
+        dag_id, task_id = task_search_tuple
+        tasks_to_delete.append(
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
+            .one()
+        )
+
+    # add task reschedules for those tasks to make sure that the delete cascades to the required tables
+    trs = [
+        TaskReschedule(
+            task=task,
+            run_id=task.run_id,
+            try_number=1,
+            start_date=timezone.datetime(2021, 1, 1),
+            end_date=timezone.datetime(2021, 1, 2),
+            reschedule_date=timezone.datetime(2021, 1, 3),
+        )
+        for task in tasks_to_delete
+    ]
+    session.bulk_save_objects(trs)
+    session.flush()
+
+    # run the function to test
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={
+            "action": "muldelete",
+            "rowid": [_get_appbuilder_pk_string(TaskInstanceModelView, task) for task in tasks_to_delete],
+        },
+        follow_redirects=True,
+    )
+
+    # assert expected behavior for that function and its response
+    assert resp.status_code == 200
+    for task_search_tuple in task_search_tuples:
+        dag_id, task_id = task_search_tuple
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
+            .count()
+            == 0
+        )
+    assert session.query(TaskReschedule).count() == 0

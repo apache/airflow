@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=missing-function-docstring
+
 """
 This sample "listen to directory". move the new file and print it,
 using docker-containers.
@@ -25,7 +25,7 @@ TODO: Review the workflow, change it accordingly to
       your environment & enable the code.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from docker.types import Mount
 
@@ -33,23 +33,13 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.dates import days_ago
-
-default_args = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "email": ["airflow@example.com"],
-    "email_on_failure": False,
-    "email_on_retry": False,
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5),
-}
 
 dag = DAG(
     "docker_sample_copy_data",
-    default_args=default_args,
+    default_args={"retries": 1},
     schedule_interval=timedelta(minutes=10),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 )
 
 locate_file_cmd = """
@@ -65,16 +55,11 @@ t_view = BashOperator(
     dag=dag,
 )
 
-
-def is_data_available(*args, **kwargs):
-    """Return True if data exists in XCom table for view_file task, false otherwise."""
-    ti = kwargs["ti"]
-    data = ti.xcom_pull(key=None, task_ids="view_file")
-    return not data == ""
-
-
 t_is_data_available = ShortCircuitOperator(
-    task_id="check_if_data_available", python_callable=is_data_available, dag=dag
+    task_id="check_if_data_available",
+    python_callable=lambda task_output: not task_output == "",
+    op_kwargs=dict(task_output=t_view.output),
+    dag=dag,
 )
 
 t_move = DockerOperator(
@@ -90,8 +75,8 @@ t_move = DockerOperator(
         "/bin/bash",
         "-c",
         "/bin/sleep 30; "
-        "/bin/mv {{params.source_location}}/{{ ti.xcom_pull('view_file') }} {{params.target_location}};"
-        "/bin/echo '{{params.target_location}}/{{ ti.xcom_pull('view_file') }}';",
+        "/bin/mv {{ params.source_location }}/" + str(t_view.output) + " {{ params.target_location }};"
+        "/bin/echo '{{ params.target_location }}/" + f"{t_view.output}';",
     ],
     task_id="move_data",
     do_xcom_push=True,
@@ -99,20 +84,18 @@ t_move = DockerOperator(
     dag=dag,
 )
 
-print_templated_cmd = """
-    cat {{ ti.xcom_pull('move_data') }}
-"""
-
 t_print = DockerOperator(
     api_version="1.19",
     docker_url="tcp://localhost:2375",
     image="centos:latest",
     mounts=[Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind")],
-    command=print_templated_cmd,
+    command=f"cat {t_move.output}",
     task_id="print",
     dag=dag,
 )
 
-t_view.set_downstream(t_is_data_available)
 t_is_data_available.set_downstream(t_move)
 t_move.set_downstream(t_print)
+
+# Task dependencies created via `XComArgs`:
+#   t_view >> t_is_data_available

@@ -31,7 +31,7 @@ class KerberosTest(unittest.TestCase):
             obj for obj in k8s_objects if obj["metadata"]["name"] != "NO-KERBEROS-airflow-config"
         ]
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
-        assert "kerberos" not in k8s_objects_to_consider_str
+        assert k8s_objects_to_consider_str.count("kerberos") == 1
 
     def test_kerberos_envs_available_in_worker_with_persistence(self):
         docs = render_chart(
@@ -95,3 +95,36 @@ class KerberosTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_kerberos_keytab_secret_available(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "kerberos": {
+                    "enabled": True,
+                    "keytabBase64Content": "dGVzdGtleXRhYg==",
+                    "configPath": "/etc/krb5.conf",
+                    "ccacheMountPath": "/var/kerberos-ccache",
+                    "ccacheFileName": "ccache",
+                },
+            },
+            show_only=["templates/secrets/kerberos-keytab-secret.yaml"],
+        )
+
+        assert jmespath.search('data."kerberos.keytab"', docs[0]) == "dGVzdGtleXRhYg=="
+
+    def test_kerberos_keytab_secret_unavailable_when_not_specified(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "kerberos": {
+                    "enabled": True,
+                    "configPath": "/etc/krb5.conf",
+                    "ccacheMountPath": "/var/kerberos-ccache",
+                    "ccacheFileName": "ccache",
+                },
+            },
+            show_only=["templates/secrets/kerberos-keytab-secret.yaml"],
+        )
+
+        assert 0 == len(docs)

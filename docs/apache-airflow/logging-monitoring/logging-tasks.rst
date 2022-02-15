@@ -20,29 +20,43 @@
 Logging for Tasks
 =================
 
-Writing Logs Locally
+Airflow writes logs for tasks in a way that allows you to see the logs for each task separately in the Airflow UI.
+Core Airflow implements writing and serving logs locally. However, you can also write logs to remote
+services via community providers, or write your own loggers.
+
+Below we describe the local task logging, the Apache Airflow Community also releases providers for many
+services (:doc:`apache-airflow-providers:index`) and some of them provide handlers that extend the logging
+capability of Apache Airflow. You can see all of these providers in :doc:`apache-airflow-providers:core-extensions/logging`.
+
+Writing logs Locally
 --------------------
 
-Users can specify the directory to place log files in ``airflow.cfg`` using
+You can specify the directory to place log files in ``airflow.cfg`` using
 ``base_log_folder``. By default, logs are placed in the ``AIRFLOW_HOME``
 directory.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`
 
-The following convention is followed while naming logs: ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``
+The default pattern is followed while naming log files for tasks:
 
-In addition, users can supply a remote location to store current logs and backups.
+- For normal tasks: ``dag_id={dag_id}/run_id={run_id}/task_id={task_id}/attempt={try_number}.log``.
+- For dynamically mapped tasks: ``dag_id={dag_id}/run_id={run_id}/task_id={task_id}/map_index={map_index}/attempt={try_number}.log``.
 
-In the Airflow Web UI, remote logs take precedence over local logs when remote logging is enabled. If remote logs
+These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
+
+In addition, you can supply a remote location to store current logs and backups.
+
+In the Airflow UI, remote logs take precedence over local logs when remote logging is enabled. If remote logs
 can not be found or accessed, local logs will be displayed. Note that logs
-are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
+are only sent to remote storage once a task is complete (including failure). In other words, remote logs for
 running tasks are unavailable (but local logs are available).
+
 
 Troubleshooting
 ---------------
 
-If you want to check which task handler is currently set, you can use ``airflow info`` command as in
+If you want to check which task handler is currently set, you can use the ``airflow info`` command as in
 the example below.
 
 .. code-block:: bash
@@ -54,11 +68,11 @@ the example below.
     Executor: [SequentialExecutor]
     Task Logging Handlers: [StackdriverTaskHandler]
     SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
-    DAGS Folder: [/root/airflow/dags]
+    DAGs Folder: [/root/airflow/dags]
     Plugins Folder: [/root/airflow/plugins]
     Base Log Folder: [/root/airflow/logs]
 
-You can also use ``airflow config list`` to check that the logging configuration options have valid values.
+You can also run ``airflow config list`` to check that the logging configuration options have valid values.
 
 .. _write-logs-advanced:
 
@@ -66,9 +80,9 @@ Advanced configuration
 ----------------------
 
 Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
-that the logging config class be overwritten. This can be done by ``logging_config_class`` option
-in ``airflow.cfg`` file. This option should specify the import path indicating to a configuration compatible with
-:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment.
+that the logging config class be overwritten. This can be done via the ``logging_config_class`` option
+in ``airflow.cfg`` file. This option should specify the import path to a configuration compatible with
+:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment variable.
 
 Follow the steps below to enable custom logging config class:
 
@@ -79,7 +93,7 @@ Follow the steps below to enable custom logging config class:
         export PYTHON_PATH=~/airflow/
 
 #. Create a directory to store the config file e.g. ``~/airflow/config``
-#. Create file called ``~/airflow/config/log_config.py`` with following content:
+#. Create file called ``~/airflow/config/log_config.py`` with following the contents:
 
     .. code-block:: python
 
@@ -104,6 +118,19 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 External Links
 --------------
 
-When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
+When using remote logging, you can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects you to the external UI.
 
 Some external systems require specific configuration in Airflow for redirection to work but others do not.
+
+Serving logs from workers
+-------------------------
+
+Most task handlers send logs upon completion of a task. In order to view logs in real time, Airflow automatically starts an HTTP server to serve the logs in the following cases:
+
+- If ``SequentialExecutor`` or ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
+- If ``CeleryExecutor`` is used, then when ``airflow worker`` is running.
+
+The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section. By default, it is ``8793``.
+Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[webserver]`` section. You must ensure that the key matches so that communication can take place without problems.
+
+We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.

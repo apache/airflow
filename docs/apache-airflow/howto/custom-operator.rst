@@ -32,12 +32,12 @@ There are two methods that you need to override in a derived class:
   You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
-  airflow context as a parameter that can be used to read config values.
+  Airflow context as a parameter that can be used to read config values.
 
 .. note::
 
     When implementing custom operators, do not make any expensive operations in the ``__init__`` method. The operators
-    will instantiated once per scheduler cycle per task using them, and making database calls can significantly slow
+    will be instantiated once per scheduler cycle per task using them, and making database calls can significantly slow
     down scheduling and waste resources.
 
 Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:
@@ -153,7 +153,7 @@ the operator.
 
         class HelloOperator(BaseOperator):
 
-            template_fields = ["name"]
+            template_fields: Sequence[str] = ("name",)
 
             def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
@@ -186,8 +186,8 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
 
         class HelloOperator(BaseOperator):
 
-            template_fields = ["guest_name"]
-            template_ext = [".sql"]
+            template_fields: Sequence[str] = ("guest_name",)
+            template_ext = ".sql"
 
             def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
@@ -195,31 +195,77 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
 
 In the example, the ``template_fields`` should be ``['guest_name']`` and not  ``['name']``
 
-Additionally you may provide ``template_fields_renderers`` dictionary which defines in what style the value
+Additionally you may provide ``template_fields_renderers`` a dictionary which defines in what style the value
 from template field renders in Web UI. For example:
 
 .. code-block:: python
 
         class MyRequestOperator(BaseOperator):
-            template_fields = ["request_body"]
+            template_fields: Sequence[str] = ("request_body",)
             template_fields_renderers = {"request_body": "json"}
 
             def __init__(self, request_body: str, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.request_body = request_body
 
+In the situation where ``template_field`` is itself a dictionary, it is also possible to specify a
+dot-separated key path to extract and render individual elements appropriately.  For example:
+
+.. code-block:: python
+
+        class MyConfigOperator(BaseOperator):
+            template_fields: Sequence[str] = ("configuration",)
+            template_fields_renderers = {
+                "configuration": "json",
+                "configuration.query.sql": "sql",
+            }
+
+            def __init__(self, configuration: dict, **kwargs) -> None:
+                super().__init__(**kwargs)
+                self.configuration = configuration
+
+Then using this template as follows:
+
+.. code-block:: python
+
+        with dag:
+            config_task = MyConfigOperator(
+                task_id="task_id_1",
+                configuration={"query": {"job_id": "123", "sql": "select * from my_table"}},
+                dag=dag,
+            )
+
+This will result in the UI rendering ``configuration`` as json in addition to the value contained in the
+configuration at ``query.sql`` to be rendered with the SQL lexer.
+
+.. image:: ../img/template_field_renderer_path.png
+
 Currently available lexers:
 
   - bash
+  - bash_command
   - doc
+  - doc_json
+  - doc_md
+  - doc_rst
+  - doc_yaml
+  - doc_md
+  - hql
+  - html
+  - jinja
   - json
   - md
+  - mysql
+  - postgresql
+  - powershell
   - py
+  - python_callable
   - rst
   - sql
+  - tsql
   - yaml
 
-If you use a non existing lexer then the value of the template field will be rendered as a pretty printed object.
+If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
 
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

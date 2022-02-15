@@ -26,7 +26,7 @@ To use these operators, you must do a few things:
 
       pip install 'apache-airflow[amazon]'
 
-    Detailed information is available :doc:`apache-airflow:installation`
+    Detailed information is available :doc:`apache-airflow:installation/index`
 
   * :doc:`Setup Connection </connections/aws>`.
 

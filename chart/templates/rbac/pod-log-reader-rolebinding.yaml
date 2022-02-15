@@ -18,7 +18,7 @@
 ################################
 ## Airflow Pod Reader Role Binding
 #################################
-{{- if and .Values.rbac.create .Values.webserver.allowPodLogReading }}
+{{- if and .Values.rbac.create (or .Values.webserver.allowPodLogReading .Values.triggerer.enabled) }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}
@@ -27,7 +27,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
 {{- if not .Values.multiNamespaceMode }}
-  namespace: {{ .Release.Namespace }}
+  namespace: "{{ .Release.Namespace }}"
 {{- end }}
   name: {{ .Release.Name }}-pod-log-reader-rolebinding
   labels:
@@ -47,7 +47,14 @@ roleRef:
 {{- end }}
   name: {{ .Release.Name }}-pod-log-reader-role
 subjects:
+{{- if .Values.webserver.allowPodLogReading }}
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-webserver
-    namespace: {{ .Release.Namespace }}
+    name: {{ include "webserver.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+{{- end }}
+{{- if .Values.triggerer.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "triggerer.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+{{- end }}
 {{- end }}

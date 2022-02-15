@@ -19,10 +19,10 @@
 
 .. _howto/connection:azure_batch:
 
-Microsoft Azure Batch Connection
-====================================
+Microsoft Azure Batch
+=====================
 
-The Microsoft Azure Batch connection type enables the Azure Batch Integrations.
+The Microsoft Azure Batch connection type enables the Azure Batch integrations.
 
 Authenticating to Azure Batch
 ------------------------------------------
@@ -41,20 +41,16 @@ All hooks and operators related to Microsoft Azure Batch use ``azure_batch_defau
 Configuring the Connection
 --------------------------
 
-Login
+Batch Account Name
     Specify the Azure Batch Account Name used for the initial connection.
 
-Password
-    Specify the Azure Batch Key used for the initial connection.
+Batch Account Access Key
+    Specify the access key used for the initial connection.
 
-Extra
-    Specify the extra parameters (as json dictionary) that can be used in Azure Batch connection.
-    The following parameters are all optional:
+Batch Account URL
+    Specify the batch account URL you would like to use.
 
-    * ``account_url``: Specify the batch account url you would like to use.
-
-When specifying the connection in environment variable you should specify
-it using URI syntax.
+When specifying the connection in environment variable you should specify it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
 

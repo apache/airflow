@@ -26,24 +26,14 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.utils.helpers import partition
-from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
+from docs.exts.docs_build import dev_index_generator, lint_checks
 from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
-from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
-    DOCS_DIR,
-    AirflowDocsBuilder,
-    get_available_packages,
-)
-from docs.exts.docs_build.errors import (  # pylint: disable=no-name-in-module
-    DocBuildError,
-    display_errors_summary,
-)
-from docs.exts.docs_build.fetch_inventories import fetch_inventories  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.github_action_utils import with_group  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.package_filter import process_package_filters  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in-module
-    SpellingError,
-    display_spelling_error_summary,
-)
+from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
+from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
+from docs.exts.docs_build.fetch_inventories import fetch_inventories
+from docs.exts.docs_build.github_action_utils import with_group
+from docs.exts.docs_build.package_filter import process_package_filters
+from docs.exts.docs_build.spelling_checks import SpellingError, display_spelling_error_summary
 
 TEXT_RED = '\033[31m'
 TEXT_RESET = '\033[0m'
@@ -62,8 +52,10 @@ Invitation link: https://s.apache.org/airflow-slack\
 
 ERRORS_ELIGIBLE_TO_REBUILD = [
     'failed to reach any of the inventories with the following issues',
+    'toctree contains reference to nonexisting document',
     'undefined label:',
     'unknown document:',
+    'Error loading airflow.providers',
 ]
 
 ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
@@ -104,6 +96,12 @@ def _get_parser():
     parser.formatter_class = argparse.RawTextHelpFormatter
     parser.add_argument(
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
+    )
+    parser.add_argument(
+        '--one-pass-only',
+        dest='one_pass_only',
+        action='store_true',
+        help='Do not attempt multiple builds on error',
     )
     parser.add_argument(
         "--package-filter",
@@ -495,7 +493,63 @@ def main():
     if package_spelling_errors:
         all_spelling_errors.update(package_spelling_errors)
 
-    # Build documentation for some packages again if it can help them.
+    if not args.one_pass_only:
+        # Build documentation for some packages again if it can help them.
+        package_build_errors, package_spelling_errors = retry_building_docs_if_needed(
+            all_build_errors,
+            all_spelling_errors,
+            args,
+            docs_only,
+            for_production,
+            jobs,
+            package_build_errors,
+            package_spelling_errors,
+            spellcheck_only,
+        )
+
+        # And try again in case one change spans across three-level dependencies
+        retry_building_docs_if_needed(
+            all_build_errors,
+            all_spelling_errors,
+            args,
+            docs_only,
+            for_production,
+            jobs,
+            package_build_errors,
+            package_spelling_errors,
+            spellcheck_only,
+        )
+
+    if not disable_checks:
+        general_errors = lint_checks.run_all_check()
+        if general_errors:
+            all_build_errors[None] = general_errors
+
+    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
+
+    if not package_filters:
+        _promote_new_flags()
+
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
+
+    print_build_errors_and_exit(
+        all_build_errors,
+        all_spelling_errors,
+    )
+
+
+def retry_building_docs_if_needed(
+    all_build_errors,
+    all_spelling_errors,
+    args,
+    docs_only,
+    for_production,
+    jobs,
+    package_build_errors,
+    package_spelling_errors,
+    spellcheck_only,
+):
     to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
@@ -520,24 +574,8 @@ def main():
             all_build_errors.update(package_build_errors)
         if package_spelling_errors:
             all_spelling_errors.update(package_spelling_errors)
-
-    if not disable_checks:
-        general_errors = lint_checks.run_all_check()
-        if general_errors:
-            all_build_errors[None] = general_errors
-
-    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
-
-    if not package_filters:
-        _promote_new_flags()
-
-    if os.path.exists(PROVIDER_INIT_FILE):
-        os.remove(PROVIDER_INIT_FILE)
-
-    print_build_errors_and_exit(
-        all_build_errors,
-        all_spelling_errors,
-    )
+        return package_build_errors, package_spelling_errors
+    return package_build_errors, package_spelling_errors
 
 
 if __name__ == "__main__":

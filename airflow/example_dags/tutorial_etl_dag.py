@@ -16,17 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=missing-function-docstring
 
 """
 ### ETL DAG Tutorial Documentation
-This ETL DAG is compatible with Airflow 1.10.x (specifically tested with 1.10.12) and is referenced
-as part of the documentation that goes along with the Airflow Functional DAG tutorial located
-[here](https://airflow.apache.org/tutorial_decorated_flows.html)
+This ETL DAG is demonstrating an Extract -> Transform -> Load pipeline
 """
 # [START tutorial]
 # [START import_module]
 import json
+from datetime import datetime
 from textwrap import dedent
 
 # The DAG object; we'll need this to instantiate a DAG
@@ -34,25 +32,21 @@ from airflow import DAG
 
 # Operators; we need this to operate!
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 # [END import_module]
-
-# [START default_args]
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
-default_args = {
-    'owner': 'airflow',
-}
-# [END default_args]
 
 # [START instantiate_dag]
 with DAG(
     'tutorial_etl_dag',
-    default_args=default_args,
+    # [START default_args]
+    # These args will get passed on to each operator
+    # You can override them on a per-task basis during operator initialization
+    default_args={'retries': 2},
+    # [END default_args]
     description='ETL DAG tutorial',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [END instantiate_dag]

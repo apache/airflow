@@ -16,5 +16,5 @@
 # under the License.
 [tool.black]
 line-length = 110
-target-version = ['py36', 'py37', 'py38']
+target-version = ['py36', 'py37', 'py38', 'py39']
 skip-string-normalization = true

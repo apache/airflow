@@ -27,7 +27,7 @@ from typing import Optional
 from urllib.parse import urlsplit
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
@@ -41,12 +41,14 @@ GCSQL_POSTGRES_CLIENT_KEY_FILE = os.environ.get(
 )
 GCSQL_POSTGRES_PUBLIC_IP_FILE = os.environ.get('GCSQL_POSTGRES_PUBLIC_IP_FILE', ".key/postgres-ip.env")
 GCSQL_POSTGRES_USER = os.environ.get('GCSQL_POSTGRES_USER', 'postgres_user')
+GCSQL_POSTGRES_PASSWORD = os.environ.get('GCSQL_POSTGRES_PASSWORD', 'JoxHlwrPzwch0gz9')
 GCSQL_POSTGRES_DATABASE_NAME = os.environ.get('GCSQL_POSTGRES_DATABASE_NAME', 'postgresdb')
 GCSQL_MYSQL_CLIENT_CERT_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_CERT_FILE', ".key/mysql-client-cert.pem")
 GCSQL_MYSQL_CLIENT_KEY_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_KEY_FILE', ".key/mysql-client-key.pem")
 GCSQL_MYSQL_SERVER_CA_FILE = os.environ.get('GCSQL_MYSQL_SERVER_CA_FILE', ".key/mysql-server-ca.pem")
 GCSQL_MYSQL_PUBLIC_IP_FILE = os.environ.get('GCSQL_MYSQL_PUBLIC_IP_FILE', ".key/mysql-ip.env")
 GCSQL_MYSQL_USER = os.environ.get('GCSQL_MYSQL_USER', 'mysql_user')
+GCSQL_MYSQL_PASSWORD = os.environ.get('GCSQL_MYSQL_PASSWORD', 'JoxHlwrPzwch0gz9')
 GCSQL_MYSQL_DATABASE_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'mysqldb')
 
 GCSQL_MYSQL_EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://bucketName/fileName')
@@ -80,16 +82,16 @@ client_key_file_mysql = get_absolute_path(GCSQL_MYSQL_CLIENT_KEY_FILE)
 def get_postgres_instance_name(instance_suffix=''):
     if instance_suffix is None:
         return None
-    return os.environ.get('GCSQL_POSTGRES_INSTANCE_NAME', 'testpostgres') + instance_suffix
+    return os.environ.get('GCSQL_POSTGRES_INSTANCE_NAME', 'test-postgres') + instance_suffix
 
 
 def get_mysql_instance_name(instance_suffix=''):
     if instance_suffix is None:
         return None
-    return os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'testmysql') + instance_suffix
+    return os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql') + instance_suffix
 
 
-class CloudSqlQueryTestHelper(LoggingCommandExecutor):
+class CloudSqlQueryTestHelper(CommandExecutor):
     def create_instances(
         self, instance_suffix='', failover_instance_suffix=None, master_instance_suffix=None
     ):
@@ -153,30 +155,22 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         )
 
     def check_if_instances_are_up(self, instance_suffix=''):
-        res_postgres = self.execute_cmd(
-            [
-                'gcloud',
-                'sql',
-                'instances',
-                'describe',
-                get_postgres_instance_name(instance_suffix),
-                f"--project={GCP_PROJECT_ID}",
-            ]
-        )
-        if res_postgres != 0:
-            self.raise_database_exception('postgres')
-        res_postgres = self.execute_cmd(
-            [
-                'gcloud',
-                'sql',
-                'instances',
-                'describe',
-                get_postgres_instance_name(instance_suffix),
-                f"--project={GCP_PROJECT_ID}",
-            ]
-        )
-        if res_postgres != 0:
-            self.raise_database_exception('mysql')
+        def check_db(db_instance_name, db_name):
+            retcode_db = self.execute_cmd(
+                [
+                    'gcloud',
+                    'sql',
+                    'instances',
+                    'describe',
+                    db_instance_name,
+                    f"--project={GCP_PROJECT_ID}",
+                ]
+            )
+            if retcode_db:
+                self.raise_database_exception(db_name)
+
+        check_db(db_instance_name=get_postgres_instance_name(instance_suffix), db_name='postgres')
+        check_db(db_instance_name=get_mysql_instance_name(instance_suffix), db_name='mysql')
 
     def authorize_address(self, instance_suffix=''):
         ip_address = self.__get_my_public_ip()
@@ -224,6 +218,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 client_cert_file_mysql,
                 GCSQL_MYSQL_DATABASE_NAME,
                 GCSQL_MYSQL_USER,
+                GCSQL_MYSQL_PASSWORD,
             )
         )
         postgres_thread = Thread(
@@ -235,6 +230,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 client_cert_file_postgres,
                 GCSQL_POSTGRES_DATABASE_NAME,
                 GCSQL_POSTGRES_USER,
+                GCSQL_POSTGRES_PASSWORD,
             )
         )
         mysql_thread.start()
@@ -328,6 +324,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         client_cert_file,
         db_name,
         db_username,
+        db_userpassword,
     ):
         self.log.info('Setting up a test %s instance "%s"...', db_version, instance_name)
         try:
@@ -344,7 +341,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             self.__write_to_file(client_cert_file, self.__get_client_cert(instance_name, client_cert_name))
             self.__wait_for_operations(instance_name)
             self.__wait_for_operations(instance_name)
-            self.__create_user(instance_name, db_username)
+            self.__create_user(instance_name, db_username, db_userpassword)
             self.__wait_for_operations(instance_name)
             self.__delete_db(instance_name, db_name)
             self.__create_db(instance_name, db_name)
@@ -422,7 +419,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         self.log.info('... Done.')
         return output
 
-    def __create_user(self, instance_name: str, username: str) -> None:
+    def __create_user(self, instance_name: str, username: str, userpassword: str) -> None:
         self.log.info('Creating user "%s" in Cloud SQL instance "%s"...', username, instance_name)
         self.execute_cmd(
             [
@@ -436,7 +433,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 '--host',
                 '%',
                 '--password',
-                'JoxHlwrPzwch0gz9',
+                userpassword,
                 '--quiet',
             ]
         )

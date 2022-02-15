@@ -20,7 +20,8 @@
 Example Airflow DAG for Google ML Engine service.
 """
 import os
-from typing import Dict
+from datetime import datetime
+from typing import Any, Dict
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -36,7 +37,6 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineStartTrainingJobOperator,
 )
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -56,14 +56,51 @@ TRAINER_PY_MODULE = os.environ.get("GCP_MLENGINE_TRAINER_TRAINER_PY_MODULE", "tr
 SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://INVALID BUCKET NAME/tmp/")
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID BUCKET NAME/staging/")
 
-default_args = {"params": {"model_name": MODEL_NAME}}
 
 with models.DAG(
     "example_gcp_mlengine",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
+    params={"model_name": MODEL_NAME},
 ) as dag:
+    hyperparams: Dict[str, Any] = {
+        'goal': 'MAXIMIZE',
+        'hyperparameterMetricTag': 'metric1',
+        'maxTrials': 30,
+        'maxParallelTrials': 1,
+        'enableTrialEarlyStopping': True,
+        'params': [],
+    }
+
+    hyperparams['params'].append(
+        {
+            'parameterName': 'hidden1',
+            'type': 'INTEGER',
+            'minValue': 40,
+            'maxValue': 400,
+            'scaleType': 'UNIT_LINEAR_SCALE',
+        }
+    )
+
+    hyperparams['params'].append(
+        {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
+    )
+
+    hyperparams['params'].append(
+        {
+            'parameterName': 'rnnCellType',
+            'type': 'CATEGORICAL',
+            'categoricalValues': [
+                'BasicLSTMCell',
+                'BasicRNNCell',
+                'GRUCell',
+                'LSTMCell',
+                'LayerNormBasicLSTMCell',
+            ],
+        }
+    )
     # [START howto_operator_gcp_mlengine_training]
     training = MLEngineStartTrainingJobOperator(
         task_id="training",
@@ -77,6 +114,7 @@ with models.DAG(
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
         labels={"job_type": "training"},
+        hyperparameters=hyperparams,
     )
     # [END howto_operator_gcp_mlengine_training]
 
@@ -100,7 +138,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_print_model]
     get_model_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('get-model') }}\"",
+        bash_command=f"echo {get_model.output}",
         task_id="get-model-result",
     )
     # [END howto_operator_gcp_mlengine_print_model]
@@ -158,7 +196,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_print_versions]
     list_version_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('list-version') }}\"",
+        bash_command=f"echo {list_version.output}",
         task_id="list-version-result",
     )
     # [END howto_operator_gcp_mlengine_print_versions]
@@ -192,6 +230,7 @@ with models.DAG(
     training >> create_version
     training >> create_version_2
     create_model >> get_model >> [get_model_result, delete_model]
+    create_model >> get_model >> delete_model
     create_model >> create_version >> create_version_2 >> set_defaults_version >> list_version
     create_version >> prediction
     create_version_2 >> prediction

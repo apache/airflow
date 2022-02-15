@@ -16,57 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.transfers.local_to_wasb`."""
 
-from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+import warnings
 
+from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator  # noqa
 
-class FileToWasbOperator(BaseOperator):
-    """
-    Uploads a file to Azure Blob Storage.
-
-    :param file_path: Path to the file to load. (templated)
-    :type file_path: str
-    :param container_name: Name of the container. (templated)
-    :type container_name: str
-    :param blob_name: Name of the blob. (templated)
-    :type blob_name: str
-    :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
-    :param load_options: Optional keyword arguments that
-        `WasbHook.load_file()` takes.
-    :type load_options: Optional[dict]
-    """
-
-    template_fields = ('file_path', 'container_name', 'blob_name')
-
-    def __init__(
-        self,
-        *,
-        file_path: str,
-        container_name: str,
-        blob_name: str,
-        wasb_conn_id: str = 'wasb_default',
-        load_options: Optional[dict] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        if load_options is None:
-            load_options = {}
-        self.file_path = file_path
-        self.container_name = container_name
-        self.blob_name = blob_name
-        self.wasb_conn_id = wasb_conn_id
-        self.load_options = load_options
-
-    def execute(self, context: dict) -> None:
-        """Upload a file to Azure Blob Storage."""
-        hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        self.log.info(
-            'Uploading %s to wasb://%s as %s',
-            self.file_path,
-            self.container_name,
-            self.blob_name,
-        )
-        hook.load_file(self.file_path, self.container_name, self.blob_name, **self.load_options)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

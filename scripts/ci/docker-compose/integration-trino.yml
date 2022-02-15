@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
+version: "3.7"
 services:
   trino:
-    image: apache/airflow-ci:trino-2021.04.28
-    container_name: trino
+    image: ghcr.io/apache/airflow-trino:359-2021.07.04
     hostname: trino
     domainname: example.com
 

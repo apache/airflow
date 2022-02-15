@@ -17,9 +17,9 @@
 import hashlib
 import json
 import os
+import shutil
 import sys
 import tempfile
-from distutils.file_util import copy_file
 from functools import lru_cache
 from typing import Dict
 
@@ -28,6 +28,11 @@ from sphinx.builders import html as builders
 from sphinx.util import logging
 
 log = logging.getLogger(__name__)
+
+
+def _copy_file(src: str, dst: str) -> None:
+    log.info("Copying %s -> %s", src, dst)
+    shutil.copy2(src, dst, follow_symlinks=False)
 
 
 def _gethash(string: str):
@@ -107,7 +112,7 @@ def build_finished(app, exception):
     output_filename = "script.js"
 
     cache_filepath = fetch_and_cache(script_url, output_filename)
-    copy_file(cache_filepath, os.path.join(app.builder.outdir, '_static', "redoc.js"))
+    _copy_file(cache_filepath, os.path.join(app.builder.outdir, '_static', "redoc.js"))
 
 
 def setup(app):

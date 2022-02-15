@@ -15,18 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated.
-Please use :mod:`airflow.providers.microsoft.azure.transfers.file_to_wasb`.
-"""
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.transfers.local_to_wasb`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.microsoft.azure.transfers.file_to_wasb import FileToWasbOperator  # noqa
+from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.file_to_wasb`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class FileToWasbOperator(LocalFilesystemToWasbOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb.LocalFilesystemToWasbOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.microsoft.azure.transfers.local_to_wasb.LocalFilesystemToWasbOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

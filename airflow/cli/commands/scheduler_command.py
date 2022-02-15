@@ -29,17 +29,30 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
-@cli_utils.action_logging
-def scheduler(args):
-    """Starts Airflow Scheduler"""
-    skip_serve_logs = args.skip_serve_logs
-
-    print(settings.HEADER)
+def _create_scheduler_job(args):
     job = SchedulerJob(
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
         do_pickle=args.do_pickle,
     )
+    return job
+
+
+def _run_scheduler_job(args):
+    skip_serve_logs = args.skip_serve_logs
+    job = _create_scheduler_job(args)
+    sub_proc = _serve_logs(skip_serve_logs)
+    try:
+        job.run()
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
+
+
+@cli_utils.action_cli
+def scheduler(args):
+    """Starts Airflow Scheduler"""
+    print(settings.HEADER)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
@@ -54,17 +67,12 @@ def scheduler(args):
                 stderr=stderr_handle,
             )
             with ctx:
-                sub_proc = _serve_logs(skip_serve_logs)
-                job.run()
+                _run_scheduler_job(args=args)
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
-        sub_proc = _serve_logs(skip_serve_logs)
-        job.run()
-
-    if sub_proc:
-        sub_proc.terminate()
+        _run_scheduler_job(args=args)
 
 
 def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:

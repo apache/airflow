@@ -20,11 +20,11 @@ This is an example dag for using `ImapAttachmentToS3Operator` to transfer an ema
 protocol from a mail server to S3 Bucket.
 """
 
+from datetime import datetime
 from os import getenv
 
 from airflow import DAG
 from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_imap_attachment_to_s3_env_variables]
 IMAP_ATTACHMENT_NAME = getenv("IMAP_ATTACHMENT_NAME", "test.txt")
@@ -34,7 +34,11 @@ S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://bucket/key.json")
 # [END howto_operator_imap_attachment_to_s3_env_variables]
 
 with DAG(
-    dag_id="example_imap_attachment_to_s3", start_date=days_ago(1), schedule_interval=None, tags=['example']
+    dag_id="example_imap_attachment_to_s3",
+    start_date=datetime(2021, 1, 1),
+    schedule_interval=None,
+    catchup=False,
+    tags=['example'],
 ) as dag:
     # [START howto_operator_imap_attachment_to_s3_task_1]
     task_transfer_imap_attachment_to_s3 = ImapAttachmentToS3Operator(
@@ -43,6 +47,5 @@ with DAG(
         imap_mail_folder=IMAP_MAIL_FOLDER,
         imap_mail_filter=IMAP_MAIL_FILTER,
         task_id='transfer_imap_attachment_to_s3',
-        dag=dag,
     )
     # [END howto_operator_imap_attachment_to_s3_task_1]

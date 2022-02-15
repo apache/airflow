@@ -24,6 +24,7 @@
 
 {% block head_meta %}
   {{ super() }}
+  <meta name="dag_run_id" content="{{ dag_run_id }}">
   <meta name="execution_date" content="{{ execution_date }}">
   <meta name="arrange" content="{{ arrange }}">
   <meta name="task_instances_url" content="{{ url_for('Airflow.task_instances') }}">
@@ -92,8 +93,14 @@
         {{ op.task_type }}</span>{% endfor %}
     </div>
     <div>
-      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--interactive js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
-        {{state}}</span>{% endfor %}<span class="legend-item legend-item--interactive legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
+      {% for state, state_color in state_color_mapping.items() %}
+        <span class="legend-item legend-item--interactive js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
+          {{state}}
+        </span>
+      {% endfor %}
+      <span class="legend-item legend-item--interactive legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">
+        no_status
+      </span>
     </div>
   </div>
   <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
@@ -128,6 +135,7 @@
     const edges = {{ edges|tojson }};
     const tasks = {{ tasks|tojson }};
     let taskInstances = {{ task_instances|tojson }};
+    const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>

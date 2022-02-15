@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataflow sensor."""
-from typing import Callable, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -25,6 +25,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowJobStatus,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):
@@ -36,24 +39,18 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         :ref:`howto/operator:DataflowJobStatusSensor`
 
     :param job_id: ID of the job to be checked.
-    :type job_id: str
     :param expected_statuses: The expected state of the operation.
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
-    :type expected_statuses: Union[Set[str], str]
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: The location of the Dataflow job (for example europe-west1). See:
         https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled. See:
         https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -62,10 +59,9 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -91,7 +87,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info(
             "Waiting for job %s to be in one of the states: %s.",
             self.job_id,
@@ -129,25 +125,19 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         :ref:`howto/operator:DataflowJobMetricsSensor`
 
     :param job_id: ID of the job to be checked.
-    :type job_id: str
     :param callback: callback which is called with list of read job metrics
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
-    :type callback: callable
     :param fail_on_terminal_state: If set to true sensor will raise Exception when
         job is in terminal state
-    :type fail_on_terminal_state: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: The location of the Dataflow job (for example europe-west1). See:
         https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -156,10 +146,9 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -185,7 +174,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -222,25 +211,18 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         :ref:`howto/operator:DataflowJobMessagesSensor`
 
     :param job_id: ID of the job to be checked.
-    :type job_id: str
     :param callback: callback which is called with list of read job metrics
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
-    :type callback: callable
     :param fail_on_terminal_state: If set to true sensor will raise Exception when
         job is in terminal state
-    :type fail_on_terminal_state: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: Job location.
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -249,10 +231,9 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -278,7 +259,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -315,25 +296,18 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
 
     :param job_id: ID of the job to be checked.
-    :type job_id: str
     :param callback: callback which is called with list of read job metrics
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
-    :type callback: callable
     :param fail_on_terminal_state: If set to true sensor will raise Exception when
         job is in terminal state
-    :type fail_on_terminal_state: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: Job location.
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -342,10 +316,9 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['job_id']
+    template_fields: Sequence[str] = ('job_id',)
 
     def __init__(
         self,
@@ -371,7 +344,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: Optional[DataflowHook] = None
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

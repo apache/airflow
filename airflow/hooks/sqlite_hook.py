@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook  # noqa
 
 warnings.warn(

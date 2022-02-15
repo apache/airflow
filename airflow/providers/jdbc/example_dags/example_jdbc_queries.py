@@ -18,30 +18,22 @@
 
 """Example DAG demonstrating the usage of the JdbcOperator."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
-from airflow.utils.dates import days_ago
-
-args = {
-    'owner': 'airflow',
-}
 
 with DAG(
     dag_id='example_jdbc_operator',
-    default_args=args,
     schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],
+    catchup=False,
 ) as dag:
 
-    run_this_last = DummyOperator(
-        task_id='run_this_last',
-        dag=dag,
-    )
+    run_this_last = DummyOperator(task_id='run_this_last')
 
     # [START howto_operator_jdbc_template]
     delete_data = JdbcOperator(
@@ -49,7 +41,6 @@ with DAG(
         sql='delete from my_schema.my_table where dt = {{ ds }}',
         jdbc_conn_id='my_jdbc_connection',
         autocommit=True,
-        dag=dag,
     )
     # [END howto_operator_jdbc_template]
 
@@ -59,7 +50,6 @@ with DAG(
         sql='insert into my_schema.my_table select dt, value from my_schema.source_data',
         jdbc_conn_id='my_jdbc_connection',
         autocommit=True,
-        dag=dag,
     )
     # [END howto_operator_jdbc]
 

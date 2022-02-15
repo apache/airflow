@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.hooks.filesystem import FSHook  # noqa
 
 warnings.warn(

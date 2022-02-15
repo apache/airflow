@@ -22,10 +22,12 @@
 {% block head_css %}
   {{ super() }}
   <meta name="rest_api_enabled" content="{{ rest_api_enabled }}">
+  <meta name="test_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_connection_endpoint_test_connection') }}">
 {% endblock %}
 
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for_asset(filename='connectionForm.js') }}"></script>
   <script id="field_behaviours" type="text/json">{{ widgets["edit"].field_behaviours }}</script>
+  <script id="testable_connection_types" type="text/json">{{ widgets["edit"].testable_connection_types }}</script>
 {% endblock %}

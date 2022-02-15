@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor  # noqa
 
 warnings.warn(

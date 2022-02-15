@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.http.hooks.http import HttpHook  # noqa
 
 warnings.warn(

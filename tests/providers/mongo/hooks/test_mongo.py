@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import importlib
 import unittest
+from types import ModuleType
+from typing import Optional
 
 import pymongo
 
@@ -23,8 +26,10 @@ from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils import db
 
+mongomock: Optional[ModuleType]
+
 try:
-    import mongomock
+    mongomock = importlib.import_module("mongomock")
 except ImportError:
     mongomock = None
 
@@ -251,12 +256,28 @@ class TestMongoHook(unittest.TestCase):
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_find_many(self):
         collection = mongomock.MongoClient().db.collection
-        objs = [{'test_find_many_1': 'test_value'}, {'test_find_many_2': 'test_value'}]
+        objs = [{'_id': 1, 'test_find_many_1': 'test_value'}, {'_id': 2, 'test_find_many_2': 'test_value'}]
         collection.insert(objs)
 
-        result_objs = self.hook.find(collection, {}, find_one=False)
+        result_objs = self.hook.find(mongo_collection=collection, query={}, projection={}, find_one=False)
 
         assert len(list(result_objs)) > 1
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_find_many_with_projection(self):
+        collection = mongomock.MongoClient().db.collection
+        objs = [
+            {'_id': '1', 'test_find_many_1': 'test_value', 'field_3': 'a'},
+            {'_id': '2', 'test_find_many_2': 'test_value', 'field_3': 'b'},
+        ]
+        collection.insert(objs)
+
+        projection = {'_id': 0}
+        result_objs = self.hook.find(
+            mongo_collection=collection, query={}, projection=projection, find_one=False
+        )
+
+        self.assertRaises(KeyError, lambda x: x[0]['_id'], result_objs)
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_aggregate(self):

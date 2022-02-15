@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator  # noqa
 
 warnings.warn(

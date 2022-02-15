@@ -26,6 +26,7 @@ import unittest
 from unittest.mock import patch
 
 import pytest
+from parameterized import parameterized
 
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
@@ -99,12 +100,9 @@ def reset_logging():
     manager = logging.root.manager
     manager.disabled = logging.NOTSET
     airflow_loggers = [
-        # pylint: disable=no-member
-        logger
-        for logger_name, logger in manager.loggerDict.items()
-        if logger_name.startswith('airflow')
+        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith('airflow')
     ]
-    for logger in airflow_loggers:  # pylint: disable=too-many-nested-blocks
+    for logger in airflow_loggers:
         if isinstance(logger, logging.Logger):
             logger.setLevel(logging.NOTSET)
             logger.propagate = True
@@ -280,3 +278,40 @@ class TestLoggingSettings(unittest.TestCase):
 
         logger = logging.getLogger('airflow.task')
         assert isinstance(logger.handlers[0], WasbTaskHandler)
+
+    @parameterized.expand(
+        [
+            (
+                'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:ccccc',
+                'arn:aws:logs:aaaa:bbbbb:log-group:ccccc',
+            ),
+            (
+                'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:aws/ccccc',
+                'arn:aws:logs:aaaa:bbbbb:log-group:aws/ccccc',
+            ),
+            (
+                'cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc',
+                'arn:aws:logs:aaaa:bbbbb:log-group:/aws/ecs/ccccc',
+            ),
+        ]
+    )
+    def test_log_group_arns_remote_logging_with_cloudwatch_handler(
+        self, remote_base_log_folder, log_group_arn
+    ):
+        """Test if the correct ARNs are configured for Cloudwatch"""
+        from airflow.config_templates import airflow_local_settings
+        from airflow.logging_config import configure_logging
+
+        with conf_vars(
+            {
+                ('logging', 'remote_logging'): 'True',
+                ('logging', 'remote_log_conn_id'): 'some_cloudwatch',
+                ('logging', 'remote_base_log_folder'): remote_base_log_folder,
+            }
+        ):
+            importlib.reload(airflow_local_settings)
+            configure_logging()
+            assert (
+                airflow_local_settings.DEFAULT_LOGGING_CONFIG['handlers']['task']['log_group_arn']
+                == log_group_arn
+            )

@@ -18,8 +18,8 @@
 Protocol integrations
 ---------------------
 
-Protocol operators and hooks
-''''''''''''''''''''''''''''
+Protocols
+'''''''''
 
 These integrations allow you to perform various operations within various services using standardized
 communication protocols or interface.
@@ -28,8 +28,8 @@ communication protocols or interface.
    :tags: protocol
    :header-separator: "
 
-Transfer operators and hooks
-''''''''''''''''''''''''''''
+Transfers
+'''''''''
 
 These integrations allow you to copy data.
 

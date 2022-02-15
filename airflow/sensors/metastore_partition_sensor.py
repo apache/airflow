@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.apache.hive.sensors.metastore_partition`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor  # noqa
 
 warnings.warn(

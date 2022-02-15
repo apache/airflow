@@ -21,6 +21,7 @@
 {{- if .Values.flower.enabled }}
 {{- $celery_executors := list "CeleryExecutor" "CeleryKubernetesExecutor"}}
 {{- if and .Values.networkPolicies.enabled (has .Values.executor $celery_executors) }}
+{{- $from := or .Values.flower.networkPolicy.ingress.from .Values.flower.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -42,13 +43,17 @@ spec:
       release: {{ .Release.Name }}
   policyTypes:
     - Ingress
-{{- if .Values.flower.extraNetworkPolicies }}
+{{- if $from }}
   ingress:
     - from:
-{{ toYaml .Values.flower.extraNetworkPolicies | indent 6 }}
+{{ toYaml $from | indent 6 }}
       ports:
-        - protocol: TCP
-          port: {{ .Values.ports.flowerUI }}
+      {{ range .Values.flower.networkPolicy.ingress.ports }}
+        -
+          {{- range $key, $val := . }}
+          {{ $key }}: {{ tpl (toString $val) $ }}
+          {{- end }}
+      {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

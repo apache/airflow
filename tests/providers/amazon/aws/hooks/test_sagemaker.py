@@ -647,3 +647,23 @@ class TestSageMakerHook(unittest.TestCase):
         )
         assert mock_describe.call_count == 3
         assert mock_session.describe_training_job.call_count == 1
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_find_processing_job_by_name(self, mock_conn):
+        hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
+        mock_conn.describe_processing_job.return_value = {}
+        ret = hook.find_processing_job_by_name("existing_job")
+        assert ret
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
+        from botocore.exceptions import ClientError
+
+        error_resp = {"Error": {"Code": "ValidationException"}}
+        mock_conn().describe_processing_job.side_effect = ClientError(
+            error_response=error_resp, operation_name="dummy"
+        )
+        hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
+
+        ret = hook.find_processing_job_by_name("existing_job")
+        assert not ret

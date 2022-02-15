@@ -16,7 +16,7 @@
 # under the License.
 
 """
-This is an example dag for ECSOperator.
+This is an example dag for EcsOperator.
 
 The task "hello_world" runs `hello-world` task in `c` cluster.
 It overrides the command in the `hello-world-container` container.
@@ -26,29 +26,21 @@ import datetime
 import os
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator
-
-DEFAULT_ARGS = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "email": ["airflow@example.com"],
-    "email_on_failure": False,
-    "email_on_retry": False,
-}
+from airflow.providers.amazon.aws.operators.ecs import EcsOperator
 
 dag = DAG(
     dag_id="ecs_fargate_dag",
-    default_args=DEFAULT_ARGS,
     default_view="graph",
     schedule_interval=None,
     start_date=datetime.datetime(2020, 1, 1),
+    catchup=False,
     tags=["example"],
 )
 # generate dag documentation
 dag.doc_md = __doc__
 
 # [START howto_operator_ecs]
-hello_world = ECSOperator(
+hello_world = EcsOperator(
     task_id="hello_world",
     dag=dag,
     aws_conn_id="aws_ecs",

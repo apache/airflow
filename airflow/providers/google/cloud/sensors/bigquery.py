@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Bigquery sensor."""
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryTableExistenceSensor(BaseSensorOperator):
@@ -29,19 +32,14 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     :param project_id: The Google cloud project in which to look for the table.
         The connection supplied to the hook must provide
         access to the specified project.
-    :type project_id: str
     :param dataset_id: The name of the dataset in which to look for the table.
         storage bucket.
-    :type dataset_id: str
     :param table_id: The name of the table to check the existence of.
-    :type table_id: str
     :param bigquery_conn_id: The connection ID to use when connecting to
         Google BigQuery.
-    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -50,10 +48,9 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'dataset_id',
         'table_id',
@@ -81,7 +78,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
@@ -101,21 +98,15 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     :param project_id: The Google cloud project in which to look for the table.
         The connection supplied to the hook must provide
         access to the specified project.
-    :type project_id: str
     :param dataset_id: The name of the dataset in which to look for the table.
         storage bucket.
-    :type dataset_id: str
     :param table_id: The name of the table to check the existence of.
-    :type table_id: str
     :param partition_id: The name of the partition to check the existence of.
-    :type partition_id: str
     :param bigquery_conn_id: The connection ID to use when connecting to
         Google BigQuery.
-    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
         have domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -124,10 +115,9 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'dataset_id',
         'table_id',
@@ -158,7 +148,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(

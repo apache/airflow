@@ -41,7 +41,7 @@ def resetdb(args):
         print("Cancelled")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
@@ -54,7 +54,7 @@ def check_migrations(args):
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def shell(args):
     """Run a shell that allows to access metadata database"""
     url = settings.engine.url
@@ -86,11 +86,18 @@ def shell(args):
         env["PGPASSWORD"] = url.password or ""
         env['PGDATABASE'] = url.database
         execute_interactive(["psql"], env=env)
+    elif url.get_backend_name() == 'mssql':
+        env = os.environ.copy()
+        env['MSSQL_CLI_SERVER'] = url.host
+        env['MSSQL_CLI_DATABASE'] = url.database
+        env['MSSQL_CLI_USER'] = url.username
+        env['MSSQL_CLI_PASSWORD'] = url.password
+        execute_interactive(["mssql-cli"], env=env)
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def check(_):
     """Runs a check command that checks if db is available."""
     db.check()

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.dingding.hooks.dingding import DingdingHook, requests  # noqa
 
 warnings.warn(

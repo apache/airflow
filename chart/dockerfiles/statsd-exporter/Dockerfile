@@ -22,10 +22,10 @@ ARG STATSD_VERSION
 ARG AIRFLOW_STATSD_EXPORTER_VERSION
 ARG COMMIT_SHA
 
-LABEL org.apache.airflow.component="statsd-exporter"
-LABEL org.apache.airflow.stasd.version="${STATSD_VERSION}"
-LABEL org.apache.airflow.airflow-stasd-exporter.version="${AIRFLOW_STATSD_EXPORTER_VERSION}"
-LABEL org.apache.airflow.commit-sha="${COMMIT_SHA}"
-LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
+LABEL org.apache.airflow.component="statsd-exporter" \
+    org.apache.airflow.stasd.version="${STATSD_VERSION}" \
+    org.apache.airflow.airflow-stasd-exporter.version="${AIRFLOW_STATSD_EXPORTER_VERSION}" \
+    org.apache.airflow.commit-sha="${COMMIT_SHA}" \
+    maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 COPY mappings.yml /etc/statsd-exporter/mappings.yml

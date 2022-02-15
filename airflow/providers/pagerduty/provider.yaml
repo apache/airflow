@@ -22,9 +22,14 @@ description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
 versions:
+  - 2.1.0
+  - 2.0.1
   - 2.0.0
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Pagerduty
@@ -32,8 +37,14 @@ integrations:
     logo: /integration-logos/pagerduty/PagerDuty.png
     tags: [service]
 
+connection-types:
+  - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook
+    connection-type: pagerduty
+  - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty_events.PagerdutyEventsHook
+    connection-type: pagerduty_events
 
 hooks:
   - integration-name: Pagerduty
     python-modules:
       - airflow.providers.pagerduty.hooks.pagerduty
+      - airflow.providers.pagerduty.hooks.pagerduty_events

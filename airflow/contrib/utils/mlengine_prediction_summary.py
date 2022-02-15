@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.google.cloud.utils.mlengine_prediction_summar
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.utils.mlengine_prediction_summary import JsonCoder, MakeSummary  # noqa
 
 warnings.warn(

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook  # noqa
 
 warnings.warn(

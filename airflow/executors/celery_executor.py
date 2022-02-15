@@ -39,17 +39,19 @@ from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
+from sqlalchemy.orm.session import Session
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
@@ -81,14 +83,16 @@ def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     BaseExecutor.validate_command(command_to_exec)
     log.info("Executing command in Celery: %s", command_to_exec)
+    celery_task_id = app.current_task.request.id
+    log.info(f"Celery task ID: {celery_task_id}")
 
     if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-        _execute_in_subprocess(command_to_exec)
+        _execute_in_subprocess(command_to_exec, celery_task_id)
     else:
-        _execute_in_fork(command_to_exec)
+        _execute_in_fork(command_to_exec, celery_task_id)
 
 
-def _execute_in_fork(command_to_exec: CommandType) -> None:
+def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
     pid = os.fork()
     if pid:
         # In parent, wait for the child
@@ -111,26 +115,28 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         # [1:] - remove "airflow" from the start of the command
         args = parser.parse_args(command_to_exec[1:])
         args.shut_down_logging = False
+        if celery_task_id:
+            args.external_executor_id = celery_task_id
 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
 
         args.func(args)
         ret = 0
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         log.exception("Failed to execute task %s.", str(e))
         ret = 1
     finally:
         Sentry.flush()
         logging.shutdown()
-        os._exit(ret)  # pylint: disable=protected-access
+        os._exit(ret)
 
 
-def _execute_in_subprocess(command_to_exec: CommandType) -> None:
+def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
     env = os.environ.copy()
+    if celery_task_id:
+        env["external_executor_id"] = celery_task_id
     try:
-        # pylint: disable=unexpected-keyword-arg
         subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
-        # pylint: disable=unexpected-keyword-arg
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
@@ -143,9 +149,7 @@ class ExceptionWithTraceback:
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
 
     :param exception: The exception to wrap
-    :type exception: Exception
     :param exception_traceback: The stacktrace to wrap
-    :type exception_traceback: str
     """
 
     def __init__(self, exception: Exception, exception_traceback: str):
@@ -154,26 +158,25 @@ class ExceptionWithTraceback:
 
 
 # Task instance that is sent over Celery queues
-# TaskInstanceKey, SimpleTaskInstance, Command, queue_name, CallableTask
-TaskInstanceInCelery = Tuple[TaskInstanceKey, SimpleTaskInstance, CommandType, Optional[str], Task]
+# TaskInstanceKey, Command, queue_name, CallableTask
+TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 
 def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> Tuple[TaskInstanceKey, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
     """Sends task to executor."""
-    key, _, command, queue, task_to_run = task_tuple
+    key, command, queue, task_to_run = task_tuple
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
 
 
-# pylint: disable=unused-import
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
@@ -184,7 +187,6 @@ def on_celery_import_modules(*args, **kwargs):
     doesn't matter, but for short tasks this starts to be a noticeable impact.
     """
     import jinja2.ext  # noqa: F401
-    import numpy  # noqa: F401
 
     import airflow.jobs.local_task_job
     import airflow.macros
@@ -193,12 +195,14 @@ def on_celery_import_modules(*args, **kwargs):
     import airflow.operators.subdag  # noqa: F401
 
     try:
-        import kubernetes.client  # noqa: F401
+        import numpy  # noqa: F401
     except ImportError:
         pass
 
-
-# pylint: enable=unused-import
+    try:
+        import kubernetes.client  # noqa: F401
+    except ImportError:
+        pass
 
 
 class CeleryExecutor(BaseExecutor):
@@ -210,6 +214,8 @@ class CeleryExecutor(BaseExecutor):
     vast amounts of messages, while providing operations with the tools
     required to maintain such a system.
     """
+
+    supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
         super().__init__()
@@ -226,6 +232,10 @@ class CeleryExecutor(BaseExecutor):
         self.adopted_task_timeouts: Dict[TaskInstanceKey, datetime.datetime] = OrderedDict()
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
+        )
+        self.stuck_tasks_last_check_time: int = time.time()
+        self.stuck_queued_task_check_interval = conf.getint(
+            'celery', 'stuck_queued_task_check_interval', fallback=300
         )
         self.task_publish_retries: Dict[TaskInstanceKey, int] = OrderedDict()
         self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
@@ -254,8 +264,8 @@ class CeleryExecutor(BaseExecutor):
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
         for _ in range(min(open_slots, len(self.queued_tasks))):
-            key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuple = (key, simple_ti, command, queue, execute_command)
+            key, (command, _, queue, _) = sorted_queue.pop(0)
+            task_tuple = (key, command, queue, execute_command)
             task_tuples_to_send.append(task_tuple)
             if key not in self.task_publish_retries:
                 self.task_publish_retries[key] = 1
@@ -264,7 +274,7 @@ class CeleryExecutor(BaseExecutor):
             self._process_tasks(task_tuples_to_send)
 
     def _process_tasks(self, task_tuples_to_send: List[TaskInstanceInCelery]) -> None:
-        first_task = next(t[4] for t in task_tuples_to_send)
+        first_task = next(t[3] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend
         # for all tasks.
@@ -292,9 +302,7 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error(  # pylint: disable=logging-not-lazy
-                    CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback
-                )
+                self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
                 self.event_buffer[key] = (State.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
@@ -333,6 +341,8 @@ class CeleryExecutor(BaseExecutor):
 
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
+        if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
+            self._clear_stuck_queued_tasks()
 
     def _check_for_stalled_adopted_tasks(self):
         """
@@ -345,8 +355,10 @@ class CeleryExecutor(BaseExecutor):
         """
         now = utcnow()
 
+        sorted_adopted_task_timeouts = sorted(self.adopted_task_timeouts.items(), key=lambda k: k[1])
+
         timedout_keys = []
-        for key, stalled_after in self.adopted_task_timeouts.items():
+        for key, stalled_after in sorted_adopted_task_timeouts:
             if stalled_after > now:
                 # Since items are stored sorted, if we get to a stalled_after
                 # in the future then we can stop
@@ -369,9 +381,56 @@ class CeleryExecutor(BaseExecutor):
                 "\n\t".join(repr(x) for x in timedout_keys),
             )
             for key in timedout_keys:
-                self.event_buffer[key] = (State.FAILED, None)
-                del self.tasks[key]
-                del self.adopted_task_timeouts[key]
+                self.change_state(key, State.FAILED)
+
+    @provide_session
+    def _clear_stuck_queued_tasks(self, session: Session = NEW_SESSION) -> None:
+        """
+        Tasks can get stuck in queued state in DB while still not in
+        worker. This happens when the worker is autoscaled down and
+        the task is queued but has not been picked up by any worker prior to the scaling.
+
+        In such situation, we update the task instance state to scheduled so that
+        it can be queued again. We chose to use task_adoption_timeout to decide when
+        a queued task is considered stuck and should be reschelduled.
+        """
+        if not isinstance(app.backend, DatabaseBackend):
+            # We only want to do this for database backends where
+            # this case has been spotted
+            return
+        # We use this instead of using bulk_state_fetcher because we
+        # may not have the stuck task in self.tasks and we don't want
+        # to clear task in self.tasks too
+        session_ = app.backend.ResultSession()
+        task_cls = getattr(app.backend, "task_cls", TaskDb)
+        with session_cleanup(session_):
+            celery_task_ids = [
+                t.task_id
+                for t in session_.query(task_cls.task_id)
+                .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
+                .all()
+            ]
+        self.log.debug("Checking for stuck queued tasks")
+
+        max_allowed_time = utcnow() - self.task_adoption_timeout
+
+        for task in session.query(TaskInstance).filter(
+            TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
+        ):
+            if task.key in self.queued_tasks or task.key in self.running:
+                continue
+
+            if task.external_executor_id in celery_task_ids:
+                # The task is still running in the worker
+                continue
+
+            self.log.info(
+                'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
+                task,
+                self.task_adoption_timeout.total_seconds(),
+            )
+            task.state = State.SCHEDULED
+            session.merge(task)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
@@ -415,7 +474,7 @@ class CeleryExecutor(BaseExecutor):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
     def end(self, synchronous: bool = False) -> None:
@@ -502,7 +561,6 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
 
     :param async_result: a tuple of the Celery task key and the async Celery object used
         to fetch the task's state
-    :type async_result: tuple(str, celery.result.AsyncResult)
     :return: a tuple of the Celery task key and the Celery state and the celery info
         of the task
     :rtype: tuple[str, str, str]
@@ -513,7 +571,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
             # to get the current state of the task
             info = async_result.info if hasattr(async_result, 'info') else None
             return async_result.task_id, async_result.state, info
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
 
@@ -594,7 +652,7 @@ class BulkStateFetcher(LoggingMixin):
             states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}
             for task_id, state_or_exception, info in task_id_to_states_and_info:
                 if isinstance(state_or_exception, ExceptionWithTraceback):
-                    self.log.error(  # pylint: disable=logging-not-lazy
+                    self.log.error(
                         CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
                         state_or_exception.exception,
                         state_or_exception.traceback,

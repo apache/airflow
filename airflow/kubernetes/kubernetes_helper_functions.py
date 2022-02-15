@@ -18,7 +18,8 @@
 import logging
 from typing import Dict, Optional
 
-from dateutil import parser
+import pendulum
+from slugify import slugify
 
 from airflow.models.taskinstance import TaskInstanceKey
 
@@ -37,7 +38,7 @@ def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
     :param string: The requested Pod name
     :return: Pod name stripped of any unsafe characters
     """
-    return ''.join(ch.lower() for ch in list(string) if ch.isalnum())
+    return slugify(string, separator='', lowercase=True)
 
 
 def create_pod_id(dag_id: str, task_id: str) -> str:
@@ -61,6 +62,29 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
     dag_id = annotations['dag_id']
     task_id = annotations['task_id']
     try_number = int(annotations['try_number'])
-    execution_date = parser.parse(annotations['execution_date'])
+    annotation_run_id = annotations.get('run_id')
 
-    return TaskInstanceKey(dag_id, task_id, execution_date, try_number)
+    if not annotation_run_id and 'execution_date' in annotations:
+        # Compat: Look up the run_id from the TI table!
+        from airflow.models.dagrun import DagRun
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.settings import Session
+
+        execution_date = pendulum.parse(annotations['execution_date'])
+        # Do _not_ use create-session, we don't want to expunge
+        session = Session()
+
+        task_instance_run_id = (
+            session.query(TaskInstance.run_id)
+            .join(TaskInstance.dag_run)
+            .filter(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == task_id,
+                DagRun.execution_date == execution_date,
+            )
+            .scalar()
+        )
+    else:
+        task_instance_run_id = annotation_run_id
+
+    return TaskInstanceKey(dag_id, task_id, task_instance_run_id, try_number)

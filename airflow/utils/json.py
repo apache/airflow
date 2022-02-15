@@ -17,9 +17,14 @@
 # under the License.
 
 from datetime import date, datetime
+from decimal import Decimal
 
-import numpy as np
 from flask.json import JSONEncoder
+
+try:
+    import numpy as np
+except ImportError:
+    np = None  # type: ignore
 
 try:
     from kubernetes.client import models as k8s
@@ -43,7 +48,14 @@ class AirflowJsonEncoder(JSONEncoder):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):
             return obj.strftime('%Y-%m-%d')
-        elif isinstance(
+        elif isinstance(obj, Decimal):
+            _, _, exponent = obj.as_tuple()
+            if exponent >= 0:  # No digits after the decimal point.
+                return int(obj)
+            # Technically lossy due to floating point errors, but the best we
+            # can do without implementing a custom encode function.
+            return float(obj)
+        elif np is not None and isinstance(
             obj,
             (
                 np.int_,
@@ -60,9 +72,9 @@ class AirflowJsonEncoder(JSONEncoder):
             ),
         ):
             return int(obj)
-        elif isinstance(obj, np.bool_):
+        elif np is not None and isinstance(obj, np.bool_):
             return bool(obj)
-        elif isinstance(
+        elif np is not None and isinstance(
             obj, (np.float_, np.float16, np.float32, np.float64, np.complex_, np.complex64, np.complex128)
         ):
             return float(obj)

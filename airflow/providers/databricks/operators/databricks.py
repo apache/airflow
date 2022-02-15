@@ -19,11 +19,15 @@
 """This module contains Databricks operators."""
 
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -74,22 +78,24 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     if operator.do_xcom_push:
         context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
 
-    log.info('View run status, Spark UI, and logs at %s', run_page_url)
-    while True:
-        run_state = hook.get_run_state(operator.run_id)
-        if run_state.is_terminal:
-            if run_state.is_successful:
-                log.info('%s completed successfully.', operator.task_id)
-                log.info('View run status, Spark UI, and logs at %s', run_page_url)
-                return
+    if operator.wait_for_termination:
+        while True:
+            run_state = hook.get_run_state(operator.run_id)
+            if run_state.is_terminal:
+                if run_state.is_successful:
+                    log.info('%s completed successfully.', operator.task_id)
+                    log.info('View run status, Spark UI, and logs at %s', run_page_url)
+                    return
+                else:
+                    error_message = f'{operator.task_id} failed with terminal state: {run_state}'
+                    raise AirflowException(error_message)
             else:
-                error_message = f'{operator.task_id} failed with terminal state: {run_state}'
-                raise AirflowException(error_message)
-        else:
-            log.info('%s in run state: %s', operator.task_id, run_state)
-            log.info('View run status, Spark UI, and logs at %s', run_page_url)
-            log.info('Sleeping for %s seconds.', operator.polling_period_seconds)
-            time.sleep(operator.polling_period_seconds)
+                log.info('%s in run state: %s', operator.task_id, run_state)
+                log.info('View run status, Spark UI, and logs at %s', run_page_url)
+                log.info('Sleeping for %s seconds.', operator.polling_period_seconds)
+                time.sleep(operator.polling_period_seconds)
+    else:
+        log.info('View run status, Spark UI, and logs at %s', run_page_url)
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
@@ -142,7 +148,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         - ``spark_jar_task``
         - ``notebook_task``
         - ``spark_python_task``
+        - ``spark_jar_task``
         - ``spark_submit_task``
+        - ``pipeline_task``
         - ``new_cluster``
         - ``existing_cluster_id``
         - ``libraries``
@@ -163,99 +171,96 @@ class DatabricksSubmitRunOperator(BaseOperator):
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#runs-submit
-    :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
-    :type spark_jar_task: dict
     :param notebook_task: The notebook path and parameters for the notebook task.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
-    :type notebook_task: dict
     :param spark_python_task: The python file path and parameters to run the python file with.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobssparkpythontask
-    :type spark_python_task: dict
     :param spark_submit_task: Parameters needed to run a spark-submit command.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobssparksubmittask
-    :type spark_submit_task: dict
+    :param pipeline_task: Parameters needed to execute a Delta Live Tables pipeline task.
+        The provided dictionary must contain at least ``pipeline_id`` field!
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobspipelinetask
     :param new_cluster: Specs for a new cluster on which this task will be run.
-        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified
+        (except when ``pipeline_task`` is used).
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
-    :type new_cluster: dict
     :param existing_cluster_id: ID for existing cluster on which to run this task.
-        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified
+        (except when ``pipeline_task`` is used).
         This field will be templated.
-    :type existing_cluster_id: str
     :param libraries: Libraries which this run will use.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
-    :type libraries: list of dicts
     :param run_name: The run name used for this task.
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
         This field will be templated.
-    :type run_name: str
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.
-    :type timeout_seconds: int32
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection and create the key ``host`` and leave the ``host`` field empty.
-    :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
-    :type polling_period_seconds: int
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :type databricks_retry_limit: int
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
-    :type databricks_retry_delay: float
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: bool
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields = ('json',)
+    template_fields: Sequence[str] = ('json',)
+    template_ext: Sequence[str] = ('.json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
         json: Optional[Any] = None,
+        tasks: Optional[List[object]] = None,
         spark_jar_task: Optional[Dict[str, str]] = None,
         notebook_task: Optional[Dict[str, str]] = None,
         spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
         spark_submit_task: Optional[Dict[str, List[str]]] = None,
+        pipeline_task: Optional[Dict[str, str]] = None,
         new_cluster: Optional[Dict[str, object]] = None,
         existing_cluster_id: Optional[str] = None,
         libraries: Optional[List[Dict[str, str]]] = None,
@@ -266,6 +271,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         do_xcom_push: bool = False,
+        idempotency_token: Optional[str] = None,
+        access_control_list: Optional[List[Dict[str, str]]] = None,
+        wait_for_termination: bool = True,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -275,6 +283,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.wait_for_termination = wait_for_termination
+        if tasks is not None:
+            self.json['tasks'] = tasks
         if spark_jar_task is not None:
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
@@ -283,6 +294,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['spark_python_task'] = spark_python_task
         if spark_submit_task is not None:
             self.json['spark_submit_task'] = spark_submit_task
+        if pipeline_task is not None:
+            self.json['pipeline_task'] = pipeline_task
         if new_cluster is not None:
             self.json['new_cluster'] = new_cluster
         if existing_cluster_id is not None:
@@ -295,10 +308,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['timeout_seconds'] = timeout_seconds
         if 'run_name' not in self.json:
             self.json['run_name'] = run_name or kwargs['task_id']
+        if idempotency_token is not None:
+            self.json['idempotency_token'] = idempotency_token
+        if access_control_list is not None:
+            self.json['access_control_list'] = access_control_list
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id = None
+        self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -308,15 +325,20 @@ class DatabricksSubmitRunOperator(BaseOperator):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = self._get_hook()
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self._get_hook()
-        hook.cancel_run(self.run_id)
-        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
+        if self.run_id:
+            hook = self._get_hook()
+            hook.cancel_run(self.run_id)
+            self.log.info(
+                'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
+            )
+        else:
+            self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)
 
 
 class DatabricksRunNowOperator(BaseOperator):
@@ -357,12 +379,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
         python_params = ["douglas adams", "42"]
 
+        jar_params = ["douglas adams", "42"]
+
         spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
 
         notebook_run = DatabricksRunNowOperator(
             job_id=job_id,
             notebook_params=notebook_params,
             python_params=python_params,
+            jar_params=jar_params,
             spark_submit_params=spark_submit_params
         )
 
@@ -375,6 +400,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``json``
         - ``notebook_params``
         - ``python_params``
+        - ``jar_params``
         - ``spark_submit_params``
 
 
@@ -383,7 +409,6 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type job_id: str
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -394,7 +419,6 @@ class DatabricksRunNowOperator(BaseOperator):
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type json: dict
     :param notebook_params: A dict from keys to values for jobs with notebook task,
         e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
         The map is passed to the notebook and will be accessible through the
@@ -408,7 +432,6 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/user-guide/notebooks/widgets.html
-    :type notebook_params: dict
     :param python_params: A list of parameters for jobs with python tasks,
         e.g. "python_params": ["john doe", "35"].
         The parameters will be passed to python file as command line parameters.
@@ -420,7 +443,17 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type python_params: list[str]
+    :param jar_params: A list of parameters for jobs with JAR tasks,
+        e.g. "jar_params": ["john doe", "35"].
+        The parameters will be passed to JAR file as command line parameters.
+        If specified upon run-now, it would overwrite the parameters specified in
+        job setting.
+        The json representation of this field (i.e. {"jar_params":["john doe","35"]})
+        cannot exceed 10,000 bytes.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#run-now
     :param spark_submit_params: A list of parameters for jobs with spark submit task,
         e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
         The parameters will be passed to spark-submit script as command line parameters.
@@ -431,33 +464,27 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type spark_submit_params: list[str]
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.
-    :type timeout_seconds: int32
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection and create the key ``host`` and leave the ``host`` field empty.
-    :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
-    :type polling_period_seconds: int
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :type databricks_retry_limit: int
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: bool
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields = ('json',)
+    template_fields: Sequence[str] = ('json',)
+    template_ext: Sequence[str] = ('.json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -465,12 +492,14 @@ class DatabricksRunNowOperator(BaseOperator):
         json: Optional[Any] = None,
         notebook_params: Optional[Dict[str, str]] = None,
         python_params: Optional[List[str]] = None,
+        jar_params: Optional[List[str]] = None,
         spark_submit_params: Optional[List[str]] = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         do_xcom_push: bool = False,
+        wait_for_termination: bool = True,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -480,6 +509,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.wait_for_termination = wait_for_termination
 
         if job_id is not None:
             self.json['job_id'] = job_id
@@ -487,12 +517,14 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
             self.json['python_params'] = python_params
+        if jar_params is not None:
+            self.json['jar_params'] = jar_params
         if spark_submit_params is not None:
             self.json['spark_submit_params'] = spark_submit_params
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id = None
+        self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -502,12 +534,17 @@ class DatabricksRunNowOperator(BaseOperator):
             retry_delay=self.databricks_retry_delay,
         )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = self._get_hook()
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
     def on_kill(self):
-        hook = self._get_hook()
-        hook.cancel_run(self.run_id)
-        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
+        if self.run_id:
+            hook = self._get_hook()
+            hook.cancel_run(self.run_id)
+            self.log.info(
+                'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
+            )
+        else:
+            self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)

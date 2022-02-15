@@ -15,16 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import shlex
+import sys
 import time
 from io import StringIO
 from typing import Any, Dict, Optional
 
 import paramiko
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from google.api_core.retry import exponential_sleep_generator
 
 from airflow import AirflowException
@@ -42,7 +44,7 @@ class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
         self.google_hook = google_hook
         self.decorator = None
 
-    def connect(self, *args, **kwargs):  # pylint: disable=signature-differs
+    def connect(self, *args, **kwargs):
         self.decorator = self.google_hook.provide_authorized_gcloud()
         self.decorator.__enter__()
         return super().connect(*args, **kwargs)
@@ -65,48 +67,36 @@ class ComputeEngineSSHHook(SSHHook):
     Hook to connect to a remote instance in compute engine
 
     :param instance_name: The name of the Compute Engine instance
-    :type instance_name: str
     :param zone: The zone of the Compute Engine instance
-    :type zone: str
     :param user: The name of the user on which the login attempt will be made
-    :type user: str
     :param project_id: The project ID of the remote instance
-    :type project_id: str
     :param gcp_conn_id: The connection id to use when fetching connection info
-    :type gcp_conn_id: str
     :param hostname: The hostname of the target instance. If it is not passed, it will be detected
         automatically.
-    :type hostname: str
     :param use_iap_tunnel: Whether to connect through IAP tunnel
-    :type use_iap_tunnel: bool
     :param use_internal_ip: Whether to connect using internal IP
-    :type use_internal_ip: bool
     :param use_oslogin: Whether to manage keys using OsLogin API. If false,
         keys are managed using instance metadata
-    :type use_oslogin: bool
     :param expire_time: The maximum amount of time in seconds before the private key expires
-    :type expire_time: int
     :param gcp_conn_id: The connection id to use when fetching connection information
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     """
 
     conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_default'
+    default_conn_name = 'google_cloud_ssh_default'
     conn_type = 'gcpssh'
     hook_name = 'Google Cloud SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
             "relabeling": {},
         }
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
         instance_name: Optional[str] = None,
@@ -121,7 +111,7 @@ class ComputeEngineSSHHook(SSHHook):
         delegate_to: Optional[str] = None,
     ) -> None:
         # Ignore original constructor
-        # super().__init__()  # pylint: disable=super-init-not-called
+        # super().__init__()
         self.instance_name = instance_name
         self.zone = zone
         self.user = user
@@ -170,25 +160,17 @@ class ComputeEngineSSHHook(SSHHook):
 
         conn = self.get_connection(self.gcp_conn_id)
         if conn and conn.conn_type == "gcpssh":
-            self.instance_name = self._compute_hook._get_field(  # pylint: disable=protected-access
-                "instance_name", self.instance_name
-            )
-            self.zone = self._compute_hook._get_field("zone", self.zone)  # pylint: disable=protected-access
+            self.instance_name = self._compute_hook._get_field("instance_name", self.instance_name)
+            self.zone = self._compute_hook._get_field("zone", self.zone)
             self.user = conn.login if conn.login else self.user
             # self.project_id is skipped intentionally
             self.hostname = conn.host if conn.host else self.hostname
-            self.use_internal_ip = _boolify(
-                self._compute_hook._get_field("use_internal_ip")  # pylint: disable=protected-access
-            )
-            self.use_iap_tunnel = _boolify(
-                self._compute_hook._get_field("use_iap_tunnel")  # pylint: disable=protected-access
-            )
-            self.use_oslogin = _boolify(
-                self._compute_hook._get_field("use_oslogin")  # pylint: disable=protected-access
-            )
+            self.use_internal_ip = _boolify(self._compute_hook._get_field("use_internal_ip"))
+            self.use_iap_tunnel = _boolify(self._compute_hook._get_field("use_iap_tunnel"))
+            self.use_oslogin = _boolify(self._compute_hook._get_field("use_oslogin"))
             self.expire_time = intify(
                 "expire_time",
-                self._compute_hook._get_field("expire_time"),  # pylint: disable=protected-access
+                self._compute_hook._get_field("expire_time"),
                 self.expire_time,
             )
 
@@ -300,7 +282,7 @@ class ComputeEngineSSHHook(SSHHook):
         )
 
     def _authorize_os_login(self, pubkey):
-        username = self._oslogin_hook._get_credentials_email()  # pylint: disable=protected-access
+        username = self._oslogin_hook._get_credentials_email()
         self.log.info("Importing SSH public key using OSLogin: user=%s", username)
         expiration = int((time.time() + self.expire_time) * 1000000)
         ssh_public_key = {"key": pubkey, "expiration_time_usec": expiration}

@@ -38,7 +38,7 @@ echo "Downloading from ${DOWNLOAD_URL}"
 curl -# --fail "${DOWNLOAD_URL}" --output "${BIN_PATH}"
 chmod +x "${BIN_PATH}"
 
-# Sanity check
+# Coherence check
 if ! command -v imgcat > /dev/null; then
     echo 'Installation failed. The command "imgcat" was not found.'
     exit 1

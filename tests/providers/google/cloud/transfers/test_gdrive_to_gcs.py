@@ -59,3 +59,5 @@ class TestGoogleDriveToGCSOperator:
         mock_gcs_hook.return_value.provide_file_and_upload.assert_called_once_with(
             bucket_name=BUCKET, object_name=OBJECT
         )
+
+        assert op.dry_run() is None

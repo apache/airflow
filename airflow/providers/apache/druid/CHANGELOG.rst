@@ -19,6 +19,83 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+Bug Fixes
+~~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout parameter to DruidOperator (#19984)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Apache Druid provider. (#20270)``
+   * ``Fix MyPy errors in Apache Providers (#20422)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DruidOperator template_fields_renderers fields (#19420)``
+* ``Add max_ingestion_time to DruidOperator docstring (#18693)``
+* ``Add guide for Apache Druid operators (#18527)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+
+2.0.2
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix messed-up changelog in 3 providers (#17380)``
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix error in Druid connection attribute retrieval (#17095)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 
@@ -41,6 +118,7 @@ Breaking changes
    * ``Remove Backport Providers (#14886)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.1.0
 .....

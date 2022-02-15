@@ -17,11 +17,12 @@
 # under the License.
 #
 
-from unittest import TestCase, mock
+from unittest import mock
+
+import pytest
 
 from airflow import settings
 from airflow.models import DAG, Connection
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.qubole.hooks.qubole import QuboleHook
 from airflow.providers.qubole.operators.qubole import QDSLink, QuboleOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -36,15 +37,15 @@ TEST_CONN = "qubole_test_conn"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class TestQuboleOperator(TestCase):
-    def setUp(self):
+class TestQuboleOperator:
+    def setup_method(self):
         db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
         db.merge_conn(Connection(conn_id=TEST_CONN, conn_type='HTTP', host='http://localhost/api'))
 
-    def tearDown(self):
+    def teardown_method(self):
         session = settings.Session()
         session.query(Connection).filter(Connection.conn_id == TEST_CONN).delete()
-        session.commit()
+        session.flush()
         session.close()
 
     def test_init_with_default_connection(self):
@@ -60,19 +61,17 @@ class TestQuboleOperator(TestCase):
         assert task.task_id == TASK_ID
         assert task.qubole_conn_id == TEMPLATE_CONN
 
-    def test_init_with_template_cluster_label(self):
-        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-        task = QuboleOperator(
+    def test_init_with_template_cluster_label(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            QuboleOperator,
+            dag_id="test_init_with_template_cluster_label",
+            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
-            dag=dag,
             cluster_label='{{ params.cluster_label }}',
             params={'cluster_label': 'default'},
         )
-
-        ti = TaskInstance(task, DEFAULT_DATE)
         ti.render_templates()
-
-        assert task.cluster_label == 'default'
+        assert ti.task.cluster_label == 'default'
 
     def test_get_hook(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
@@ -121,60 +120,44 @@ class TestQuboleOperator(TestCase):
             task.get_hook().create_cmd_args({'run_id': 'dummy'})[5] == "s3n://airflow/destination_hadoopcmd"
         )
 
-    def test_get_redirect_url(self):
-        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-
-        with dag:
-            task = QuboleOperator(
-                task_id=TASK_ID,
-                qubole_conn_id=TEST_CONN,
-                command_type='shellcmd',
-                parameters="param1 param2",
-                dag=dag,
-            )
-
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+    def test_get_redirect_url(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            QuboleOperator,
+            dag_id="test_get_redirect_url",
+            execution_date=DEFAULT_DATE,
+            task_id=TASK_ID,
+            qubole_conn_id=TEST_CONN,
+            command_type='shellcmd',
+            parameters="param1 param2",
+        )
         ti.xcom_push('qbol_cmd_id', 12345)
 
-        # check for positive case
-        url = task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
+        url = ti.task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
         assert url == 'http://localhost/v2/analyze?command_id=12345'
 
-        # check for negative case
-        url2 = task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
-        assert url2 == ''
+    @pytest.mark.need_serialized_dag
+    def test_extra_serialized_field(self, dag_maker, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            QuboleOperator,
+            dag_id="test_extra_serialized_field",
+            execution_date=DEFAULT_DATE,
+            task_id=TASK_ID,
+            command_type='shellcmd',
+            qubole_conn_id=TEST_CONN,
+        )
 
-    def test_extra_serialized_field(self):
-        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-        with dag:
-            QuboleOperator(
-                task_id=TASK_ID,
-                command_type='shellcmd',
-                qubole_conn_id=TEST_CONN,
-            )
-
-        serialized_dag = SerializedDAG.to_dict(dag)
+        serialized_dag = dag_maker.get_serialized_data()
         assert "qubole_conn_id" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
         assert getattr(simple_task, "qubole_conn_id") == TEST_CONN
 
-        #########################################################
-        # Verify Operator Links work with Serialized Operator
-        #########################################################
         assert isinstance(list(simple_task.operator_extra_links)[0], QDSLink)
 
-        ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
         ti.xcom_push('qbol_cmd_id', 12345)
-
-        # check for positive case
         url = simple_task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
         assert url == 'http://localhost/v2/analyze?command_id=12345'
-
-        # check for negative case
-        url2 = simple_task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
-        assert url2 == ''
 
     def test_parameter_pool_passed(self):
         test_pool = 'test_pool'

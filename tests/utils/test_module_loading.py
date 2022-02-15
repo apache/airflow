@@ -26,7 +26,7 @@ from airflow.utils.module_loading import import_string
 class TestModuleImport(unittest.TestCase):
     def test_import_string(self):
         cls = import_string('airflow.utils.module_loading.import_string')
-        assert cls == import_string  # pylint: disable=comparison-with-callable
+        assert cls == import_string
 
         # Test exceptions raised
         with pytest.raises(ImportError):

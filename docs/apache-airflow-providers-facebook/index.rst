@@ -33,8 +33,9 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-facebook/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -50,7 +51,7 @@ Package apache-airflow-providers-facebook
 `Facebook Ads <http://business.facebook.com/>`__
 
 
-Release: 2.0.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -61,7 +62,7 @@ are in ``airflow.providers.facebook`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-facebook``
 
 PIP requirements
@@ -70,6 +71,7 @@ PIP requirements
 =====================  ==================
 PIP package            Version required
 =====================  ==================
+``apache-airflow``     ``>=2.1.0``
 ``facebook-business``  ``>=6.0.2``
 =====================  ==================
 

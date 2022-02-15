@@ -72,8 +72,8 @@ class TestGetExtraLinks:
         self.dag = self._create_dag()
 
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore  # pylint: disable=no-member
-        self.app.dag_bag.sync_to_db()  # type: ignore  # pylint: disable=no-member
+        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
+        self.app.dag_bag.sync_to_db()  # type: ignore
 
         dr = DagRun(
             dag_id=self.dag.dag_id,
@@ -214,10 +214,9 @@ class TestGetExtraLinks:
             operators = [BigQueryExecuteQueryOperator]
 
             def get_link(self, operator, dttm):
-                return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
-                    dag_id=operator.dag_id,
-                    task_id=operator.task_id,
-                    execution_date=quote_plus(dttm.isoformat()),
+                return (
+                    f"https://s3.amazonaws.com/airflow-logs/{operator.dag_id}/"
+                    f"{operator.task_id}/{quote_plus(dttm.isoformat())}"
                 )
 
         class AirflowTestPlugin(AirflowPlugin):

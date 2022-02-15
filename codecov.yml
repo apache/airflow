@@ -16,6 +16,7 @@
 # under the License.
 ---
 codecov:
+  branch: main
   max_report_age: off  # yamllint disable-line rule:truthy
   require_ci_to_pass: true
   notify:
@@ -37,10 +38,12 @@ coverage:
         # advanced
         branches:
           - main
-          - v1-10-stable
-          - v1-10-test
+          - v2-0-stable
           - v2-0-test
+          - v2-1-stable
           - v2-1-test
+          - v2-2-stable
+          - v2-2-test
         if_not_found: success
         if_ci_failed: error
         informational: true
@@ -54,10 +57,12 @@ coverage:
         # advanced
         branches:
           - main
-          - v1-10-stable
-          - v1-10-test
+          - v2-0-stable
           - v2-0-test
+          - v2-1-stable
           - v2-1-test
+          - v2-2-stable
+          - v2-2-test
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error

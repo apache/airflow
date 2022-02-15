@@ -14,24 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 from functools import wraps
-from typing import Callable, Dict, TypeVar, cast
+from typing import Any, Callable, Container, Dict, Optional, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text
+from sqlalchemy.orm.query import Query
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
 
 
-def validate_istimezone(value):
+def validate_istimezone(value: datetime) -> None:
     """Validates that a datetime is not naive"""
     if not value.tzinfo:
         raise BadRequest("Invalid datetime format", detail="Naive datetime is disallowed")
 
 
-def format_datetime(value: str):
+def format_datetime(value: str) -> datetime:
     """
     Datetime format parser for args since connexion doesn't parse datetimes
     https://github.com/zalando/connexion/issues/476
@@ -47,7 +49,7 @@ def format_datetime(value: str):
         raise BadRequest("Incorrect datetime argument", detail=str(err))
 
 
-def check_limit(value: int):
+def check_limit(value: int) -> int:
     """
     This checks the limit passed to view and raises BadRequest if
     limit exceed user configured value
@@ -64,10 +66,10 @@ def check_limit(value: int):
     return value
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
-def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Callable[[T], T]:
+def format_parameters(params_formatters: Dict[str, Callable[[Any], Any]]) -> Callable[[T], T]:
     """
     Decorator factory that create decorator that convert parameters using given formatters.
 
@@ -76,7 +78,7 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Call
     :param params_formatters: Map of key name and formatter function
     """
 
-    def format_parameters_decorator(func: T):
+    def format_parameters_decorator(func: T) -> T:
         @wraps(func)
         def wrapped_function(*args, **kwargs):
             for key, formatter in params_formatters.items():
@@ -89,7 +91,12 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Call
     return format_parameters_decorator
 
 
-def apply_sorting(query, order_by, to_replace=None, allowed_attrs=None):
+def apply_sorting(
+    query: Query,
+    order_by: str,
+    to_replace: Optional[Dict[str, str]] = None,
+    allowed_attrs: Optional[Container[str]] = None,
+) -> Query:
     """Apply sorting to query"""
     lstriped_orderby = order_by.lstrip('-')
     if allowed_attrs and lstriped_orderby not in allowed_attrs:

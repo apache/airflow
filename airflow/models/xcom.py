@@ -16,21 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import json
 import logging
 import pickle
-from typing import Any, Iterable, Optional, Union
+import warnings
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, LargeBinary, String, and_
-from sqlalchemy.orm import Query, Session, reconstructor
+from sqlalchemy import Column, LargeBinary, String
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import Query, Session, reconstructor, relationship
 
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
@@ -39,6 +42,17 @@ log = logging.getLogger(__name__)
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
+
+# Work around 'airflow task test' generating a temporary in-memory DAG run
+# without storing it in the database. To avoid interfering with actual XCom
+# entries but still behave _somewhat_ consistently, we store XCom to a distant
+# time in the future. Eventually we want to migrate XCom's primary to use run_id
+# instead, so execution_date can just be None for this case.
+IN_MEMORY_DAGRUN_ID = "__airflow_in_memory_dagrun__"
+
+# This is the largest possible value we can store in MySQL.
+# https://dev.mysql.com/doc/refman/5.7/en/datetime.html
+_DISTANT_FUTURE = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
 
 
 class BaseXCom(Base, LoggingMixin):
@@ -55,6 +69,18 @@ class BaseXCom(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
+    # For _now_, we link this via execution_date, in 2.3 we will migrate this table to use run_id too
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            BaseXCom.dag_id == foreign(DagRun.dag_id),
+            BaseXCom.execution_date == foreign(DagRun.execution_date)
+        )""",
+        uselist=False,
+        passive_deletes="all",
+    )
+    run_id = association_proxy("dag_run", "run_id")
+
     @reconstructor
     def init_on_load(self):
         """
@@ -66,149 +92,300 @@ class BaseXCom(Base, LoggingMixin):
     def __repr__(self):
         return f'<XCom "{self.key}" ({self.task_id} @ {self.execution_date})>'
 
+    @overload
+    @classmethod
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """Store an XCom value.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param key: Key to store the XCom.
+        :param value: XCom value to store.
+        :param dag_id: DAG ID.
+        :param task_id: Task ID.
+        :param run_id: DAG run ID for the task.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
+
+    @overload
+    @classmethod
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        task_id: str,
+        dag_id: str,
+        execution_date: datetime.datetime,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+
     @classmethod
     @provide_session
-    def set(cls, key, value, execution_date, task_id, dag_id, session=None):
-        """
-        Store an XCom value.
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        task_id: str,
+        dag_id: str,
+        execution_date: Optional[datetime.datetime] = None,
+        session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+        if not exactly_one(execution_date is not None, run_id is not None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        :return: None
-        """
-        session.expunge_all()
+        if run_id == IN_MEMORY_DAGRUN_ID:
+            execution_date = _DISTANT_FUTURE
+        elif run_id is not None:
+            from airflow.models.dagrun import DagRun
 
-        value = XCom.serialize_value(value)
+            execution_date = (
+                session.query(DagRun.execution_date)
+                .filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+                .scalar()
+            )
+        else:  # Guarantees execution_date is not None.
+            message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
 
-        # remove any duplicate XComs
+        # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
-            cls.key == key, cls.execution_date == execution_date, cls.task_id == task_id, cls.dag_id == dag_id
+            cls.key == key,
+            cls.execution_date == execution_date,
+            cls.task_id == task_id,
+            cls.dag_id == dag_id,
         ).delete()
+        new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
+            key=key,
+            value=cls.serialize_value(value),
+            execution_date=execution_date,
+            task_id=task_id,
+            dag_id=dag_id,
+        )
+        session.add(new)
+        session.flush()
 
-        session.commit()
+    @overload
+    @classmethod
+    def get_one(
+        cls,
+        *,
+        run_id: str,
+        key: Optional[str] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        include_prior_dates: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> Optional[Any]:
+        """Retrieve an XCom value, optionally meeting certain criteria.
 
-        # insert new XCom
-        session.add(XCom(key=key, value=value, execution_date=execution_date, task_id=task_id, dag_id=dag_id))
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
+        value via ``orm_deserialize_value``.
 
-        session.commit()
+        If there are no results, *None* is returned.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param run_id: DAG run ID for the task.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param task_id: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param dag_id: Only pull XCom from this DAG. If *None* (default), the
+            DAG of the calling task is used.
+        :param include_prior_dates: If *False* (default), only XCom from the
+            specified DAG run is returned. If *True*, the latest matching XCom is
+            returned regardless of the run it belongs to.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
+
+    @overload
+    @classmethod
+    def get_one(
+        cls,
+        execution_date: datetime.datetime,
+        key: Optional[str] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        include_prior_dates: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> Optional[Any]:
+        """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
     def get_one(
         cls,
-        execution_date: pendulum.DateTime,
+        execution_date: Optional[datetime.datetime] = None,
         key: Optional[str] = None,
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
     ) -> Optional[Any]:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria. Returns None
-        of there are no results.
+        """:sphinx-autoapi-skip:"""
+        if not exactly_one(execution_date is not None, run_id is not None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        :param execution_date: Execution date for the task
-        :type execution_date: pendulum.datetime
-        :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. To remove the filter, pass key=None.
-        :type key: str
-        :param task_id: Only XComs from task with matching id will be
-            pulled. Can pass None to remove the filter.
-        :type task_id: str
-        :param dag_id: If provided, only pulls XCom from this DAG.
-            If None (default), the DAG of the calling task is used.
-        :type dag_id: str
-        :param include_prior_dates: If False, only XCom from the current
-            execution_date are returned. If True, XCom from previous dates
-            are returned as well.
-        :type include_prior_dates: bool
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
-        result = cls.get_many(
-            execution_date=execution_date,
-            key=key,
-            task_ids=task_id,
-            dag_ids=dag_id,
-            include_prior_dates=include_prior_dates,
-            session=session,
-        ).first()
+        if run_id is not None:
+            query = cls.get_many(
+                run_id=run_id,
+                key=key,
+                task_ids=task_id,
+                dag_ids=dag_id,
+                include_prior_dates=include_prior_dates,
+                session=session,
+            )
+        elif execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
+
+            query = cls.get_many(
+                execution_date=execution_date,
+                key=key,
+                task_ids=task_id,
+                dag_ids=dag_id,
+                include_prior_dates=include_prior_dates,
+                session=session,
+            )
+        else:
+            raise RuntimeError("Should not happen?")
+
+        result = query.with_entities(cls.value).first()
         if result:
-            return result.value
+            return cls.deserialize_value(result)
         return None
+
+    @overload
+    @classmethod
+    def get_many(
+        cls,
+        *,
+        run_id: str,
+        key: Optional[str] = None,
+        task_ids: Union[str, Iterable[str], None] = None,
+        dag_ids: Union[str, Iterable[str], None] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        session: Session = NEW_SESSION,
+    ) -> Query:
+        """Composes a query to get one or more XCom entries.
+
+        This function returns an SQLAlchemy query of full XCom objects. If you
+        just want one stored value, use :meth:`get_one` instead.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param run_id: DAG run ID for the task.
+        :param key: A key for the XComs. If provided, only XComs with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param task_ids: Only XComs from task with matching IDs will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param dag_id: Only pulls XComs from this DAG. If *None* (default), the
+            DAG of the calling task is used.
+        :param include_prior_dates: If *False* (default), only XComs from the
+            specified DAG run are returned. If *True*, all matching XComs are
+            returned regardless of the run it belongs to.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
+
+    @overload
+    @classmethod
+    def get_many(
+        cls,
+        execution_date: datetime.datetime,
+        key: Optional[str] = None,
+        task_ids: Union[str, Iterable[str], None] = None,
+        dag_ids: Union[str, Iterable[str], None] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        session: Session = NEW_SESSION,
+    ) -> Query:
+        """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
     def get_many(
         cls,
-        execution_date: pendulum.DateTime,
+        execution_date: Optional[datetime.datetime] = None,
         key: Optional[str] = None,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
     ) -> Query:
-        """
-        Composes a query to get one or more values from the xcom table.
+        """:sphinx-autoapi-skip:"""
+        from airflow.models.dagrun import DagRun
 
-        :param execution_date: Execution date for the task
-        :type execution_date: pendulum.datetime
-        :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. To remove the filter, pass key=None.
-        :type key: str
-        :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Can pass None to remove the filter.
-        :type task_ids: str or iterable of strings (representing task_ids)
-        :param dag_ids: If provided, only pulls XComs from this DAG.
-            If None (default), the DAG of the calling task is used.
-        :type dag_ids: str
-        :param include_prior_dates: If False, only XComs from the current
-            execution_date are returned. If True, XComs from previous dates
-            are returned as well.
-        :type include_prior_dates: bool
-        :param limit: If required, limit the number of returned objects.
-            XCom objects can be quite big and you might want to limit the
-            number of rows.
-        :type limit: int
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
-        filters = []
+        if not exactly_one(execution_date is not None, run_id is not None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+        if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
+
+        query = session.query(cls)
 
         if key:
-            filters.append(cls.key == key)
+            query = query.filter(cls.key == key)
 
-        if task_ids:
-            if is_container(task_ids):
-                filters.append(cls.task_id.in_(task_ids))
-            else:
-                filters.append(cls.task_id == task_ids)
+        if is_container(task_ids):
+            query = query.filter(cls.task_id.in_(task_ids))
+        elif task_ids is not None:
+            query = query.filter(cls.task_id == task_ids)
 
-        if dag_ids:
-            if is_container(dag_ids):
-                filters.append(cls.dag_id.in_(dag_ids))
-            else:
-                filters.append(cls.dag_id == dag_ids)
+        if is_container(dag_ids):
+            query = query.filter(cls.dag_id.in_(dag_ids))
+        elif dag_ids is not None:
+            query = query.filter(cls.dag_id == dag_ids)
 
         if include_prior_dates:
-            filters.append(cls.execution_date <= execution_date)
+            if execution_date is not None:
+                query = query.filter(cls.execution_date <= execution_date)
+            else:
+                # This returns an empty query result for IN_MEMORY_DAGRUN_ID,
+                # but that is impossible to implement. Sorry?
+                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
+                query = query.filter(cls.execution_date <= dr.c.execution_date)
+        elif execution_date is not None:
+            query = query.filter(cls.execution_date == execution_date)
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            query = query.filter(cls.execution_date == _DISTANT_FUTURE)
         else:
-            filters.append(cls.execution_date == execution_date)
+            query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
 
-        query = (
-            session.query(cls)
-            .filter(and_(*filters))
-            .order_by(cls.execution_date.desc(), cls.timestamp.desc())
-        )
-
+        query = query.order_by(cls.execution_date.desc(), cls.timestamp.desc())
         if limit:
             return query.limit(limit)
-        else:
-            return query
+        return query
 
     @classmethod
     @provide_session
-    def delete(cls, xcoms, session=None):
-        """Delete Xcom"""
+    def delete(cls, xcoms: Union["XCom", Iterable["XCom"]], session: Session) -> None:
+        """Delete one or multiple XCom entries."""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
         for xcom in xcoms:
@@ -216,6 +393,69 @@ class BaseXCom(Base, LoggingMixin):
                 raise TypeError(f'Expected XCom; received {xcom.__class__.__name__}')
             session.delete(xcom)
         session.commit()
+
+    @overload
+    @classmethod
+    def clear(cls, *, dag_id: str, task_id: str, run_id: str, session: Optional[Session] = None) -> None:
+        """Clear all XCom data from the database for the given task instance.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param dag_id: ID of DAG to clear the XCom for.
+        :param task_id: ID of task to clear the XCom for.
+        :param run_id: ID of DAG run to clear the XCom for.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
+
+    @overload
+    @classmethod
+    def clear(
+        cls,
+        execution_date: pendulum.DateTime,
+        dag_id: str,
+        task_id: str,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+
+    @classmethod
+    @provide_session
+    def clear(
+        cls,
+        execution_date: Optional[pendulum.DateTime] = None,
+        dag_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        session: Session = NEW_SESSION,
+        *,
+        run_id: Optional[str] = None,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+        # Given the historic order of this function (execution_date was first argument) to add a new optional
+        # param we need to add default values for everything :(
+        if dag_id is None:
+            raise TypeError("clear() missing required argument: dag_id")
+        if task_id is None:
+            raise TypeError("clear() missing required argument: task_id")
+
+        if not exactly_one(execution_date is not None, run_id is not None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+
+        query = session.query(cls).filter(cls.dag_id == dag_id, cls.task_id == task_id)
+        if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
+            query = query.filter(cls.execution_date == execution_date)
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            query = query.filter(cls.execution_date == _DISTANT_FUTURE)
+        else:
+            from airflow.models.dagrun import DagRun
+
+            execution_date = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).scalar()
+            query = query.filter(cls.execution_date == execution_date)
+
+        return query.delete()
 
     @staticmethod
     def serialize_value(value: Any):
@@ -259,7 +499,7 @@ class BaseXCom(Base, LoggingMixin):
         return BaseXCom.deserialize_value(self)
 
 
-def resolve_xcom_backend():
+def resolve_xcom_backend() -> Type[BaseXCom]:
     """Resolves custom XCom class"""
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if clazz:
@@ -271,4 +511,7 @@ def resolve_xcom_backend():
     return BaseXCom
 
 
-XCom = resolve_xcom_backend()
+if TYPE_CHECKING:
+    XCom = BaseXCom  # Hack to avoid Mypy "Variable 'XCom' is not valid as a type".
+else:
+    XCom = resolve_xcom_backend()

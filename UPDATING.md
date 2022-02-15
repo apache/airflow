@@ -27,6 +27,14 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.3](#airflow-223)
+- [Airflow 2.2.2](#airflow-222)
+- [Airflow 2.2.1](#airflow-221)
+- [Airflow 2.2.0](#airflow-220)
+- [Airflow 2.1.4](#airflow-214)
+- [Airflow 2.1.3](#airflow-213)
+- [Airflow 2.1.2](#airflow-212)
+- [Airflow 2.1.1](#airflow-211)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
@@ -72,6 +80,122 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
+
+When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
+In the previous versions of SQLAlchemy it was possible to use `postgres://`, but using it in
+SQLAlchemy 1.4.0+ results in:
+
+```
+>       raise exc.NoSuchModuleError(
+            "Can't load plugin: %s:%s" % (self.group, name)
+        )
+E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+```
+
+If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+Details in the [SQLAlchemy Changelog](https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b).
+
+### Passing `execution_date` to `XCom.set()`, `XCom.clear()`, `XCom.get_one()`, and `XCom.get_many()` is deprecated
+
+Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
+
+### Non-JSON-serializable params deprecated.
+
+It was previously possible to use dag or task param defaults that were not JSON-serializable.
+
+For example this worked previously:
+
+```python
+@dag.task(params={"a": {1, 2, 3}, "b": pendulum.now()})
+def datetime_param(value):
+    print(value)
+
+
+datetime_param("{{ params.a }} | {{ params.b }}")
+```
+
+Note the use of `set` and `datetime` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time.
+
+### Smart sensors deprecated
+
+Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
+
+See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
+
+### Task log templates are now read from the metadatabase instead of `airflow.cfg`
+
+Previously, a task’s log is dynamically rendered from the `[core] log_filename_template` and `[elasticsearch] log_id_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
+
+A new `log_template` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field `log_template_id` is added to every DAG run to point to the format used by tasks (`NULL` indicates the first ever entry for compatibility).
+
+### `airflow.models.base.Operator` is removed
+
+Previously, there was an empty class `airflow.models.base.Operator` for “type hinting”. This class was never really useful for anything (everything it did could be done better with `airflow.models.baseoperator.BaseOperator`), and has been removed. If you are relying on the class’s existence, use `BaseOperator` (for concrete operators), `airflow.models.abstractoperator.AbstractOperator` (the base class of both `BaseOperator` and the AIP-42 `MappedOperator`), or `airflow.models.operator.Operator` (a union type `BaseOperator | MappedOperator` for type annotation).
+
+## Airflow 2.2.3
+
+No breaking changes.
+
+## Airflow 2.2.2
+
+No breaking changes.
+
+## Airflow 2.2.1
+
+### ``Param``'s default value for ``default`` removed
+
+``Param``, introduced in Airflow 2.2.0, accidentally set the default value to ``None``. This default has been removed. If you want ``None`` as your default, explicitly set it as such. For example:
+
+```python
+Param(None, type=["null", "string"])
+```
+
+Now if you resolve a ``Param`` without a default and don't pass a value, you will get an ``TypeError``. For Example:
+
+```python
+Param().resolve()  # raises TypeError
+```
+
+### `max_queued_runs_per_dag` configuration has been removed
+
+The `max_queued_runs_per_dag` configuration option in `[core]` section has been removed. Previously, this controlled the number of queued dagrun
+the scheduler can create in a dag. Now, the maximum number is controlled internally by the DAG's `max_active_runs`
+
+## Airflow 2.2.0
+
+Note: Upgrading the database to `2.2.0` or later can take some time to complete, particularly if you have a large `task_instance` table.
+
+### `worker_log_server_port` configuration has been moved to the ``logging`` section.
+
+The `worker_log_server_port` configuration option has been moved from `[celery]` section to `[logging]` section to allow for re-use between different executors.
+
+### `pandas` is now an optional dependency
+
+Previously `pandas` was a core requirement so when you run `pip install apache-airflow` it looked for `pandas`
+library and installed it if it does not exist.
+
+If you want to install `pandas` compatible with Airflow, you can use `[pandas]` extra while
+installing Airflow, example for Python 3.8 and Airflow 2.1.2:
+
+```shell
+pip install -U "apache-airflow[pandas]==2.1.2" \
+  --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.8.txt"
+```
+
+### `none_failed_or_skipped` trigger rule has been deprecated
+
+`TriggerRule.NONE_FAILED_OR_SKIPPED` is replaced by `TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.NONE_FAILED_OR_SKIPPED` will be removed in next major release.
+
+### Dummy trigger rule has been deprecated
+
+`TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.DUMMY` will be removed in next major release.
+
 ### DAG concurrency settings have been renamed
 
 `[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
@@ -105,8 +229,9 @@ Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     concurrency=3,
-    start_date=days_ago(2),
 )
 ```
 
@@ -115,16 +240,78 @@ dag = DAG(
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     max_active_tasks=3,
-    start_date=days_ago(2),
 )
 ```
 
 If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `concurrency`.
 
+### Task concurrency parameter has been renamed
+
+`BaseOperator.task_concurrency` has been deprecated and renamed to `max_active_tis_per_dag` for
+better understanding.
+
+This parameter controls the number of concurrent running task instances across ``dag_runs``
+per task.
+
+**Before**:
+
+```python
+with DAG(dag_id="task_concurrency_example"):
+    BashOperator(task_id="t1", task_concurrency=2, bash_command="echo Hi")
+```
+
+**After**:
+
+```python
+with DAG(dag_id="task_concurrency_example"):
+    BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
+```
+
+### `processor_poll_interval` config have been renamed to `scheduler_idle_sleep_time`
+
+`[scheduler] processor_poll_interval` setting in `airflow.cfg` has been renamed to `[scheduler] scheduler_idle_sleep_time`
+for better understanding.
+
+It controls the 'time to sleep' at the end of the Scheduler loop if nothing was scheduled inside `SchedulerJob`.
+
+**Before**:
+
+```ini
+[scheduler]
+processor_poll_interval = 16
+```
+
+**Now**:
+
+```ini
+[scheduler]
+scheduler_idle_sleep_time = 16
+```
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
+
+### `[core] store_dag_code` has been removed
+
+While DAG Serialization is a strict requirements since Airflow 2, we allowed users to control
+where the Webserver looked for when showing the **Code View**.
+
+If `[core] store_dag_code` was set to `True`, the Scheduler stored the code in the DAG file in the
+DB (in `dag_code` table) as a plain string, and the webserver just read it from the same table.
+If the value was set to `False`, the webserver read it from the DAG file.
+
+While this setting made sense for Airflow < 2, it caused some confusion to some users where they thought
+this setting controlled DAG Serialization.
+
+From Airflow 2.2, Airflow will only look for DB when a user clicks on **Code View** for a DAG.
+
+### Clearing a running task sets its state to `RESTARTING`
+
+Previously, clearing a running task sets its state to `SHUTDOWN`. The task gets killed and goes into `FAILED` state. After [#16681](https://github.com/apache/airflow/pull/16681), clearing a running task sets its state to `RESTARTING`. The task is eligible for retry without going into `FAILED` state.
 
 ### Remove `TaskInstance.log_filepath` attribute
 
@@ -150,9 +337,49 @@ not have any effect in an existing deployment where the ``default_pool`` already
 
 Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
 
+### Webserver DAG refresh buttons removed
+
+Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
+
+In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
+
+### TaskInstances now *require* a DagRun
+
+Under normal operation every TaskInstance row in the database would have DagRun row too, but it was possible to manually delete the DagRun and Airflow would still schedule the TaskInstances.
+
+In Airflow 2.2 we have changed this and now there is a database-level foreign key constraint ensuring that every TaskInstance has a DagRun row.
+
+Before updating to this 2.2 release you will have to manually resolve any inconsistencies (add back DagRun rows, or delete TaskInstances) if you have any "dangling" TaskInstance" rows.
+
+As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
+
+### TaskInstance and TaskReschedule now define `run_id` instead of `execution_date`
+
+As a part of the TaskInstance-DagRun relation change, the `execution_date` columns on TaskInstance and TaskReschedule have been removed from the database, and replaced by [association proxy](https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html) fields at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the `run_id` columns instead.
+
+Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+
+### DaskExecutor - Dask Worker Resources and queues
+
+If dask workers are not started with complementary resources to match the specified queues, it will now result in an `AirflowException`, whereas before it would have just ignored the `queue` argument.
+
+## Airflow 2.1.4
+
+No breaking changes.
+
+## Airflow 2.1.3
+
+No breaking changes.
+
+## Airflow 2.1.2
+
+No breaking changes.
+
+## Airflow 2.1.1
+
 ### `activate_dag_runs` argument of the function `clear_task_instances` is replaced with `dag_run_state`
 
-To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead.
+To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous parameter is still accepted, but is deprecated)
 
 ### `dag.set_dag_runs_state` is deprecated
 
@@ -381,8 +608,6 @@ from my_plugin import MyHook
 It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
 
 See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
-
-### Adding Operators and Sensors via plugins is no longer supported
 
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
@@ -953,8 +1178,6 @@ in `SubDagOperator`.
 
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
-#### `airflow.providers.http.operators.http.SimpleHttpOperator`
-
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
 The following operators were affected:
@@ -1196,7 +1419,7 @@ delete this option.
 
 #### `airflow.models.dagbag.DagBag`
 
-Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+Passing `store_serialized_dags` argument to `DagBag.__init__` and accessing `DagBag.store_serialized_dags` property
 are deprecated and will be removed in future versions.
 
 
@@ -1683,6 +1906,16 @@ previous one was (project_id, dataset_id, ...) (breaking change)
 - `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
  favor of `list_rows`. (breaking change)
 
+#### `airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook`
+
+#### `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
+
+The `api_version` has been removed and will not be used since we migrate `CloudBuildHook` from using
+ Discovery API to native google-cloud-build python library.
+
+The `body` parameter in `CloudBuildCreateBuildOperator` has been deprecated.
+ Instead, you should pass body using the `build` parameter.
+
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
@@ -1707,9 +1940,61 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
-#### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+##### Generating Cluster Config
 
-We changed signature of BigQueryGetDatasetTablesOperator.
+If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG**,
+You can easily generate config using **make()** of `airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+
+This has been proved specially useful if you are using **metadata** argument from older API, refer [AIRFLOW-16911](https://github.com/apache/airflow/issues/16911) for details.
+
+eg. your cluster creation may look like this in **v1.10.x**
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+create_cluster = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    zone="us-central1-a",
+    region="us-central1",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test_bucket",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+)
+```
+
+After upgrading to **v2.x.x** and using **CLUSTER_CONFIG**, it will look like followed:
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+CLUSTER_CONFIG = ClusterGenerator(
+    project_id="test",
+    zone="us-central1-a",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+).make()
+
+create_cluster_operator = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    region="us-central1",
+    cluster_config=CLUSTER_CONFIG,
+)
+```
+
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+
+We changed signature of `BigQueryGetDatasetTablesOperator`.
 
 Before:
 
@@ -1933,7 +2218,7 @@ We deprecated a number of extras in 2.0.
 
 For example:
 
-If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+If you want to install integration for Apache Atlas, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
 
@@ -1945,7 +2230,7 @@ If you want to install integration for Microsoft Azure, then instead of
 pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
 
-you should execute `pip install 'apache-airflow[azure]'`
+you should run `pip install 'apache-airflow[microsoft.azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
@@ -3115,7 +3400,7 @@ Please read through the new scheduler options, defaults have changed since 1.7.1
 
 #### child_process_log_directory
 
-In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
+In order to increase the robustness of the scheduler, DAGs are now processed in their own process. Therefore each
 DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 

@@ -45,4 +45,4 @@ class TestJiraHook(unittest.TestCase):
 
         assert jira_mock.called
         assert isinstance(jira_hook.client, Mock)
-        assert jira_hook.client.name == jira_mock.return_value.name  # pylint: disable=no-member
+        assert jira_hook.client.name == jira_mock.return_value.name

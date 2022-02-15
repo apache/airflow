@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook  # noqa
 
 warnings.warn(

@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.createUserJob) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -35,13 +36,16 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+  {{- $annotations := dict }}
+  {{- if .Values.createUserJob.useHelmHooks }}
+    {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+    {{- $_ := set $annotations "helm.sh/hook-weight" "2" }}
+    {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+  {{- end }}
+  {{- with $annotations := merge $annotations .Values.createUserJob.jobAnnotations }}
   annotations:
-    "helm.sh/hook": post-install
-    "helm.sh/hook-weight": "2"
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
-    {{- if .Values.createUserJob.jobAnnotations }}
-    {{- toYaml .Values.createUserJob.jobAnnotations | nindent 4 }}
-    {{- end }}
+    {{- $annotations | toYaml | nindent 4 }}
+  {{- end }}
 spec:
   template:
     metadata:
@@ -49,6 +53,9 @@ spec:
         tier: airflow
         component: create-user-job
         release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}
       annotations:
         {{- if .Values.airflowPodAnnotations }}
@@ -59,8 +66,7 @@ spec:
         {{- end }}
       {{- end }}
     spec:
-      securityContext:
-          runAsUser: {{ .Values.uid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
@@ -103,13 +109,24 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          resources:
+{{ toYaml .Values.createUserJob.resources | indent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+{{- if .Values.createUserJob.extraVolumeMounts }}
+{{ toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
+{{- end }}
+{{- if .Values.createUserJob.extraContainers }}
+{{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
+{{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.createUserJob.extraVolumes }}
+{{ toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
+{{- end }}
 {{- end }}

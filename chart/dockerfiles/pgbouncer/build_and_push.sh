@@ -17,14 +17,31 @@
 # under the License.
 set -euo pipefail
 DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+readonly DOCKERHUB_USER
+
 DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+readonly DOCKERHUB_REPO
+
 PGBOUNCER_VERSION="1.14.0"
+readonly PGBOUNCER_VERSION
+
 AIRFLOW_PGBOUNCER_VERSION="2021.04.28"
+readonly AIRFLOW_PGBOUNCER_VERSION
+
 COMMIT_SHA=$(git rev-parse HEAD)
+readonly COMMIT_SHA
+
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:airflow-pgbouncer-${AIRFLOW_PGBOUNCER_VERSION}-${PGBOUNCER_VERSION}"
+readonly TAG
+
+function center_text() {
+    columns=$(tput cols || echo 80)
+    printf "%*s\n" $(( (${#1} + columns) / 2)) "$1"
+}
 
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:airflow-pgbouncer-${AIRFLOW_PGBOUNCER_VERSION}-${PGBOUNCER_VERSION}"
+center_text "Building image"
 
 docker build . \
     --pull \
@@ -33,4 +50,12 @@ docker build . \
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
     --tag "${TAG}"
 
+center_text "Checking image"
+
+docker run --rm "${TAG}" pgbouncer --version
+
+echo Image labels:
+docker inspect "${TAG}" --format '{{ json .ContainerConfig.Labels }}' | python3 -m json.tool
+
+center_text "Pushing image"
 docker push "${TAG}"

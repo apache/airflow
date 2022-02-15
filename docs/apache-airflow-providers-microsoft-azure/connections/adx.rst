@@ -19,10 +19,10 @@
 
 .. _howto/connection:adx:
 
-Microsoft Azure Data Explorer Connection
-=========================================
+Microsoft Azure Data Explorer
+=============================
 
-The Microsoft Azure Blob Storage connection type enables the Azure Blob Storage Integrations.
+The ``Azure Data Explorer`` connection type enables Azure Data Explorer (ADX) integrations in Airflow.
 
 Authenticating to Azure Data Explorer
 ---------------------------------------
@@ -31,13 +31,13 @@ There are three ways to connect to Azure Data Explorer using Airflow.
 
 1. Use `AAD application certificate
    <https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-certificate-credentials>`_
-   i.e. use AAD_APP or AAD_APP_CERT as ``auth_method`` in the Airflow connection.
+   (i.e. use "AAD_APP" or "AAD_APP_CERT" as the Authentication Method in the Airflow connection).
 2. Use `AAD username and password
    <https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-authentication-methods>`_
-   i.e. use AAD_CREDS as ``auth_method`` in the Airflow connection.
+   (i.e. use "AAD_CREDS" as the Authentication Method in the Airflow connection).
 3. Use a `AAD device code
    <https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-device-code>`_
-   i.e. use AAD_DEVICE as ``auth_method`` in the Airflow connection.
+   (i.e. use "AAD_DEVICE" as the Authentication Method in the Airflow connection).
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -50,39 +50,34 @@ All hooks and operators related to Microsoft Azure Data Explorer use ``azure_dat
 Configuring the Connection
 --------------------------
 
-Login (optional)
+Data Explorer Cluster URL
+    Specify the Data Explorer cluster URL. Needed for all authentication methods.
+
+Authentication Method
+    Specify authentication method. Available authentication methods are:
+
+    * AAD_APP: Authentication with AAD application certificate. A Tenant ID is required when using this method. Provide application ID and application key through Username and Password parameters.
+
+    * AAD_APP_CERT: Authentication with AAD application certificate. Tenant ID, Application PEM Certificate, and Application Certificate Thumbprint are required when using this method.
+
+    * AAD_CREDS: Authentication with AAD username and password. A Tenant ID is required when using this method. Username and Password parameters are used for authentication with AAD.
+
+    * AAD_DEVICE: Authenticate with AAD device code. Please note that if you choose this option, you'll need to authenticate for every new instance that is initialized. It is highly recommended to create one instance and use it for all queries.
+
+Username (optional)
     Specify the username used for data explorer. Needed for with AAD_APP, AAD_APP_CERT, and AAD_CREDS authentication methods.
 
 Password (optional)
     Specify the password used for data explorer. Needed for with AAD_APP, and AAD_CREDS authentication methods.
 
-Host
-    Specify the data explorer cluster url. Needed for all authentication methods.
+Tenant ID (optional)
+    Specify AAD tenant. Needed for AAD_APP, AAD_APP_CERT, and AAD_CREDS.
 
-Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in Azure connection.
-    The following parameters are all optional:
+Application PEM Certificate (optional)
+    Specify the certificate. Needed for AAD_APP_CERT authentication method.
 
-    * ``auth_method``: Specify authentication method. Available authentication methods are:
-
-      AAD_APP : Authentication with AAD application certificate. Extra parameters:
-      "tenant" is required when using this method. Provide application ID
-      and application key through username and password parameters.
-
-      AAD_APP_CERT: Authentication with AAD application certificate. Extra parameters:
-      "tenant", "certificate" and "thumbprint" are required when using this method.
-
-      AAD_CREDS : Authentication with AAD username and password. Extra parameters:
-      "tenant" is required when using this method. Username and password
-      parameters are used for authentication with AAD.
-
-      AAD_DEVICE : Authenticate with AAD device code. Please note that if you choose
-      this option, you'll need to authenticate for every new instance that is initialized.
-      It is highly recommended to create one instance and use it for all queries.
-
-    * ``tenant``: Specify AAD tenant. Needed for AAD_APP, AAD_APP_CERT, and AAD_CREDS.
-    * ``certificate``: Specify the certificate. Needed for AAD_APP_CERT authentication method.
-    * ``thumbprint``: Specify the thumbprint needed for use with AAD_APP_CERT authentication method.
+Application Certificate Thumbprint (optional)
+    Specify the thumbprint needed for use with AAD_APP_CERT authentication method.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

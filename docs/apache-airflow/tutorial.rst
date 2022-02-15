@@ -77,6 +77,7 @@ of default parameters that we can use when creating tasks.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START default_args]
     :end-before: [END default_args]
 
@@ -150,13 +151,8 @@ stamp").
     :end-before: [END jinja_template]
 
 Notice that the ``templated_command`` contains code logic in ``{% %}`` blocks,
-references parameters like ``{{ ds }}``, calls a function as in
-``{{ macros.ds_add(ds, 7)}}``, and references a user-defined parameter
-in ``{{ params.my_param }}``.
-
-The ``params`` hook in ``BaseOperator`` allows you to pass a dictionary of
-parameters and/or objects to your templates. Please take the time
-to understand how the parameter ``my_param`` makes it through to the template.
+references parameters like ``{{ ds }}``, and calls a function as in
+``{{ macros.ds_add(ds, 7)}}``.
 
 Files can also be passed to the ``bash_command`` argument, like
 ``bash_command='templated_command.sh'``, where the file location is relative to
@@ -175,18 +171,18 @@ to use ``{{ foo }}`` in your templates. Moreover, specifying
 passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
 you to use ``{{ 'world' | hello }}`` in your templates. For more information
 regarding custom filters have a look at the
-`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_.
+`Jinja Documentation <https://jinja.palletsprojects.com/en/latest/api/#custom-filters>`_.
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :doc:`macros-ref`.
+in templates, make sure to read through the :ref:`templates-ref`.
 
 Adding DAG and Tasks documentation
 ----------------------------------
-We can add documentation for DAG or each single task. DAG documentation only support
-markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml. The DAG documentation can be written as a doc string at the beginning of the DAG file (recommended)
-or anywhere in the file. Below you can find some examples on how to implement task and DAG docs,
-as well as screenshots:
+We can add documentation for DAG or each single task. DAG documentation only supports
+markdown so far, while task documentation supports plain text, markdown, reStructuredText,
+json, and yaml. The DAG documentation can be written as a doc string at the beginning
+of the DAG file (recommended), or anywhere else in the file. Below you can find some examples
+on how to implement task and DAG docs, as well as screenshots:
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
@@ -288,11 +284,17 @@ Let's run a few commands to validate this script further.
 
 Testing
 '''''''
-Let's test by running the actual task instances for a specific date. The
-date specified in this context is called ``execution_date``. This is the
-*logical* date, which simulates the scheduler running your task or dag at
-a specific date and time, even though it *physically* will run now (
-or as soon as its dependencies are met).
+Let's test by running the actual task instances for a specific date. The date
+specified in this context is called the *logical date* (also called *execution
+date* for historical reasons), which simulates the scheduler running your task
+or DAG for a specific date and time, even though it *physically* will run now
+(or as soon as its dependencies are met).
+
+We said the scheduler runs your task *for* a specific date and time, not *at*.
+This is because each run of a DAG conceptually represents not a specific date
+and time, but an interval between two times, called a
+:ref:`data interval <data-interval>`. A DAG run's logical date is the start of
+its data interval.
 
 .. code-block:: bash
 
@@ -320,10 +322,11 @@ their log to stdout (on screen), does not bother with dependencies, and
 does not communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
 
-The same applies to ``airflow dags test [dag_id] [execution_date]``, but on a DAG level. It performs a single
-DAG run of the given DAG id. While it does take task dependencies into account, no state is registered in the
-database. It is convenient for locally testing a full run of your DAG, given that e.g. if one of your tasks
-expects data at some location, it is available.
+The same applies to ``airflow dags test [dag_id] [logical_date]``, but on a DAG
+level. It performs a single DAG run of the given DAG id. While it does take task
+dependencies into account, no state is registered in the database. It is
+convenient for locally testing a full run of your DAG, given that e.g. if one of
+your tasks expects data at some location, it is available.
 
 Backfill
 ''''''''
@@ -335,9 +338,9 @@ are interested in tracking the progress visually as your backfill progresses.
 
 Note that if you use ``depends_on_past=True``, individual task instances
 will depend on the success of their previous task instance (that is, previous
-according to ``execution_date``). Task instances with ``execution_date==start_date``
-will disregard this dependency because there would be no
-past task instances created for them.
+according to the logical date). Task instances with their logical dates equal to
+``start_date`` will disregard this dependency because there would be no past
+task instances created for them.
 
 You may also want to consider ``wait_for_downstream=True`` when using ``depends_on_past=True``.
 While ``depends_on_past=True`` causes a task instance to depend on the success
@@ -357,6 +360,200 @@ which are used to populate the run schedule with task instances from this dag.
     airflow dags backfill tutorial \
         --start-date 2015-06-01 \
         --end-date 2015-06-07
+
+
+Pipeline Example
+''''''''''''''''''''
+
+Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
+
+Initial setup
+''''''''''''''''''''
+We need to have Docker and Postgres installed.
+We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
+Follow the instructions properly to set up Airflow.
+
+Create a Employee table in Postgres using this:
+
+.. code-block:: sql
+
+  CREATE TABLE "Employees"
+  (
+      "Serial Number" NUMERIC PRIMARY KEY,
+      "Company Name" TEXT,
+      "Employee Markme" TEXT,
+      "Description" TEXT,
+      "Leave" INTEGER
+  );
+
+  CREATE TABLE "Employees_temp"
+  (
+      "Serial Number" NUMERIC PRIMARY KEY,
+      "Company Name" TEXT,
+      "Employee Markme" TEXT,
+      "Description" TEXT,
+      "Leave" INTEGER
+  );
+
+We also need to add a connection to Postgres. Go to the UI and click "Admin" >> "Connections". Specify the following for each field:
+
+- Conn id: LOCAL
+- Conn Type: postgres
+- Host: postgres
+- Schema: <DATABASE_NAME>
+- Login: airflow
+- Password: airflow
+- Port: 5432
+
+After that, you can test your connection and if you followed all the steps correctly, it should show a success notification. Proceed with saving the connection and we are now ready write the DAG.
+
+Let's break this down into 2 steps: get data & merge data:
+
+.. code-block:: python
+
+  import requests
+  from airflow.decorators import task
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+
+  @task
+  def get_data():
+      # NOTE: configure this as appropriate for your airflow environment
+      data_path = "/opt/airflow/dags/files/employees.csv"
+
+      url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
+
+      response = requests.request("GET", url)
+
+      with open(data_path, "w") as file:
+          file.write(response.text)
+
+      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      conn = postgres_hook.get_conn()
+      cur = conn.cursor()
+      with open(data_path, "r") as file:
+          cur.copy_expert(
+              "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+              file,
+          )
+      conn.commit()
+
+Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table.
+
+.. code-block:: python
+
+  from airflow.decorators import task
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+
+  @task
+  def merge_data():
+      query = """
+          DELETE FROM "Employees" e
+          USING "Employees_temp" et
+          WHERE e."Serial Number" = et."Serial Number";
+
+          INSERT INTO "Employees"
+          SELECT *
+          FROM "Employees_temp";
+      """
+      try:
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          cur.execute(query)
+          conn.commit()
+          return 0
+      except Exception as e:
+          return 1
+
+Here we are first looking for duplicate values and removing them before we insert new values in our final table.
+
+
+Lets look at our DAG:
+
+.. code-block:: python
+
+  from datetime import datetime, timedelta
+
+  import requests
+  from airflow.decorators import dag, task
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+
+  @dag(
+      schedule_interval="0 0 * * *",
+      start_date=datetime(2021, 1, 1),
+      catchup=False,
+      dagrun_timeout=timedelta(minutes=60),
+  )
+  def Etl():
+      @task
+      def get_data():
+          # NOTE: configure this as appropriate for your airflow environment
+          data_path = "/opt/airflow/dags/files/employees.csv"
+
+          url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
+
+          response = requests.request("GET", url)
+
+          with open(data_path, "w") as file:
+              file.write(response.text)
+
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          with open(data_path, "r") as file:
+              cur.copy_expert(
+                  "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+                  file,
+              )
+          conn.commit()
+
+      @task
+      def merge_data():
+          query = """
+                  DELETE FROM "Employees" e
+                  USING "Employees_temp" et
+                  WHERE e."Serial Number" = et."Serial Number";
+
+                  INSERT INTO "Employees"
+                  SELECT *
+                  FROM "Employees_temp";
+                  """
+          try:
+              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              conn = postgres_hook.get_conn()
+              cur = conn.cursor()
+              cur.execute(query)
+              conn.commit()
+              return 0
+          except Exception as e:
+              return 1
+
+      get_data() >> merge_data()
+
+
+  dag = Etl()
+
+This dag runs daily at 00:00.
+Add this python file to airflow/dags folder (e.g. ``dags/etl.py``) and go back to the main folder and run:
+
+.. code-block:: bash
+
+  docker-compose up airflow-init
+  docker-compose up
+
+Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example:
+
+.. image:: img/new_tutorial-1.png
+
+
+.. image:: img/new_tutorial-2.png
+
+The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
+Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows.
+
 
 What's Next?
 -------------

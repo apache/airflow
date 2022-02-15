@@ -17,11 +17,14 @@
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
 import warnings
-from typing import Dict, Iterable, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GCSToS3Operator(BaseOperator):
@@ -29,27 +32,19 @@ class GCSToS3Operator(BaseOperator):
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
-    :type prefix: str
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
-    :type delimiter: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type google_cloud_storage_conn_id: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param dest_aws_conn_id: The destination S3 connection
-    :type dest_aws_conn_id: str
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
-    :type dest_s3_key: str
     :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -61,7 +56,6 @@ class GCSToS3Operator(BaseOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
 
-    :type dest_verify: bool or str
     :param replace: Whether or not to verify the existence of the files in the
         destination bucket.
         By default is set to False
@@ -69,7 +63,6 @@ class GCSToS3Operator(BaseOperator):
         the destination bucket.
         If set to False, will upload only the files that are in the origin but not
         in the destination bucket.
-    :type replace: bool
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -78,13 +71,11 @@ class GCSToS3Operator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     :param s3_acl_policy: Optional The string to specify the canned ACL policy for the
         object to be uploaded in S3
-    :type s3_acl_policy: str
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'delimiter',
@@ -95,7 +86,7 @@ class GCSToS3Operator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         bucket: str,
         prefix: Optional[str] = None,
         delimiter: Optional[str] = None,
@@ -135,7 +126,7 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
 
-    def execute(self, context) -> List[str]:
+    def execute(self, context: 'Context') -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -173,14 +164,16 @@ class GCSToS3Operator(BaseOperator):
         if files:
 
             for file in files:
-                file_bytes = hook.download(object_name=file, bucket_name=self.bucket)
+                with hook.provide_file(object_name=file, bucket_name=self.bucket) as local_tmp_file:
+                    dest_key = self.dest_s3_key + file
+                    self.log.info("Saving file to %s", dest_key)
 
-                dest_key = self.dest_s3_key + file
-                self.log.info("Saving file to %s", dest_key)
-
-                s3_hook.load_bytes(
-                    cast(bytes, file_bytes), key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
-                )
+                    s3_hook.load_file(
+                        filename=local_tmp_file.name,
+                        key=dest_key,
+                        replace=self.replace,
+                        acl_policy=self.s3_acl_policy,
+                    )
 
             self.log.info("All done, uploaded %d files to S3", len(files))
         else:

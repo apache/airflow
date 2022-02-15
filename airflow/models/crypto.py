@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 
 class FernetProtocol(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
+    """This class is only used for TypeChecking (for IDEs, mypy, etc)"""
 
     def decrypt(self, b):
         """Decrypt with Fernet"""
@@ -71,7 +71,7 @@ def get_fernet():
     :return: Fernet object
     :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
-    global _fernet  # pylint: disable=global-statement
+    global _fernet
 
     if _fernet:
         return _fernet

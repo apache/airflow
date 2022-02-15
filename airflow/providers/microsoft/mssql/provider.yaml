@@ -22,15 +22,22 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 versions:
+  - 2.1.0
+  - 2.0.1
   - 2.0.0
   - 1.1.0
   - 1.0.1
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Microsoft SQL Server (MSSQL)
     external-doc-url: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
     logo: /integration-logos/mssql/Microsoft-SQL-Server.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-mssql/operators.rst
     tags: [software]
 
 operators:
@@ -43,5 +50,9 @@ hooks:
     python-modules:
       - airflow.providers.microsoft.mssql.hooks.mssql
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook
+
+connection-types:
+  - hook-class-name: airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook
+    connection-type: mssql

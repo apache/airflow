@@ -19,11 +19,14 @@
 import signal
 from typing import Optional
 
+import psutil
 from sqlalchemy.exc import OperationalError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
+from airflow.listeners.events import register_task_instance_state_events
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.sentry import Sentry
@@ -51,6 +54,7 @@ class LocalTaskJob(BaseJob):
         mark_success: bool = False,
         pickle_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         *args,
         **kwargs,
     ):
@@ -63,7 +67,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
-        self.task_runner = None
+        self.external_executor_id = external_executor_id
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -72,22 +76,16 @@ class LocalTaskJob(BaseJob):
         super().__init__(*args, **kwargs)
 
     def _execute(self):
+        self._enable_task_listeners()
         self.task_runner = get_task_runner(self)
 
-        # pylint: disable=unused-argument
         def signal_handler(signum, frame):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
-            self.on_kill()
-            self.task_instance.refresh_from_db()
-            if self.task_instance.state not in State.finished:
-                self.task_instance.set_state(State.FAILED)
-            self.task_instance._run_finished_callback(  # pylint: disable=protected-access
-                error="task received sigterm"
-            )
-            raise AirflowException("LocalTaskJob received SIGTERM signal")
+            self.task_runner.terminate()
+            self.handle_task_exit(128 + signum)
+            return
 
-        # pylint: enable=unused-argument
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
@@ -98,12 +96,18 @@ class LocalTaskJob(BaseJob):
             ignore_ti_state=self.ignore_ti_state,
             job_id=self.id,
             pool=self.pool,
+            external_executor_id=self.external_executor_id,
         ):
             self.log.info("Task is not able to be run")
             return
 
         try:
             self.task_runner.start()
+
+            # Unmap the task _after_ it has forked/execed. (This is a bit of a kludge, but if we unmap before
+            # fork, then the "run_raw_task" command will see the mapping index and an Non-mapped task and
+            # fail)
+            self.task_instance.task = self.task_instance.task.unmap()
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
@@ -144,29 +148,33 @@ class LocalTaskJob(BaseJob):
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
                     self.log.error("Heartbeat time limit exceeded!")
                     raise AirflowException(
-                        "Time since last heartbeat({:.2f}s) "
-                        "exceeded limit ({}s).".format(time_since_last_heartbeat, heartbeat_time_limit)
+                        f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
+                        f"({heartbeat_time_limit}s)."
                     )
         finally:
             self.on_kill()
 
     def handle_task_exit(self, return_code: int) -> None:
-        """Handle case where self.task_runner exits by itself"""
+        """Handle case where self.task_runner exits by itself or is externally killed"""
+        # Without setting this, heartbeat may get us
+        self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
         self.task_instance.refresh_from_db()
-        # task exited by itself, so we need to check for error file
+
+        if self.task_instance.state == State.RUNNING:
+            # This is for a case where the task received a SIGKILL
+            # while running or the task runner received a sigterm
+            self.task_instance.handle_failure(error=None)
+        # We need to check for error file
         # in case it failed due to runtime exception/error
         error = None
-        if self.task_instance.state == State.RUNNING:
-            # This is for a case where the task received a sigkill
-            # while running
-            self.task_instance.set_state(State.FAILED)
         if self.task_instance.state != State.SUCCESS:
             error = self.task_runner.deserialize_run_error()
-        self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
+        self.task_instance._run_finished_callback(error=error)
         if not self.task_instance.test_mode:
             if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
                 self._run_mini_scheduler_on_child_tasks()
+            self._update_dagrun_state_for_paused_dag()
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -188,20 +196,34 @@ class LocalTaskJob(BaseJob):
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
                 self.log.warning(
-                    "The recorded hostname %s " "does not match this instance's hostname " "%s",
+                    "The recorded hostname %s does not match this instance's hostname %s",
                     ti.hostname,
                     fqdn,
                 )
                 raise AirflowException("Hostname of job runner does not match")
-
             current_pid = self.task_runner.process.pid
-            same_process = ti.pid == current_pid
-            if ti.pid is not None and not same_process:
-                self.log.warning("Recorded pid %s does not match " "the current pid %s", ti.pid, current_pid)
+            recorded_pid = ti.pid
+            same_process = recorded_pid == current_pid
+
+            if ti.run_as_user or self.task_runner.run_as_user:
+                recorded_pid = psutil.Process(ti.pid).ppid()
+                same_process = recorded_pid == current_pid
+
+            if recorded_pid is not None and not same_process:
+                self.log.warning(
+                    "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
+                )
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
+            if ti.state == State.SKIPPED:
+                # A DagRun timeout will cause tasks to be externally marked as skipped.
+                dagrun = ti.get_dagrun(session=session)
+                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                dagrun_timeout = ti.task.dag.dagrun_timeout
+                if dagrun_timeout and execution_time > dagrun_timeout:
+                    self.log.warning("DagRun timed out after %s.", str(execution_time))
             self.log.warning(
-                "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
+                "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
             self.task_runner.terminate()
             if ti.state == State.SUCCESS:
@@ -209,9 +231,9 @@ class LocalTaskJob(BaseJob):
             else:
                 # if ti.state is not set by taskinstance.handle_failure, then
                 # error file will not be populated and it must be updated by
-                # external source suck as web UI
+                # external source such as web UI
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
-            ti._run_finished_callback(error=error)  # pylint: disable=protected-access
+            ti._run_finished_callback(error=error)
             self.terminating = True
 
     @provide_session
@@ -222,20 +244,20 @@ class LocalTaskJob(BaseJob):
             dag_run = with_row_locks(
                 session.query(DagRun).filter_by(
                     dag_id=self.dag_id,
-                    execution_date=self.task_instance.execution_date,
+                    run_id=self.task_instance.run_id,
                 ),
                 session=session,
             ).one()
 
-            # Get a partial dag with just the specific tasks we want to
-            # examine. In order for dep checks to work correctly, we
-            # include ourself (so TriggerRuleDep can check the state of the
-            # task we just executed)
             task = self.task_instance.task
+            assert task.dag  # For Mypy.
 
+            # Get a partial DAG with just the specific tasks we want to examine.
+            # In order for dep checks to work correctly, we include ourself (so
+            # TriggerRuleDep can check the state of the task we just executed).
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
-                include_downstream=False,
+                include_downstream=True,
                 include_upstream=False,
                 include_direct_upstream=True,
             )
@@ -264,3 +286,25 @@ class LocalTaskJob(BaseJob):
                 exc_info=True,
             )
             session.rollback()
+
+    @provide_session
+    def _update_dagrun_state_for_paused_dag(self, session=None):
+        """
+        Checks for paused dags with DagRuns in the running state and
+        update the DagRun state if possible
+        """
+        dag = self.task_instance.task.dag
+        if dag.get_is_paused():
+            dag_run = self.task_instance.get_dagrun(session=session)
+            if dag_run:
+                dag_run.dag = dag
+                dag_run.update_state(session=session, execute_callbacks=True)
+
+    @staticmethod
+    def _enable_task_listeners():
+        """
+        Check if we have any registered listeners, then register sqlalchemy hooks for
+        TI state change if we do.
+        """
+        if get_listener_manager().has_listeners:
+            register_task_instance_state_events()

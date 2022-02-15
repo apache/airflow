@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Callable, Iterable, Optional, Union
+from typing import Callable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.operators.sql import SQLCheckOperator, SQLValueCheckOperator
@@ -27,11 +27,14 @@ from airflow.providers.qubole.operators.qubole import QuboleOperator
 class _QuboleCheckOperatorMixin:
     """This is a Mixin for Qubole related check operators"""
 
+    kwargs: dict
+    results_parser_callable: Optional[Callable]
+
     def execute(self, context=None) -> None:
         """Execute a check operation against Qubole"""
         try:
             self._hook_context = context
-            super().execute(context=context)
+            super().execute(context=context)  # type: ignore[misc]
         except AirflowException as e:
             handle_airflow_exception(e, self.get_hook())
 
@@ -39,15 +42,16 @@ class _QuboleCheckOperatorMixin:
         """Get QuboleCheckHook"""
         return self.get_hook()
 
-    # this overwrite the original QuboleOperator.get_hook() which returns a QuboleHook.
     def get_hook(self) -> QuboleCheckHook:
-        """Reinitialising the hook, as some template fields might have changed"""
+        """
+        Reinitialising the hook, as some template fields might have changed
+        This method overwrites the original QuboleOperator.get_hook() which returns a QuboleHook.
+        """
         return QuboleCheckHook(
             context=self._hook_context, results_parser_callable=self.results_parser_callable, **self.kwargs
         )
 
 
-# pylint: disable=too-many-ancestors
 class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOperator):
     """
     Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
@@ -77,8 +81,11 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
     publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:QuboleCheckOperator`
+
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     kwargs:
 
@@ -97,14 +104,18 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 
     """
 
-    template_fields: Iterable[str] = set(QuboleOperator.template_fields) | set(
-        SQLCheckOperator.template_fields
+    template_fields: Sequence[str] = tuple(
+        set(QuboleOperator.template_fields) | set(SQLCheckOperator.template_fields)
     )
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
     def __init__(
-        self, *, qubole_conn_id: str = "qubole_default", results_parser_callable: Callable = None, **kwargs
+        self,
+        *,
+        qubole_conn_id: str = "qubole_default",
+        results_parser_callable: Optional[Callable] = None,
+        **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
         kwargs.pop('sql', None)
@@ -116,7 +127,8 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 
 
 # TODO(xinbinhuang): refactor to reduce levels of inheritance
-# pylint: disable=too-many-ancestors
+
+
 class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator, QuboleOperator):
     """
     Performs a simple value check using Qubole command.
@@ -126,16 +138,13 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
     is not within the permissible limit of expected value.
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
 
     :param pass_value: Expected value of the query results.
-    :type pass_value: str or int or float
 
     :param tolerance: Defines the permissible pass_value range, for example if
         tolerance is 2, the Qubole command output can be anything between
         -2*pass_value and 2*pass_value, without the operator erring out.
 
-    :type tolerance: int or float
 
 
     kwargs:
@@ -155,7 +164,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
             QuboleOperator and SQLValueCheckOperator are template-supported.
     """
 
-    template_fields = set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields)
+    template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
@@ -164,7 +173,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
         *,
         pass_value: Union[str, int, float],
         tolerance: Optional[Union[int, float]] = None,
-        results_parser_callable: Callable = None,
+        results_parser_callable: Optional[Callable] = None,
         qubole_conn_id: str = "qubole_default",
         **kwargs,
     ) -> None:
@@ -197,11 +206,7 @@ def handle_airflow_exception(airflow_exception, hook: QuboleCheckHook):
             qubole_command_results = hook.get_query_results()
             qubole_command_id = cmd.id
             exception_message = (
-                '\nQubole Command Id: {qubole_command_id}'
-                '\nQubole Command Results:'
-                '\n{qubole_command_results}'.format(
-                    qubole_command_id=qubole_command_id, qubole_command_results=qubole_command_results
-                )
+                f'\nQubole Command Id: {qubole_command_id}\nQubole Command Results:\n{qubole_command_results}'
             )
             raise AirflowException(str(airflow_exception) + exception_message)
     raise AirflowException(str(airflow_exception))

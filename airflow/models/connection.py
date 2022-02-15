@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+import logging
 import warnings
 from json import JSONDecodeError
 from typing import Dict, Optional, Union
@@ -34,6 +35,8 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
+
+log = logging.getLogger(__name__)
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -57,7 +60,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attributes
+class Connection(Base, LoggingMixin):
     """
     Placeholder to store information about different database instances
     connection information. The idea here is that scripts use references to
@@ -68,26 +71,16 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         For more information on how to use this class, see: :doc:`/howto/connection`
 
     :param conn_id: The connection ID.
-    :type conn_id: str
     :param conn_type: The connection type.
-    :type conn_type: str
     :param description: The connection description.
-    :type description: str
     :param host: The host.
-    :type host: str
     :param login: The login.
-    :type login: str
     :param password: The password.
-    :type password: str
     :param schema: The schema.
-    :type schema: str
     :param port: The port number.
-    :type port: int
     :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
         encoded object.
-    :type extra: str
     :param uri: URI address describing connection parameters.
-    :type uri: str
     """
 
     EXTRA_KEY = '__extra__'
@@ -107,7 +100,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', Text())
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         conn_id: Optional[str] = None,
         conn_type: Optional[str] = None,
@@ -125,9 +118,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
-        if uri and (  # pylint: disable=too-many-boolean-expressions
-            conn_type or host or login or password or schema or port or extra
-        ):
+        if uri and (conn_type or host or login or password or schema or port or extra):
             raise AirflowException(
                 "You must create an object using the URI or individual values "
                 "(conn_type, host, login, password, schema, port or extra)."
@@ -148,7 +139,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             mask_secret(self.password)
 
     @reconstructor
-    def on_db_load(self):  # pylint: disable=missing-function-docstring
+    def on_db_load(self):
         if self.password:
             mask_secret(self.password)
 
@@ -213,7 +204,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
         if self.extra:
             try:
-                query = urlencode(self.extra_dejson)
+                query: Optional[str] = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
@@ -229,10 +220,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             fernet = get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
-                    "Can't decrypt encrypted password for login={}, \
-                    FERNET_KEY configuration is missing".format(
-                        self.login
-                    )
+                    f"Can't decrypt encrypted password for login={self.login}  "
+                    f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
         else:
@@ -246,7 +235,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def password(cls):  # pylint: disable=no-self-argument
+    def password(cls):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_password', descriptor=property(cls.get_password, cls.set_password))
 
@@ -256,10 +245,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             fernet = get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
-                    "Can't decrypt `extra` params for login={},\
-                    FERNET_KEY configuration is missing".format(
-                        self.login
-                    )
+                    f"Can't decrypt `extra` params for login={self.login}, "
+                    f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
@@ -276,7 +263,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.is_extra_encrypted = False
 
     @declared_attr
-    def extra(cls):  # pylint: disable=no-self-argument
+    def extra(cls):
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
 
@@ -288,22 +275,25 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         if self._extra and self.is_extra_encrypted:
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
-    def get_hook(self):
-        """Return hook based on conn_type."""
-        hook_class_name, conn_id_param, package_name, hook_name = ProvidersManager().hooks.get(
-            self.conn_type, (None, None, None, None)
-        )
+    def get_hook(self, *, hook_params=None):
+        """Return hook based on conn_type"""
+        hook = ProvidersManager().hooks.get(self.conn_type, None)
 
-        if not hook_class_name:
+        if hook is None:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')
         try:
-            hook_class = import_string(hook_class_name)
+            hook_class = import_string(hook.hook_class_name)
         except ImportError:
             warnings.warn(
-                "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
+                "Could not import %s when discovering %s %s",
+                hook.hook_class_name,
+                hook.hook_name,
+                hook.package_name,
             )
             raise
-        return hook_class(**{conn_id_param: self.conn_id})
+        if hook_params is None:
+            hook_params = {}
+        return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     def __repr__(self):
         return self.conn_id
@@ -319,14 +309,10 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
-            self.conn_id,
-            self.host,
-            self.port,
-            self.schema,
-            self.login,
-            "XXXXXXXX" if self.password else None,
-            "XXXXXXXX" if self.extra_dejson else None,
+        return (
+            f"id: {self.conn_id}. Host: {self.host}, Port: {self.port}, Schema: {self.schema}, "
+            f"Login: {self.login}, Password: {'XXXXXXXX' if self.password else None}, "
+            f"extra: {'XXXXXXXX' if self.extra_dejson else None}"
         )
 
     def debug_info(self):
@@ -340,14 +326,10 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
-            self.conn_id,
-            self.host,
-            self.port,
-            self.schema,
-            self.login,
-            "XXXXXXXX" if self.password else None,
-            self.extra_dejson,
+        return (
+            f"id: {self.conn_id}. Host: {self.host}, Port: {self.port}, Schema: {self.schema}, "
+            f"Login: {self.login}, Password: {'XXXXXXXX' if self.password else None}, "
+            f"extra: {self.extra_dejson}"
         )
 
     def test_connection(self):
@@ -361,7 +343,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
                 message = (
                     f"Hook {hook.__class__.__name__} doesn't implement or inherit test_connection method"
                 )
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             message = str(e)
 
         return status, message
@@ -391,7 +373,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         :return: connection
         """
         for secrets_backend in ensure_secrets_loaded():
-            conn = secrets_backend.get_connection(conn_id=conn_id)
-            if conn:
-                return conn
+            try:
+                conn = secrets_backend.get_connection(conn_id=conn_id)
+                if conn:
+                    return conn
+            except Exception:
+                log.exception(
+                    'Unable to retrieve connection from secrets backend (%s). '
+                    'Checking subsequent secrets backend.',
+                    type(secrets_backend).__name__,
+                )
+
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")

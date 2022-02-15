@@ -19,6 +19,63 @@
 Changelog
 ---------
 
+2.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Clean up JenkinsJobTriggerOperator (#19019)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.0.3
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove distutils usages for Python 3.10 (#19064)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
+2.0.2
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed to check number key from jenkins response (#16963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Updating Jenkins example DAGs to use XComArgs (#16874)``
+
 2.0.0
 .....
 
@@ -40,6 +97,7 @@ Breaking changes
    * ``Remove Backport Providers (#14886)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.1.0
 .....

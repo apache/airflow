@@ -21,27 +21,26 @@ it will create an output notebook "out-<date>". All fields, including the keys i
 templated.
 """
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import scrapbook as sb
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.lineage import AUTO
-from airflow.operators.python import PythonOperator
 from airflow.providers.papermill.operators.papermill import PapermillOperator
-from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
+START_DATE = datetime(2021, 1, 1)
+SCHEDULE_INTERVAL = '0 0 * * *'
+DAGRUN_TIMEOUT = timedelta(minutes=60)
 
 with DAG(
     dag_id='example_papermill_operator',
-    default_args=default_args,
-    schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
-    dagrun_timeout=timedelta(minutes=60),
+    schedule_interval=SCHEDULE_INTERVAL,
+    start_date=START_DATE,
+    dagrun_timeout=DAGRUN_TIMEOUT,
     tags=['example'],
+    catchup=False,
 ) as dag_1:
     # [START howto_operator_papermill]
     run_this = PapermillOperator(
@@ -53,6 +52,7 @@ with DAG(
     # [END howto_operator_papermill]
 
 
+@task
 def check_notebook(inlets, execution_date):
     """
     Verify the message in the notebook
@@ -69,10 +69,10 @@ def check_notebook(inlets, execution_date):
 
 with DAG(
     dag_id='example_papermill_operator_2',
-    default_args=default_args,
-    schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
-    dagrun_timeout=timedelta(minutes=60),
+    schedule_interval=SCHEDULE_INTERVAL,
+    start_date=START_DATE,
+    dagrun_timeout=DAGRUN_TIMEOUT,
+    catchup=False,
 ) as dag_2:
 
     run_this = PapermillOperator(
@@ -82,6 +82,4 @@ with DAG(
         parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"},
     )
 
-    check_output = PythonOperator(task_id='check_out', python_callable=check_notebook, inlets=AUTO)
-
-    check_output.set_upstream(run_this)
+    run_this >> check_notebook(inlets=AUTO, execution_date="{{ execution_date }}")

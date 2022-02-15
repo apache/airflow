@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -50,12 +50,14 @@ class TestBaseChartTest(unittest.TestCase):
             ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
+            ('ServiceAccount', 'TEST-BASIC-triggerer'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
             ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
             ('Secret', 'TEST-BASIC-airflow-result-backend'),
             ('Secret', 'TEST-BASIC-broker-url'),
             ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Secret', 'TEST-BASIC-webserver-secret-key'),
             ('Secret', 'TEST-BASIC-postgresql'),
             ('Secret', 'TEST-BASIC-redis-password'),
             ('ConfigMap', 'TEST-BASIC-airflow-config'),
@@ -73,6 +75,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
+            ('Deployment', 'TEST-BASIC-triggerer'),
             ('Deployment', 'TEST-BASIC-webserver'),
             ('StatefulSet', 'TEST-BASIC-postgresql'),
             ('StatefulSet', 'TEST-BASIC-redis'),
@@ -83,7 +86,11 @@ class TestBaseChartTest(unittest.TestCase):
         assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search('metadata.labels', k8s_object) or {}
-            if 'postgresql' in labels.get('chart'):
+            if 'helm.sh/chart' in labels:
+                chart_name = labels.get('helm.sh/chart')
+            else:
+                chart_name = labels.get('chart')
+            if chart_name and 'postgresql' in chart_name:
                 continue
             k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
             assert 'TEST-VALUE' == labels.get(
@@ -91,7 +98,10 @@ class TestBaseChartTest(unittest.TestCase):
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
     def test_basic_deployment_without_default_users(self):
-        k8s_objects = render_chart("TEST-BASIC", {"webserver": {'defaultUser': {'enabled': False}}})
+        k8s_objects = render_chart(
+            "TEST-BASIC",
+            values={"webserver": {"defaultUser": {'enabled': False}}},
+        )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
@@ -133,7 +143,11 @@ class TestBaseChartTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
+                "ingress": {"enabled": True},
                 "networkPolicies": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "logs": {"persistence": {"enabled": True}},
+                "dags": {"persistence": {"enabled": True}},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
         )
@@ -143,6 +157,7 @@ class TestBaseChartTest(unittest.TestCase):
         }
 
         kind_names_tuples = [
+            (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
             (f"{release_name}-airflow-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
@@ -155,12 +170,17 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-airflow-statsd", "ServiceAccount", "statsd"),
             (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
+            (f"{release_name}-airflow-triggerer", "ServiceAccount", "triggerer"),
             (f"{release_name}-broker-url", "Secret", "redis"),
+            (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
+            (f"{release_name}-cleanup-role", "Role", None),
+            (f"{release_name}-cleanup-rolebinding", "RoleBinding", None),
             (f"{release_name}-create-user", "Job", "create-user-job"),
             (f"{release_name}-fernet-key", "Secret", None),
             (f"{release_name}-flower", "Deployment", "flower"),
             (f"{release_name}-flower", "Service", "flower"),
             (f"{release_name}-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
+            (f"{release_name}-flower-ingress", "Ingress", "flower-ingress"),
             (f"{release_name}-pgbouncer", "Deployment", "pgbouncer"),
             (f"{release_name}-pgbouncer", "Service", "pgbouncer"),
             (f"{release_name}-pgbouncer-config", "Secret", "pgbouncer"),
@@ -181,11 +201,16 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
             (f"{release_name}-webserver", "Deployment", "webserver"),
+            (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-webserver", "Service", "webserver"),
             (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
+            (f"{release_name}-airflow-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
+            (f"{release_name}-triggerer", "Deployment", "triggerer"),
+            (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
+            (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
         ]
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {
@@ -202,6 +227,41 @@ class TestBaseChartTest(unittest.TestCase):
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
+
+    def test_labels_are_valid_on_job_templates(self):
+        """Test labels are correctly applied on all job templates created by this chart"""
+        release_name = "TEST-BASIC"
+        k8s_objects = render_chart(
+            name=release_name,
+            values={
+                "labels": {"label1": "value1", "label2": "value2"},
+                "executor": "CeleryExecutor",
+                "pgbouncer": {"enabled": True},
+                "redis": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            },
+        )
+        dict_of_labels_in_job_templates = {
+            k8s_object['metadata']['name']: k8s_object['spec']['template']['metadata']['labels']
+            for k8s_object in k8s_objects
+            if k8s_object['kind'] == "Job"
+        }
+
+        kind_names_tuples = [
+            (f"{release_name}-create-user", "create-user-job"),
+            (f"{release_name}-run-airflow-migrations", "run-airflow-migrations"),
+        ]
+        for k8s_object_name, component in kind_names_tuples:
+            expected_labels = {
+                "label1": "value1",
+                "label2": "value2",
+                "tier": "airflow",
+                "release": release_name,
+                "component": component,
+            }
+            assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
     def test_annotations_on_airflow_pods_in_deployment(self):
         """
@@ -253,7 +313,7 @@ class TestBaseChartTest(unittest.TestCase):
 
         objs_with_image = get_k8s_objs_with_image(k8s_objects)
         for obj in objs_with_image:
-            image: str = obj["image"]  # pylint: disable=invalid-sequence-index
+            image: str = obj["image"]
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
                 assert "command" not in obj
@@ -308,3 +368,8 @@ class TestBaseChartTest(unittest.TestCase):
             'accessMode must be one of the following: "ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"'
             in ex_ctx.exception.stderr.decode()
         )
+
+    @parameterized.expand(["abc", "123", "123abc", "123-abc"])
+    def test_namespace_names(self, namespace):
+        """Test various namespace names to make sure they render correctly in templates"""
+        render_chart(namespace=namespace)

@@ -2,7 +2,7 @@
 
 NOTE! Those sources are only intended to be used to build Apache Airflow Provider packages,
 not the Apache Airflow. They have been generated using the unreleased version of Apache Airflow.
-(from master)
+(from main)
 
 The .tar.gz sdist package contains setup.py file that can be use to build the provider package using:
 

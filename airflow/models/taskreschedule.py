@@ -16,11 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """TaskReschedule tracks rescheduled task instances."""
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
+
+import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, text
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 
 class TaskReschedule(Base):
@@ -31,7 +40,8 @@ class TaskReschedule(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
@@ -39,19 +49,42 @@ class TaskReschedule(Base):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index('idx_task_reschedule_dag_task_date', dag_id, task_id, execution_date, unique=False),
+        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, map_index, unique=False),
         ForeignKeyConstraint(
-            [task_id, dag_id, execution_date],
-            ['task_instance.task_id', 'task_instance.dag_id', 'task_instance.execution_date'],
-            name='task_reschedule_dag_task_date_fkey',
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="task_reschedule_ti_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            [dag_id, run_id],
+            ['dag_run.dag_id', 'dag_run.run_id'],
+            name='task_reschedule_dr_fkey',
             ondelete='CASCADE',
         ),
     )
+    dag_run = relationship("DagRun")
+    execution_date = association_proxy("dag_run", "execution_date")
 
-    def __init__(self, task, execution_date, try_number, start_date, end_date, reschedule_date):
+    def __init__(
+        self,
+        task: "BaseOperator",
+        run_id: str,
+        try_number: int,
+        start_date: datetime.datetime,
+        end_date: datetime.datetime,
+        reschedule_date: datetime.datetime,
+        map_index: int = -1,
+    ):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.execution_date = execution_date
+        self.run_id = run_id
+        self.map_index = map_index
         self.try_number = try_number
         self.start_date = start_date
         self.end_date = end_date
@@ -65,14 +98,10 @@ class TaskReschedule(Base):
         Returns query for task reschedules for a given the task instance.
 
         :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: airflow.models.TaskInstance
         :param descending: If True then records are returned in descending order
-        :type descending: bool
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
-        :type try_number: int
         """
         if try_number is None:
             try_number = task_instance.try_number
@@ -81,7 +110,7 @@ class TaskReschedule(Base):
         qry = session.query(TR).filter(
             TR.dag_id == task_instance.dag_id,
             TR.task_id == task_instance.task_id,
-            TR.execution_date == task_instance.execution_date,
+            TR.run_id == task_instance.run_id,
             TR.try_number == try_number,
         )
         if descending:
@@ -97,12 +126,9 @@ class TaskReschedule(Base):
         in ascending order.
 
         :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: airflow.models.TaskInstance
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
-        :type try_number: int
         """
         return TaskReschedule.query_for_task_instance(
             task_instance, session=session, try_number=try_number

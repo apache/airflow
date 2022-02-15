@@ -35,7 +35,7 @@ depends_on = None
 RESOURCE_TABLE = "kube_worker_uuid"
 
 
-def upgrade():  # noqa: D103
+def upgrade():
 
     columns_and_constraints = [
         sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
@@ -55,5 +55,5 @@ def upgrade():  # noqa: D103
     op.bulk_insert(table, [{"worker_uuid": ""}])
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_table(RESOURCE_TABLE)

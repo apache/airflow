@@ -20,10 +20,6 @@ Google Ads Operators
 `Google Ads <https://ads.google.com/home/>`__, formerly Google AdWords and Google AdWords Express, is a platform which allows
 businesses to advertise on Google Search, YouTube and other sites across the web.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

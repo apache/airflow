@@ -30,7 +30,6 @@ class JiraHook(BaseHook):
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     """
 
     default_conn_name = 'jira_default'
@@ -42,7 +41,7 @@ class JiraHook(BaseHook):
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
-        self.client = None
+        self.client: Optional[JIRA] = None
         self.get_conn()
 
     def get_conn(self) -> JIRA:

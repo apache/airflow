@@ -4,13 +4,13 @@
   ],
   "amazon": [
     "apache.hive",
+    "cncf.kubernetes",
     "exasol",
     "ftp",
     "google",
     "imap",
     "mongo",
-    "mysql",
-    "postgres",
+    "salesforce",
     "ssh"
   ],
   "apache.beam": [
@@ -58,16 +58,14 @@
   ],
   "microsoft.azure": [
     "google",
-    "oracle"
+    "oracle",
+    "sftp"
   ],
   "mysql": [
     "amazon",
     "presto",
     "trino",
     "vertica"
-  ],
-  "opsgenie": [
-    "http"
   ],
   "postgres": [
     "amazon"

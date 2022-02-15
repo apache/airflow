@@ -18,13 +18,16 @@
 """File logging handler for tasks."""
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
-import httpx
+from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
-from airflow.utils.helpers import parse_template_string
+from airflow.utils.context import Context
+from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -43,7 +46,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str):
         super().__init__()
-        self.handler = None  # type: Optional[logging.FileHandler]
+        self.handler: Optional[logging.FileHandler] = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
@@ -54,7 +57,7 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = logging.FileHandler(local_loc, encoding='utf-8')
+        self.handler = NonCachingFileHandler(local_loc, encoding='utf-8')
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -71,30 +74,46 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti, try_number):
+    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
         if self.filename_jinja_template:
-            if hasattr(ti, 'task'):
-                jinja_context = ti.get_template_context()
-                jinja_context['try_number'] = try_number
+            if hasattr(ti, "task"):
+                context = ti.get_template_context()
             else:
-                jinja_context = {
-                    'ti': ti,
-                    'ts': ti.execution_date.isoformat(),
-                    'try_number': try_number,
-                }
-            return self.filename_jinja_template.render(**jinja_context)
-
-        return self.filename_template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(),
-            try_number=try_number,
-        )
+                context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
+            context["try_number"] = try_number
+            return render_template_to_string(self.filename_jinja_template, context)
+        elif self.filename_template:
+            dag_run = ti.get_dagrun()
+            dag = ti.task.dag
+            assert dag is not None  # For Mypy.
+            try:
+                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+            except AttributeError:  # ti.task is not always set.
+                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            if data_interval[0]:
+                data_interval_start = data_interval[0].isoformat()
+            else:
+                data_interval_start = ""
+            if data_interval[1]:
+                data_interval_end = data_interval[1].isoformat()
+            else:
+                data_interval_end = ""
+            return self.filename_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                data_interval_start=data_interval_start,
+                data_interval_end=data_interval_end,
+                execution_date=ti.get_dagrun().logical_date.isoformat(),
+                try_number=try_number,
+            )
+        else:
+            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
+    def _read(self, ti, try_number, metadata=None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -115,13 +134,13 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as file:
+                with open(location, encoding="utf-8", errors="surrogateescape") as file:
                     log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':  # pylint: disable=too-many-nested-blocks
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
@@ -141,9 +160,7 @@ class FileTaskHandler(logging.Handler):
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'.format(
-                    ti.hostname
-                )
+                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
@@ -157,11 +174,13 @@ class FileTaskHandler(logging.Handler):
                 for line in res:
                     log += line.decode()
 
-            except Exception as f:  # pylint: disable=broad-except
+            except Exception as f:
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
+            import httpx
+
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
@@ -172,14 +191,34 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                response = httpx.get(url, timeout=timeout)
+                signer = TimedJSONWebSignatureSerializer(
+                    secret_key=conf.get('webserver', 'secret_key'),
+                    algorithm_name='HS512',
+                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
+                    # This isn't really a "salt", more of a signing context
+                    salt='task-instance-logs',
+                )
+
+                response = httpx.get(
+                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                )
                 response.encoding = "utf-8"
 
+                if response.status_code == 403:
+                    log += (
+                        "*** !!!! Please make sure that all your Airflow components (e.g. "
+                        "schedulers, webservers and workers) have"
+                        " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                    )
+                    log += (
+                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/configurations-ref.html#secret-key\n***"
+                    )
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 
                 log += '\n' + response.text
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 log += f"*** Failed to fetch log file from worker. {str(e)}\n"
 
         return log, {'end_of_log': True}

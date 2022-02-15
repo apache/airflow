@@ -20,16 +20,16 @@ Example DAG using PrestoToGCSOperator.
 """
 import os
 import re
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateExternalTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
+    BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOperator
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
 GCS_BUCKET = os.environ.get("GCP_PRESTO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
@@ -48,8 +48,9 @@ def safe_name(s: str) -> str:
 
 with models.DAG(
     dag_id="example_presto_to_gcs",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=["example"],
 ) as dag:
 
@@ -84,16 +85,37 @@ with models.DAG(
         task_id="create_external_table_multiple_types",
         bucket=GCS_BUCKET,
         source_objects=[f"{safe_name(SOURCE_MULTIPLE_TYPES)}.*.json"],
-        source_format="NEWLINE_DELIMITED_JSON",
-        destination_project_dataset_table=f"{DATASET_NAME}.{safe_name(SOURCE_MULTIPLE_TYPES)}",
+        table_resource={
+            "tableReference": {
+                "projectId": GCP_PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": f"{safe_name(SOURCE_MULTIPLE_TYPES)}",
+            },
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING"},
+                    {"name": "post_abbr", "type": "STRING"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceFormat": "NEWLINE_DELIMITED_JSON",
+                "compression": "NONE",
+                "csvOptions": {"skipLeadingRows": 1},
+            },
+        },
         schema_object=f"{safe_name(SOURCE_MULTIPLE_TYPES)}-schema.json",
     )
     # [END howto_operator_create_external_table_multiple_types]
 
-    read_data_from_gcs_multiple_types = BigQueryExecuteQueryOperator(
+    read_data_from_gcs_multiple_types = BigQueryInsertJobOperator(
         task_id="read_data_from_gcs_multiple_types",
-        sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{safe_name(SOURCE_MULTIPLE_TYPES)}`",
-        use_legacy_sql=False,
+        configuration={
+            "query": {
+                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}."
+                f"{safe_name(SOURCE_MULTIPLE_TYPES)}`",
+                "useLegacySql": False,
+            }
+        },
     )
 
     # [START howto_operator_presto_to_gcs_many_chunks]
@@ -111,17 +133,38 @@ with models.DAG(
     create_external_table_many_chunks = BigQueryCreateExternalTableOperator(
         task_id="create_external_table_many_chunks",
         bucket=GCS_BUCKET,
+        table_resource={
+            "tableReference": {
+                "projectId": GCP_PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": f"{safe_name(SOURCE_CUSTOMER_TABLE)}",
+            },
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING"},
+                    {"name": "post_abbr", "type": "STRING"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceFormat": "NEWLINE_DELIMITED_JSON",
+                "compression": "NONE",
+                "csvOptions": {"skipLeadingRows": 1},
+            },
+        },
         source_objects=[f"{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
-        source_format="NEWLINE_DELIMITED_JSON",
-        destination_project_dataset_table=f"{DATASET_NAME}.{safe_name(SOURCE_CUSTOMER_TABLE)}",
         schema_object=f"{safe_name(SOURCE_CUSTOMER_TABLE)}-schema.json",
     )
 
     # [START howto_operator_read_data_from_gcs_many_chunks]
-    read_data_from_gcs_many_chunks = BigQueryExecuteQueryOperator(
+    read_data_from_gcs_many_chunks = BigQueryInsertJobOperator(
         task_id="read_data_from_gcs_many_chunks",
-        sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{safe_name(SOURCE_CUSTOMER_TABLE)}`",
-        use_legacy_sql=False,
+        configuration={
+            "query": {
+                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}."
+                f"{safe_name(SOURCE_CUSTOMER_TABLE)}`",
+                "useLegacySql": False,
+            }
+        },
     )
     # [END howto_operator_read_data_from_gcs_many_chunks]
 

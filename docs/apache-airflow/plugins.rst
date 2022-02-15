@@ -139,6 +139,14 @@ looks like:
         # buttons.
         operator_extra_links = []
 
+        # A list of timetable classes to register so they can be used in DAGs.
+        timetables = []
+
+        # A list of Listeners that plugin provides. Listeners can register to
+        # listen to particular events that happen in Airflow, like
+        # TaskInstance state changes. Listeners are python modules.
+        listeners = []
+
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
@@ -244,10 +252,10 @@ definitions in Airflow.
         operators = [GCSToS3Operator]
 
         def get_link(self, operator, dttm):
-            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
+            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{logical_date}".format(
                 dag_id=operator.dag_id,
                 task_id=operator.task_id,
-                execution_date=dttm,
+                logical_date=dttm,
             )
 
 
@@ -297,7 +305,7 @@ Plugins as Python packages
 --------------------------
 
 It is possible to load plugins via `setuptools entrypoint <https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_ mechanism. To do this link
-your plugin using an entrypoint in your package. If the package is installed, airflow
+your plugin using an entrypoint in your package. If the package is installed, Airflow
 will automatically load the registered plugins from the entrypoint list.
 
 .. note::

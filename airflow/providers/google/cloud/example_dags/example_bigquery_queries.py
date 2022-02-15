@@ -29,13 +29,11 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
     BigQueryGetDataOperator,
     BigQueryInsertJobOperator,
     BigQueryIntervalCheckOperator,
     BigQueryValueCheckOperator,
 )
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
@@ -44,42 +42,42 @@ LOCATION = "southamerica-east1"
 TABLE_1 = "table1"
 TABLE_2 = "table2"
 
-
-INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
-
-# [START howto_operator_bigquery_query]
-INSERT_ROWS_QUERY = (
-    f"INSERT {DATASET_NAME}.{TABLE_1} VALUES "
-    f"(42, 'monthy python', '{INSERT_DATE}'), "
-    f"(42, 'fishy fish', '{INSERT_DATE}');"
-)
-# [END howto_operator_bigquery_query]
-
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},
     {"name": "name", "type": "STRING", "mode": "NULLABLE"},
     {"name": "ds", "type": "DATE", "mode": "NULLABLE"},
 ]
 
-for location in [None, LOCATION]:
+locations = [None, LOCATION]
+for index, location in enumerate(locations, 1):
     dag_id = "example_bigquery_queries_location" if location else "example_bigquery_queries"
+    DATASET = DATASET_NAME + str(index)
+    INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
+    # [START howto_operator_bigquery_query]
+    INSERT_ROWS_QUERY = (
+        f"INSERT {DATASET}.{TABLE_1} VALUES "
+        f"(42, 'monthy python', '{INSERT_DATE}'), "
+        f"(42, 'fishy fish', '{INSERT_DATE}');"
+    )
+    # [END howto_operator_bigquery_query]
 
     with models.DAG(
         dag_id,
-        schedule_interval=None,  # Override to match your needs
-        start_date=days_ago(1),
+        schedule_interval='@once',  # Override to match your needs
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
         tags=["example"],
-        user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_1},
+        user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1},
     ) as dag_with_locations:
         create_dataset = BigQueryCreateEmptyDatasetOperator(
             task_id="create-dataset",
-            dataset_id=DATASET_NAME,
+            dataset_id=DATASET,
             location=location,
         )
 
         create_table_1 = BigQueryCreateEmptyTableOperator(
             task_id="create_table_1",
-            dataset_id=DATASET_NAME,
+            dataset_id=DATASET,
             table_id=TABLE_1,
             schema_fields=SCHEMA,
             location=location,
@@ -87,7 +85,7 @@ for location in [None, LOCATION]:
 
         create_table_2 = BigQueryCreateEmptyTableOperator(
             task_id="create_table_2",
-            dataset_id=DATASET_NAME,
+            dataset_id=DATASET,
             table_id=TABLE_2,
             schema_fields=SCHEMA,
             location=location,
@@ -96,7 +94,7 @@ for location in [None, LOCATION]:
         create_dataset >> [create_table_1, create_table_2]
 
         delete_dataset = BigQueryDeleteDatasetOperator(
-            task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
+            task_id="delete_dataset", dataset_id=DATASET, delete_contents=True
         )
 
         # [START howto_operator_bigquery_insert_job]
@@ -125,32 +123,48 @@ for location in [None, LOCATION]:
         )
         # [END howto_operator_bigquery_select_job]
 
-        execute_insert_query = BigQueryExecuteQueryOperator(
-            task_id="execute_insert_query", sql=INSERT_ROWS_QUERY, use_legacy_sql=False, location=location
-        )
-
-        bigquery_execute_multi_query = BigQueryExecuteQueryOperator(
-            task_id="execute_multi_query",
-            sql=[
-                f"SELECT * FROM {DATASET_NAME}.{TABLE_2}",
-                f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_2}",
-            ],
-            use_legacy_sql=False,
+        execute_insert_query = BigQueryInsertJobOperator(
+            task_id="execute_insert_query",
+            configuration={
+                "query": {
+                    "query": INSERT_ROWS_QUERY,
+                    "useLegacySql": False,
+                }
+            },
             location=location,
         )
 
-        execute_query_save = BigQueryExecuteQueryOperator(
+        bigquery_execute_multi_query = BigQueryInsertJobOperator(
+            task_id="execute_multi_query",
+            configuration={
+                "query": {
+                    "query": f"SELECT * FROM {DATASET}.{TABLE_2};SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
+                    "useLegacySql": False,
+                }
+            },
+            location=location,
+        )
+
+        execute_query_save = BigQueryInsertJobOperator(
             task_id="execute_query_save",
-            sql=f"SELECT * FROM {DATASET_NAME}.{TABLE_1}",
-            use_legacy_sql=False,
-            destination_dataset_table=f"{DATASET_NAME}.{TABLE_2}",
+            configuration={
+                "query": {
+                    "query": f"SELECT * FROM {DATASET}.{TABLE_1}",
+                    "useLegacySql": False,
+                    "destinationTable": {
+                        'projectId': PROJECT_ID,
+                        'datasetId': DATASET,
+                        'tableId': TABLE_2,
+                    },
+                }
+            },
             location=location,
         )
 
         # [START howto_operator_bigquery_get_data]
         get_data = BigQueryGetDataOperator(
             task_id="get_data",
-            dataset_id=DATASET_NAME,
+            dataset_id=DATASET,
             table_id=TABLE_1,
             max_results=10,
             selected_fields="value,name",
@@ -160,13 +174,13 @@ for location in [None, LOCATION]:
 
         get_data_result = BashOperator(
             task_id="get_data_result",
-            bash_command="echo \"{{ task_instance.xcom_pull('get_data') }}\"",
+            bash_command=f"echo {get_data.output}",
         )
 
         # [START howto_operator_bigquery_check]
         check_count = BigQueryCheckOperator(
             task_id="check_count",
-            sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_1}",
+            sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
             use_legacy_sql=False,
             location=location,
         )
@@ -175,7 +189,7 @@ for location in [None, LOCATION]:
         # [START howto_operator_bigquery_value_check]
         check_value = BigQueryValueCheckOperator(
             task_id="check_value",
-            sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_1}",
+            sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
             pass_value=4,
             use_legacy_sql=False,
             location=location,
@@ -185,7 +199,7 @@ for location in [None, LOCATION]:
         # [START howto_operator_bigquery_interval_check]
         check_interval = BigQueryIntervalCheckOperator(
             task_id="check_interval",
-            table=f"{DATASET_NAME}.{TABLE_1}",
+            table=f"{DATASET}.{TABLE_1}",
             days_back=1,
             metrics_thresholds={"COUNT(*)": 1.5},
             use_legacy_sql=False,
@@ -199,3 +213,5 @@ for location in [None, LOCATION]:
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+
+    globals()[dag_id] = dag_with_locations

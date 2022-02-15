@@ -37,13 +37,10 @@ class CloudFirestoreHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param api_version: API version used (for example v1 or v1beta1).
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -52,7 +49,6 @@ class CloudFirestoreHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     _conn = None  # type: Optional[Any]
@@ -86,9 +82,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             # > Request contains an invalid argument.
             # At the same time, the Non-Authorized Client has no problems.
             non_authorized_conn = build("firestore", self.api_version, cache_discovery=False)
-            self._conn = build_from_document(
-                non_authorized_conn._rootDesc, http=http_authorized  # pylint: disable=protected-access
-            )
+            self._conn = build_from_document(non_authorized_conn._rootDesc, http=http_authorized)
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -99,21 +93,18 @@ class CloudFirestoreHook(GoogleBaseHook):
         Starts a export with the specified configuration.
 
         :param database_id: The Database ID.
-        :type database_id: str
         :param body: The request body.
             See:
             https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
-        :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         """
         service = self.get_conn()
 
         name = f"projects/{project_id}/databases/{database_id}"
 
         operation = (
-            service.projects()  # pylint: disable=no-member
+            service.projects()
             .databases()
             .exportDocuments(name=name, body=body)
             .execute(num_retries=self.num_retries)
@@ -127,7 +118,6 @@ class CloudFirestoreHook(GoogleBaseHook):
         asynchronous call.
 
         :param operation_name: The name of the operation.
-        :type operation_name: str
         :return: The response returned by the operation.
         :rtype: dict
         :exception: AirflowException in case error is returned.
@@ -135,7 +125,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             operation_response = (
-                service.projects()  # pylint: disable=no-member
+                service.projects()
                 .databases()
                 .operations()
                 .get(name=operation_name)

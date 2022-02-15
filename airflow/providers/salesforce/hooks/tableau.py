@@ -17,7 +17,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode  # noqa
 
 warnings.warn(

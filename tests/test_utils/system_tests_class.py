@@ -26,7 +26,6 @@ from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow
 from airflow.exceptions import AirflowException
 from airflow.models.dagbag import DagBag
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import get_executor
 
@@ -123,9 +122,7 @@ class SystemTest(TestCase, LoggingMixin):
         Runs example dag by it's ID.
 
         :param dag_id: id of a DAG to be run
-        :type dag_id: str
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
-        :type dag_folder: str
         """
         if os.environ.get("RUN_AIRFLOW_1_10") == "true":
             # For system tests purpose we are changing airflow/providers
@@ -140,20 +137,13 @@ class SystemTest(TestCase, LoggingMixin):
         dag = dag_bag.get_dag(dag_id)
         if dag is None:
             raise AirflowException(
-                "The Dag {dag_id} could not be found. It's either an import problem,"
-                "wrong dag_id or DAG is not in provided dag_folder."
-                "The content of the {dag_folder} folder is {content}".format(
-                    dag_id=dag_id,
-                    dag_folder=dag_folder,
-                    content=os.listdir(dag_folder),
-                )
+                f"The Dag {dag_id} could not be found. It's either an import problem, wrong dag_id or DAG is "
+                "not in provided dag_folder.The content of "
+                f"the {dag_folder} folder is {os.listdir(dag_folder)}"
             )
 
         self.log.info("Attempting to run DAG: %s", dag_id)
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            dag.clear()
-        else:
-            dag.clear(dag_run_state=State.NONE)
+        dag.clear()
         try:
             dag.run(ignore_first_depends_on_past=True, verbose=True)
         except Exception:

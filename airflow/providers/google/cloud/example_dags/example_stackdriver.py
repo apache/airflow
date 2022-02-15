@@ -22,8 +22,10 @@ Example Airflow DAG for Google Cloud Stackdriver service.
 
 import json
 import os
+from datetime import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverDeleteAlertOperator,
     StackdriverDeleteNotificationChannelOperator,
@@ -36,7 +38,6 @@ from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverUpsertAlertOperator,
     StackdriverUpsertNotificationChannelOperator,
 )
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -116,8 +117,9 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 with models.DAG(
     'example_stackdriver',
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]
@@ -196,8 +198,17 @@ with models.DAG(
         name="{{ task_instance.xcom_pull('list-alert-policies')[1]['name'] }}",
     )
 
-    create_notification_channel >> enable_notification_channel >> disable_notification_channel
-    disable_notification_channel >> list_notification_channel >> create_alert_policy
-    create_alert_policy >> enable_alert_policy >> disable_alert_policy >> list_alert_policies
-    list_alert_policies >> delete_notification_channel >> delete_notification_channel_2
-    delete_notification_channel_2 >> delete_alert_policy >> delete_alert_policy_2
+    chain(
+        create_notification_channel,
+        enable_notification_channel,
+        disable_notification_channel,
+        list_notification_channel,
+        create_alert_policy,
+        enable_alert_policy,
+        disable_alert_policy,
+        list_alert_policies,
+        delete_notification_channel,
+        delete_notification_channel_2,
+        delete_alert_policy,
+        delete_alert_policy_2,
+    )

@@ -30,8 +30,11 @@ Helm Chart for Apache Airflow
     adding-connections-and-variables
     manage-dags-files
     manage-logs
+    setting-resources-for-containers
     keda
     using-additional-containers
+    customizing-workers
+    Installing from sources<installing-helm-chart-from-sources>
 
 .. toctree::
     :hidden:
@@ -44,6 +47,8 @@ Helm Chart for Apache Airflow
     :caption: References
 
     Parameters <parameters-ref>
+    changelog
+    Updating <updating>
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
@@ -53,8 +58,8 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.14+ cluster
--  Helm 2.11+ or Helm 3.0+
+-  Kubernetes 1.20+ cluster
+-  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features
@@ -64,7 +69,7 @@ Features
 * Supported Airflow version: ``1.10+``, ``2.0+``
 * Supported database backend: ``PostgresSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
-* PostgresSQL and PgBouncer with a battle-tested configuration
+* PostgreSQL and PgBouncer with a battle-tested configuration
 * Monitoring:
 
    * StatsD/Prometheus metrics for Airflow
@@ -78,13 +83,12 @@ Features
 Installing the Chart
 --------------------
 
-To install this chart using helm 3, run the following commands:
+To install this chart using Helm 3, run the following commands:
 
 .. code-block:: bash
 
-    kubectl create namespace airflow
     helm repo add apache-airflow https://airflow.apache.org
-    helm install airflow apache-airflow/airflow --namespace airflow
+    helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.
@@ -101,6 +105,9 @@ To upgrade the chart with the release name ``airflow``:
 
     helm upgrade airflow apache-airflow/airflow --namespace airflow
 
+.. note::
+  To upgrade to a new version of the chart, run ``helm repo update`` first.
+
 Uninstalling the Chart
 ----------------------
 
@@ -111,3 +118,14 @@ To uninstall/delete the ``airflow`` deployment:
     helm delete airflow --namespace airflow
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
+
+Installing the Chart with ArgoCD
+--------------------------------
+
+When installing the chart using ArgoCD, you MUST set the two following values, or your application
+will not start as the migrations will not be run:
+
+.. code-block:: yaml
+
+   createUserJob.useHelmHooks: false
+   migrateDatabaseJob.useHelmHooks: false

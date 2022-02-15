@@ -19,34 +19,27 @@
 Example use of LevelDB operators.
 """
 
+from datetime import datetime
+
 from airflow import models
 from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
-from airflow.utils.dates import days_ago
-
-default_args = {
-    'owner': 'airflow',
-}
 
 with models.DAG(
     'example_leveldb',
-    default_args=default_args,
-    start_date=days_ago(2),
-    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    schedule_interval='@once',
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_leveldb_get_key]
-    get_key_leveldb_task = LevelDBOperator(
-        task_id='get_key_leveldb', leveldb_conn_id='leveldb_default', command='get', key=b'key', dag=dag
-    )
+    get_key_leveldb_task = LevelDBOperator(task_id='get_key_leveldb', command='get', key=b'key')
     # [END howto_operator_leveldb_get_key]
     # [START howto_operator_leveldb_put_key]
     put_key_leveldb_task = LevelDBOperator(
         task_id='put_key_leveldb',
-        leveldb_conn_id='leveldb_default',
         command='put',
         key=b'another_key',
         value=b'another_value',
-        dag=dag,
     )
     # [END howto_operator_leveldb_put_key]
     get_key_leveldb_task >> put_key_leveldb_task

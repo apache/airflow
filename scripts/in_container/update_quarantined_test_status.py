@@ -93,7 +93,7 @@ def parse_test_history(line: str) -> Optional[TestHistory]:
         comment = values[5] if len(values) >= 6 else ""
         try:
             states = parse_state_history(values[3])
-        except Exception:  # noqa
+        except Exception:
             states = []
         return TestHistory(
             test_id=the_id,
@@ -117,7 +117,7 @@ def parse_body(body: str) -> Dict[str, TestHistory]:
                 break
             try:
                 status = parse_test_history(line)
-            except Exception:  # noqa
+            except Exception:
                 continue
             if status:
                 test_history_map[status.test_id] = status

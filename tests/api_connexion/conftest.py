@@ -40,3 +40,11 @@ def session():
 
     with create_session() as session:
         yield session
+
+
+@pytest.fixture(scope="session")
+def dagbag():
+    from airflow.models import DagBag
+
+    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+    return DagBag(include_examples=True, read_dags_from_db=True)

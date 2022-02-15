@@ -33,7 +33,7 @@ class VerticaHook(DbApiHook):
 
     def get_conn(self) -> connect:
         """Return verticaql connection object"""
-        conn = self.get_connection(self.vertica_conn_id)  # type: ignore # pylint: disable=no-member
+        conn = self.get_connection(self.vertica_conn_id)  # type: ignore
         conn_config = {
             "user": conn.login,
             "password": conn.password or '',

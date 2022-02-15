@@ -26,7 +26,7 @@ def init_app(_):
     """Initializes authentication backend"""
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):

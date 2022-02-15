@@ -15,18 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any, Optional
+
 from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
+from sqlalchemy.orm.session import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
+from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
-from airflow.models import DagRun
+from airflow.models import TaskInstance
 from airflow.security import permissions
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access(
@@ -34,10 +38,19 @@ from airflow.utils.session import provide_session
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
 @provide_session
-def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):
+def get_log(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    full_content: bool = False,
+    token: Optional[str] = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get logs for specific task instance"""
     key = current_app.config["SECRET_KEY"]
     if not token:
@@ -60,15 +73,19 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
 
-    query = session.query(DagRun).filter(DagRun.dag_id == dag_id)
-    dag_run = query.filter(DagRun.run_id == dag_run_id).first()
-    if not dag_run:
-        raise NotFound("DAG Run not found")
-
-    ti = dag_run.get_task_instance(task_id, session)
+    ti = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == task_id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == dag_run_id,
+        )
+        .join(TaskInstance.dag_run)
+        .one_or_none()
+    )
     if ti is None:
         metadata['end_of_log'] = True
-        raise BadRequest(detail="Task instance did not exist in the DB")
+        raise NotFound(title="TaskInstance not found")
 
     dag = current_app.dag_bag.get_dag(dag_id)
     if dag:
@@ -80,7 +97,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
     return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
 
     # return_type would be either the above two or None
-
+    logs: Any
     if return_type == 'application/json' or return_type is None:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
         logs = logs[0] if task_try_number is not None else logs

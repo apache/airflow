@@ -22,6 +22,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -30,6 +31,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -39,7 +41,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
-DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1))
+DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 TEST_DAG_FOLDER = os.path.join(os.path.dirname(dag_folder_path), 'dags')
 TEST_DAG_ID = 'unit_tests'
 
@@ -61,6 +63,27 @@ class TestCliDags(unittest.TestCase):
     def tearDownClass(cls) -> None:
         clear_db_runs()
         clear_db_dags()
+
+    def test_reserialize(self):
+        # Assert that there are serialized Dags
+        with create_session() as session:
+            serialized_dags_before_command = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
+
+        # Run clear of serialized dags
+        dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize', "--clear-only"]))
+        # Assert no serialized Dags
+        with create_session() as session:
+            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert not len(serialized_dags_after_clear)
+
+        # Serialize manually
+        dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize']))
+
+        # Check serialized DAGs are back
+        with create_session() as session:
+            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
@@ -158,6 +181,35 @@ class TestCliDags(unittest.TestCase):
         )
         mock_run.reset_mock()
 
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_backfill_fails_without_loading_dags(self, mock_get_dag):
+
+        cli_args = self.parser.parse_args(['dags', 'backfill', 'example_bash_operator'])
+
+        with pytest.raises(AirflowException):
+            dag_command.dag_backfill(cli_args)
+
+        mock_get_dag.assert_not_called()
+
+    def test_show_dag_dependencies_print(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_dependencies_show(self.parser.parse_args(['dags', 'show-dependencies']))
+        out = temp_stdout.getvalue()
+        assert "digraph" in out
+        assert "graph [rankdir=LR]" in out
+
+    @mock.patch("airflow.cli.commands.dag_command.render_dag_dependencies")
+    def test_show_dag_dependencies_save(self, mock_render_dag_dependencies):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_dependencies_show(
+                self.parser.parse_args(['dags', 'show-dependencies', '--save', 'output.png'])
+            )
+        out = temp_stdout.getvalue()
+        mock_render_dag_dependencies.return_value.render.assert_called_once_with(
+            cleanup=True, filename='output', format='png'
+        )
+        assert "File output.png saved" in out
+
     def test_show_dag_print(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args(['dags', 'show', 'example_bash_operator']))
@@ -167,7 +219,7 @@ class TestCliDags(unittest.TestCase):
         assert "runme_2 -> run_after_loop" in out
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
-    def test_show_dag_dave(self, mock_render_dag):
+    def test_show_dag_save(self, mock_render_dag):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(['dags', 'show', 'example_bash_operator', '--save', 'awesome.png'])
@@ -298,10 +350,15 @@ class TestCliDags(unittest.TestCase):
 
         # The details below is determined by the schedule_interval of example DAGs
         now = DEFAULT_DATE
-        expected_output = [str(now + timedelta(days=1)), str(now + timedelta(hours=4)), "None", "None"]
+        expected_output = [
+            (now + timedelta(days=1)).isoformat(),
+            (now + timedelta(hours=4)).isoformat(),
+            "None",
+            "None",
+        ]
         expected_output_2 = [
-            str(now + timedelta(days=1)) + os.linesep + str(now + timedelta(days=2)),
-            str(now + timedelta(hours=4)) + os.linesep + str(now + timedelta(hours=8)),
+            (now + timedelta(days=1)).isoformat() + os.linesep + (now + timedelta(days=2)).isoformat(),
+            (now + timedelta(hours=4)).isoformat() + os.linesep + (now + timedelta(hours=8)).isoformat(),
             "None",
             "None",
         ]
@@ -310,7 +367,10 @@ class TestCliDags(unittest.TestCase):
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
-                run_type=DagRunType.MANUAL, execution_date=now, start_date=now, state=State.FAILED
+                run_type=DagRunType.SCHEDULED,
+                execution_date=now,
+                start_date=now,
+                state=State.FAILED,
             )
 
             # Test num-executions = 1 (default)
@@ -352,7 +412,7 @@ class TestCliDags(unittest.TestCase):
         assert "airflow" in out
         assert "paused" in out
         assert "airflow/example_dags/example_complex.py" in out
-        assert "False" in out
+        assert "- dag_id:" in out
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -407,8 +467,34 @@ class TestCliDags(unittest.TestCase):
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
-            self.parser.parse_args(['dags', 'trigger', 'example_bash_operator', '--conf', '{"foo": "bar"}'])
+            self.parser.parse_args(
+                [
+                    'dags',
+                    'trigger',
+                    'example_bash_operator',
+                    '--run-id=test_trigger_dag',
+                    '--exec-date=2021-06-04T09:00:00+08:00',
+                    '--conf={"foo": "bar"}',
+                ],
+            ),
         )
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag").one()
+
+        assert dagrun, "DagRun not created"
+        assert dagrun.run_type == DagRunType.MANUAL
+        assert dagrun.external_trigger
+        assert dagrun.conf == {"foo": "bar"}
+
+        # Coerced to UTC.
+        assert dagrun.execution_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
+
+        # example_bash_operator runs every day at midnight, so the data interval
+        # should be aligned to the previous day.
+        assert dagrun.data_interval_start.isoformat(timespec="seconds") == "2021-06-03T00:00:00+00:00"
+        assert dagrun.data_interval_end.isoformat(timespec="seconds") == "2021-06-04T00:00:00+00:00"
+
+    def test_trigger_dag_invalid_conf(self):
         with pytest.raises(ValueError):
             dag_command.dag_trigger(
                 self.parser.parse_args(
@@ -473,19 +559,18 @@ class TestCliDags(unittest.TestCase):
                 mock.call().clear(
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
-                    dag_run_state=State.NONE,
+                    dag_run_state=False,
                 ),
                 mock.call().run(
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    run_at_least_once=True,
                 ),
             ]
         )
 
-    @mock.patch(
-        "airflow.cli.commands.dag_command.render_dag", **{'return_value.source': "SOURCE"}  # type: ignore
-    )
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
     @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_executor, mock_render_dag):
@@ -503,12 +588,13 @@ class TestCliDags(unittest.TestCase):
                 mock.call().clear(
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
-                    dag_run_state=State.NONE,
+                    dag_run_state=False,
                 ),
                 mock.call().run(
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    run_at_least_once=True,
                 ),
             ]
         )

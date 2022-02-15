@@ -32,7 +32,6 @@ class ElasticsearchHook(DbApiHook):
 
     :param elasticsearch_conn_id: The :ref:`ElasticSearch connection id <howto/connection:elasticsearch>`
         used for Elasticsearch credentials.
-    :type elasticsearch_conn_id: str
     """
 
     conn_name_attr = 'elasticsearch_conn_id'

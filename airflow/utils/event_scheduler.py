@@ -29,7 +29,7 @@ class EventScheduler(scheduler):
         action: Callable,
         arguments=(),
         kwargs={},
-    ):  # pylint: disable=dangerous-default-value
+    ):
         """Helper to call a function at (roughly) a given interval"""
 
         def repeat(*args, **kwargs):

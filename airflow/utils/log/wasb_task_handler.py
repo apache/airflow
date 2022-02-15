@@ -18,7 +18,6 @@
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.log.wasb_task_handler`."""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler  # noqa
 
 warnings.warn(

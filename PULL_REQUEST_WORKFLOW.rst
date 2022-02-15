@@ -45,7 +45,7 @@ We approached the problem by:
    to control which parts of the tests are run during the tests. This is implemented by the
    ``scripts/ci/selective_ci_checks.sh`` script in our repository. This script analyses which part of the
    code has changed and based on that it sets the right outputs that control which tests are executed in
-   the CI build, and whether we need to build CI images necessary to run those steps. This allowed to
+   the ``Tests`` workflow, and whether we need to build CI images necessary to run those steps. This allowed to
    heavily decrease the strain especially for the Pull Requests that were not touching code (in which case
    the builds can complete in < 2 minutes) but also by limiting the number of tests executed in PRs that do
    not touch the "core" of Airflow, or only touching some - standalone - parts of Airflow such as
@@ -58,12 +58,12 @@ We approached the problem by:
 3) Even more optimisation came from limiting the scope of tests to only "default" matrix parameters. So far
    in Airflow we always run all tests for all matrix combinations. The primary matrix components are:
 
-   * Python versions (currently 3.6, 3.7, 3.8)
+   * Python versions (currently 3.6, 3.7, 3.8, 3.9)
    * Backend types (currently MySQL/Postgres)
-   * Backed version (currently MySQL 5.7, MySQL 8, Postgres 9.6, Postgres 13
+   * Backed version (currently MySQL 5.7, MySQL 8, Postgres 13
 
    We've decided that instead of running all the combinations of parameters for all matrix component we will
-   only run default values (Python 3.6, Mysql 5.7, Postgres 9.6) for all PRs which are not approved yet by
+   only run default values (Python 3.6, Mysql 5.7, Postgres 13) for all PRs which are not approved yet by
    the committers. This has a nice effect, that full set of tests (though with limited combinations of
    the matrix) are still run in the CI for every Pull Request that needs tests at all - allowing the
    contributors to make sure that their PR is "good enough" to be reviewed.
@@ -81,18 +81,14 @@ We approached the problem by:
    More about it can be found in `Approval workflow and Matrix tests <#approval-workflow-and-matrix-tests>`_
    chapter.
 
-4) We've also applied (and received) funds to run self-hosted runners. This is not yet implemented, due to
-   discussions about security of self-hosted runners for public repositories. Running self-hosted runners by
-   public repositories is currently (as of end of October 2020)
-   `Discouraged by GitHub <https://docs.github.com/en/free-pro-team@latest/actions/hosting-your-own-runners/about-self-hosted-runners#self-hosted-runner-security-with-public-repositories>`_
-   and we are working on solving the problem - also involving Apache Software Foundation infrastructure team.
-   This document does not describe this part of the approach. Most likely we will add soon a document
-   describing details of the approach taken there.
+4) We've also applied (and received) funds to run self-hosted runners. They are used for ``main`` runs
+   and whenever the PRs are done by one of the maintainers. Maintainers can force using Public GitHub runners
+   by applying "use public runners" label to the PR before submitting it.
 
 Selective CI Checks
 -------------------
 
-In order to optimise our CI builds, we've implemented optimisations to only run selected checks for some
+In order to optimise our CI jobs, we've implemented optimisations to only run selected checks for some
 kind of changes. The logic implemented reflects the internal architecture of Airflow 2.0 packages
 and it helps to keep down both the usage of jobs in GitHub Actions as well as CI feedback time to
 contributors in case of simpler changes.
@@ -109,7 +105,7 @@ We have the following test types (separated by packages in which they are):
 
 We also have several special kinds of tests that are not separated by packages but they are marked with
 pytest markers. They can be found in any of those packages and they can be selected by the appropriate
-pylint custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
+pytest custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
 
 * Integration - tests that require external integration images running in docker-compose
 * Quarantined - tests that are flaky and need to be fixed
@@ -175,11 +171,11 @@ The logic implemented for the changes works as follows:
     Quarantined tests are described in `TESTING.rst <TESTING.rst>`_
 
 11) There is a special case of static checks. In case the above logic determines that the CI image
-    needs to be build, we run long and more comprehensive version of static checks - including Pylint,
+    needs to be built, we run long and more comprehensive version of static checks - including
     Mypy, Flake8. And those tests are run on all files, no matter how many files changed.
     In case the image is not built, we run only simpler set of changes - the longer static checks
     that require CI image are skipped, and we only run the tests on the files that changed in the incoming
-    commit - unlike pylint/flake8/mypy, those static checks are per-file based and they should not miss any
+    commit - unlike flake8/mypy, those static checks are per-file based and they should not miss any
     important change.
 
 Similarly to selective tests we also run selective security scans. In Pull requests,

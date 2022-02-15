@@ -15,50 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Sequence
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.operators.adls`."""
 
-from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
+import warnings
+
+from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
 
-class AzureDataLakeStorageListOperator(BaseOperator):
+class AzureDataLakeStorageListOperator(ADLSListOperator):
     """
-    List all files from the specified path
-
-    This operator returns a python list with the names of files which can be used by
-     `xcom` in the downstream tasks.
-
-    :param path: The Azure Data Lake path to find the objects. Supports glob
-        strings (templated)
-    :type path: str
-    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
-    :type azure_data_lake_conn_id: str
-
-    **Example**:
-        The following Operator would list all the Parquet files from ``folder/output/``
-        folder in the specified ADLS account ::
-
-            adls_files = AzureDataLakeStorageListOperator(
-                task_id='adls_files',
-                path='folder/output/*.parquet',
-                azure_data_lake_conn_id='azure_data_lake_default'
-            )
+    This class is deprecated.
+    Please use `airflow.providers.microsoft.azure.operators.adls.ADLSListOperator`.
     """
 
-    template_fields: Sequence[str] = ('path',)
-    ui_color = '#901dd2'
-
-    def __init__(
-        self, *, path: str, azure_data_lake_conn_id: str = 'azure_data_lake_default', **kwargs
-    ) -> None:
-        super().__init__(**kwargs)
-        self.path = path
-        self.azure_data_lake_conn_id = azure_data_lake_conn_id
-
-    def execute(self, context: dict) -> list:
-
-        hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
-
-        self.log.info('Getting list of ADLS files in path: %s', self.path)
-
-        return hook.list(path=self.path)
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.microsoft.azure.operators.adls.ADLSListOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(*args, **kwargs)

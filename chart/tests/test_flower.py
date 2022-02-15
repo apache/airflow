@@ -204,6 +204,37 @@ class TestFlowerDeployment:
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_volumes(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+
 
 class TestFlowerService:
     @pytest.mark.parametrize(
@@ -238,9 +269,7 @@ class TestFlowerService:
             "spec.selector", docs[0]
         )
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
-        assert {"name": "flower-ui", "protocol": "TCP", "port": 5555} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {"name": "flower-ui", "port": 5555} in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
         docs = render_chart(
@@ -251,6 +280,7 @@ class TestFlowerService:
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
+                        "loadBalancerSourceRanges": ["10.123.0.0/16"],
                     }
                 },
             },
@@ -259,7 +289,116 @@ class TestFlowerService:
 
         assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
-        assert {"name": "flower-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {"name": "flower-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+        assert ["10.123.0.0/16"] == jmespath.search("spec.loadBalancerSourceRanges", docs[0])
+
+    @pytest.mark.parametrize(
+        "ports, expected_ports",
+        [
+            ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
+            (
+                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
+                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 5555}],
+            ),
+            ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
+            (
+                [
+                    {"name": "flower-ui", "port": "{{ .Values.ports.flowerUI }}"},
+                    {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
+                ],
+                [
+                    {"name": "flower-ui", "port": 5555},
+                    {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
+                ],
+            ),
+        ],
+    )
+    def test_ports_overrides(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "flower": {"service": {"ports": ports}},
+            },
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+
+        assert expected_ports == jmespath.search("spec.ports", docs[0])
+
+
+class TestFlowerNetworkPolicy:
+    def test_off_by_default(self):
+        docs = render_chart(
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+        assert 0 == len(docs)
+
+    def test_defaults(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "flower": {
+                    "networkPolicy": {
+                        "ingress": {
+                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                        }
+                    }
+                },
+            },
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+
+        assert 1 == len(docs)
+        assert "NetworkPolicy" == docs[0]["kind"]
+        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
+            "spec.ingress[0].from", docs[0]
+        )
+        assert [{"port": 5555}] == jmespath.search("spec.ingress[0].ports", docs[0])
+
+    @pytest.mark.parametrize(
+        "ports, expected_ports",
+        [
+            ([{"port": "sidecar"}], [{"port": "sidecar"}]),
+            (
+                [
+                    {"port": "{{ .Values.ports.flowerUI }}"},
+                    {"port": 80},
+                ],
+                [
+                    {"port": 5555},
+                    {"port": 80},
+                ],
+            ),
+        ],
+    )
+    def test_ports_overrides(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "flower": {
+                    "networkPolicy": {
+                        "ingress": {
+                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
+                            "ports": ports,
+                        }
+                    }
+                },
+            },
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+
+        assert expected_ports == jmespath.search("spec.ingress[0].ports", docs[0])
+
+    def test_deprecated_from_param(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "flower": {
+                    "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                },
+            },
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+
+        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
+            "spec.ingress[0].from", docs[0]
+        )

@@ -24,7 +24,7 @@ import uuid
 from unittest import mock
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmosInsertDocumentOperator
+from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator
 from airflow.utils import db
 
 
@@ -49,7 +49,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
             )
         )
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
+    @mock.patch('airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient')
     def test_insert_document(self, cosmos_mock):
         test_id = str(uuid.uuid4())
         cosmos_mock.return_value.CreateItem.return_value = {'id': test_id}

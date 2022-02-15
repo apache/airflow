@@ -20,6 +20,12 @@
 Python API Reference
 ====================
 
+.. _pythonapi:dags:
+
+DAGs
+---------
+The DAG is Airflow's core model that represents a recurring workflow. Check out :class:`~airflow.models.dag.DAG` for details.
+
 .. _pythonapi:operators:
 
 Operators
@@ -137,3 +143,14 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
   :maxdepth: 1
 
   _api/airflow/secrets/index
+
+Timetables
+----------
+Custom timetable implementations provide Airflow's scheduler additional logic to
+schedule DAG runs in ways not possible with built-in schedule expressions.
+
+.. toctree::
+  :includehidden:
+  :maxdepth: 1
+
+  _api/airflow/timetables/index

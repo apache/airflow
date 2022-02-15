@@ -45,7 +45,7 @@ def dump_plugins(args):
         return
 
     # Remove empty info
-    if args.output == "table":  # pylint: disable=too-many-nested-blocks
+    if args.output == "table":
         # We can do plugins_info[0] as the element it will exist as there's
         # at least one plugin at this point
         for col in list(plugins_info[0]):

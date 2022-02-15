@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.filesystem import FileSensor  # noqa
 
 warnings.warn(

@@ -16,14 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections & variables from Hashicorp Vault"""
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
+from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-# pylint: disable=too-many-instance-attributes,too-many-locals
 class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connections and Variables from Hashicorp Vault.
@@ -46,70 +45,45 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     :param connections_path: Specifies the path of the secret to read to get Connections.
         (default: 'connections'). If set to None (null), requests for connections will not be sent to Vault.
-    :type connections_path: str
     :param variables_path: Specifies the path of the secret to read to get Variable.
         (default: 'variables'). If set to None (null), requests for variables will not be sent to Vault.
-    :type variables_path: str
     :param config_path: Specifies the path of the secret to read Airflow Configurations
         (default: 'config'). If set to None (null), requests for configurations will not be sent to Vault.
-    :type config_path: str
     :param url: Base URL for the Vault instance being addressed.
-    :type url: str
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
         ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
-    :type auth_type: str
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
-    :type auth_mount_point: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
          different engine. For authentication mount_points see, auth_mount_point.
-    :type mount_point: str
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``, default: ``2``).
-    :type kv_engine_version: int
     :param token: Authentication token to include in requests sent to Vault.
         (for ``token`` and ``github`` auth_type)
-    :type token: str
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
-    :type token_path: str
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_type).
-    :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
-    :type password: str
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
-    :type key_id: str
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :type secret_id: str
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
-    :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
-    :type kubernetes_role: str
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
-    :type kubernetes_jwt_path: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict.
-    :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path.
-    :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes (for ``gcp`` auth_type).
-    :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
-    :type azure_tenant_id: str
     :param azure_resource: The configured URL for the application registered in Azure Active Directory
            (for ``azure`` auth_type).
-    :type azure_resource: str
     :param radius_host: Host for radius (for ``radius`` auth_type).
-    :type radius_host: str
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
-    :type radius_secret: str
     :param radius_port: Port for radius (for ``radius`` auth_type).
-    :type radius_port: str
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         connections_path: str = 'connections',
         variables_path: str = 'variables',
@@ -179,28 +153,63 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             **kwargs,
         )
 
+    def get_response(self, conn_id: str) -> Optional[dict]:
+        """
+        Get data from Vault
+
+        :rtype: dict
+        :return: The data from the Vault path if exists
+        """
+        if self.connections_path is None:
+            return None
+
+        secret_path = self.build_path(self.connections_path, conn_id)
+        return self.vault_client.get_secret(secret_path=secret_path)
+
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get secret value from Vault. Store the secret in the form of URI
 
         :param conn_id: The connection id
-        :type conn_id: str
         :rtype: str
         :return: The connection uri retrieved from the secret
         """
-        if self.connections_path is None:
+        response = self.get_response(conn_id)
+
+        return response.get("conn_uri") if response else None
+
+    # Make sure connection is imported this way for type checking, otherwise when importing
+    # the backend it will get a circular dependency and fail
+    if TYPE_CHECKING:
+        from airflow.models.connection import Connection
+
+    def get_connection(self, conn_id: str) -> 'Optional[Connection]':
+        """
+        Get connection from Vault as secret. Prioritize conn_uri if exists,
+        if not fall back to normal Connection creation.
+
+        :rtype: Connection
+        :return: A Connection object constructed from Vault data
+        """
+        # The Connection needs to be locally imported because otherwise we get into cyclic import
+        # problems when instantiating the backend during configuration
+        from airflow.models.connection import Connection
+
+        response = self.get_response(conn_id)
+        if response is None:
             return None
-        else:
-            secret_path = self.build_path(self.connections_path, conn_id)
-            response = self.vault_client.get_secret(secret_path=secret_path)
-            return response.get("conn_uri") if response else None
+
+        uri = response.get("conn_uri")
+        if uri:
+            return Connection(conn_id, uri=uri)
+
+        return Connection(conn_id, **response)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
         Get Airflow Variable
 
         :param key: Variable Key
-        :type key: str
         :rtype: str
         :return: Variable Value retrieved from the vault
         """
@@ -216,7 +225,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get Airflow Configuration
 
         :param key: Configuration Option Key
-        :type key: str
         :rtype: str
         :return: Configuration Option Value retrieved from the vault
         """

@@ -19,6 +19,60 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Do not require all extras for SalesforceHook (#19530)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SalesforceApexRestOperator (#18819)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding JWT, IP filtering, and direct session login support for SalesforceHook (#17399)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding custom Salesforce connection type + SalesforceToS3Operator updates (#17162)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 3.0.0
 .....
 
@@ -36,6 +90,7 @@ Breaking changes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 2.0.0
 .....

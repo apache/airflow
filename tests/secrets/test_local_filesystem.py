@@ -25,9 +25,12 @@ from unittest import mock
 import pytest
 from parameterized import parameterized
 
+from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
+from airflow.models import Variable
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
+from tests.test_utils.config import conf_vars
 
 
 @contextmanager
@@ -380,15 +383,32 @@ class TestLocalFileBackend(unittest.TestCase):
             assert "VAL_A" == backend.get_variable("KEY_A")
             assert backend.get_variable("KEY_B") is None
 
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+            ("secrets", "backend_kwargs"): '{"variables_file_path": "var.env"}',
+        }
+    )
+    def test_load_secret_backend_LocalFilesystemBackend(self):
+        with mock_local_file("KEY_A=VAL_A"):
+            backends = ensure_secrets_loaded()
+
+            backend_classes = [backend.__class__.__name__ for backend in backends]
+            assert 'LocalFilesystemBackend' in backend_classes
+            assert Variable.get("KEY_A") == "VAL_A"
+
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
             tmp_file.write(b"CONN_A=mysql://host_a")
             tmp_file.flush()
             backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
-            assert ["mysql://host_a"] == [conn.get_uri() for conn in backend.get_connections("CONN_A")]
+            assert "mysql://host_a" == backend.get_connection("CONN_A").get_uri()
             assert backend.get_variable("CONN_B") is None
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()
-        assert [] == backend.get_connections("CONN_A")
+        assert None is backend.get_connection("CONN_A")
         assert backend.get_variable("VAR_A") is None

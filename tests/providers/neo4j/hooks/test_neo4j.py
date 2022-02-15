@@ -15,51 +15,94 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import json
 import unittest
 from unittest import mock
+
+from parameterized import parameterized
 
 from airflow.models import Connection
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 
 class TestNeo4jHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-        self.neo4j_hook = Neo4jHook()
-        self.connection = Connection(
-            conn_type='neo4j', login='login', password='password', host='host', schema='schema'
+    @parameterized.expand(
+        [
+            [{}, "bolt://host:7687"],
+            [{"bolt_scheme": True}, "bolt://host:7687"],
+            [{"certs_self_signed": True, "bolt_scheme": True}, "bolt+ssc://host:7687"],
+            [{"certs_trusted_ca": True, "bolt_scheme": True}, "bolt+s://host:7687"],
+        ]
+    )
+    def test_get_uri_neo4j_scheme(self, conn_extra, expected_uri):
+        connection = Connection(
+            conn_type='neo4j',
+            login='login',
+            password='password',
+            host='host',
+            schema='schema',
+            extra=conn_extra,
         )
 
-    def test_get_uri_neo4j_scheme(self):
+        # Use the environment variable mocking to test saving the configuration as a URI and
+        # to avoid mocking Airflow models class
+        with mock.patch.dict('os.environ', AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()
+            uri = neo4j_hook.get_uri(connection)
 
-        self.neo4j_hook.get_connection = mock.Mock()
-        self.neo4j_hook.get_connection.return_value = self.connection
-        uri = self.neo4j_hook.get_uri(self.connection)
+            assert uri == expected_uri
 
-        assert uri == "bolt://host:7687"
+    @mock.patch('airflow.providers.neo4j.hooks.neo4j.GraphDatabase')
+    def test_run_with_schema(self, mock_graph_database):
+        connection = Connection(
+            conn_type='neo4j', login='login', password='password', host='host', schema='schema'
+        )
+        mock_sql = mock.MagicMock(name="sql")
 
-    def test_get_uri_bolt_scheme(self):
+        # Use the environment variable mocking to test saving the configuration as a URI and
+        # to avoid mocking Airflow models class
+        with mock.patch.dict('os.environ', AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()
+            op_result = neo4j_hook.run(mock_sql)
+            mock_graph_database.assert_has_calls(
+                [
+                    mock.call.driver('bolt://host:7687', auth=('login', 'password'), encrypted=False),
+                    mock.call.driver().session(database='schema'),
+                    mock.call.driver().session().__enter__(),
+                    mock.call.driver().session().__enter__().run(mock_sql),
+                    mock.call.driver().session().__enter__().run().data(),
+                    mock.call.driver().session().__exit__(None, None, None),
+                ]
+            )
+            session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
+            self.assertEqual(
+                session.run.return_value.data.return_value,
+                op_result,
+            )
 
-        self.connection.extra = json.dumps({"bolt_scheme": True})
-        self.neo4j_hook.get_connection = mock.Mock()
-        self.neo4j_hook.get_connection.return_value = self.connection
-        uri = self.neo4j_hook.get_uri(self.connection)
+    @mock.patch('airflow.providers.neo4j.hooks.neo4j.GraphDatabase')
+    def test_run_without_schema(self, mock_graph_database):
+        connection = Connection(
+            conn_type='neo4j', login='login', password='password', host='host', schema=None
+        )
+        mock_sql = mock.MagicMock(name="sql")
 
-        assert uri == "bolt://host:7687"
-
-    def test_get_uri_bolt_ssc_scheme(self):
-        self.connection.extra = json.dumps({"certs_self_signed": True, "bolt_scheme": True})
-        self.neo4j_hook.get_connection = mock.Mock()
-        self.neo4j_hook.get_connection.return_value = self.connection
-        uri = self.neo4j_hook.get_uri(self.connection)
-
-        assert uri == "bolt+ssc://host:7687"
-
-    def test_get_uri_bolt_trusted_ca_scheme(self):
-        self.connection.extra = json.dumps({"certs_trusted_ca": True, "bolt_scheme": True})
-        self.neo4j_hook.get_connection = mock.Mock()
-        self.neo4j_hook.get_connection.return_value = self.connection
-        uri = self.neo4j_hook.get_uri(self.connection)
-
-        assert uri == "bolt+s://host:7687"
+        # Use the environment variable mocking to test saving the configuration as a URI and
+        # to avoid mocking Airflow models class
+        with mock.patch.dict('os.environ', AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()
+            op_result = neo4j_hook.run(mock_sql)
+            mock_graph_database.assert_has_calls(
+                [
+                    mock.call.driver('bolt://host:7687', auth=('login', 'password'), encrypted=False),
+                    mock.call.driver().session(),
+                    mock.call.driver().session().__enter__(),
+                    mock.call.driver().session().__enter__().run(mock_sql),
+                    mock.call.driver().session().__enter__().run().data(),
+                    mock.call.driver().session().__exit__(None, None, None),
+                ]
+            )
+            session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
+            self.assertEqual(
+                session.run.return_value.data.return_value,
+                op_result,
+            )

@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-method
+class GoogleDeploymentManagerHook(GoogleBaseHook):
     """
     Interact with Google Cloud Deployment Manager using the Google Cloud connection.
     This allows for scheduled and programmatic inspection and deletion fo resources managed by GDM.
@@ -55,7 +55,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
         self,
-        project_id: Optional[str] = None,  # pylint: disable=too-many-arguments
+        project_id: Optional[str] = None,
         deployment_filter: Optional[str] = None,
         order_by: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
@@ -63,24 +63,19 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         Lists deployments in a google cloud project.
 
         :param project_id: The project ID for this request.
-        :type project_id: str
         :param deployment_filter: A filter expression which limits resources returned in the response.
-        :type deployment_filter: str
         :param order_by: A field name to order by, ex: "creationTimestamp desc"
-        :type order_by: Optional[str]
         :rtype: list
         """
         deployments = []  # type: List[Dict]
         conn = self.get_conn()
-        # pylint: disable=no-member
+
         request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             deployments.extend(response.get("deployments", []))
-            request = conn.deployments().list_next(  # pylint: disable=no-member
-                previous_request=request, previous_response=response
-            )
+            request = conn.deployments().list_next(previous_request=request, previous_response=response)
 
         return deployments
 
@@ -92,16 +87,13 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         Deletes a deployment and all associated resources in a google cloud project.
 
         :param project_id: The project ID for this request.
-        :type project_id: str
         :param deployment: The name of the deployment for this request.
-        :type deployment: str
         :param delete_policy: Sets the policy to use for deleting resources. (ABANDON | DELETE)
-        :type delete_policy: string
 
         :rtype: None
         """
         conn = self.get_conn()
-        # pylint: disable=no-member
+
         request = conn.deployments().delete(
             project=project_id, deployment=deployment, deletePolicy=delete_policy
         )

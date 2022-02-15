@@ -16,6 +16,9 @@
 # under the License.
 
 import os
+from datetime import datetime
+
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import DAG
 from airflow.providers.google.cloud.operators.workflows import (
@@ -30,7 +33,6 @@ from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsUpdateWorkflowOperator,
 )
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
-from airflow.utils.dates import days_ago
 
 LOCATION = os.environ.get("GCP_WORKFLOWS_LOCATION", "us-central1")
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
@@ -80,7 +82,12 @@ SLEEP_WORKFLOW = {
 }
 
 
-with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=None) as dag:
+with DAG(
+    "example_cloud_workflows",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
     # [START how_to_create_workflow]
     create_workflow = WorkflowsCreateWorkflowOperator(
         task_id="create_workflow",
@@ -97,7 +104,7 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        update_mask={"paths": ["name", "description"]},
+        update_mask=FieldMask(paths=["name", "description"]),
     )
     # [END how_to_update_workflow]
 
@@ -131,13 +138,15 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
     )
     # [END how_to_create_execution]
 
+    create_execution_id = create_execution.output["execution_id"]
+
     # [START how_to_wait_for_execution]
     wait_for_execution = WorkflowExecutionSensor(
         task_id="wait_for_execution",
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        execution_id='{{ task_instance.xcom_pull("create_execution", key="execution_id") }}',
+        execution_id=create_execution_id,
     )
     # [END how_to_wait_for_execution]
 
@@ -147,7 +156,7 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        execution_id='{{ task_instance.xcom_pull("create_execution", key="execution_id") }}',
+        execution_id=create_execution_id,
     )
     # [END how_to_get_execution]
 
@@ -179,17 +188,22 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=SLEEP_WORKFLOW_ID,
-        execution_id='{{ task_instance.xcom_pull("create_execution_for_cancel", key="execution_id") }}',
+        execution_id=create_execution_id,
     )
     # [END how_to_cancel_execution]
 
     create_workflow >> update_workflows >> [get_workflow, list_workflows]
     update_workflows >> [create_execution, create_execution_for_cancel]
 
-    create_execution >> wait_for_execution >> [get_execution, list_executions]
+    wait_for_execution >> [get_execution, list_executions]
     create_workflow_for_cancel >> create_execution_for_cancel >> cancel_execution
 
     [cancel_execution, list_executions] >> delete_workflow
+
+    # Task dependencies created via `XComArgs`:
+    #   create_execution >> wait_for_execution
+    #   create_execution >> get_execution
+    #   create_execution >> cancel_execution
 
 
 if __name__ == '__main__':

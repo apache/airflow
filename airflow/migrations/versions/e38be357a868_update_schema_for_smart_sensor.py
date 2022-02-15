@@ -26,8 +26,9 @@ Create Date: 2019-06-07 04:03:17.003939
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
-from sqlalchemy.dialects import mysql
 from sqlalchemy.engine.reflection import Inspector
+
+from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
 revision = 'e38be357a868'
@@ -36,19 +37,7 @@ branch_labels = None
 depends_on = None
 
 
-def mssql_timestamp():  # noqa: D103
-    return sa.DateTime()
-
-
-def mysql_timestamp():  # noqa: D103
-    return mysql.TIMESTAMP(fsp=6)
-
-
-def sa_timestamp():  # noqa: D103
-    return sa.TIMESTAMP(timezone=True)
-
-
-def upgrade():  # noqa: D103
+def upgrade():
 
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
@@ -56,30 +45,23 @@ def upgrade():  # noqa: D103
     if 'sensor_instance' in tables:
         return
 
-    if conn.dialect.name == 'mysql':
-        timestamp = mysql_timestamp
-    elif conn.dialect.name == 'mssql':
-        timestamp = mssql_timestamp
-    else:
-        timestamp = sa_timestamp
-
     op.create_table(
         'sensor_instance',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
-        sa.Column('execution_date', timestamp(), nullable=False),
+        sa.Column('task_id', StringID(), nullable=False),
+        sa.Column('dag_id', StringID(), nullable=False),
+        sa.Column('execution_date', TIMESTAMP, nullable=False),
         sa.Column('state', sa.String(length=20), nullable=True),
         sa.Column('try_number', sa.Integer(), nullable=True),
-        sa.Column('start_date', timestamp(), nullable=True),
+        sa.Column('start_date', TIMESTAMP, nullable=True),
         sa.Column('operator', sa.String(length=1000), nullable=False),
         sa.Column('op_classpath', sa.String(length=1000), nullable=False),
         sa.Column('hashcode', sa.BigInteger(), nullable=False),
         sa.Column('shardcode', sa.Integer(), nullable=False),
         sa.Column('poke_context', sa.Text(), nullable=False),
         sa.Column('execution_context', sa.Text(), nullable=True),
-        sa.Column('created_at', timestamp(), default=func.now(), nullable=False),
-        sa.Column('updated_at', timestamp(), default=func.now(), nullable=False),
+        sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
+        sa.Column('updated_at', TIMESTAMP, default=func.now(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index('ti_primary_key', 'sensor_instance', ['dag_id', 'task_id', 'execution_date'], unique=True)
@@ -89,7 +71,7 @@ def upgrade():  # noqa: D103
     op.create_index('si_updated_at', 'sensor_instance', ['updated_at'], unique=False)
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()

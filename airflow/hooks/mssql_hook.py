@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook  # noqa
 
 warnings.warn(

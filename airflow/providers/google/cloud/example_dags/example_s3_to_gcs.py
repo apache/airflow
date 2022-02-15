@@ -16,22 +16,24 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'gcp-project-id')
 S3BUCKET_NAME = os.environ.get('S3BUCKET_NAME', 'example-s3bucket-name')
 GCS_BUCKET = os.environ.get('GCP_GCS_BUCKET', 'example-gcsbucket-name')
+GCS_BUCKET_URL = f"gs://{GCS_BUCKET}/"
 UPLOAD_FILE = '/tmp/example-file.txt'
 PREFIX = 'TESTS'
 
 
+@task(task_id='upload_file_to_s3')
 def upload_file():
     """A callable to upload file to AWS bucket"""
     s3_hook = S3Hook()
@@ -40,15 +42,14 @@ def upload_file():
 
 with models.DAG(
     'example_s3_to_gcs',
-    schedule_interval=None,
-    start_date=days_ago(2),
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     create_s3_bucket = S3CreateBucketOperator(
         task_id="create_s3_bucket", bucket_name=S3BUCKET_NAME, region_name='us-east-1'
     )
-
-    upload_to_s3 = PythonOperator(task_id='upload_file_to_s3', python_callable=upload_file)
 
     create_gcs_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -57,7 +58,7 @@ with models.DAG(
     )
     # [START howto_transfer_s3togcs_operator]
     transfer_to_gcs = S3ToGCSOperator(
-        task_id='s3_to_gcs_task', bucket=S3BUCKET_NAME, prefix=PREFIX, dest_gcs="gs://" + GCS_BUCKET
+        task_id='s3_to_gcs_task', bucket=S3BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET_URL
     )
     # [END howto_transfer_s3togcs_operator]
 
@@ -69,7 +70,7 @@ with models.DAG(
 
     (
         create_s3_bucket
-        >> upload_to_s3
+        >> upload_file()
         >> create_gcs_bucket
         >> transfer_to_gcs
         >> delete_s3_bucket

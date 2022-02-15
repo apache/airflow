@@ -29,11 +29,11 @@ class TaskConcurrencyDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.task.task_concurrency is None:
+        if ti.task.max_active_tis_per_dag is None:
             yield self._passing_status(reason="Task concurrency is not set.")
             return
 
-        if ti.get_num_running_task_instances(session) >= ti.task.task_concurrency:
+        if ti.get_num_running_task_instances(session) >= ti.task.max_active_tis_per_dag:
             yield self._failing_status(reason="The max task concurrency has been reached.")
             return
         else:

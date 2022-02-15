@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/salesforce>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
@@ -40,8 +41,9 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/salesforce/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -57,7 +59,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 3.0.0
+Release: 3.4.0
 
 Provider package
 ----------------
@@ -68,7 +70,7 @@ are in ``airflow.providers.salesforce`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-salesforce``
 
 PIP requirements
@@ -77,6 +79,8 @@ PIP requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
+``apache-airflow``       ``>=2.1.0``
+``pandas``               ``>=0.17.1, <2.0``
 ``simple-salesforce``    ``>=1.0.0``
 ``tableauserverclient``
 =======================  ==================
@@ -106,7 +110,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-salesforce 3.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-salesforce 3.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-salesforce 3.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-salesforce 3.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.4.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/salesforce/CHANGELOG.rst

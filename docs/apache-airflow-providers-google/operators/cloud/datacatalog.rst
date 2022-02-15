@@ -29,10 +29,6 @@ Google Cloud. It offers:
 * A flexible and powerful cataloging system for capturing technical and business metadata
 * An auto-tagging mechanism for sensitive data with DLP API integration
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

@@ -35,16 +35,14 @@ class GrpcHook(BaseHook):
     General interaction with gRPC servers.
 
     :param grpc_conn_id: The connection ID to use when fetching connection info.
-    :type grpc_conn_id: str
     :param interceptors: a list of gRPC interceptor objects which would be applied
         to the connected gRPC channel. None by default.
-    :type interceptors: a list of gRPC interceptors based on or extends the four
+        Each interceptor should based on or extends the four
         official gRPC interceptors, eg, UnaryUnaryClientInterceptor,
         UnaryStreamClientInterceptor, StreamUnaryClientInterceptor,
         StreamStreamClientInterceptor.
     :param custom_connection_func: The customized connection function to return gRPC channel.
-    :type custom_connection_func: python callable objects that accept the connection as
-        its only arg. Could be partial or lambda.
+        A callable that accepts the connection as its only arg.
     """
 
     conn_name_attr = 'grpc_conn_id'
@@ -116,9 +114,8 @@ class GrpcHook(BaseHook):
             channel = self.custom_connection_func(self.conn)
         else:
             raise AirflowConfigException(
-                "auth_type not supported or not provided, channel cannot be established,\
-                given value: %s"
-                % str(auth_type)
+                "auth_type not supported or not provided, channel cannot be established, "
+                f"given value: {str(auth_type)}"
             )
 
         if self.interceptors:
@@ -148,8 +145,8 @@ class GrpcHook(BaseHook):
                     status code: %s, error details: %s",
                     stub.__class__.__name__,
                     call_func,
-                    ex.code(),  # pylint: disable=no-member
-                    ex.details(),  # pylint: disable=no-member
+                    ex.code(),
+                    ex.details(),
                 )
                 raise ex
 

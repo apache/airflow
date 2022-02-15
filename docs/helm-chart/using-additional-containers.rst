@@ -22,13 +22,9 @@ Sidecar Containers
 ------------------
 
 If you want to deploy your own sidecar container, you can add it through the ``extraContainers`` parameter.
-You can define different containers for the scheduler, webserver and worker pods.
+You can define different containers for the scheduler, webserver, worker, triggerer, flower, create user Job and migrate database Job Pods.
 
 For example, sidecars that sync DAGs from object storage.
-
-.. note::
-
-   ``workers.extraContainers`` is only functional with ``CeleryExecutor``.
 
 .. code-block:: yaml
 
@@ -43,12 +39,17 @@ For example, sidecars that sync DAGs from object storage.
         image: my-company/s3-sync:latest
         imagePullPolicy: Always
 
+.. note::
+
+   If you use ``workers.extraContainers`` with ``KubernetesExecutor``, you are responsible for signaling
+   sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!
+
 
 Init Containers
 ---------------
 
 You can also deploy extra init containers through the ``extraInitContainers`` parameter.
-You can define different containers for the scheduler, webserver and worker pods.
+You can define different containers for the scheduler, webserver, worker and triggerer pods.
 
 For example, an init container that just says hello:
 

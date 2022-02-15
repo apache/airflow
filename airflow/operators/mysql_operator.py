@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.mysql.operators.mysql import MySqlOperator  # noqa
 
 warnings.warn(

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.ssh.operators.ssh import SSHOperator  # noqa
 
 warnings.warn(

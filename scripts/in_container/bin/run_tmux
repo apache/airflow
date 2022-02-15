@@ -33,11 +33,21 @@ fi
 mkdir -p ~/.tmux/tmp
 chmod 777 -R ~/.tmux/tmp
 
+# Creating a new tmux session (below) will start a new login shell and /etc/profile
+# will overwrite the custom Dockerfile PATH variable. Adding the custom PATH export
+# to home directory profile here will take precedence.
+echo "export PATH=$PATH" >> ~/.profile
+
 # Set Session Name
 export TMUX_SESSION="Airflow"
 
 # Start New Session with our name
 tmux new-session -d -s "${TMUX_SESSION}"
+
+# Enable mouse interaction with tmux. This allows selecting between the panes
+# by clicking with the mouse and also allows scrolling back through terminal
+# output with the mouse wheel.
+tmux set mouse on
 
 # Name first Pane and start bash
 tmux rename-window -t 0 'Main'
@@ -51,10 +61,10 @@ tmux split-window -h
 tmux select-pane -t 2
 tmux send-keys 'airflow webserver' C-m
 
-if [[ -z "${USE_AIRFLOW_VERSION=}" ]]; then
+if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
     tmux select-pane -t 0
     tmux split-window -h
-    tmux send-keys 'cd /opt/airflow/airflow/www/; yarn install --frozen-lockfile; yarn dev' C-m
+    tmux send-keys 'airflow triggerer' C-m
 fi
 
 # Attach Session, on the Main window

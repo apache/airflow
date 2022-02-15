@@ -97,22 +97,28 @@ def is_operation_in_progress_exception(exception: Exception) -> bool:
     return False
 
 
-class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+class retry_if_temporary_quota(tenacity.retry_if_exception):
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_soft_quota_exception)
 
 
-class retry_if_operation_in_progress(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+class retry_if_operation_in_progress(tenacity.retry_if_exception):
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_operation_in_progress_exception)
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
-RT = TypeVar('RT')  # pylint: disable=invalid-name
+# A fake project_id to use in functions decorated by fallback_to_default_project_id
+# This allows the 'project_id' argument to be of type str instead of Optional[str],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+PROVIDE_PROJECT_ID: str = cast(str, None)
+
+T = TypeVar("T", bound=Callable)
+RT = TypeVar('RT')
 
 
 class GoogleBaseHook(BaseHook):
@@ -140,11 +146,9 @@ class GoogleBaseHook(BaseHook):
     JSON data provided in the UI: Specify 'Keyfile JSON'.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -153,7 +157,6 @@ class GoogleBaseHook(BaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -182,6 +185,9 @@ class GoogleBaseHook(BaseHook):
             "extra__google_cloud_platform__scope": StringField(
                 lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
             ),
+            "extra__google_cloud_platform__key_secret_name": StringField(
+                lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
+            ),
             "extra__google_cloud_platform__num_retries": IntegerField(
                 lazy_gettext('Number of Retries'),
                 validators=[NumberRange(min=0)],
@@ -191,7 +197,7 @@ class GoogleBaseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -225,12 +231,14 @@ class GoogleBaseHook(BaseHook):
                 keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
             raise AirflowException('Invalid key JSON.')
+        key_secret_name: Optional[str] = self._get_field('key_secret_name', None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
+            key_secret_name=key_secret_name,
             scopes=self.scopes,
             delegate_to=self.delegate_to,
             target_principal=target_principal,
@@ -270,7 +278,7 @@ class GoogleBaseHook(BaseHook):
 
         http_authorized = self._authorize()
         oauth2_client = discovery.build('oauth2', "v1", http=http_authorized, cache_discovery=False)
-        return oauth2_client.tokeninfo().execute()['email']  # pylint: disable=no-member
+        return oauth2_client.tokeninfo().execute()['email']
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """
@@ -453,12 +461,8 @@ class GoogleBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        key_path = self._get_field(
-            'key_path', None
-        )  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-        keyfile_dict = self._get_field(
-            'keyfile_dict', None
-        )  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+        key_path = self._get_field('key_path', None)  # type: Optional[str]    #
+        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
@@ -497,9 +501,6 @@ class GoogleBaseHook(BaseHook):
             gcloud_config_tmp = exit_stack.enter_context(tempfile.TemporaryDirectory())
             exit_stack.enter_context(patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}))
 
-            if project_id:
-                # Don't display stdout/stderr for security reason
-                check_output(["gcloud", "config", "set", "core/project", project_id])
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
@@ -532,6 +533,11 @@ class GoogleBaseHook(BaseHook):
                             creds_content["refresh_token"],
                         ]
                     )
+
+            if project_id:
+                # Don't display stdout/stderr for security reason
+                check_output(["gcloud", "config", "set", "core/project", project_id])
+
             yield
 
     @staticmethod
@@ -542,11 +548,8 @@ class GoogleBaseHook(BaseHook):
 
         :param file_handle: io.Base or file object. The stream in which to write the downloaded
             bytes.
-        :type file_handle: io.Base or file object
         :param request: googleapiclient.http.HttpRequest, the media request to perform in chunks.
-        :type request: Dict
         :param chunk_size: int, File will be downloaded in chunks of this many bytes.
-        :type chunk_size: int
         """
         downloader = MediaIoBaseDownload(file_handle, request, chunksize=chunk_size)
         done = False

@@ -19,6 +19,49 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+* ``Add optional features in providers. (#21074)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix type annotations in OracleOperator,  JdbcOperator, SqliteOperator (#17406)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
+
 2.0.0
 .....
 
@@ -41,6 +84,7 @@ Breaking changes
    * ``Update documentation for broken package releases (#14734)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.1
 .....

@@ -23,7 +23,7 @@ from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemT
 
 
 @pytest.mark.backend("postgres", "mysql")
-class ECSSystemTest(AmazonSystemTest):
+class EcsSystemTest(AmazonSystemTest):
     """
     ECS System Test to run and test example ECS dags
 

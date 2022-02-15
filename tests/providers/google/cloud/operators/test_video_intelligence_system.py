@@ -32,12 +32,12 @@ GCP_VIDEO_SOURCE_URL = "https://www.sample-videos.com/video123/mp4/720/big_buck_
 class CloudVideoIntelligenceExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_AI_KEY)
     def setUp(self):
+        super().setUp()
         self.create_gcs_bucket(GCP_BUCKET_NAME, location="europe-north1")
         self.execute_with_ctx(
             cmd=["bash", "-c", f"curl {GCP_VIDEO_SOURCE_URL} | gsutil cp - gs://{GCP_BUCKET_NAME}/video.mp4"],
             key=GCP_GCS_KEY,
         )
-        super().setUp()
 
     @provide_gcp_context(GCP_AI_KEY)
     def tearDown(self):

@@ -17,10 +17,10 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
-from airflow.utils import dates
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project-id")
 BUCKET = os.environ.get("GCP_GCS_LIFE_SCIENCES_BUCKET", "INVALID BUCKET NAME")
@@ -75,8 +75,9 @@ MULTI_ACTION_PIPELINE = {
 
 with models.DAG(
     "example_gcp_life_sciences",
-    default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
 

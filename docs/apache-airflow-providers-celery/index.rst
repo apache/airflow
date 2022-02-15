@@ -28,8 +28,9 @@ Content
 
     Python API <_api/airflow/providers/celery/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-celery/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -45,7 +46,7 @@ Package apache-airflow-providers-celery
 `Celery <http://www.celeryproject.org/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -56,18 +57,18 @@ are in ``airflow.providers.celery`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-celery``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``celery``     ``~=4.4.2``
-``flower``     ``>=0.7.3, <1.0``
-``vine``       ``~=1.3``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``celery``          ``~=5.1,>=5.1.2``
+``flower``          ``~=1.0.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/celery/CHANGELOG.rst

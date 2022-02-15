@@ -131,6 +131,27 @@ class TestFileSensor(unittest.TestCase):
             task._hook = self.hook
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_wildcared_directory(self):
+        temp_dir = tempfile.mkdtemp()
+        subdir = tempfile.mkdtemp(dir=temp_dir)
+        task = FileSensor(
+            task_id='test',
+            filepath=temp_dir + "/**",
+            fs_conn_id='fs_default',
+            dag=self.dag,
+            timeout=0,
+            poke_interval=1,
+            recursive=True,
+        )
+        task._hook = self.hook
+
+        try:
+            # `touch` the dir
+            open(subdir + "/file", "a").close()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        finally:
+            shutil.rmtree(temp_dir)
+
     def test_subdirectory_not_empty(self):
         suffix = '.txt'
         temp_dir = tempfile.mkdtemp()

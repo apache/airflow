@@ -31,6 +31,7 @@ PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "global_operator_extra_links",
     "operator_extra_links",
     "registered_operator_link_classes",
+    "timetable_classes",
 ]
 
 

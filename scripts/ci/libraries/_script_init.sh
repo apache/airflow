@@ -31,7 +31,11 @@ readonly AIRFLOW_SOURCES
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 . "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
 
+initialization::create_directories
+
 initialization::initialize_common_environment
+
+initialization::check_docker_version
 
 sanity_checks::basic_sanity_checks
 
@@ -41,7 +45,7 @@ build_images::determine_docker_cache_strategy
 
 initialization::get_environment_for_builds_on_ci
 
-build_images::get_docker_image_names
+build_images::get_docker_cache_image_names
 
 initialization::make_constants_read_only
 

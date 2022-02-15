@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor  # noqa
 
 warnings.warn(

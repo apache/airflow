@@ -28,14 +28,69 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.2.0
+.....
+
+Latest change: 2022-02-11
+
+================================================================================================  ===========  ===============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================================
+`d72098f6d <https://github.com/apache/airflow/commit/d72098f6d811165225ebee4086969510861a544f>`_  2022-02-11   ``improved backwards compatibility (#21524)``
+`d94fa3783 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`471e368ea <https://github.com/apache/airflow/commit/471e368eacbcae1eedf9b7e1cb4290c385396ea9>`_  2022-02-07   ``[Oracle] Oracle Hook - automatically set current_schema when defined in Connection (#19084)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`a8c6451e6 <https://github.com/apache/airflow/commit/a8c6451e6196be64469a99247a4e75d6095b5470>`_  2022-01-07   ``Oracle Provider: Fix handling of bindvars with no parameters (#20720)``
+================================================================================================  ===========  ===============================================================================================
+
+2.1.0
+.....
+
+Latest change: 2021-12-31
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178b <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56b <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235f <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`6e51608f2 <https://github.com/apache/airflow/commit/6e51608f28f4c769c019624ea0caaa0c6e671f80>`_  2021-12-16   ``Fix mypy for providers: elasticsearch, oracle, yandex (#20344)``
+`c7f36f25c <https://github.com/apache/airflow/commit/c7f36f25cb1d7d35a658e08552c4b6ac480e0cbf>`_  2021-12-13   ``Add method 'callproc' on Oracle hook (#20072)``
+`0f712e307 <https://github.com/apache/airflow/commit/0f712e307ac9f011a58fcbf1a5f8ff40e398e9ee>`_  2021-12-07   ``Add ''autocommit'' to ''OracleHook''  (#20085)``
+================================================================================================  ===========  =========================================================================
+
+2.0.1
+.....
+
+Latest change: 2021-08-30
+
+================================================================================================  ===========  ==================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==================================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`bb52098cd <https://github.com/apache/airflow/commit/bb52098cd685497385801419a1e0a59d6a0d7283>`_  2021-08-06   ``Fix type annotations in OracleOperator,  JdbcOperator, SqliteOperator (#17406)``
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ==================================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-07
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `abcd48731 <https://github.com/apache/airflow/commit/abcd48731303d9e141bdc94acc2db46d73ccbe12>`_  2021-05-17   ``Add optional result handler to database hooks (#15581)``
 `30eeac7b7 <https://github.com/apache/airflow/commit/30eeac7b7ed4ab5ea191691a3b713e3d66c0baff>`_  2021-05-09   ``[Oracle] Add port to DSN (#15589)``

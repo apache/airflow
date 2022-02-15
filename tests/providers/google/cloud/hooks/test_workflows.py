@@ -48,7 +48,7 @@ def mock_init(*args, **kwargs):
 class TestWorkflowsHook:
     def setup_method(self, _):
         with mock.patch(BASE_PATH.format("GoogleBaseHook.__init__"), new=mock_init):
-            self.hook = WorkflowsHook(gcp_conn_id="test")  # pylint: disable=attribute-defined-outside-init
+            self.hook = WorkflowsHook(gcp_conn_id="test")
 
     @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
     @mock.patch(BASE_PATH.format("WorkflowsHook.client_info"), new_callable=mock.PropertyMock)

@@ -15,11 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export REMEMBER_LAST_ANSWER="true"
+export PYTHON_MAJOR_MINOR_VERSION="3.7"
 export PRINT_INFO_FROM_SCRIPTS="false"
-export SKIP_CHECK_REMOTE_IMAGE="true"
-
 
 # shellcheck source=scripts/ci/static_checks/flake8.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/flake8.sh" "${@}"

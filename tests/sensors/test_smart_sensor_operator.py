@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
 import logging
 import os
@@ -32,6 +31,7 @@ from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -44,7 +44,10 @@ SENSOR_OP = 'sensor_op'
 
 class DummySmartSensor(SmartSensorOperator):
     def __init__(
-        self, shard_max=conf.getint('smart_sensor', 'shard_code_upper_limit'), shard_min=0, **kwargs
+        self,
+        shard_max=conf.getint('smart_sensor', 'shard_code_upper_limit'),
+        shard_min=0,
+        **kwargs,
     ):
         super().__init__(shard_min=shard_min, shard_max=shard_max, **kwargs)
 
@@ -58,7 +61,7 @@ class DummySensor(BaseSensorOperator):
         self.input_field = input_field
         self.return_value = return_value
 
-    def poke(self, context):
+    def poke(self, context: Context):
         return context.get('return_value', False)
 
     def is_smart_sensor_compatible(self):
@@ -155,6 +158,7 @@ class SmartSensorTest(unittest.TestCase):
     def test_load_sensor_works(self):
         # Mock two sensor tasks return True and one return False
         # The hashcode for si1 and si2 should be same. Test dedup on these two instances
+        self._make_sensor_dag_run()
         si1 = self._make_sensor_instance(1, True)
         si2 = self._make_sensor_instance(2, True)
         si3 = self._make_sensor_instance(3, False)
@@ -285,6 +289,7 @@ class SmartSensorTest(unittest.TestCase):
                 assert sensor_instance.state == State.FAILED
 
     def test_register_in_sensor_service(self):
+        self._make_sensor_dag_run()
         si1 = self._make_sensor_instance(1, True)
         si1.run(ignore_all_deps=True)
         assert si1.state == State.SENSING
@@ -295,7 +300,9 @@ class SmartSensorTest(unittest.TestCase):
         sensor_instance = (
             session.query(SI)
             .filter(
-                SI.dag_id == si1.dag_id, SI.task_id == si1.task_id, SI.execution_date == si1.execution_date
+                SI.dag_id == si1.dag_id,
+                SI.task_id == si1.task_id,
+                SI.execution_date == si1.execution_date,
             )
             .first()
         )

@@ -25,13 +25,30 @@ from unittest import mock
 import pytest
 
 from airflow.hooks.base import BaseHook
+from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-py39 = sys.version_info >= (3, 9)
-importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
+importlib_metadata_string = 'importlib_metadata'
+
+try:
+    import importlib_metadata
+
+    # If importlib_metadata is installed, it takes precedence over built-in importlib.metadata in PY39
+    # so we should use the default declared above
+except ImportError:
+    try:
+        import importlib.metadata
+
+        # only when we do not have importlib_metadata, the importlib.metadata is actually used
+        importlib_metadata = 'importlib.metadata'  # type: ignore
+    except ImportError:
+        raise Exception(
+            "Either importlib_metadata must be installed or importlib.metadata must be"
+            " available in system libraries (Python 3.9+). We seem to have neither."
+        )
 
 ON_LOAD_EXCEPTION_PLUGIN = """
 from airflow.plugins_manager import AirflowPlugin
@@ -44,11 +61,17 @@ class AirflowTestOnLoadExceptionPlugin(AirflowPlugin):
 """
 
 
+@pytest.fixture(autouse=True, scope='module')
+def clean_plugins():
+    yield
+    get_listener_manager().clear()
+
+
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
         self.app = app
-        self.appbuilder = app.appbuilder  # pylint: disable=no-member
+        self.appbuilder = app.appbuilder
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -119,7 +142,7 @@ def test_flaskappbuilder_nomenu_views():
     appbuilder_class_name = str(v_nomenu_appbuilder_package['view'].__class__.__name__)
 
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-        appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
+        appbuilder = application.create_app(testing=True).appbuilder
 
         plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
 
@@ -283,9 +306,9 @@ class TestPluginsManager:
         mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]), caplog.at_level(
-            logging.ERROR, logger='airflow.plugins_manager'
-        ):
+        with mock.patch(
+            f'{importlib_metadata_string}.distributions', return_value=[mock_dist]
+        ), caplog.at_level(logging.ERROR, logger='airflow.plugins_manager'):
             load_entrypoint_plugins()
 
             received_logs = caplog.text
@@ -334,6 +357,16 @@ class TestPluginsManager:
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)
 
+    def test_registering_plugin_listeners(self):
+        from airflow import plugins_manager
+
+        with mock.patch('airflow.plugins_manager.plugins', []):
+            plugins_manager.load_plugins_from_plugin_directory()
+            plugins_manager.integrate_listener_plugins(get_listener_manager())
+
+            assert get_listener_manager().has_listeners
+            assert get_listener_manager().pm.get_plugins().pop().__name__ == "tests.listeners.empty_listener"
+
 
 class TestPluginsDirectorySource:
     def test_should_return_correct_path_name(self):
@@ -358,7 +391,7 @@ class TestEntryPointSource:
         mock_dist.version = '1.0.0'
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]):
+        with mock.patch(f'{importlib_metadata_string}.distributions', return_value=[mock_dist]):
             plugins_manager.load_entrypoint_plugins()
 
         source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)

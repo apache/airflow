@@ -15,23 +15,50 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# apiVersion v1 is Helm 2
+# apiVersion v2 is Helm 3
 ---
-apiVersion: v1
+apiVersion: v2
 name: airflow
-version: 1.1.0-rc1
-appVersion: 2.1.0
-description: Helm chart to deploy Apache Airflow, a platform to
+version: 1.5.0-dev
+appVersion: 2.2.3
+description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
+sources:
+  - https://github.com/apache/airflow
 icon: https://airflow.apache.org/docs/apache-airflow/stable/_images/pin_large.png
 keywords:
   - apache
   - airflow
   - workflow
   - scheduler
+dependencies:
+  - name: postgresql
+    version: 10.5.3
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
 maintainers:
   - email: dev@airflow.apache.org
     name: Apache Airflow PMC
-sources:
-  - https://github.com/apache/airflow
+type: application
+annotations:
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://airflow.apache.org/docs/helm-chart/1.5.0/
+  artifacthub.io/screenshots: |
+    - title: DAGs View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/dags.png
+    - title: Tree View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/tree.png
+    - title: Calendar View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/calendar.png
+    - title: Variable View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/variable_hidden1.png
+    - title: Gantt Chart
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/gantt.png
+    - title: Task Duration
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/duration.png
+    - title: Code View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/code.png
+    - title: Task Instance Context Menu
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/context.png

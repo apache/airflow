@@ -22,7 +22,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -44,6 +44,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 log = logging.getLogger(__name__)
 
@@ -115,7 +119,7 @@ class QuboleHook(BaseHook):
     hook_name = 'Qubole'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['login', 'schema', 'port', 'extra'],
@@ -126,7 +130,7 @@ class QuboleHook(BaseHook):
             "placeholders": {'host': 'https://<env>.qubole.com/api'},
         }
 
-    def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__()
         conn = self.get_connection(kwargs.get('qubole_conn_id', self.default_conn_name))
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -134,7 +138,7 @@ class QuboleHook(BaseHook):
         self.dag_id = kwargs['dag'].dag_id
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
-        self.cmd = None
+        self.cmd: Optional[Command] = None
         self.task_instance = None
 
     @staticmethod
@@ -153,7 +157,7 @@ class QuboleHook(BaseHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Execute call"""
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
@@ -202,7 +206,6 @@ class QuboleHook(BaseHook):
             self.log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
-    # pylint: disable=consider-using-with
     def get_results(
         self,
         ti=None,
@@ -271,7 +274,7 @@ class QuboleHook(BaseHook):
         tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
-        for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
+        for key, value in self.kwargs.items():
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
                     args.append(f"--{key.replace('_', '-')}={value}")

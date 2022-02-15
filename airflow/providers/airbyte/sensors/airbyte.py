@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
-from typing import Optional
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AirbyteJobSensor(BaseSensorOperator):
@@ -28,23 +31,20 @@ class AirbyteJobSensor(BaseSensorOperator):
     Check for the state of a previously submitted Airbyte job.
 
     :param airbyte_job_id: Required. Id of the Airbyte job
-    :type airbyte_job_id: str
     :param airbyte_conn_id: Required. The name of the Airflow connection to get
         connection information for Airbyte.
-    :type airbyte_conn_id: str
     :param api_version: Optional. Airbyte API version.
-    :type api_version: str
     """
 
-    template_fields = ('airbyte_job_id',)
+    template_fields: Sequence[str] = ('airbyte_job_id',)
     ui_color = '#6C51FD'
 
     def __init__(
         self,
         *,
-        airbyte_job_id: str,
+        airbyte_job_id: int,
         airbyte_conn_id: str = 'airbyte_default',
-        api_version: Optional[str] = "v1",
+        api_version: str = "v1",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -52,7 +52,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job = hook.get_job(job_id=self.airbyte_job_id)
         status = job.json()['job']['status']

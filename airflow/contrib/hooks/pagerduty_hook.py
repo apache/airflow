@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook  # noqa
 
 warnings.warn(

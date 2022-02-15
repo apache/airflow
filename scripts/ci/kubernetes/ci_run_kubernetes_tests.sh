@@ -18,6 +18,8 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+: "${EXECUTOR:?You must set EXECUTOR to one of 'KubernetesExecutor', 'CeleryExecutor', 'CeleryKubernetesExecutor' }"
+
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
 
@@ -50,23 +52,15 @@ function parse_tests_to_run() {
         else
             tests_to_run=("${@}")
         fi
-        pytest_args=(
-            "--pythonwarnings=ignore::DeprecationWarning"
-            "--pythonwarnings=ignore::PendingDeprecationWarning"
-        )
+        pytest_args=()
     else
         tests_to_run=("kubernetes_tests")
         pytest_args=(
             "--verbosity=1"
             "--strict-markers"
             "--durations=100"
-            "--cov=airflow/"
-            "--cov-config=.coveragerc"
-            "--cov-report=xml:files/coverage=${KIND_CLUSTER_NAME}.xml"
             "--color=yes"
             "--maxfail=50"
-            "--pythonwarnings=ignore::DeprecationWarning"
-            "--pythonwarnings=ignore::PendingDeprecationWarning"
             )
 
     fi
@@ -76,7 +70,7 @@ function create_virtualenv() {
     HOST_PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
     readonly HOST_PYTHON_VERSION
 
-    local virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv/${KIND_CLUSTER_NAME}_host_python_${HOST_PYTHON_VERSION}"
+    local virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv/${KIND_CLUSTER_NAME}_host_python_${HOST_PYTHON_VERSION}_${EXECUTOR}"
 
     mkdir -pv "${BUILD_CACHE_DIR}/.kubernetes_venv/"
     if [[ ! -d ${virtualenv_path} ]]; then
@@ -88,13 +82,21 @@ function create_virtualenv() {
 
     . "${virtualenv_path}/bin/activate"
 
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
-    pip install pytest freezegun pytest-cov \
-      --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+    local constraints=(
+        --constraint
+        "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+    )
+    if [[ ${CI:=} == "true" && -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
+        # Disable constraints when building in CI with specific version of sources
+        # In case there will be conflicting constraints
+        constraints=()
+    fi
 
-    pip install -e ".[cncf.kubernetes,postgres]" \
-      --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+    pip install pytest freezegun "${constraints[@]}"
+
+    pip install -e ".[cncf.kubernetes,postgres]" "${constraints[@]}"
 }
 
 function run_tests() {

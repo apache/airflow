@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
 from typing import Optional
 
 from airflow.models.taskinstance import SimpleTaskInstance
@@ -71,7 +70,7 @@ class DagCallbackRequest(CallbackRequest):
 
     :param full_filepath: File Path to use to run the callback
     :param dag_id: DAG ID
-    :param execution_date: Execution Date for the DagRun
+    :param run_id: Run ID for the DagRun
     :param is_failure_callback: Flag to determine whether it is a Failure Callback or Success Callback
     :param msg: Additional Message that can be used for logging
     """
@@ -80,13 +79,13 @@ class DagCallbackRequest(CallbackRequest):
         self,
         full_filepath: str,
         dag_id: str,
-        execution_date: datetime,
+        run_id: str,
         is_failure_callback: Optional[bool] = True,
         msg: Optional[str] = None,
     ):
         super().__init__(full_filepath=full_filepath, msg=msg)
         self.dag_id = dag_id
-        self.execution_date = execution_date
+        self.run_id = run_id
         self.is_failure_callback = is_failure_callback
 
 

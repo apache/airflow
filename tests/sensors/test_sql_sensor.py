@@ -23,7 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
-from airflow.sensors.sql import SqlSensor
+from airflow.sensors.sql import DbApiHook, SqlSensor
 from airflow.utils.timezone import datetime
 from tests.providers.apache.hive import TestHiveEnvironment
 
@@ -94,7 +94,7 @@ class TestSqlSensor(TestHiveEnvironment):
             sql="SELECT 1",
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
@@ -124,7 +124,7 @@ class TestSqlSensor(TestHiveEnvironment):
             task_id='sql_sensor_check', conn_id='postgres_default', sql="SELECT 1", fail_on_empty=True
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
@@ -137,7 +137,7 @@ class TestSqlSensor(TestHiveEnvironment):
             task_id='sql_sensor_check', conn_id='postgres_default', sql="SELECT 1", success=lambda x: x in [1]
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
@@ -155,7 +155,7 @@ class TestSqlSensor(TestHiveEnvironment):
             task_id='sql_sensor_check', conn_id='postgres_default', sql="SELECT 1", failure=lambda x: x in [1]
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
@@ -175,7 +175,7 @@ class TestSqlSensor(TestHiveEnvironment):
             success=lambda x: x in [2],
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
@@ -198,7 +198,7 @@ class TestSqlSensor(TestHiveEnvironment):
             success=lambda x: x in [1],
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
@@ -217,7 +217,7 @@ class TestSqlSensor(TestHiveEnvironment):
             failure=[1],
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = [[1]]
@@ -234,7 +234,7 @@ class TestSqlSensor(TestHiveEnvironment):
             success=[1],
         )
 
-        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = [[1]]
@@ -253,3 +253,15 @@ class TestSqlSensor(TestHiveEnvironment):
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_sql_sensor_hook_params(self):
+        op = SqlSensor(
+            task_id='sql_sensor_hook_params',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            hook_params={
+                'schema': 'public',
+            },
+        )
+        hook = op._get_hook()
+        assert hook.schema == 'public'

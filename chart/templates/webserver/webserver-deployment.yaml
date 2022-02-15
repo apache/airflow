@@ -21,6 +21,7 @@
 {{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.webserver.affinity .Values.affinity }}
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.webserver) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -73,6 +74,7 @@ spec:
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/webserver-secret-key: {{ include (print $.Template.BasePath "/secrets/webserver-secret-key-secret.yaml") . | sha256sum }}
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/webserver-config: {{ include (print $.Template.BasePath "/configmaps/webserver-configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
@@ -80,18 +82,33 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.webserver.podAnnotations }}
+        {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
+      {{- if .Values.webserver.priorityClassName }}
+      priorityClassName: {{ .Values.webserver.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
+{{- if $affinity }}
 {{ toYaml $affinity | indent 8 }}
+{{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: webserver
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+{{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
-      securityContext:
-        runAsUser: {{ .Values.uid }}
-        fsGroup: {{ .Values.gid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -100,8 +117,13 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -128,6 +150,12 @@ spec:
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           volumeMounts:
+{{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
+            - name: config
+              mountPath: {{ include "airflow_pod_template_file" . }}/pod_template_file.yaml
+              subPath: pod_template_file.yaml
+              readOnly: true
+{{- end }}
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
@@ -155,7 +183,7 @@ spec:
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
           ports:
-            - name: webserver-ui
+            - name: airflow-ui
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:

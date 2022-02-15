@@ -17,6 +17,7 @@
 
 import textwrap
 import unittest
+from typing import Any, Dict, List, Tuple
 
 import jmespath
 import yaml
@@ -58,6 +59,9 @@ PARAMS = [
 
 
 class ExtraEnvEnvFromTest(unittest.TestCase):
+    k8s_objects: List[Dict[str, Any]]
+    k8s_objects_by_key: Dict[Tuple[str, str], Dict[str, Any]]
+
     @classmethod
     def setUpClass(cls) -> None:
         values_str = textwrap.dedent(

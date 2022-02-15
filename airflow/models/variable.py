@@ -18,7 +18,6 @@
 
 import json
 import logging
-import os
 from typing import Any, Optional
 
 from cryptography.fernet import InvalidToken as InvalidFernetToken
@@ -29,11 +28,12 @@ from sqlalchemy.orm import Session, reconstructor, synonym
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 class Variable(Base, LoggingMixin):
@@ -58,7 +58,7 @@ class Variable(Base, LoggingMixin):
         self.description = description
 
     @reconstructor
-    def on_db_load(self):  # pylint: disable=missing-function-docstring
+    def on_db_load(self):
         if self._val:
             mask_secret(self.val, self.key)
 
@@ -75,7 +75,7 @@ class Variable(Base, LoggingMixin):
             except InvalidFernetToken:
                 self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
@@ -89,21 +89,19 @@ class Variable(Base, LoggingMixin):
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def val(cls):  # pylint: disable=no-self-argument
+    def val(cls):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
         return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
-    def setdefault(cls, key, default, deserialize_json=False):
+    def setdefault(cls, key, default, description=None, deserialize_json=False):
         """
         Like a Python builtin dict object, setdefault returns the current value
         for a key, and if it isn't there, stores the default value and returns it.
 
         :param key: Dict key for this Variable
-        :type key: str
         :param default: Default value to set and return if the variable
             isn't already in the DB
-        :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
         :return: Mixed
@@ -111,7 +109,7 @@ class Variable(Base, LoggingMixin):
         obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
         if obj is None:
             if default is not None:
-                Variable.set(key, default, serialize_json=deserialize_json)
+                Variable.set(key, default, description=description, serialize_json=deserialize_json)
                 return default
             else:
                 raise ValueError('Default Value must be set')
@@ -129,7 +127,7 @@ class Variable(Base, LoggingMixin):
         Gets a value for an Airflow Variable Key
 
         :param key: Variable Key
-        :param default_var: Default value of the Variable if the Variable doesn't exists
+        :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
         var_val = Variable.get_variable_from_secrets(key=key)
@@ -149,31 +147,62 @@ class Variable(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def set(cls, key: str, value: Any, serialize_json: bool = False, session: Session = None):
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        description: Optional[str] = None,
+        serialize_json: bool = False,
+        session: Session = None,
+    ):
         """
-        Sets a value for an Airflow Variable with a given Key
+        Sets a value for an Airflow Variable with a given Key.
+        This operation will overwrite an existing variable.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
+        :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
-        env_var_name = "AIRFLOW_VAR_" + key.upper()
-        if env_var_name in os.environ:
-            log.warning(
-                "You have the environment variable %s defined, which takes precedence over reading "
-                "from the database. The value will be saved, but to read it you have to delete "
-                "the environment variable.",
-                env_var_name,
-            )
+        # check if the secret exists in the custom secrets backend.
+        cls.check_for_write_conflict(key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
             stored_value = str(value)
 
         Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value))
+        session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()
+
+    @classmethod
+    @provide_session
+    def update(
+        cls,
+        key: str,
+        value: Any,
+        serialize_json: bool = False,
+        session: Session = None,
+    ):
+        """
+        Updates a given Airflow Variable with the Provided value
+
+        :param key: Variable Key
+        :param value: Value to set for the Variable
+        :param serialize_json: Serialize the value to a JSON string
+        :param session: SQL Alchemy Session
+        """
+        cls.check_for_write_conflict(key)
+
+        if cls.get_variable_from_secrets(key=key) is None:
+            raise KeyError(f'Variable {key} does not exist')
+
+        obj = session.query(cls).filter(cls.key == key).first()
+        if obj is None:
+            raise AttributeError(f'Variable {key} does not exist in the Database and cannot be updated.')
+
+        cls.set(key, value, description=obj.description, serialize_json=serialize_json)
 
     @classmethod
     @provide_session
@@ -193,6 +222,37 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()
 
     @staticmethod
+    def check_for_write_conflict(key: str) -> None:
+        """
+        Logs a warning if a variable exists outside of the metastore.
+
+        If we try to write a variable to the metastore while the same key
+        exists in an environment variable or custom secrets backend, then
+        subsequent reads will not read the set value.
+
+        :param key: Variable Key
+        """
+        for secrets_backend in ensure_secrets_loaded():
+            if not isinstance(secrets_backend, MetastoreBackend):
+                try:
+                    var_val = secrets_backend.get_variable(key=key)
+                    if var_val is not None:
+                        log.warning(
+                            "The variable {key} is defined in the {cls} secrets backend, which takes "
+                            "precedence over reading from the database. The value in the database will be "
+                            "updated, but to read it you have to delete the conflicting variable "
+                            "from {cls}".format(key=key, cls=secrets_backend.__class__.__name__)
+                        )
+                        return
+                except Exception:
+                    log.exception(
+                        'Unable to retrieve variable from secrets backend (%s). '
+                        'Checking subsequent secrets backend.',
+                        type(secrets_backend).__name__,
+                    )
+            return None
+
+    @staticmethod
     def get_variable_from_secrets(key: str) -> Optional[str]:
         """
         Get Airflow Variable by iterating over all Secret Backends.
@@ -201,7 +261,14 @@ class Variable(Base, LoggingMixin):
         :return: Variable Value
         """
         for secrets_backend in ensure_secrets_loaded():
-            var_val = secrets_backend.get_variable(key=key)
-            if var_val is not None:
-                return var_val
+            try:
+                var_val = secrets_backend.get_variable(key=key)
+                if var_val is not None:
+                    return var_val
+            except Exception:
+                log.exception(
+                    'Unable to retrieve variable from secrets backend (%s). '
+                    'Checking subsequent secrets backend.',
+                    type(secrets_backend).__name__,
+                )
         return None

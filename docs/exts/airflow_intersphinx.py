@@ -19,7 +19,7 @@ import os
 import time
 from typing import Any, Dict
 
-from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
+from provider_yaml_utils import load_package_data
 from sphinx.application import Sphinx
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -70,7 +70,7 @@ def _generate_provider_intersphinx_mapping():
 
         airflow_mapping[pkg_name] = (
             # base URI
-            f'/docs/{pkg_name}/latest/',
+            f'/docs/{pkg_name}/{"stable" if for_production else "latest"}/',
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
     for pkg_name in ['apache-airflow-providers', 'docker-stack']:
@@ -156,7 +156,7 @@ if __name__ == "__main__":
                         print(f":{role_name}:`{name}:{entry}`")
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 print(f'Unknown error: {exc!r}')
 
         provider_mapping = _generate_provider_intersphinx_mapping()

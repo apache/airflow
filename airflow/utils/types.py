@@ -20,6 +20,25 @@ from typing import Optional
 from airflow.typing_compat import TypedDict
 
 
+class ArgNotSet:
+    """Sentinel type for annotations, useful when None is not viable.
+
+    Use like this::
+
+        def is_arg_passed(arg: Union[ArgNotSet, None] = NOTSET) -> bool:
+            if arg is NOTSET:
+                return False
+            return True
+
+        is_arg_passed()  # False.
+        is_arg_passed(None)  # True.
+    """
+
+
+NOTSET = ArgNotSet()
+"""Sentinel value for argument default. See ``ArgNotSet``."""
+
+
 class DagRunType(str, enum.Enum):
     """Class with DagRun types"""
 
@@ -27,7 +46,7 @@ class DagRunType(str, enum.Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
 
-    def __str__(self) -> str:  # pylint: disable=invalid-str-returned
+    def __str__(self) -> str:
         return self.value
 
     @staticmethod

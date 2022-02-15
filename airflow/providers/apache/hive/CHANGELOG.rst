@@ -19,6 +19,93 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix MyPy errors in Apache Providers (#20422)``
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Add some type hints for Hive providers (#20210)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``hive provider: restore HA support for metastore (#19777)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos in Hive transfer operator docstrings (#19474)``
+   * ``Improve various docstrings in Apache Hive providers (#19866)``
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+
+2.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix get_connections deprecation warn in hivemetastore hook (#18854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Remove unnecessary string concatenations in AirflowException in s3_to_hive.py (#19026)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
+2.0.2
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``HiveHook fix get_pandas_df() failure when it tries to read an empty table (#17777)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
+2.0.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Python 3.9 support (#15515)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Updating Apache example DAGs to use XComArgs (#16869)``
+
 2.0.0
 .....
 
@@ -42,6 +129,7 @@ Breaking changes
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add Connection Documentation for the Hive Provider (#15704)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.3
 .....

@@ -27,6 +27,8 @@ Create Date: 2020-01-07 19:39:01.247442
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
+
 # revision identifiers, used by Alembic.
 revision = '7939bcff74ba'
 down_revision = 'fe461863935f'
@@ -39,7 +41,7 @@ def upgrade():
     op.create_table(
         'dag_tag',
         sa.Column('name', sa.String(length=100), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('dag_id', StringID(), nullable=False),
         sa.ForeignKeyConstraint(
             ['dag_id'],
             ['dag.dag_id'],

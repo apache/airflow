@@ -21,9 +21,7 @@
 Define an operator extra link
 =============================
 
-For each operator, you can define its own extra links that can
-redirect users to external systems. The extra link buttons
-will be available on the task page:
+
 
 .. image:: ../img/operator_extra_link.png
 
@@ -63,8 +61,11 @@ The following code shows how to add extra links to an operator via Plugins:
 .. note:: Operator Extra Links should be registered via Airflow Plugins or custom Airflow Provider to work.
 
 You can also add a global operator extra link that will be available to
-all the operators through an airflow plugin or through airflow providers. You can learn more about it in the
+all the operators through an Airflow plugin or through Airflow providers. You can learn more about it in the
 :ref:`plugin example <plugin-example>` and in :doc:`apache-airflow-providers:index`.
+
+You can see all the extra links available via community-managed providers in
+:doc:`apache-airflow-providers:core-extensions/extra-links`.
 
 
 Add or override Links to Existing Operators
@@ -94,10 +95,10 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
       operators = [GCSToS3Operator]
 
       def get_link(self, operator, dttm):
-          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
+          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{logical_date}".format(
               dag_id=operator.dag_id,
               task_id=operator.task_id,
-              execution_date=dttm,
+              logical_date=dttm,
           )
 
 
@@ -120,6 +121,7 @@ Console, but if we wanted to change that link we could:
 
     from airflow.plugins_manager import AirflowPlugin
     from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.xcom import XCom
     from airflow.providers.google.cloud.operators.bigquery import BigQueryOperator
 
     # Change from https to http just to display the override
@@ -135,8 +137,11 @@ Console, but if we wanted to change that link we could:
         operators = [BigQueryOperator]
 
         def get_link(self, operator, dttm):
-            ti = TaskInstance(task=operator, execution_date=dttm)
-            job_id = ti.xcom_pull(task_ids=operator.task_id, key="job_id")
+            job_id = XCom.get_one(
+                execution_date=dttm,
+                task_id=operator.task_id,
+                key="job_id",
+            )
             return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
 
 

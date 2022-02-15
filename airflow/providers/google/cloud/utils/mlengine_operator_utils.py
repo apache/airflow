@@ -30,14 +30,14 @@ import dill
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
-def create_evaluate_ops(  # pylint: disable=too-many-arguments
+def create_evaluate_ops(
     task_prefix: str,
     data_format: str,
     input_paths: List[str],
@@ -128,16 +128,12 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
     :param task_prefix: a prefix for the tasks. Only alphanumeric characters and
         hyphen are allowed (no underscores), since this will be used as dataflow
         job name, which doesn't allow other characters.
-    :type task_prefix: str
 
     :param data_format: either of 'TEXT', 'TF_RECORD', 'TF_RECORD_GZIP'
-    :type data_format: str
 
     :param input_paths: a list of input paths to be sent to BatchPrediction.
-    :type input_paths: list[str]
 
     :param prediction_path: GCS path to put the prediction results in.
-    :type prediction_path: str
 
     :param metric_fn_and_keys: a tuple of metric_fn and metric_keys:
 
@@ -145,57 +141,46 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
           and returns a tuple of metric(s) that it calculates.
 
         - metric_keys is a list of strings to denote the key of each metric.
-    :type metric_fn_and_keys: tuple of a function and a list[str]
 
     :param validate_fn: a function to validate whether the averaged metric(s) is
         good enough to push the model.
-    :type validate_fn: function
 
     :param batch_prediction_job_id: the id to use for the Cloud ML Batch
         prediction job. Passed directly to the MLEngineBatchPredictionOperator as
         the job_id argument.
-    :type batch_prediction_job_id: str
 
     :param project_id: the Google Cloud project id in which to execute
         Cloud ML Batch Prediction and Dataflow jobs. If None, then the `dag`'s
         `default_args['project_id']` will be used.
-    :type project_id: str
 
     :param region: the Google Cloud region in which to execute Cloud ML
         Batch Prediction and Dataflow jobs. If None, then the `dag`'s
         `default_args['region']` will be used.
-    :type region: str
 
     :param dataflow_options: options to run Dataflow jobs. If None, then the
         `dag`'s `default_args['dataflow_default_options']` will be used.
-    :type dataflow_options: dictionary
 
     :param model_uri: GCS path of the model exported by Tensorflow using
         ``tensorflow.estimator.export_savedmodel()``. It cannot be used with
         model_name or version_name below. See MLEngineBatchPredictionOperator for
         more detail.
-    :type model_uri: str
 
     :param model_name: Used to indicate a model to use for prediction. Can be
         used in combination with version_name, but cannot be used together with
         model_uri. See MLEngineBatchPredictionOperator for more detail. If None,
         then the `dag`'s `default_args['model_name']` will be used.
-    :type model_name: str
 
     :param version_name: Used to indicate a model version to use for prediction,
         in combination with model_name. Cannot be used together with model_uri.
         See MLEngineBatchPredictionOperator for more detail. If None, then the
         `dag`'s `default_args['version_name']` will be used.
-    :type version_name: str
 
     :param dag: The `DAG` to use for all Operators.
-    :type dag: airflow.models.DAG
 
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
-    :type py_interpreter: str
 
     :returns: a tuple of three operators, (prediction, summary, validation)
     :rtype: tuple(DataFlowPythonOperator, DataFlowPythonOperator,
@@ -242,11 +227,11 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
     )
 
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
-    evaluate_summary = DataflowCreatePythonJobOperator(
+    evaluate_summary = BeamRunPythonPipelineOperator(
         task_id=(task_prefix + "-summary"),
         py_file=os.path.join(os.path.dirname(__file__), 'mlengine_prediction_summary.py'),
-        dataflow_default_options=dataflow_options,
-        options={
+        default_pipeline_options=dataflow_options,
+        pipeline_options={
             "prediction_path": prediction_path,
             "metric_fn_encoded": metric_fn_encoded,
             "metric_keys": ','.join(metric_keys),
@@ -264,7 +249,7 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
             raise ValueError(f"Wrong format prediction_path: {prediction_path}")
         summary = os.path.join(obj.strip("/"), "prediction.summary.json")
         gcs_hook = GCSHook()
-        summary = json.loads(gcs_hook.download(bucket, summary))
+        summary = json.loads(gcs_hook.download(bucket, summary).decode("utf-8"))
         return validate_fn(summary)
 
     evaluate_validation = PythonOperator(

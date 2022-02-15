@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
+from typing import Sequence
 
 from airflow.models import DAG
 from airflow.operators.dummy import DummyOperator
@@ -32,7 +33,7 @@ dag = DAG(dag_id="test_only_dummy_tasks", default_args=default_args, schedule_in
 
 class MyDummyOperator(DummyOperator):
     template_fields_renderers = {"body": "json"}
-    template_fields = ("body",)
+    template_fields: Sequence[str] = ("body",)
 
     def __init__(self, body, *args, **kwargs):
         super().__init__(*args, **kwargs)

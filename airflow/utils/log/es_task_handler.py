@@ -18,7 +18,6 @@
 """This module is deprecated. Please use :mod:`airflow.providers.elasticsearch.log.es_task_handler`."""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler  # noqa
 
 warnings.warn(

@@ -27,8 +27,9 @@ Content
 
     Python API <_api/airflow/providers/apache/pinot/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pinot/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -44,7 +45,7 @@ Package apache-airflow-providers-apache-pinot
 `Apache Pinot <https://pinot.apache.org/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -55,16 +56,17 @@ are in ``airflow.providers.apache.pinot`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-pinot``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``pinotdb``    ``>0.1.2,<1.0.0``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pinotdb``         ``>0.1.2,<1.0.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/apache/pinot/CHANGELOG.rst

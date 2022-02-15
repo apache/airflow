@@ -31,6 +31,7 @@
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
@@ -85,19 +86,34 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.scheduler.podAnnotations }}
+        {{- toYaml .Values.scheduler.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
+      {{- if .Values.scheduler.priorityClassName }}
+      priorityClassName: {{ .Values.scheduler.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
+{{- if $affinity }}
 {{ toYaml $affinity | indent 8 }}
+{{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: scheduler
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+{{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
-      securityContext:
-        runAsUser: {{ .Values.uid }}
-        fsGroup: {{ .Values.gid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -106,8 +122,13 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -144,24 +165,26 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-              - python
-              - -Wignore
-              - -c
-              - |
-                import os
-                os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-                os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+                - sh
+                - -c
+                - exec
+                - |
+                  CONNECTION_CHECK_MAX_COUNT=0 /entrypoint python -Wignore -c "
+                  import os
+                  os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+                  os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
 
-                from airflow.jobs.scheduler_job import SchedulerJob
-                from airflow.utils.db import create_session
-                from airflow.utils.net import get_hostname
-                import sys
+                  from airflow.jobs.scheduler_job import SchedulerJob
+                  from airflow.utils.db import create_session
+                  from airflow.utils.net import get_hostname
+                  import sys
 
-                with create_session() as session:
-                    job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-                        SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+                  with create_session() as session:
+                      job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+                          SchedulerJob.latest_heartbeat.desc()).limit(1).first()
 
-                sys.exit(0 if job.is_alive() else 1)
+                  sys.exit(0 if job.is_alive() else 1)
+                  "
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
           ports:
@@ -209,6 +232,11 @@ spec:
           {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          {{ if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
           volumeMounts:
             - name: logs

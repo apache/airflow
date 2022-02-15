@@ -76,13 +76,13 @@ class TestPiiAnonymizer(unittest.TestCase):
 class TestAirflowInfo:
     @classmethod
     def setup_class(cls):
-        # pylint: disable=attribute-defined-outside-init
+
         cls.parser = cli_parser.get_parser()
 
     @classmethod
     def teardown_class(cls) -> None:
-        for handler_ref in logging._handlerList[:]:
-            logging._removeHandlerRef(handler_ref)
+        for handler_ref in logging._handlerList[:]:  # type: ignore
+            logging._removeHandlerRef(handler_ref)  # type: ignore
         importlib.reload(airflow_local_settings)
         configure_logging()
 

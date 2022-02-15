@@ -20,6 +20,7 @@ Example Airflow DAG for Google Kubernetes Engine.
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -28,7 +29,6 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteClusterOperator,
     GKEStartPodOperator,
 )
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_LOCATION = os.environ.get("GCP_GKE_LOCATION", "europe-north1-a")
@@ -40,8 +40,9 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 with models.DAG(
     "example_gcp_gke",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_gke_create_cluster]
@@ -61,6 +62,8 @@ with models.DAG(
         namespace="default",
         image="perl",
         name="test-pod",
+        in_cluster=False,
+        is_delete_operator_pod=True,
     )
 
     # [START howto_operator_gke_start_pod_xcom]
@@ -74,6 +77,8 @@ with models.DAG(
         image="alpine",
         cmds=["sh", "-c", 'mkdir -p /airflow/xcom/;echo \'[1,2,3,4]\' > /airflow/xcom/return.json'],
         name="test-pod-xcom",
+        in_cluster=False,
+        is_delete_operator_pod=True,
     )
     # [END howto_operator_gke_start_pod_xcom]
 

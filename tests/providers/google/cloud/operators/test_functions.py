@@ -608,7 +608,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
         )
-        assert result['name'] == self._FUNCTION_NAME  # pylint: disable=unsubscriptable-object
+        assert result['name'] == self._FUNCTION_NAME
 
     @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')
     def test_correct_name(self, mock_hook):

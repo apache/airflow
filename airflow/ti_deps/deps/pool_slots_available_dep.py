@@ -35,11 +35,8 @@ class PoolSlotsAvailableDep(BaseTIDep):
         Determines if the pool task instance is in has available slots
 
         :param ti: the task instance to get the dependency status for
-        :type ti: airflow.models.TaskInstance
         :param session: database session
-        :type session: sqlalchemy.orm.session.Session
         :param dep_context: the context for which this dependency should be evaluated for
-        :type dep_context: DepContext
         :return: True if there are available slots in the pool.
         """
         from airflow.models.pool import Pool  # To avoid a circular dependency
@@ -55,7 +52,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         else:
             # Controlled by UNIQUE key in slot_pool table,
             # only one result can be returned.
-            open_slots = pools[0].open_slots()
+            open_slots = pools[0].open_slots(session=session)
 
         if ti.state in EXECUTION_STATES:
             open_slots += ti.pool_slots

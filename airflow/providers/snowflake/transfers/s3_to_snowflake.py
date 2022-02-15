@@ -17,7 +17,7 @@
 # under the License.
 
 """This module contains AWS S3 to Snowflake operator."""
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -32,32 +32,21 @@ class S3ToSnowflakeOperator(BaseOperator):
         :ref:`howto/operator:S3ToSnowflakeOperator`
 
     :param s3_keys: reference to a list of S3 keys
-    :type s3_keys: list
     :param table: reference to a specific table in snowflake database
-    :type table: str
     :param schema: name of schema (will overwrite schema defined in
         connection)
-    :type schema: str
     :param stage: reference to a specific snowflake stage. If the stage's schema is not the same as the
         table one, it must be specified
-    :type stage: str
     :param prefix: cloud storage location specified to limit the set of files to load
-    :type prefix: str
     :param file_format: reference to a specific file format
-    :type file_format: str
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
-    :type warehouse: str
     :param database: reference to a specific database in Snowflake connection
-    :type database: str
     :param columns_array: reference to a specific columns array in snowflake database
-    :type columns_array: list
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
-    :type role: str
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -65,13 +54,11 @@ class S3ToSnowflakeOperator(BaseOperator):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
-    :type authenticator: str
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :type session_parameters: dict
     """
 
-    template_fields = ("s3_keys",)
+    template_fields: Sequence[str] = ("s3_keys",)
     template_fields_renderers = {"s3_keys": "json"}
 
     def __init__(

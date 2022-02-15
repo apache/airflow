@@ -78,6 +78,11 @@ svg {
   fill: #017cee;
 }
 
+.not-allowed rect,
+.not-allowed text {
+  cursor: not-allowed !important;
+}
+
 g.cluster rect {
   stroke: #fff;
   stroke-dasharray: 5;
@@ -114,50 +119,6 @@ g.node .label {
 
 g.node text {
   cursor: pointer;
-}
-
-g.node.success rect {
-  stroke: green;
-}
-
-g.node.up_for_retry rect {
-  stroke: gold;
-}
-
-g.node.up_for_reschedule rect {
-  stroke: turquoise;
-}
-
-g.node.sensing rect {
-  stroke: lightseagreen;
-}
-
-g.node.queued rect {
-  stroke: grey;
-}
-
-g.node.running rect {
-  stroke: lime;
-}
-
-g.node.failed rect {
-  stroke: red;
-}
-
-g.node.shutdown rect {
-  stroke: blue;
-}
-
-g.node.upstream_failed rect {
-  stroke: orange;
-}
-
-g.node.skipped rect {
-  stroke: pink;
-}
-
-g.node.removed rect {
-  stroke: black;
 }
 
 .svg-wrapper {

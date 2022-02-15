@@ -154,7 +154,7 @@ def connections_export(args):
 alternative_conn_specs = ['conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def connections_add(args):
     """Adds new connection"""
     # Check that the conn_id and conn_uri args were passed to the command:
@@ -221,7 +221,7 @@ def connections_add(args):
             raise SystemExit(msg)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def connections_delete(args):
     """Deletes connection from DB"""
     with create_session() as session:
@@ -236,7 +236,7 @@ def connections_delete(args):
             print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=False)
 def connections_import(args):
     """Imports connections from a file"""
     if os.path.exists(args.file):

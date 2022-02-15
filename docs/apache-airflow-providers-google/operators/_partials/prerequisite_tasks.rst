@@ -28,6 +28,6 @@ To use these operators, you must do a few things:
 
       pip install 'apache-airflow[google]'
 
-    Detailed information is available for :doc:`Installation <apache-airflow:installation>`.
+    Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
   * :doc:`Setup a Google Cloud Connection </connections/gcp>`.

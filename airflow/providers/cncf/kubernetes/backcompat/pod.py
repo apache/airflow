@@ -14,13 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Classes for interacting with Kubernetes API"""
+"""
+Classes for interacting with Kubernetes API.
+
+This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements`
+and :mod:`kubernetes.client.models.V1ContainerPort`.
+"""
+
+import warnings
 
 from kubernetes.client import models as k8s
 
+warnings.warn(
+    (
+        "This module is deprecated. Please use `kubernetes.client.models.V1ResourceRequirements`"
+        " and `kubernetes.client.models.V1ContainerPort`."
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class Resources:
-    """backwards compat for Resources"""
+    """backwards compat for Resources."""
 
     __slots__ = (
         'request_memory',
@@ -34,19 +50,12 @@ class Resources:
 
     """
     :param request_memory: requested memory
-    :type request_memory: str
     :param request_cpu: requested CPU number
-    :type request_cpu: float | str
     :param request_ephemeral_storage: requested ephemeral storage
-    :type request_ephemeral_storage: str
     :param limit_memory: limit for memory usage
-    :type limit_memory: str
     :param limit_cpu: Limit for CPU used
-    :type limit_cpu: float | str
     :param limit_gpu: Limits for GPU used
-    :type limit_gpu: int
     :param limit_ephemeral_storage: Limit for ephemeral storage
-    :type limit_ephemeral_storage: float | str
     """
 
     def __init__(

@@ -23,6 +23,8 @@ initialization::set_output_color_variables
 job_name=$1
 file=$2
 
+latest_airflow_version_released=$(curl "https://pypi.org/pypi/apache-airflow/json" | jq '.info.version' -r)
+
 set +e
 
 if [[ ${file} == *".sh" ]]; then
@@ -30,7 +32,11 @@ if [[ ${file} == *".sh" ]]; then
     res=$?
 elif [[ ${file} == *"Dockerfile" ]]; then
     cd "$(dirname "${file}")" || exit 1
-    docker build . --tag "${job_name}"
+    echo
+    echo "${COLOR_BLUE}Replacing the airflow image version in ${file} with ${latest_airflow_version_released} for testing.${COLOR_RESET}"
+    echo
+    sed  "s/FROM apache\/airflow:.*$/FROM apache\/airflow:${latest_airflow_version_released}/" <Dockerfile | \
+    docker build --pull . --tag "${job_name}" -f -
     res=$?
     docker rmi --force "${job_name}"
 else

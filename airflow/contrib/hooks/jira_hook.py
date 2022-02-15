@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jira.hooks.jira import JiraHook  # noqa
 
 warnings.warn(

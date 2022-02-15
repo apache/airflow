@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # noqa
 
 warnings.warn(

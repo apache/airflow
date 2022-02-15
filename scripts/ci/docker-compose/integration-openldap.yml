@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
+version: "3.7"
 services:
   openldap:
-    image: apache/airflow-ci:openldap-2020.07.10-2.4.50
+    image: ghcr.io/apache/airflow-openldap:2.4.50-2021.07.04
     command: "--copy-service"
     environment:
       - LDAP_DOMAIN=example.com

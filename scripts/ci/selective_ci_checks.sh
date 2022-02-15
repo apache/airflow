@@ -43,14 +43,14 @@ else
 fi
 
 function check_upgrade_to_newer_dependencies_needed() {
-    # shellcheck disable=SC2153
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
-            ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
-        # Trigger upgrading to latest constraints where label is set or when
-        # SHA of the merge commit triggers rebuilding layer in the docker image
+    if [[ ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
+        # Trigger upgrading to latest constraints when we are in push or schedule event. We use the
+        # random string so that it always triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
-        # Cached in the image this way
-        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+        # cached in the image because docker layer will get invalidated.
+        # This upgrade_to_newer_dependencies variable can later be overridden
+        # in case we find that any of the setup.* files changed (see below)
+        upgrade_to_newer_dependencies="${RANDOM}"
     fi
 }
 
@@ -125,10 +125,10 @@ function output_all_basic_variables() {
     initialization::ga_output default-helm-version "${HELM_VERSION}"
 
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
-        initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
-        initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
-        initialization::ga_output mssql-exclude '[{ "python-version": "3.7" }]'
-        initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+        initialization::ga_output postgres-exclude '[{ "python-version": "3.7" }]'
+        initialization::ga_output mssql-exclude '[{ "python-version": "3.8" }]'
+        initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output sqlite-exclude '[{ "python-version": "3.9" }]'
     else
         initialization::ga_output postgres-exclude '[]'
         initialization::ga_output mysql-exclude '[]'
@@ -221,6 +221,10 @@ function needs_ui_tests() {
     initialization::ga_output run-ui-tests "${@}"
 }
 
+function needs_www_tests() {
+    initialization::ga_output run-www-tests "${@}"
+}
+
 if [[ ${DEFAULT_BRANCH} == "main" ]]; then
     ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
 else
@@ -243,6 +247,7 @@ function set_outputs_run_everything_and_exit() {
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
     needs_ui_tests "true"
+    needs_www_tests "true"
     exit
 }
 
@@ -269,6 +274,7 @@ function set_output_skip_all_tests_and_docs_and_exit() {
     set_image_build "false"
     set_upgrade_to_newer_dependencies "false"
     needs_ui_tests "false"
+    needs_www_tests "false"
     exit
 }
 
@@ -286,6 +292,7 @@ function set_output_skip_tests_but_build_images_and_exit() {
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
     needs_ui_tests "false"
+    needs_www_tests "false"
     exit
 }
 
@@ -350,7 +357,10 @@ function check_if_setup_files_changed() {
     show_changed_files
 
     if [[ $(count_changed_files) != "0" ]]; then
-        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+        # In case the setup files changed, we automatically force upgrading to newer dependencies
+        # no matter what was set before. We set it to random number to make sure that it will be
+        # always invalidating the layer in Docker that triggers installing the dependencies
+        upgrade_to_newer_dependencies="${RANDOM}"
     fi
     start_end::group_end
 }
@@ -425,6 +435,9 @@ function check_if_docs_should_be_generated() {
         "^airflow/.*\.py$"
         "^CHANGELOG\.txt"
         "^airflow/config_templates/config\.yml"
+        "^chart/UPDATING\.rst"
+        "^chart/CHANGELOG\.txt"
+        "^chart/values\.schema\.json"
     )
     show_changed_files
 
@@ -455,6 +468,24 @@ function check_if_ui_tests_should_be_run() {
     start_end::group_end
 }
 
+function check_if_www_tests_should_be_run() {
+    start_end::group_start "Check WWW"
+    local pattern_array=(
+        "^airflow/www/.*\.js[x]?$"
+        # tsconfig.json, package.json, etc.
+        "^airflow/www/[^/]+\.json$"
+        "^airflow/www/.*\.lock$"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_www_tests "false"
+    else
+        needs_www_tests "true"
+    fi
+    start_end::group_end
+}
+
 
 ANY_PY_FILES_CHANGED=(
     "\.py$"
@@ -474,6 +505,7 @@ function check_if_any_py_files_changed() {
 
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
+    "^.pre-commit-config.yaml$"
     "^airflow"
     "^chart"
     "^tests"
@@ -686,6 +718,7 @@ if (($# < 1)); then
     FULL_TESTS_NEEDED_LABEL="true"
     readonly FULL_TESTS_NEEDED_LABEL
     output_all_basic_variables
+    check_upgrade_to_newer_dependencies_needed
     set_outputs_run_everything_and_exit
 else
     INCOMING_COMMIT_SHA="${1}"
@@ -716,6 +749,7 @@ check_if_api_codegen_should_be_run
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
 check_if_ui_tests_should_be_run
+check_if_www_tests_should_be_run
 check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_api_files

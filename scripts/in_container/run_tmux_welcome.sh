@@ -19,5 +19,7 @@ cd /opt/airflow/ || exit
 clear
 echo "Welcome to your tmux based running Airflow environment (courtesy of Breeze)."
 echo
-echo "     To stop Airflow and exit tmux just 'stop_airflow'."
+echo "     To stop Airflow and exit tmux, just type 'stop_airflow'."
+echo
+echo "     If you want to rebuild webserver assets dynamically, run 'cd airflow/www; yarn && yarn dev' and restart airflow webserver with '-d' flag."
 echo

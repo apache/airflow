@@ -17,14 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import graphviz
 
+from airflow import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DependencyMixin
+from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges
@@ -46,7 +48,9 @@ def _refine_color(color: str):
     return color
 
 
-def _draw_task(task: BaseOperator, parent_graph: graphviz.Digraph, states_by_task_id: Dict[str, str]) -> None:
+def _draw_task(
+    task: BaseOperator, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[Any, Any]]
+) -> None:
     """Draw a single task on the given parent_graph"""
     if states_by_task_id:
         state = states_by_task_id.get(task.task_id, State.NONE)
@@ -69,7 +73,7 @@ def _draw_task(task: BaseOperator, parent_graph: graphviz.Digraph, states_by_tas
 
 
 def _draw_task_group(
-    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: Dict[str, str]
+    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
 ) -> None:
     """Draw the given task_group and its children on the given parent_graph"""
     # Draw joins
@@ -102,15 +106,19 @@ def _draw_task_group(
         )
 
     # Draw children
-    for child in sorted(task_group.children.values(), key=lambda t: t.label):
+    for child in sorted(task_group.children.values(), key=lambda t: t.node_id if t.node_id else ""):
         _draw_nodes(child, parent_graph, states_by_task_id)
 
 
-def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_id: Dict[str, str]) -> None:
+def _draw_nodes(
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
+) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, BaseOperator):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
+        if not isinstance(node, TaskGroup):
+            raise AirflowException(f"The node {node} should be TaskGroup and is not")
         # Draw TaskGroup
         if node.is_root:
             # No need to draw background for root TaskGroup.
@@ -128,6 +136,32 @@ def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_
                 _draw_task_group(node, sub, states_by_task_id)
 
 
+def render_dag_dependencies(deps: Dict[str, List['DagDependency']]) -> graphviz.Digraph:
+    """
+    Renders the DAG dependency to the DOT object.
+
+    :param deps: List of DAG dependencies
+    :return: Graphviz object
+    :rtype: graphviz.Digraph
+    """
+    dot = graphviz.Digraph(graph_attr={"rankdir": "LR"})
+
+    for dag, dependencies in deps.items():
+        for dep in dependencies:
+            with dot.subgraph(
+                name=dag,
+                graph_attr={
+                    "rankdir": "LR",
+                    "labelloc": "t",
+                    "label": dag,
+                },
+            ) as dep_subgraph:
+                dep_subgraph.edge(dep.source, dep.dependency_id)
+                dep_subgraph.edge(dep.dependency_id, dep.target)
+
+    return dot
+
+
 def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:
     """
     Renders the DAG object to the DOT object.
@@ -135,9 +169,7 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     If an task instance list is passed, the nodes will be painted according to task statuses.
 
     :param dag: DAG that will be rendered.
-    :type dag: airflow.models.dag.DAG
     :param tis: List of task instances
-    :type tis: Optional[List[TaskInstance]]
     :return: Graphviz object
     :rtype: graphviz.Digraph
     """

@@ -17,10 +17,10 @@
  * under the License.
  */
 
-/* global document, window, $, */
+/* global document, window, $ */
 
 import getMetaValue from './meta_value';
-import { formatDateTime } from './datetime_utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -44,9 +44,15 @@ const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 const extraLinksUrl = getMetaValue('extra_links_url');
 const pausedUrl = getMetaValue('paused_url');
+const nextRun = {
+  createAfter: getMetaValue('next_dagrun_create_after'),
+  intervalStart: getMetaValue('next_dagrun_data_interval_start'),
+  intervalEnd: getMetaValue('next_dagrun_data_interval_end'),
+};
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
+let dagRunId = '';
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -85,7 +91,7 @@ function updateModalUrls() {
   }
 
   updateButtonUrl(buttons.ti, {
-    flt1_dag_id_equals: dagId,
+    _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: executionDate,
   });
@@ -104,7 +110,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-export function callModal(t, d, extraLinks, tryNumbers, sd) {
+export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
   taskId = t;
   const location = String(window.location);
   $('#btn_filter').on('click', () => {
@@ -112,6 +118,8 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
   });
   subdagId = sd;
   executionDate = d;
+  dagRunId = drID;
+  $('#dag_run_id').text(drID);
   $('#task_id').text(t);
   $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
@@ -178,7 +186,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
       }&dag_id=${encodeURIComponent(dagId)
       }&execution_date=${encodeURIComponent(executionDate)
       }&link_name=${encodeURIComponent(link)}`;
-      const externalLink = $('<a href="#" class="btn btn-primary disabled" target="_blank"></a>');
+      const externalLink = $('<a href="#" class="btn btn-primary disabled"></a>');
       const linkTooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" '
         + 'title="link not yet available"></span>');
       linkTooltip.append(externalLink);
@@ -190,6 +198,11 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
           cache: false,
           success(data) {
             externalLink.attr('href', data.url);
+            // open absolute (external) links in a new tab/window and relative (local) links
+            // directly
+            if (/^(?:[a-z]+:)?\/\//.test(data.url)) {
+              externalLink.attr('target', '_blank');
+            }
             externalLink.removeClass('disabled');
             linkTooltip.tooltip('disable');
           },
@@ -213,9 +226,14 @@ export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
   executionDate = dag.execution_date;
+  dagRunId = dag.run_id;
   updateButtonUrl(buttons.dag_graph_view, {
     dag_id: dag && dag.dag_id,
     execution_date: dag && dag.execution_date,
+  });
+  updateButtonUrl(buttons.dagrun_details, {
+    dag_id: dag && dag.dag_id,
+    run_id: dag && dag.run_id,
   });
 }
 
@@ -223,9 +241,14 @@ export function callModalDag(dag) {
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  // Somehow submit is fired twice. Only once is the executionDate valid
-  if (executionDate) {
-    form.execution_date.value = executionDate;
+  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
+  if (dagRunId || executionDate) {
+    if (form.dag_run_id) {
+      form.dag_run_id.value = dagRunId;
+    }
+    if (form.execution_date) {
+      form.execution_date.value = executionDate;
+    }
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
@@ -238,9 +261,14 @@ $('form[data-action]').on('submit', function submit(e) {
 // DAG Modal actions
 $('form button[data-action]').on('click', function onClick() {
   const form = $(this).closest('form').get(0);
-  // Somehow submit is fired twice. Only once is the executionDate valid
-  if (executionDate) {
-    form.execution_date.value = executionDate;
+  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
+  if (dagRunId || executionDate) {
+    if (form.dag_run_id) {
+      form.dag_run_id.value = dagRunId;
+    }
+    if (form.execution_date) {
+      form.execution_date.value = executionDate;
+    }
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
@@ -255,11 +283,29 @@ $('#pause_resume').on('change', function onChange() {
   const id = $input.data('dag-id');
   const isPaused = $input.is(':checked');
   const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
+  // Remove focus on element so the tooltip will go away
+  $input.trigger('blur');
   $input.removeClass('switch-input--error');
   $.post(url).fail(() => {
     setTimeout(() => {
       $input.prop('checked', !isPaused);
       $input.addClass('switch-input--error');
     }, 500);
+  });
+});
+
+$('#next-run').on('mouseover', () => {
+  $('#next-run').attr('data-original-title', () => {
+    let newTitle = '';
+    if (nextRun.createAfter) {
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
+    }
+    if (nextRun.intervalStart && nextRun.intervalEnd) {
+      newTitle += '<strong>Data Interval</strong><br>';
+      newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;
+      newTitle += `End: ${formatDateTime(nextRun.intervalEnd)}`;
+    }
+    return newTitle;
   });
 });

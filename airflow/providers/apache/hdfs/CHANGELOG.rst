@@ -19,6 +19,50 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``hdfs provider: restore HA support for webhdfs (#19711)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix get_connections deprecation warning in webhdfs hook (#18331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``hdfs provider: allow SSL webhdfs connections (#17637)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 
@@ -42,6 +86,7 @@ Breaking changes
    * ``Update Docstrings of Modules with Missing Params (#15391)``
    * ``Created initial guide for HDFS operators  (#11212)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.1
 .....

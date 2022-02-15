@@ -18,16 +18,21 @@
 
 import functools
 import gzip
+import logging
 from io import BytesIO as IO
+from itertools import chain
 from typing import Callable, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, g, request
+from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
 from airflow.utils.session import create_session
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
+
+logger = logging.getLogger(__name__)
 
 
 def action_logging(f: T) -> T:
@@ -35,6 +40,7 @@ def action_logging(f: T) -> T:
 
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
+        __tracebackhide__ = True  # Hide from pytest traceback.
 
         with create_session() as session:
             if g.user.is_anonymous:
@@ -43,17 +49,29 @@ def action_logging(f: T) -> T:
                 user = g.user.username
 
             fields_skip_logging = {'csrf_token', '_csrf_token'}
+            log_fields = {
+                k: v
+                for k, v in chain(request.values.items(), request.view_args.items())
+                if k not in fields_skip_logging
+            }
+
             log = Log(
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging]),
-                task_id=request.values.get('task_id'),
-                dag_id=request.values.get('dag_id'),
+                extra=str([(k, log_fields[k]) for k in log_fields]),
+                task_id=log_fields.get('task_id'),
+                dag_id=log_fields.get('dag_id'),
             )
 
             if 'execution_date' in request.values:
-                log.execution_date = pendulum.parse(request.values.get('execution_date'), strict=False)
+                execution_date_value = request.values.get('execution_date')
+                try:
+                    log.execution_date = pendulum.parse(execution_date_value, strict=False)
+                except ParserError:
+                    logger.exception(
+                        "Failed to parse execution_date from the request: %s", execution_date_value
+                    )
 
             session.add(log)
 
@@ -68,7 +86,7 @@ def gzipped(f: T) -> T:
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
-        def zipper(response):  # pylint: disable=unused-variable
+        def zipper(response):
             accept_encoding = request.headers.get('Accept-Encoding', '')
 
             if 'gzip' not in accept_encoding.lower():

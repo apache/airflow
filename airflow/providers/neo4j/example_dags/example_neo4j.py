@@ -19,19 +19,16 @@
 Example use of Neo4j related operators.
 """
 
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
-from airflow.utils.dates import days_ago
-
-default_args = {
-    'owner': 'airflow',
-}
 
 dag = DAG(
     'example_neo4j',
-    default_args=default_args,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
+    catchup=False,
 )
 
 # [START run_query_neo4j_operator]
@@ -39,10 +36,8 @@ dag = DAG(
 neo4j_task = Neo4jOperator(
     task_id='run_neo4j_query',
     neo4j_conn_id='neo4j_conn_id',
-    sql='MATCH (tom {name: "Tom Hanks"}) RETURN tom',
+    sql='MATCH (tom {name: "Tom Hanks", date: "{{ds}}"}) RETURN tom',
     dag=dag,
 )
 
 # [END run_query_neo4j_operator]
-
-neo4j_task

@@ -18,6 +18,7 @@
 #
 
 import datetime
+import warnings
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
@@ -33,11 +34,12 @@ def create_subdag_opt(main_dag):
         max_active_tasks=2,
     )
     BashOperator(bash_command="echo 1", task_id="daily_job_subdag_task", dag=subdag)
-    return SubDagOperator(
-        task_id=subdag_name,
-        subdag=subdag,
-        dag=main_dag,
-    )
+    with warnings.catch_warnings(record=True):
+        return SubDagOperator(
+            task_id=subdag_name,
+            subdag=subdag,
+            dag=main_dag,
+        )
 
 
 dag_name = "clear_subdag_test_dag"

@@ -44,7 +44,7 @@ class TestSqliteHookConn(unittest.TestCase):
 
     @patch('airflow.providers.sqlite.hooks.sqlite.sqlite3.connect')
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with('host')
         self.db_hook.get_connection.assert_called_once_with('non_default')
@@ -106,3 +106,23 @@ class TestSqliteHook(unittest.TestCase):
         statement = 'SQL'
         self.db_hook.run(statement)
         assert self.db_hook.log.info.call_count == 2
+
+    def test_generate_insert_sql_replace_false(self):
+        expected_sql = "INSERT INTO Customer (first_name, last_name) VALUES (?,?)"
+        rows = ('James', '1')
+        target_fields = ['first_name', 'last_name']
+        sql = self.db_hook._generate_insert_sql(
+            table='Customer', values=rows, target_fields=target_fields, replace=False
+        )
+
+        assert sql == expected_sql
+
+    def test_generate_insert_sql_replace_true(self):
+        expected_sql = "REPLACE INTO Customer (first_name, last_name) VALUES (?,?)"
+        rows = ('James', '1')
+        target_fields = ['first_name', 'last_name']
+        sql = self.db_hook._generate_insert_sql(
+            table='Customer', values=rows, target_fields=target_fields, replace=True
+        )
+
+        assert sql == expected_sql

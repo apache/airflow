@@ -16,13 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 import urllib.parse
+from typing import List
+from unittest import mock
 
 import pytest
 
-from airflow.models import DagBag, Log
+from airflow.models import DagBag, DagRun, Log, TaskInstance
 from airflow.utils import dates, timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.www import app
+from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response
 
@@ -55,6 +59,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -62,6 +67,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     sub_dagrun = sub_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -69,6 +75,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     xcom_dagrun = xcom_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -76,6 +83,11 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     yield bash_dagrun, sub_dagrun, xcom_dagrun
 
     clear_db_runs()
+
+
+@action_has_dag_edit_access
+def some_view_action_which_requires_dag_edit_access(*args) -> bool:
+    return True
 
 
 def _check_last_log(session, dag_id, event, execution_date):
@@ -102,8 +114,9 @@ def _check_last_log(session, dag_id, event, execution_date):
 
 
 def test_action_logging_get(session, admin_client):
-    url = 'graph?dag_id=example_bash_operator&execution_date={}'.format(
-        urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))
+    url = (
+        f'dags/example_bash_operator/graph?'
+        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
     )
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response('runme_1', resp)
@@ -114,6 +127,24 @@ def test_action_logging_get(session, admin_client):
         session,
         dag_id="example_bash_operator",
         event="graph",
+        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+    )
+
+
+def test_action_logging_get_legacy_view(session, admin_client):
+    url = (
+        f'graph?dag_id=example_bash_operator&'
+        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+    )
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response('runme_1', resp)
+
+    # In mysql backend, this commit() is needed to write down the logs
+    session.commit()
+    _check_last_log(
+        session,
+        dag_id="example_bash_operator",
+        event="legacy_graph",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
 
@@ -150,3 +181,48 @@ def test_calendar(admin_client, dagruns):
     datestr = bash_dagrun.execution_date.date().isoformat()
     expected = rf'{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}'
     check_content_in_response(expected, resp)
+
+
+@pytest.mark.parametrize(
+    "class_type, no_instances, no_unique_dags",
+    [
+        (None, 0, 0),
+        (TaskInstance, 0, 0),
+        (TaskInstance, 1, 1),
+        (TaskInstance, 10, 1),
+        (TaskInstance, 10, 5),
+        (DagRun, 0, 0),
+        (DagRun, 1, 1),
+        (DagRun, 10, 1),
+        (DagRun, 10, 9),
+    ],
+)
+def test_action_has_dag_edit_access(create_task_instance, class_type, no_instances, no_unique_dags):
+    unique_dag_ids = [f"test_dag_id_{nr}" for nr in range(no_unique_dags)]
+    tis: List[TaskInstance] = [
+        create_task_instance(
+            task_id=f"test_task_instance_{nr}",
+            execution_date=timezone.datetime(2021, 1, 1 + nr),
+            dag_id=unique_dag_ids[nr % len(unique_dag_ids)],
+            run_id=f"test_run_id_{nr}",
+        )
+        for nr in range(no_instances)
+    ]
+    if class_type is None:
+        test_items = None
+    else:
+        test_items = tis if class_type == TaskInstance else [ti.get_dagrun() for ti in tis]
+        test_items = test_items[0] if len(test_items) == 1 else test_items
+
+    with app.create_app(testing=True).app_context():
+        with mock.patch("airflow.www.views.current_app.appbuilder.sm.can_edit_dag") as mocked_can_edit:
+            mocked_can_edit.return_value = True
+            assert not isinstance(test_items, list) or len(test_items) == no_instances
+            assert some_view_action_which_requires_dag_edit_access(None, test_items) is True
+            assert mocked_can_edit.call_count == no_unique_dags
+    clear_db_runs()
+
+
+def test_action_has_dag_edit_access_exception():
+    with pytest.raises(ValueError):
+        some_view_action_which_requires_dag_edit_access(None, "some_incorrect_value")

@@ -17,6 +17,7 @@
 # under the License.
 #
 import logging
+import sys
 import warnings
 from logging.config import dictConfig
 
@@ -77,7 +78,7 @@ def configure_logging():
     return logging_class_path
 
 
-def validate_logging_config(logging_config):  # pylint: disable=unused-argument
+def validate_logging_config(logging_config):
     """Validate the provided Logging Config"""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get('logging', 'task_log_reader')
@@ -91,18 +92,33 @@ def validate_logging_config(logging_config):  # pylint: disable=unused-argument
         # Check for pre 1.10 setting that might be in deployed airflow.cfg files
         if task_log_reader == "file.task" and _get_handler("task"):
             warnings.warn(
-                "task_log_reader setting in [logging] has a deprecated value of "
-                "{!r}, but no handler with this name was found. Please update "
-                "your config to use {!r}. Running config has been adjusted to "
-                "match".format(
-                    task_log_reader,
-                    "task",
-                ),
+                f"task_log_reader setting in [logging] has a deprecated value of {task_log_reader!r}, "
+                "but no handler with this name was found. Please update your config to use task. "
+                "Running config has been adjusted to match",
                 DeprecationWarning,
             )
             conf.set('logging', 'task_log_reader', 'task')
         else:
             raise AirflowConfigException(
-                "Configured task_log_reader {!r} was not a handler of the 'airflow.task' "
-                "logger.".format(task_log_reader)
+                f"Configured task_log_reader {task_log_reader!r} was not a handler of "
+                f"the 'airflow.task' logger."
             )
+
+
+if sys.version_info < (3, 7):
+    # Python 3.7 added this via https://bugs.python.org/issue30520 -- but Python 3.6 doesn't have this
+    # support.
+    import copyreg
+
+    def _reduce_Logger(logger):
+        if logging.getLogger(logger.name) is not logger:
+            import pickle
+
+            raise pickle.PicklingError('logger cannot be pickled')
+        return logging.getLogger, (logger.name,)
+
+    def _reduce_RootLogger(logger):
+        return logging.getLogger, ()
+
+    copyreg.pickle(logging.Logger, _reduce_Logger)
+    copyreg.pickle(logging.RootLogger, _reduce_RootLogger)

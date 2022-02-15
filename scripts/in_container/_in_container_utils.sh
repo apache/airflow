@@ -120,6 +120,8 @@ function in_container_fix_ownership() {
             "/root/.docker"
             "/opt/airflow/logs"
             "/opt/airflow/docs"
+            "/opt/airflow/dags"
+            "${AIRFLOW_SOURCES}"
         )
         find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
             xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
@@ -139,63 +141,6 @@ function in_container_basic_sanity_check() {
     in_container_go_to_airflow_sources
     in_container_cleanup_pyc
     in_container_cleanup_pycache
-}
-
-function in_container_refresh_pylint_todo() {
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "Refreshing list of all  non-pylint compliant files. This can take some time."
-        echo
-
-        echo
-        echo "Finding list  all non-pylint compliant files everywhere except 'tests' folder"
-        echo
-    fi
-    # Using path -prune is much better in the local environment on OSX because we have host
-    # Files mounted and node_modules is a huge directory which takes many seconds to even scan
-    # -prune works better than -not path because it skips traversing the whole directory. -not path traverses
-    # the directory and only excludes it after all of it is scanned
-    find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
-        -path "./airflow/migrations/versions" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -path "./tests" -prune -o \
-        -name "*.py" \
-        -not -name 'webserver_config.py' |
-        grep ".*.py$" |
-        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
-
-    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" |
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
-
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "So far found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt") files"
-        echo
-
-        echo
-        echo "Finding list of all non-pylint compliant files in 'tests' folder"
-        echo
-    fi
-    find "./tests" -name "*.py" -print0 |
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
-
-    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" |
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >>"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
-
-    rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
-    mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
-
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "Found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt") files"
-        echo
-    fi
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
@@ -297,7 +242,7 @@ function install_released_airflow_version() {
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow==${version}"
+    pip install "apache-airflow==${version}"
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -356,6 +301,20 @@ function install_all_provider_packages_from_sdist() {
     pip install /dist/apache-airflow-*providers-*.tar.gz
 }
 
+function twine_check_provider_packages_from_wheels() {
+    echo
+    echo "Twine check of all provider packages from wheels"
+    echo
+    twine check /dist/apache_airflow*providers_*.whl
+}
+
+function twine_check_provider_packages_from_sdist() {
+    echo
+    echo "Twine check all provider packages from sdist"
+    echo
+    twine check /dist/apache-airflow-*providers-*.tar.gz
+}
+
 function setup_provider_packages() {
     export PACKAGE_TYPE="regular"
     export PACKAGE_PREFIX_UPPERCASE=""
@@ -373,7 +332,7 @@ function setup_provider_packages() {
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     group_end
 }
 
@@ -386,36 +345,6 @@ function filename_to_python_module() {
     echo "${no_init//\//.}"
 }
 
-function import_all_provider_classes() {
-    group_start "Import all Airflow classes"
-    # We have to move to a directory where "airflow" is
-    unset PYTHONPATH
-    # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
-    # import path
-    cd /
-
-    declare -a IMPORT_CLASS_PARAMETERS
-
-    PROVIDER_PATHS=$(
-        python3 <<EOF 2>/dev/null
-import airflow.providers;
-path=airflow.providers.__path__
-for p in path._path:
-    print(p)
-EOF
-    )
-    export PROVIDER_PATHS
-
-    echo "Searching for providers packages in:"
-    echo "${PROVIDER_PATHS}"
-
-    while read -r provider_path; do
-        IMPORT_CLASS_PARAMETERS+=("--path" "${provider_path}")
-    done < <(echo "${PROVIDER_PATHS}")
-
-    python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"
-    group_end
-}
 
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
@@ -514,7 +443,6 @@ function group_end {
         echo "::endgroup::"
     fi
 }
-
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

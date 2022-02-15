@@ -20,25 +20,22 @@
 # Allowed values for the commands & flags used
 # The values here should be synchronized with the ones in
 # the ./scripts/ci/libraries/_initialization.sh and it is verified
-# by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="3.6 3.7 3.8"
+_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
-# registrys is good here even if it is not correct english. We are adding s automatically to all variables
-_breeze_allowed_github_registrys="docker.pkg.github.com ghcr.io"
 _breeze_allowed_kubernetes_modes="image"
-_breeze_allowed_kubernetes_versions="v1.20.2 v1.19.7 v1.18.15"
-_breeze_allowed_helm_versions="v3.2.4"
-_breeze_allowed_kind_versions="v0.10.0"
+_breeze_allowed_kubernetes_versions="v1.21.1 v1.20.2"
+_breeze_allowed_helm_versions="v3.6.3"
+_breeze_allowed_kind_versions="v0.11.1"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_mssql_versions="2017-latest 2019-latest"
-_breeze_allowed_postgres_versions="9.6 10 11 12 13"
+_breeze_allowed_postgres_versions="10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
 _breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor"
-_breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
+_breeze_allowed_test_types="All Always Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
 _breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
 
@@ -46,7 +43,6 @@ _breeze_allowed_installation_methods=". apache-airflow"
 {
     # Default values for the commands & flags used
     _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
-    _breeze_default_github_registry=$(echo "${_breeze_allowed_github_registrys}" | awk '{print $1}')
     _breeze_default_generate_providers_mode=$(echo "${_breeze_allowed_generate_constraints_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_version=$(echo "${_breeze_allowed_kubernetes_versions}" | awk '{print $1}')
@@ -77,35 +73,38 @@ EOF
 
 _breeze_allowed_static_checks=$(cat <<-EOF
 all
-all-but-pylint
 airflow-config-yaml
 airflow-providers-available
 airflow-provider-yaml-files-ok
+autoflake
 base-operator
-bats-tests
-bats-in-container-tests
 black
 blacken-docs
 boring-cyborg
 build
 build-providers-dependencies
+chart-schema-lint
+capitalized-breeze
+changelog-duplicates
 check-apache-license
 check-builtin-literals
 check-executables-have-shebangs
+check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
 check-xml
-consistent-pylint
 daysago-import-check
 debug-statements
 detect-private-key
+docstring-params
 doctoc
 dont-use-safe-filter
 end-of-file-fixer
 fix-encoding-pragma
 flake8
 flynt
+codespell
 forbid-tabs
 helm-lint
 identity
@@ -123,17 +122,17 @@ mypy
 mypy-helm
 no-providers-in-core-examples
 no-relative-imports
+persist-credentials-disabled
 pre-commit-descriptions
 pre-commit-hook-names
 pretty-format-json
 provide-create-sessions
 providers-changelogs
 providers-init-file
+providers-subpackages-init-file
 provider-yamls
 pydevd
 pydocstyle
-pylint
-pylint-tests
 python-no-log-warn
 pyupgrade
 restrict-start_date
@@ -150,15 +149,17 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+update-supported-versions
+update-versions
+vendor-k8s-json-schema
 verify-db-migrations-documented
 version-sync
 www-lint
 yamllint
+yesqa
 EOF
 )
 
-_breeze_default_dockerhub_user="apache"
-_breeze_default_dockerhub_repo="airflow-ci"
 _breeze_default_github_repository="apache/airflow"
 _breeze_default_github_image_id="latest"
 
@@ -169,7 +170,7 @@ l a: t: d:
 v y n q f
 F P I E: C r
 L U X
-D: R: c g: s:
+g: s:
 S: N:
 "
 
@@ -178,20 +179,20 @@ help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
-force-build-images force-pull-images force-pull-base-python-image production-image extras: force-clean-images skip-rebuild-check
+force-build-images force-pull-images check-if-base-python-image-updated production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
-dockerhub-user: dockerhub-repo: use-github-registry github-registry: github-repository: github-image-id: generate-constraints-mode:
+github-repository: github-image-id: generate-constraints-mode:
 postgres-version: mysql-version: mssql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
-disable-mysql-client-installation constraints-location: disable-pip-cache install-from-docker-context-files
+disable-mysql-client-installation disable-mssql-client-installation constraints-location: disable-pip-cache install-from-docker-context-files
 additional-extras: additional-python-deps: disable-pypi-when-building skip-installing-airflow-providers-from-sources
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive
+use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
 use-airflow-version:
-cleanup-docker-context-files
+cleanup-docker-context-files prepare-buildx-cache
 test-type: preserve-volumes dry-run-docker
 executor:
 "
@@ -200,10 +201,10 @@ _breeze_commands="
 shell
 build-docs
 build-image
+prepare-build-cache
 cleanup-image
 exec
 generate-constraints
-push-image
 initialize-local-virtualenv
 prepare-airflow-packages
 setup-autocomplete
@@ -296,12 +297,6 @@ function breeze_complete::get_known_values_breeze() {
     --mssql-version)
         _breeze_known_values=${_breeze_allowed_mssql_versions}
         ;;
-    -D | --dockerhub-user)
-        _breeze_known_values="${_breeze_default_dockerhub_user}"
-        ;;
-    -R | --dockerhub-repo)
-        _breeze_known_values="${_breeze_default_dockerhub_repo}"
-        ;;
     -g | --github-repository)
         _breeze_known_values="${_breeze_default_github_repository}"
         ;;
@@ -325,9 +320,6 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     --installation-method)
         _breeze_known_values="${_breeze_allowed_installation_methods}"
-        ;;
-    --github-registry)
-        _breeze_known_values="${_breeze_allowed_github_registrys}"
         ;;
     --generate-constraints-mode)
         _breeze_known_values="${_breeze_allowed_generate_constraints_modes}"

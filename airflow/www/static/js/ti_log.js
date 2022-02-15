@@ -17,10 +17,10 @@
  * under the License.
  */
 
-/* global document, window, $, */
-import { formatDateTime } from './datetime_utils';
+/* global document, window, $, moment, Airflow */
 import { escapeHtml } from './main';
 import getMetaValue from './meta_value';
+import { formatDateTime } from './datetime_utils';
 
 const executionDate = getMetaValue('execution_date');
 const dagId = getMetaValue('dag_id');
@@ -115,9 +115,10 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
         // The message may contain HTML, so either have to escape it or write it as text.
         const escapedMessage = escapeHtml(item[1]);
+        const tzOffset = moment().tz(Airflow.serverTimezone).format('Z');
         const linkifiedMessage = escapedMessage
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<span class="js-format-date">${formatDateTime(`${date}+00:00`)}</span>`);
+          .replaceAll(dateRegex, (date) => `<time datetime="${date}${tzOffset}">${formatDateTime(`${date}${tzOffset}`)}</time>`);
         logBlock.innerHTML += `${linkifiedMessage}\n`;
       });
 

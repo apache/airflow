@@ -48,6 +48,7 @@ SFTP_CONNECTION_USER = "root"
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
+TEST_KEY_FILE = "~/.ssh/id_rsa"
 
 
 class TestSFTPHook(unittest.TestCase):
@@ -204,7 +205,18 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(
             login='login',
             host='host',
-            extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": False}),
+            extra=json.dumps({"host_key": TEST_HOST_KEY}),
+        )
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        assert hook.host_key.get_base64() == TEST_HOST_KEY
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_host_key_with_type(self, get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+            extra=json.dumps({"host_key": "ssh-rsa " + TEST_HOST_KEY}),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -215,7 +227,43 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY}))
         get_connection.return_value = connection
         hook = SFTPHook()
-        assert hook.host_key is None
+        assert hook.host_key is not None
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_key_content_as_str(self, get_connection):
+        file_obj = StringIO()
+        TEST_PKEY.write_private_key(file_obj)
+        file_obj.seek(0)
+        key_content_str = file_obj.read()
+
+        connection = Connection(
+            login='login',
+            host='host',
+            extra=json.dumps(
+                {
+                    "private_key": key_content_str,
+                }
+            ),
+        )
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        assert hook.pkey == TEST_PKEY
+        assert hook.key_file is None
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_key_file(self, get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+            extra=json.dumps(
+                {
+                    "key_file": TEST_KEY_FILE,
+                }
+            ),
+        )
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        assert hook.key_file == TEST_KEY_FILE
 
     @parameterized.expand(
         [
@@ -255,6 +303,55 @@ class TestSFTPHook(unittest.TestCase):
         assert files == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
         assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
         assert unknowns == []
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_connection_failure(self, mock_get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+        )
+        mock_get_connection.return_value = connection
+        with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
+            type(get_conn.return_value).pwd = mock.PropertyMock(side_effect=Exception('Connection Error'))
+
+            hook = SFTPHook()
+            status, msg = hook.test_connection()
+        assert status is False
+        assert msg == 'Connection Error'
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_connection_success(self, mock_get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+        )
+        mock_get_connection.return_value = connection
+
+        with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
+            get_conn.return_value.pwd = '/home/someuser'
+            hook = SFTPHook()
+            status, msg = hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_deprecation_ftp_conn_id(self, mock_get_connection):
+        connection = Connection(conn_id='ftp_default', login='login', host='host')
+        mock_get_connection.return_value = connection
+        # If `ftp_conn_id` is provided, it will be used but would show a deprecation warning.
+        with self.assertWarnsRegex(DeprecationWarning, "Parameter `ftp_conn_id` is deprecated"):
+            assert SFTPHook(ftp_conn_id='ftp_default').ssh_conn_id == 'ftp_default'
+
+        # If both are provided, ftp_conn_id  will be used but would show a deprecation warning.
+        with self.assertWarnsRegex(DeprecationWarning, "Parameter `ftp_conn_id` is deprecated"):
+            assert (
+                SFTPHook(ftp_conn_id='ftp_default', ssh_conn_id='sftp_default').ssh_conn_id == 'ftp_default'
+            )
+
+        # If `ssh_conn_id` is provided, it should use it for ssh_conn_id
+        assert SFTPHook(ssh_conn_id='sftp_default').ssh_conn_id == 'sftp_default'
+        # Default is 'sftp_default
+        assert SFTPHook().ssh_conn_id == 'sftp_default'
 
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))

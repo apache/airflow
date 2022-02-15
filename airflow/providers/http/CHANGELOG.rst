@@ -19,6 +19,58 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Misc
+~~~~
+
+* ``Split out confusing path combination logic to separate method (#21247)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+   * ``Un-ignore DeprecationWarning (#20322)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for HTTP provider. (#20246)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+* ``Remove airflow dependency from http provider``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 
@@ -46,6 +98,7 @@ Features
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add documentation for the HTTP connection (#15379)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.1.1
 .....

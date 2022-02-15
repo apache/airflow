@@ -42,10 +42,12 @@ class AirflowDateTimePickerWidget:
         kwargs.setdefault("id", field.id)
         kwargs.setdefault("name", field.name)
         if not field.data:
-            field.data = ""
+            field.data = ''
         template = self.data_template
 
-        return Markup(template % {"text": html_params(type="text", value=field.data, **kwargs)})
+        return Markup(
+            template % {"text": html_params(type="text", value=field.data, required=True, **kwargs)}
+        )
 
 
 class AirflowDateTimePickerROWidget(AirflowDateTimePickerWidget):

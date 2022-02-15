@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.google.cloud.transfers.bigquery_to_bigquery`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator  # noqa
 
 warnings.warn(

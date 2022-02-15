@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any
+import functools
+from typing import Any, Type
 
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, String
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.configuration import conf
@@ -33,18 +34,28 @@ Base = declarative_base(metadata=metadata)  # type: Any
 ID_LEN = 250
 
 
-# used for typing
-class Operator:
-    """Class just used for Typing"""
-
-
 def get_id_collation_args():
     """Get SQLAlchemy args to use for COLLATION"""
     collation = conf.get('core', 'sql_engine_collation_for_ids', fallback=None)
     if collation:
         return {'collation': collation}
     else:
+        # Automatically use utf8mb3_bin collation for mysql
+        # This is backwards-compatible. All our IDS are ASCII anyway so even if
+        # we migrate from previously installed database with different collation and we end up mixture of
+        # COLLATIONS, it's not a problem whatsoever (and we keep it small enough so that our indexes
+        # for MYSQL will not exceed the maximum index size.
+        #
+        # See https://github.com/apache/airflow/pull/17603#issuecomment-901121618.
+        #
+        # We cannot use session/dialect as at this point we are trying to determine the right connection
+        # parameters, so we use the connection
+        conn = conf.get('core', 'sql_alchemy_conn', fallback='')
+        if conn.startswith('mysql') or conn.startswith("mariadb"):
+            return {'collation': 'utf8mb3_bin'}
         return {}
 
 
 COLLATION_ARGS = get_id_collation_args()
+
+StringID: Type[String] = functools.partial(String, length=ID_LEN, **COLLATION_ARGS)  # type: ignore

@@ -28,14 +28,49 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2021-09-10
+
+================================================================================================  ===========  ==============================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================================
+`476ae0eb5 <https://github.com/apache/airflow/commit/476ae0eb588a5bfbc3d415a34cf4f0262f53888e>`_  2021-09-10   ``Fixing Vault AppRole authentication with CONN_URI (#18064)``
+================================================================================================  ===========  ==============================================================
+
+2.1.0
+.....
+
+Latest change: 2021-09-03
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`fd5d65751 <https://github.com/apache/airflow/commit/fd5d65751ca026d2b5f0ec1e4d9ce1b1e09e5b22>`_  2021-09-03   ``Update release notes for 3 extra providers released (#18018)``
+`16b47cecf <https://github.com/apache/airflow/commit/16b47cecfb5cf88b0176a59589cbd77e0eaccfd3>`_  2021-09-01   ``Invalidate Vault cached prop when not authenticated (#17387)``
+`a29503e1b <https://github.com/apache/airflow/commit/a29503e1baf7534c85ebf6685ba91003051c1cea>`_  2021-08-31   ``Fix instantiating Vault Secret Backend during configuration (#17935)``
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`6301faa38 <https://github.com/apache/airflow/commit/6301faa3888371ef361e704844f36d9bf768f731>`_  2021-08-23   ``Enable Connection creation from Vault parameters (#15013)``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`29aab6434 <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ============================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-12
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ==================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `70cfe0135 <https://github.com/apache/airflow/commit/70cfe0135373d1f0400e7d9b275ebb017429794b>`_  2021-06-12   ``Sanitize end of line character when loading token from a file (vault) (#16407)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 ================================================================================================  ===========  ==================================================================================

@@ -16,76 +16,90 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import json
 
-import os
-import unittest
-from tempfile import NamedTemporaryFile
-
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-
-class TestDruidOperator(unittest.TestCase):
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': timezone.datetime(2017, 1, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
-        self.json_index_str = '''
-            {
-                "type": "{{ params.index_type }}",
-                "datasource": "{{ params.datasource }}",
-                "spec": {
-                    "dataSchema": {
-                        "granularitySpec": {
-                            "intervals": ["{{ ds }}/{{ macros.ds_add(ds, 1) }}"]
-                        }
-                    }
+JSON_INDEX_STR = """
+    {
+        "type": "{{ params.index_type }}",
+        "datasource": "{{ params.datasource }}",
+        "spec": {
+            "dataSchema": {
+                "granularitySpec": {
+                    "intervals": ["{{ ds }}/{{ macros.ds_add(ds, 1) }}"]
                 }
             }
-        '''
-        self.rendered_index_str = '''
-            {
-                "type": "index_hadoop",
-                "datasource": "datasource_prd",
-                "spec": {
-                    "dataSchema": {
-                        "granularitySpec": {
-                            "intervals": ["2017-01-01/2017-01-02"]
-                        }
-                    }
-                }
-            }
-        '''
+        }
+    }
+"""
 
-    def test_render_template(self):
+RENDERED_INDEX = {
+    "type": "index_hadoop",
+    "datasource": "datasource_prd",
+    "spec": {"dataSchema": {"granularitySpec": {"intervals": ["2017-01-01/2017-01-02"]}}},
+}
+
+
+def test_render_template(dag_maker):
+    with dag_maker("test_druid_render_template", default_args={"start_date": DEFAULT_DATE}):
         operator = DruidOperator(
-            task_id='spark_submit_job',
-            json_index_file=self.json_index_str,
-            params={'index_type': 'index_hadoop', 'datasource': 'datasource_prd'},
-            dag=self.dag,
+            task_id="spark_submit_job",
+            json_index_file=JSON_INDEX_STR,
+            params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
         )
-        ti = TaskInstance(operator, DEFAULT_DATE)
-        ti.render_templates()
 
-        assert self.rendered_index_str == operator.json_index_file
+    dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[0].render_templates()
+    assert RENDERED_INDEX == json.loads(operator.json_index_file)
 
-    def test_render_template_from_file(self):
-        with NamedTemporaryFile("w", suffix='.json') as f:
-            f.write(self.json_index_str)
-            f.flush()
 
-            self.dag.template_searchpath = os.path.dirname(f.name)
+def test_render_template_from_file(tmp_path, dag_maker):
+    json_index_file = tmp_path.joinpath("json_index.json")
+    json_index_file.write_text(JSON_INDEX_STR)
 
-            operator = DruidOperator(
-                task_id='spark_submit_job',
-                json_index_file=f.name,
-                params={'index_type': 'index_hadoop', 'datasource': 'datasource_prd'},
-                dag=self.dag,
-            )
-            ti = TaskInstance(operator, DEFAULT_DATE)
-            ti.render_templates()
+    with dag_maker(
+        "test_druid_render_template_from_file",
+        template_searchpath=[str(tmp_path)],
+        default_args={"start_date": DEFAULT_DATE},
+    ):
+        operator = DruidOperator(
+            task_id="spark_submit_job",
+            json_index_file=json_index_file.name,
+            params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
+        )
 
-            assert self.rendered_index_str == operator.json_index_file
+    dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[0].render_templates()
+    assert RENDERED_INDEX == json.loads(operator.json_index_file)
+
+
+def test_init_with_timeout_and_max_ingestion_time():
+    operator = DruidOperator(
+        task_id="spark_submit_job",
+        json_index_file=JSON_INDEX_STR,
+        timeout=60,
+        max_ingestion_time=180,
+        params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
+    )
+
+    expected_values = {
+        'task_id': 'spark_submit_job',
+        'timeout': 60,
+        'max_ingestion_time': 180,
+    }
+    assert expected_values['task_id'] == operator.task_id
+    assert expected_values['timeout'] == operator.timeout
+    assert expected_values['max_ingestion_time'] == operator.max_ingestion_time
+
+
+def test_init_default_timeout():
+    operator = DruidOperator(
+        task_id="spark_submit_job",
+        json_index_file=JSON_INDEX_STR,
+        params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
+    )
+    expected_default_timeout = 1
+    assert expected_default_timeout == operator.timeout

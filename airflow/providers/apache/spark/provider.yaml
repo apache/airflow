@@ -22,11 +22,18 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 versions:
+  - 2.1.0
+  - 2.0.3
+  - 2.0.2
+  - 2.0.1
   - 2.0.0
   - 1.0.3
   - 1.0.2
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Apache Spark
@@ -51,7 +58,15 @@ hooks:
       - airflow.providers.apache.spark.hooks.spark_sql
       - airflow.providers.apache.spark.hooks.spark_submit
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
   - airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
   - airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
+    connection-type: spark_jdbc
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
+    connection-type: spark_sql
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
+    connection-type: spark

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.datadog.sensors.datadog import DatadogSensor  # noqa
 
 warnings.warn(

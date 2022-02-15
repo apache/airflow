@@ -108,7 +108,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingEr
                         message=sphinx_warning,
                     )
                 )
-            except Exception:  # noqa pylint: disable=broad-except
+            except Exception:
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_spelling_errors.append(
                     SpellingError(

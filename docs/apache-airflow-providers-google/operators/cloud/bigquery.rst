@@ -26,10 +26,6 @@ analyzing data to find meaningful insights using familiar SQL.
 Airflow provides operators to manage datasets and tables, run queries and validate
 data.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -98,23 +94,6 @@ method only replaces fields that are provided in the submitted Table resource.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_update_table]
     :end-before: [END howto_operator_bigquery_update_table]
-
-.. _howto/operator:BigQueryPatchDatasetOperator:
-
-Patch dataset
-"""""""""""""
-
-To patch a dataset in BigQuery you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator`.
-
-Note, this operator only replaces fields that are provided in the submitted dataset
-resource.
-
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_bigquery_patch_dataset]
-    :end-before: [END howto_operator_bigquery_patch_dataset]
 
 .. _howto/operator:BigQueryUpdateDatasetOperator:
 

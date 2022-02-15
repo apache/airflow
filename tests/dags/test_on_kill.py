@@ -19,12 +19,19 @@ import time
 
 from airflow.models import DAG
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.context import Context
 from airflow.utils.timezone import datetime
 
 
 class DummyWithOnKill(DummyOperator):
-    def execute(self, context):
+    def execute(self, context: Context):
         import os
+
+        self.log.info("Signalling that I am running")
+        # signal to the test that we've started
+        with open("/tmp/airflow_on_kill_running", "w") as f:
+            f.write("ON_KILL_RUNNING")
+        self.log.info("Signalled")
 
         # This runs extra processes, so that we can be sure that we correctly
         # tidy up all processes launched by a task when killing
@@ -34,11 +41,13 @@ class DummyWithOnKill(DummyOperator):
 
     def on_kill(self):
         self.log.info("Executing on_kill")
-        with open("/tmp/airflow_on_kill", "w") as f:
+        with open("/tmp/airflow_on_kill_killed", "w") as f:
             f.write("ON_KILL_TEST")
+        self.log.info("Executed on_kill")
 
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
 dag1 = DAG(dag_id='test_on_kill', start_date=datetime(2015, 1, 1))
+
 dag1_task1 = DummyWithOnKill(task_id='task1', dag=dag1, owner='airflow')

@@ -20,14 +20,21 @@ import os
 import re
 import unittest
 from collections import OrderedDict
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
-from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
-from tests.test_utils.mock_hooks import MockHiveMetastoreHook, MockMySqlHook, MockPrestoHook
+from airflow.providers.presto.hooks.presto import PrestoHook
+from tests.providers.apache.hive import (
+    DEFAULT_DATE,
+    DEFAULT_DATE_DS,
+    MockConnectionCursor,
+    MockHiveMetastoreHook,
+    MockMySqlHook,
+    TestHiveEnvironment,
+)
 
 
 class _FakeCol:
@@ -37,6 +44,20 @@ class _FakeCol:
 
 
 fake_col = _FakeCol('col', 'string')
+
+
+class MockPrestoHook(PrestoHook):
+    def __init__(self, *args, **kwargs):
+        self.conn = MockConnectionCursor()
+
+        self.conn.execute = MagicMock()
+        self.get_conn = MagicMock(return_value=self.conn)
+        self.get_first = MagicMock(return_value=[['val_0', 'val_1'], 'val_2'])
+
+        super().__init__(*args, **kwargs)
+
+    def get_connection(self, *args):
+        return self.conn
 
 
 class TestHiveStatsCollectionOperator(TestHiveEnvironment):
@@ -308,17 +329,19 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         select_count_query = (
-            "SELECT COUNT(*) AS __count FROM airflow."
-            + "static_babynames_partitioned WHERE ds = '2015-01-01';"
+            "SELECT COUNT(*) AS __count "
+            "FROM airflow.static_babynames_partitioned "
+            "WHERE ds = '2015-01-01';"
         )
         mock_presto_hook.get_first.assert_called_with(hql=select_count_query)
 
         expected_stats_select_query = (
-            "SELECT 1 FROM hive_stats WHERE table_name='airflow."
-            + "static_babynames_partitioned' AND "
-            + "partition_repr='{\"ds\": \"2015-01-01\"}' AND "
-            + "dttm='2015-01-01T00:00:00+00:00' "
-            + "LIMIT 1;"
+            "SELECT 1 "
+            "FROM hive_stats "
+            "WHERE table_name='airflow.static_babynames_partitioned' "
+            "  AND partition_repr='{\"ds\": \"2015-01-01\"}' "
+            "  AND dttm='2015-01-01T00:00:00+00:00' "
+            "LIMIT 1;"
         )
 
         raw_stats_select_query = mock_mysql_hook.get_records.call_args_list[0][0][0]

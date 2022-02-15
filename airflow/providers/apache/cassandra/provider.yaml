@@ -22,9 +22,14 @@ description: |
     `Apache Cassandra <http://cassandra.apache.org/>`__.
 
 versions:
+  - 2.1.0
+  - 2.0.1
   - 2.0.0
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Apache Cassandra
@@ -45,5 +50,9 @@ hooks:
     python-modules:
       - airflow.providers.apache.cassandra.hooks.cassandra
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook
+    connection-type: cassandra

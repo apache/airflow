@@ -20,11 +20,11 @@ import logging
 import logging.config
 import os
 import re
-import unittest
+
+import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import set_context
@@ -38,22 +38,20 @@ TASK_LOGGER = 'airflow.task'
 FILE_TASK_HANDLER = 'task'
 
 
-class TestFileTaskLogHandler(unittest.TestCase):
+class TestFileTaskLogHandler:
     def clean_up(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TaskInstance).delete()
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
         self.clean_up()
         # We use file task handler by default.
 
-    def tearDown(self):
+    def teardown_method(self):
         self.clean_up()
-        super().tearDown()
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
@@ -64,17 +62,21 @@ class TestFileTaskLogHandler(unittest.TestCase):
         assert handler.name == FILE_TASK_HANDLER
 
     def test_file_task_handler_when_ti_value_is_invalid(self):
-        def task_callable(ti, **kwargs):
+        def task_callable(ti):
             ti.log.info("test")
 
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
-        dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+        )
         task = PythonOperator(
             task_id='task_for_testing_file_log_handler',
             dag=dag,
             python_callable=task_callable,
         )
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
         logger = ti.log
         ti.log.disabled = False
@@ -112,17 +114,21 @@ class TestFileTaskLogHandler(unittest.TestCase):
         os.remove(log_filename)
 
     def test_file_task_handler(self):
-        def task_callable(ti, **kwargs):
+        def task_callable(ti):
             ti.log.info("test")
 
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
-        dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+        )
         task = PythonOperator(
             task_id='task_for_testing_file_log_handler',
             dag=dag,
             python_callable=task_callable,
         )
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
         logger = ti.log
         ti.log.disabled = False
@@ -162,16 +168,22 @@ class TestFileTaskLogHandler(unittest.TestCase):
         os.remove(log_filename)
 
     def test_file_task_handler_running(self):
-        def task_callable(ti, **kwargs):
+        def task_callable(ti):
             ti.log.info("test")
 
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
         task = PythonOperator(
             task_id='task_for_testing_file_log_handler',
-            dag=dag,
             python_callable=task_callable,
+            dag=dag,
         )
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+
         ti.try_number = 2
         ti.state = State.RUNNING
 
@@ -206,28 +218,34 @@ class TestFileTaskLogHandler(unittest.TestCase):
         os.remove(log_filename)
 
 
-class TestFilenameRendering(unittest.TestCase):
-    def setUp(self):
-        dag = DAG('dag_for_testing_filename_rendering', start_date=DEFAULT_DATE)
-        task = DummyOperator(task_id='task_for_testing_filename_rendering', dag=dag)
-        self.ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+@pytest.fixture()
+def filename_rendering_ti(session, create_task_instance):
+    return create_task_instance(
+        dag_id='dag_for_testing_filename_rendering',
+        task_id='task_for_testing_filename_rendering',
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        session=session,
+    )
 
-    def test_python_formatting(self):
+
+class TestFilenameRendering:
+    def test_python_formatting(self, filename_rendering_ti):
         expected_filename = (
-            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log'
-            % DEFAULT_DATE.isoformat()
+            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
+            f'{DEFAULT_DATE.isoformat()}/42.log'
         )
 
         fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
-        rendered_filename = fth._render_filename(self.ti, 42)
+        rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_jinja_rendering(self):
+    def test_jinja_rendering(self, filename_rendering_ti):
         expected_filename = (
-            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log'
-            % DEFAULT_DATE.isoformat()
+            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
+            f'{DEFAULT_DATE.isoformat()}/42.log'
         )
 
         fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
-        rendered_filename = fth._render_filename(self.ti, 42)
+        rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename

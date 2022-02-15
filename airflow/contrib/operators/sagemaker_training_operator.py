@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.sagemaker_training import SageMakerTrainingOperator  # noqa
 
 warnings.warn(

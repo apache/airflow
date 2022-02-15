@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor  # noqa
 
 warnings.warn(

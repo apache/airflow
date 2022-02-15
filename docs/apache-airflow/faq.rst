@@ -20,8 +20,8 @@
 FAQ
 ========
 
-Scheduling
-^^^^^^^^^^
+Scheduling / DAG file parsing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Why is task not getting scheduled?
 ----------------------------------
@@ -100,7 +100,7 @@ DAGs have configurations that improves efficiency:
 
 Operators or tasks also have configurations that improves efficiency and scheduling priority:
 
-- ``task_concurrency``: This parameter controls the number of concurrent running task instances across ``dag_runs``
+- ``max_active_tis_per_dag``: This parameter controls the number of concurrent running task instances across ``dag_runs``
   per task.
 - ``pool``: See :ref:`concepts:pool`.
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
@@ -119,6 +119,52 @@ How do I trigger tasks based on another task's failure?
 
 You can achieve this with :ref:`concepts:trigger-rules`.
 
+When there are a lot (>1000) of dags files, how to speed up parsing of new files?
+---------------------------------------------------------------------------------
+
+(only valid for Airflow >= 2.1.1)
+
+Change the :ref:`config:scheduler__file_parsing_sort_mode` to ``modified_time``, raise
+the :ref:`config:scheduler__min_file_process_interval` to ``600`` (10 minutes), ``6000`` (100 minutes)
+or a higher value.
+
+The dag parser will skip the ``min_file_process_interval`` check if a file is recently modified.
+
+This might not work for case where the DAG is imported/created from a separate file. Example:
+``dag_file.py`` that imports ``dag_loader.py`` where the actual logic of the DAG file is as shown below.
+In this case if ``dag_loader.py`` is updated but ``dag_file.py`` is not updated, the changes won't be reflected
+until ``min_file_process_interval`` is reached since DAG Parser will look for modified time for ``dag_file.py`` file.
+
+.. code-block:: python
+   :caption: dag_file.py
+   :name: dag_file.py
+
+    from dag_loader import create_dag
+
+    globals()[dag.dag_id] = create_dag(dag_id, schedule, dag_number, default_args)
+
+.. code-block:: python
+   :caption: dag_loader.py
+   :name: dag_loader.py
+
+    from airflow import DAG
+    from airflow.operators.python_operator import PythonOperator
+    from datetime import datetime
+
+
+    def create_dag(dag_id, schedule, dag_number, default_args):
+        def hello_world_py(*args):
+            print("Hello World")
+            print("This is DAG: {}".format(str(dag_number)))
+
+        dag = DAG(dag_id, schedule_interval=schedule, default_args=default_args)
+
+        with dag:
+            t1 = PythonOperator(task_id="hello_world", python_callable=hello_world_py)
+
+        return dag
+
+
 DAG construction
 ^^^^^^^^^^^^^^^^
 
@@ -127,7 +173,8 @@ What's the deal with ``start_date``?
 
 ``start_date`` is partly legacy from the pre-DagRun era, but it is still
 relevant in many ways. When creating a new DAG, you probably want to set
-a global ``start_date`` for your tasks using ``default_args``. The first
+a global ``start_date`` for your tasks. This can be done by declaring your
+``start_date`` directly in the ``DAG()`` object. The first
 DagRun to be created will be based on the ``min(start_date)`` for all your
 tasks. From that point on, the scheduler creates new DagRuns based on
 your ``schedule_interval`` and the corresponding task instances run as your
@@ -170,12 +217,23 @@ actually start. If this were not the case, the backfill just would not start.
 What does ``execution_date`` mean?
 ----------------------------------
 
-Airflow was developed as a solution for ETL needs. In the ETL world, you typically summarize data. So, if you want to
-summarize data for 2016-02-19, You would do it at 2016-02-20 midnight UTC, which would be right after all data for
-2016-02-19 becomes available.
+*Execution date* or ``execution_date`` is a historical name for what is called a
+*logical date*, and also usually the start of the data interval represented by a
+DAG run.
 
-This datetime value is available to you as :ref:`Macros<macros:default_variables>` as various forms in Jinja templated
-fields. They are also included in the context dictionary given to an Operator's execute function.
+Airflow was developed as a solution for ETL needs. In the ETL world, you
+typically summarize data. So, if you want to summarize data for ``2016-02-19``,
+you would do it at ``2016-02-20`` midnight UTC, which would be right after all
+data for ``2016-02-19`` becomes available. This interval between midnights of
+``2016-02-19`` and ``2016-02-20`` is called the *data interval*, and since it
+represents data in the date of ``2016-02-19``, this date is also called the
+run's *logical date*, or the date that this DAG run is executed for, thus
+*execution date*.
+
+For backward compatibility, a datetime value ``execution_date`` is still
+as :ref:`Template variables<templates:variables>` with various formats in Jinja
+templated fields, and in Airflow's Python API. It is also included in the
+context dictionary given to an Operator's execute function.
 
 .. code-block:: python
 
@@ -183,7 +241,12 @@ fields. They are also included in the context dictionary given to an Operator's 
             def execute(self, context):
                 logging.info(context["execution_date"])
 
-Note that ``ds`` refers to date_string, not date start as may be confusing to some.
+However, you should always use ``data_interval_start`` or ``data_interval_end``
+if possible, since those names are semantically more correct and less prone to
+misunderstandings.
+
+Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
+*date* ***string***, not *date* ***start*** as may be confusing to some.
 
 
 How to create DAGs dynamically?
@@ -249,7 +312,8 @@ commonly attempted in ``user_defined_macros``.
 
         bo = BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}", dag=dag)
 
-This will echo "day={{ ds }}" instead of "day=2020-01-01" for a dagrun with the execution date 2020-01-01 00:00:00.
+This will echo "day={{ ds }}" instead of "day=2020-01-01" for a DAG run with a
+``data_interval_start`` of 2020-01-01 00:00:00.
 
 .. code-block:: python
 
@@ -264,7 +328,7 @@ Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 - When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
   ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
-- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
+- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
 
 
 Task execution interactions

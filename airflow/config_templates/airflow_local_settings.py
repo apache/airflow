@@ -104,7 +104,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'filters': ['mask_secrets'],
         },
         'flask_appbuilder': {
-            'handler': ['console'],
+            'handlers': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
         },
@@ -120,7 +120,7 @@ EXTRA_LOGGER_NAMES: str = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=Non
 if EXTRA_LOGGER_NAMES:
     new_loggers = {
         logger_name.strip(): {
-            'handler': ['console'],
+            'handlers': ['console'],
             'level': LOG_LEVEL,
             'propagate': True,
         }
@@ -194,12 +194,13 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
+        url_parts = urlparse(REMOTE_BASE_LOG_FOLDER)
         CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
-                'log_group_arn': urlparse(REMOTE_BASE_LOG_FOLDER).netloc,
+                'log_group_arn': url_parts.netloc + url_parts.path,
                 'filename_template': FILENAME_TEMPLATE,
             },
         }

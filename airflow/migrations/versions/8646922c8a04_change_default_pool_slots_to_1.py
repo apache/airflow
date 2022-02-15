@@ -24,17 +24,14 @@ Create Date: 2021-02-23 23:19:22.409973
 
 """
 
-import dill
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Column, Float, Integer, PickleType, String
-
-# revision identifiers, used by Alembic.
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.models.base import COLLATION_ARGS
 from airflow.utils.sqlalchemy import UtcDateTime
 
+# revision identifiers, used by Alembic.
 revision = '8646922c8a04'
 down_revision = '449b4072c2da'
 branch_labels = None
@@ -42,34 +39,17 @@ depends_on = None
 
 Base = declarative_base()
 BATCH_SIZE = 5000
-ID_LEN = 250
 
 
-class TaskInstance(Base):  # noqa: D101  # type: ignore
+class TaskInstance(Base):  # type: ignore
+    """Minimal model definition for migrations"""
+
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id = Column(String(), primary_key=True)
+    dag_id = Column(String(), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Float)
-    state = Column(String(20))
-    _try_number = Column('try_number', Integer, default=0)
-    max_tries = Column(Integer)
-    hostname = Column(String(1000))
-    unixname = Column(String(1000))
-    job_id = Column(Integer)
-    pool = Column(String(50), nullable=False)
     pool_slots = Column(Integer, default=1)
-    queue = Column(String(256))
-    priority_weight = Column(Integer)
-    operator = Column(String(1000))
-    queued_dttm = Column(UtcDateTime)
-    queued_by_job_id = Column(Integer)
-    pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill))
-    external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
 
 
 def upgrade():

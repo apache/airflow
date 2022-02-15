@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator  # noqa
 
 warnings.warn(

@@ -30,6 +30,13 @@ fi
 export PYTHON_MAJOR_MINOR_VERSION=$1
 shift
 
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires executor mode as third parameter"
+  exit 1
+fi
+export EXECUTOR=$1
+shift
+
 
 # Requires PARALLEL_JOB_STATUS
 
@@ -41,7 +48,15 @@ fi
 echo
 echo "KUBERNETES_VERSION:         ${KUBERNETES_VERSION}"
 echo "PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}"
+echo "EXECUTOR:                   ${EXECUTOR}"
 echo
+
+# For parallel tests - each helm test should have a different cache to avoid tests overriding each-other's cache
+HELM_CACHE_HOME=$(mktemp -d)
+export HELM_CACHE_HOME
+
+# shellcheck disable=SC2154
+trap 'rc=$?; rm -rf "${HELM_CACHE_HOME}" || true; exit "${rc}"' EXIT HUP INT TERM
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"

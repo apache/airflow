@@ -35,7 +35,7 @@ CONNECTION_ID = 'yandexcloud_default'
 AVAILABILITY_ZONE_ID = 'ru-central1-c'
 
 CLUSTER_NAME = 'dataproc_cluster'
-CLUSTER_IMAGE_VERSION = '1.1'
+CLUSTER_IMAGE_VERSION = '1.4'
 
 # https://cloud.yandex.com/docs/resource-manager/operations/folder/get-id
 FOLDER_ID = 'my_folder_id'

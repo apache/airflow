@@ -258,19 +258,26 @@ function kind::check_cluster_ready_for_airflow() {
 
 function kind::build_image_for_kubernetes_tests() {
     cd "${AIRFLOW_SOURCES}" || exit 1
-    docker_v build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
-FROM ${AIRFLOW_PROD_IMAGE}
+    local image_tag="latest"
+    if [[ -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
+        image_tag="${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    fi
+    echo "Building ${AIRFLOW_IMAGE_KUBERNETES}:latest from ${AIRFLOW_PROD_IMAGE}:${image_tag}"
+    docker_v build --tag "${AIRFLOW_IMAGE_KUBERNETES}:latest" . -f - <<EOF
+FROM ${AIRFLOW_PROD_IMAGE}:${image_tag}
 
 COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
 COPY airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
 
+ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
+
 EOF
-    echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES} is prepared for test kubernetes deployment."
+    echo "The ${AIRFLOW_IMAGE_KUBERNETES}:${image_tag} is prepared for test kubernetes deployment."
 }
 
 function kind::load_image_to_kind_cluster() {
-    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}"
+    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_IMAGE_KUBERNETES}:latest"
 }
 
 MAX_NUM_TRIES_FOR_HEALTH_CHECK=12
@@ -293,6 +300,7 @@ function kind::wait_for_webserver_healthy() {
             echo
             echo  "${COLOR_RED}ERROR: Timeout while waiting for the webserver health check  ${COLOR_RESET}"
             echo
+            return 1
         fi
     done
     echo
@@ -335,11 +343,13 @@ function kind::deploy_airflow_with_helm() {
     pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
     helm dep update
-    helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
-        --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
-        --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
-        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
-        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+    helm install airflow . \
+        --timeout 10m0s \
+        --namespace "${HELM_AIRFLOW_NAMESPACE}" \
+        --set "defaultAirflowRepository=${AIRFLOW_IMAGE_KUBERNETES}" \
+        --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
+        --set "images.airflow.tag=latest" -v 1 \
+        --set "defaultAirflowTag=latest" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
         --set "executor=${EXECUTOR}"
@@ -351,4 +361,32 @@ function kind::deploy_test_kubernetes_resources() {
     verbosity::print_info "Deploying Custom kubernetes resources"
     kubectl apply -f "scripts/ci/kubernetes/volumes.yaml" --namespace default
     kubectl apply -f "scripts/ci/kubernetes/nodeport.yaml" --namespace airflow
+}
+
+function kind::upgrade_airflow_with_helm() {
+    local mode=$1
+    echo
+    echo "Upgrading airflow with ${mode}"
+    echo
+    local chartdir
+    chartdir=$(mktemp -d)
+    traps::add_trap "rm -rf ${chartdir}" EXIT INT HUP TERM
+    # Copy chart to temporary directory to allow chart deployment in parallel
+    # Otherwise helm deployment will fail on renaming charts to tmpcharts
+    cp -r "${AIRFLOW_SOURCES}/chart" "${chartdir}"
+
+    pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
+    helm repo add stable https://charts.helm.sh/stable/
+    helm dep update
+    helm upgrade airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
+        --set "defaultAirflowRepository=${AIRFLOW_IMAGE_KUBERNETES}" \
+        --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
+        --set "images.airflow.tag=latest" -v 1 \
+        --set "defaultAirflowTag=latest" -v 1 \
+        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.logging.logging_level=DEBUG" \
+        --set "executor=${mode}"
+
+    echo
+    popd > /dev/null 2>&1|| exit 1
 }

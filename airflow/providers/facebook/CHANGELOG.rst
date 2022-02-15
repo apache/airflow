@@ -19,6 +19,48 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Providers facebook hook multiple account (#19377)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix MyPy errors for google.cloud.transfers (#20229)``
+   * ``Fix mypy facebook ads hooks (#20589)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Align the default version with Facebook business SDK (#18883)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.0.1
+.....
+
+misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
 2.0.0
 .....
 
@@ -36,6 +78,7 @@ Breaking changes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.1.0
 .....

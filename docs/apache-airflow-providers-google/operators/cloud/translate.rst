@@ -20,10 +20,6 @@
 Google Cloud Translate Operators
 --------------------------------
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

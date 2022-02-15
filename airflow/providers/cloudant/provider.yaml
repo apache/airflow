@@ -22,9 +22,13 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 versions:
+  - 2.0.1
   - 2.0.0
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: IBM Cloudant
@@ -37,5 +41,9 @@ hooks:
     python-modules:
       - airflow.providers.cloudant.hooks.cloudant
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.cloudant.hooks.cloudant.CloudantHook
+
+connection-types:
+  - hook-class-name: airflow.providers.cloudant.hooks.cloudant.CloudantHook
+    connection-type: cloudant

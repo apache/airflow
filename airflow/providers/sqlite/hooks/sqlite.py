@@ -35,3 +35,33 @@ class SqliteHook(DbApiHook):
         airflow_conn = self.get_connection(conn_id)
         conn = sqlite3.connect(airflow_conn.host)
         return conn
+
+    @staticmethod
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+        """
+        Static helper method that generates the INSERT SQL statement.
+        The REPLACE variant is specific to MySQL syntax.
+
+        :param table: Name of the target table
+        :param values: The row to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param replace: Whether to replace instead of insert
+        :return: The generated INSERT or REPLACE SQL statement
+        :rtype: str
+        """
+        placeholders = [
+            "?",
+        ] * len(values)
+
+        if target_fields:
+            target_fields = ", ".join(target_fields)
+            target_fields = f"({target_fields})"
+        else:
+            target_fields = ''
+
+        if not replace:
+            sql = "INSERT INTO "
+        else:
+            sql = "REPLACE INTO "
+        sql += f"{table} {target_fields} VALUES ({','.join(placeholders)})"
+        return sql

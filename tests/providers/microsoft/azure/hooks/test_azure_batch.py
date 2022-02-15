@@ -23,7 +23,7 @@ from unittest import mock
 from azure.batch import BatchServiceClient, models as batch_models
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
+from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.utils import db
 
 
@@ -49,17 +49,7 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(
                 conn_id=self.test_vm_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps(
-                    {
-                        "account_name": self.test_account_name,
-                        "account_key": self.test_account_key,
-                        "account_url": self.test_account_url,
-                        "vm_publisher": self.test_vm_publisher,
-                        "vm_offer": self.test_vm_offer,
-                        "vm_sku": self.test_vm_sku,
-                        "node_agent_sku_id": self.test_node_agent_sku,
-                    }
-                ),
+                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
             )
         )
         # connect with cloud service
@@ -67,16 +57,7 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(
                 conn_id=self.test_cloud_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps(
-                    {
-                        "account_name": self.test_account_name,
-                        "account_key": self.test_account_key,
-                        "account_url": self.test_account_url,
-                        "os_family": self.test_cloud_os_family,
-                        "os_version": self.test_cloud_os_version,
-                        "node_agent_sku_id": self.test_node_agent_sku,
-                    }
-                ),
+                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
             )
         )
 
@@ -112,7 +93,7 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_configure_pool_with_latest_vm(self):
         with mock.patch(
             "airflow.providers.microsoft.azure.hooks."
-            "azure_batch.AzureBatchHook._get_latest_verified_image_vm_and_sku"
+            "batch.AzureBatchHook._get_latest_verified_image_vm_and_sku"
         ) as mock_getvm:
             hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
             getvm_instance = mock_getvm
@@ -127,7 +108,7 @@ class TestAzureBatchHook(unittest.TestCase):
             )
             assert isinstance(pool, batch_models.PoolAddParameter)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_create_pool_with_vm_config(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.pool.add
@@ -142,7 +123,7 @@ class TestAzureBatchHook(unittest.TestCase):
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_create_pool_with_cloud_config(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         mock_instance = mock_batch.return_value.pool.add
@@ -157,12 +138,12 @@ class TestAzureBatchHook(unittest.TestCase):
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_wait_for_all_nodes(self, mock_batch):
         # TODO: Add test
         pass
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_job_configuration_and_create_job(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.job.add
@@ -171,7 +152,7 @@ class TestAzureBatchHook(unittest.TestCase):
         assert isinstance(job, batch_models.JobAddParameter)
         mock_instance.assert_called_once_with(job)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient')
+    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
     def test_add_single_task_to_job(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.task.add
@@ -180,7 +161,7 @@ class TestAzureBatchHook(unittest.TestCase):
         assert isinstance(task, batch_models.TaskAddParameter)
         mock_instance.assert_called_once_with(job_id="myjob", task=task)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient')
+    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
     def test_wait_for_all_task_to_complete(self, mock_batch):
         # TODO: Add test
         pass

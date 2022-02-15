@@ -16,11 +16,11 @@
 # under the License.
 
 import pytest
-from flask_appbuilder.security.sqla.models import Role
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import Role
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import (
     assert_401,
@@ -43,7 +43,7 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -82,7 +82,7 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         response = self.client.get("/api/v1/roles/invalid-role", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         assert {
-            'detail': "The Role with name `invalid-role` was not found",
+            'detail': "Role with name 'invalid-role' was not found",
             'status': 404,
             'title': 'Role not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -271,7 +271,7 @@ class TestPostRole(TestRoleEndpoint):
         response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 409
         assert response.json == {
-            'detail': "Role with name `Test` already exist. Please update with patch endpoint",
+            'detail': "Role with name 'Test' already exists; please update with the PATCH endpoint",
             'status': 409,
             'title': 'Conflict',
             'type': EXCEPTIONS_LINK_MAP[409],
@@ -314,7 +314,7 @@ class TestDeleteRole(TestRoleEndpoint):
         )
         assert response.status_code == 404
         assert response.json == {
-            'detail': "The Role with name `invalidrolename` was not found",
+            'detail': "Role with name 'invalidrolename' was not found",
             'status': 404,
             'title': 'Role not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -354,6 +354,27 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.status_code == 200
         assert response.json['name'] == expected_name
         assert response.json["actions"] == expected_actions
+
+    def test_patch_should_update_correct_roles_permissions(self):
+        create_role(self.app, "role_to_change")
+        create_role(self.app, "already_exists")
+
+        response = self.client.patch(
+            "/api/v1/roles/role_to_change",
+            json={
+                "name": "already_exists",
+                "actions": [{"action": {"name": "can_delete"}, "resource": {"name": "XComs"}}],
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+
+        updated_permissions = self.app.appbuilder.sm.find_role("role_to_change").permissions
+        assert len(updated_permissions) == 1
+        assert updated_permissions[0].resource.name == "XComs"
+        assert updated_permissions[0].action.name == "can_delete"
+
+        assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
     @parameterized.expand(
         [

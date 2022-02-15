@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=too-many-lines
 
 import json
 import unittest
@@ -54,9 +53,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             side_effect=HttpError(resp=httplib2.Response({'status': 400}), content=b'Error content')
         )
         with pytest.raises(AirflowException) as ctx:
-            self.cloudsql_hook.import_instance(  # pylint: disable=no-value-for-parameter
-                instance='instance', body={}
-            )
+            self.cloudsql_hook.import_instance(instance='instance', body={})
         err = ctx.value
         assert "Importing instance " in str(err)
         assert 1 == mock_get_credentials.call_count
@@ -70,9 +67,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             side_effect=HttpError(resp=httplib2.Response({'status': 400}), content=b'Error content')
         )
         with pytest.raises(HttpError) as ctx:
-            self.cloudsql_hook.export_instance(  # pylint: disable=no-value-for-parameter
-                instance='instance', body={}
-            )
+            self.cloudsql_hook.export_instance(instance='instance', body={})
         err = ctx.value
         assert 400 == err.resp.status
         assert 1 == mock_get_credentials.call_count
@@ -88,9 +83,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.import_instance(  # pylint: disable=no-value-for-parameter
-            instance='instance', body={}
-        )
+        self.cloudsql_hook.import_instance(instance='instance', body={})
 
         import_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
@@ -110,9 +103,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.export_instance(  # pylint: disable=no-value-for-parameter
-            instance='instance', body={}
-        )
+        self.cloudsql_hook.export_instance(instance='instance', body={})
 
         export_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
@@ -159,7 +150,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "instance"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.get_instance(instance='instance')  # pylint: disable=no-value-for-parameter
+        res = self.cloudsql_hook.get_instance(instance='instance')
         assert res is not None
         assert 'instance' == res['name']
         get_method.assert_called_once_with(instance='instance', project='example-project')
@@ -178,7 +169,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_instance(body={})  # pylint: disable=no-value-for-parameter
+        self.cloudsql_hook.create_instance(body={})
 
         insert_method.assert_called_once_with(body={}, project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
@@ -212,7 +203,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_instance(body={})  # pylint: disable=no-value-for-parameter
+        self.cloudsql_hook.create_instance(body={})
 
         assert 1 == mock_get_credentials.call_count
         assert 2 == insert_method.call_count
@@ -246,9 +237,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_instance(  # pylint: disable=no-value-for-parameter
-            instance='instance', body={}
-        )
+        self.cloudsql_hook.patch_instance(instance='instance', body={})
 
         assert 1 == mock_get_credentials.call_count
         assert 2 == patch_method.call_count
@@ -268,9 +257,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_instance(  # pylint: disable=no-value-for-parameter
-            instance='instance', body={}
-        )
+        self.cloudsql_hook.patch_instance(instance='instance', body={})
 
         patch_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
@@ -290,7 +277,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_instance(instance='instance')  # pylint: disable=no-value-for-parameter
+        self.cloudsql_hook.delete_instance(instance='instance')
 
         delete_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
@@ -324,7 +311,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_instance(instance='instance')  # pylint: disable=no-value-for-parameter
+        self.cloudsql_hook.delete_instance(instance='instance')
 
         assert 1 == mock_get_credentials.call_count
         assert 2 == delete_method.call_count
@@ -344,9 +331,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "database"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.get_database(  # pylint: disable=no-value-for-parameter
-            database='database', instance='instance'
-        )
+        res = self.cloudsql_hook.get_database(database='database', instance='instance')
         assert res is not None
         assert 'database' == res['name']
         get_method.assert_called_once_with(
@@ -367,9 +352,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_database(  # pylint: disable=no-value-for-parameter
-            instance='instance', body={}
-        )
+        self.cloudsql_hook.create_database(instance='instance', body={})
 
         insert_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
@@ -403,9 +386,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_database(  # pylint: disable=no-value-for-parameter
-            instance='instance', body={}
-        )
+        self.cloudsql_hook.create_database(instance='instance', body={})
 
         assert 1 == mock_get_credentials.call_count
         assert 2 == insert_method.call_count
@@ -425,9 +406,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_database(  # pylint: disable=no-value-for-parameter
-            instance='instance', database='database', body={}
-        )
+        self.cloudsql_hook.patch_database(instance='instance', database='database', body={})
 
         patch_method.assert_called_once_with(
             body={}, database='database', instance='instance', project='example-project'
@@ -463,9 +442,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_database(  # pylint: disable=no-value-for-parameter
-            instance='instance', database='database', body={}
-        )
+        self.cloudsql_hook.patch_database(instance='instance', database='database', body={})
 
         assert 1 == mock_get_credentials.call_count
         assert 2 == patch_method.call_count
@@ -485,9 +462,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_database(  # pylint: disable=no-value-for-parameter
-            instance='instance', database='database'
-        )
+        self.cloudsql_hook.delete_database(instance='instance', database='database')
 
         delete_method.assert_called_once_with(
             database='database', instance='instance', project='example-project'
@@ -523,9 +498,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_database(  # pylint: disable=no-value-for-parameter
-            instance='instance', database='database'
-        )
+        self.cloudsql_hook.delete_database(instance='instance', database='database')
 
         assert 1 == mock_get_credentials.call_count
         assert 2 == delete_method.call_count

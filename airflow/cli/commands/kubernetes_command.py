@@ -17,6 +17,7 @@
 """Kubernetes sub-commands"""
 import os
 import sys
+from datetime import datetime, timedelta
 
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
@@ -26,21 +27,23 @@ from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models import TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.settings import pod_mutation_hook
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def generate_pod_yaml(args):
     """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
     execution_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
+    dr = DagRun(dag.dag_id, execution_date=execution_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
-        ti = TaskInstance(task, execution_date)
+        ti = TaskInstance(task, None)
+        ti.dag_run = dr
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
@@ -65,14 +68,23 @@ def generate_pod_yaml(args):
     print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def cleanup_pods(args):
-    """Clean up k8s pods in evicted/failed/succeeded states"""
+    """Clean up k8s pods in evicted/failed/succeeded/pending states"""
     namespace = args.namespace
+
+    min_pending_minutes = args.min_pending_minutes
+    # protect newly created pods from deletion
+    if min_pending_minutes < 5:
+        min_pending_minutes = 5
 
     # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
     # All Containers in the Pod have terminated in success, and will not be restarted.
     pod_succeeded = 'succeeded'
+
+    # The Pod has been accepted by the Kubernetes cluster,
+    # but one or more of the containers has not been set up and made ready to run.
+    pod_pending = 'pending'
 
     # All Containers in the Pod have terminated, and at least one Container has terminated in failure.
     # That is, the Container either exited with non-zero status or was terminated by the system.
@@ -92,21 +104,12 @@ def cleanup_pods(args):
     airflow_pod_labels = [
         'dag_id',
         'task_id',
-        'execution_date',
         'try_number',
         'airflow_version',
     ]
-    list_kwargs = {
-        "namespace": namespace,
-        "limit": 500,
-        "label_selector": client.V1LabelSelector(
-            match_expressions=[
-                client.V1LabelSelectorRequirement(key=label, operator="Exists")
-                for label in airflow_pod_labels
-            ]
-        ),
-    }
-    while True:  # pylint: disable=too-many-nested-blocks
+    list_kwargs = {"namespace": namespace, "limit": 500, "label_selector": ','.join(airflow_pod_labels)}
+
+    while True:
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
@@ -114,11 +117,17 @@ def cleanup_pods(args):
             pod_phase = pod.status.phase.lower()
             pod_reason = pod.status.reason.lower() if pod.status.reason else ''
             pod_restart_policy = pod.spec.restart_policy.lower()
+            current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
 
             if (
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
+                or (
+                    pod_phase == pod_pending
+                    and current_time - pod.metadata.creation_timestamp
+                    > timedelta(minutes=min_pending_minutes)
+                )
             ):
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
@@ -130,7 +139,7 @@ def cleanup_pods(args):
                     print(f"Can't remove POD: {e}", file=sys.stderr)
                 continue
             print(f'No action taken on pod {pod_name}')
-        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        continue_token = pod_list.metadata._continue
         if not continue_token:
             break
         list_kwargs["_continue"] = continue_token

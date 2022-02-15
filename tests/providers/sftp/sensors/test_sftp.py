@@ -20,7 +20,7 @@ import unittest
 from unittest.mock import patch
 
 import pytest
-from paramiko import SFTP_FAILURE, SFTP_NO_SUCH_FILE
+from paramiko.sftp import SFTP_FAILURE, SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 

@@ -38,20 +38,22 @@ This DAG relies on the following OS environment variables
 """
 import os
 import subprocess
+from datetime import datetime
 from os.path import expanduser
 from urllib.parse import quote_plus
 
 from airflow import models
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCP_REGION = os.environ.get('GCP_REGION', 'europe-west-1b')
+GCP_REGION = os.environ.get('GCP_REGION', 'europe-west1')
 
-GCSQL_POSTGRES_INSTANCE_NAME_QUERY = os.environ.get('GCSQL_POSTGRES_INSTANCE_NAME_QUERY', 'testpostgres')
+GCSQL_POSTGRES_INSTANCE_NAME_QUERY = os.environ.get(
+    'GCSQL_POSTGRES_INSTANCE_NAME_QUERY', 'test-postgres-query'
+)
 GCSQL_POSTGRES_DATABASE_NAME = os.environ.get('GCSQL_POSTGRES_DATABASE_NAME', 'postgresdb')
 GCSQL_POSTGRES_USER = os.environ.get('GCSQL_POSTGRES_USER', 'postgres_user')
-GCSQL_POSTGRES_PASSWORD = os.environ.get('GCSQL_POSTGRES_PASSWORD', 'password')
+GCSQL_POSTGRES_PASSWORD = os.environ.get('GCSQL_POSTGRES_PASSWORD', 'JoxHlwrPzwch0gz9')
 GCSQL_POSTGRES_PUBLIC_IP = os.environ.get('GCSQL_POSTGRES_PUBLIC_IP', '0.0.0.0')
 GCSQL_POSTGRES_PUBLIC_PORT = os.environ.get('GCSQL_POSTGRES_PUBLIC_PORT', 5432)
 GCSQL_POSTGRES_CLIENT_CERT_FILE = os.environ.get(
@@ -62,10 +64,10 @@ GCSQL_POSTGRES_CLIENT_KEY_FILE = os.environ.get(
 )
 GCSQL_POSTGRES_SERVER_CA_FILE = os.environ.get('GCSQL_POSTGRES_SERVER_CA_FILE', ".key/postgres-server-ca.pem")
 
-GCSQL_MYSQL_INSTANCE_NAME_QUERY = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME_QUERY', 'testmysql')
+GCSQL_MYSQL_INSTANCE_NAME_QUERY = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME_QUERY', 'test-mysql-query')
 GCSQL_MYSQL_DATABASE_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'mysqldb')
 GCSQL_MYSQL_USER = os.environ.get('GCSQL_MYSQL_USER', 'mysql_user')
-GCSQL_MYSQL_PASSWORD = os.environ.get('GCSQL_MYSQL_PASSWORD', 'password')
+GCSQL_MYSQL_PASSWORD = os.environ.get('GCSQL_MYSQL_PASSWORD', 'JoxHlwrPzwch0gz9')
 GCSQL_MYSQL_PUBLIC_IP = os.environ.get('GCSQL_MYSQL_PUBLIC_IP', '0.0.0.0')
 GCSQL_MYSQL_PUBLIC_PORT = os.environ.get('GCSQL_MYSQL_PUBLIC_PORT', 3306)
 GCSQL_MYSQL_CLIENT_CERT_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_CERT_FILE', ".key/mysql-client-cert.pem")
@@ -268,8 +270,9 @@ tasks = []
 
 with models.DAG(
     dag_id='example_gcp_sql_query',
-    schedule_interval=None,
-    start_date=days_ago(1),
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     prev_task = None

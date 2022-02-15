@@ -22,9 +22,13 @@ description: |
     `Discord <https://discordapp.com/>`__
 
 versions:
+  - 2.0.1
   - 2.0.0
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Discord
@@ -42,5 +46,9 @@ hooks:
     python-modules:
       - airflow.providers.discord.hooks.discord_webhook
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
+
+connection-types:
+  - hook-class-name: airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
+    connection-type: discord

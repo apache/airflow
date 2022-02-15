@@ -24,22 +24,22 @@ import pytest
 from moto import mock_datasync
 
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
+from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 
 
 @mock_datasync
-class TestAwsDataSyncHook(unittest.TestCase):
+class TestDataSyncHook(unittest.TestCase):
     def test_get_conn(self):
-        hook = AWSDataSyncHook(aws_conn_id="aws_default")
+        hook = DataSyncHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
 
-# Explanation of: @mock.patch.object(AWSDataSyncHook, 'get_conn')
+# Explanation of: @mock.patch.object(DataSyncHook, 'get_conn')
 # base_aws.py fiddles with config files and changes the region
 # If you have any ~/.credentials then aws_hook uses it for the region
 # This region might not match us-east-1 used for the mocked self.client
 
-# Once patched, the AWSDataSyncHook.get_conn method is mocked and passed to the test as
+# Once patched, the DataSyncHook.get_conn method is mocked and passed to the test as
 # mock_get_conn. We then override it to just return the locally created self.client instead of
 # the one created by the AWS self.hook.
 
@@ -48,8 +48,8 @@ class TestAwsDataSyncHook(unittest.TestCase):
 
 
 @mock_datasync
-@mock.patch.object(AWSDataSyncHook, "get_conn")
-class TestAWSDataSyncHookMocked(unittest.TestCase):
+@mock.patch.object(DataSyncHook, "get_conn")
+class TestDataSyncHookMocked(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.source_server_hostname = "host"
@@ -65,7 +65,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
 
     def setUp(self):
         self.client = boto3.client("datasync", region_name="us-east-1")
-        self.hook = AWSDataSyncHook(aws_conn_id="aws_default", wait_interval_seconds=0)
+        self.hook = DataSyncHook(aws_conn_id="aws_default", wait_interval_seconds=0)
 
         # Create default locations and tasks
         self.source_location_arn = self.client.create_location_smb(

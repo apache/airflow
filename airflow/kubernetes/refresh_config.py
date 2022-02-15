@@ -62,12 +62,12 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             if 'token' not in status:
                 logging.error('exec: missing token field in plugin output')
                 return None
-            self.token = f"Bearer {status['token']}"  # pylint: disable=W0201
+            self.token = f"Bearer {status['token']}"
             ts_str = status.get('expirationTimestamp')
             if ts_str:
                 self.api_key_expire_ts = _parse_timestamp(ts_str)
             return True
-        except Exception as e:  # pylint: disable=W0703
+        except Exception as e:
             logging.error(str(e))
             return None
 
@@ -93,7 +93,7 @@ class RefreshConfiguration(Configuration):
 
     def get_api_key_with_prefix(self, identifier):
         if self.refresh_api_key:
-            self.refresh_api_key(self)  # pylint: disable=E1102
+            self.refresh_api_key(self)
         return Configuration.get_api_key_with_prefix(self, identifier)
 
 

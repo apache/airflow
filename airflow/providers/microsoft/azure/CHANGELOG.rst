@@ -19,6 +19,167 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add optional features in providers. (#21074)``
+
+Misc
+~~~~
+
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Remove all "fake" stub files (#20936)``
+   * ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Azure: New sftp to wasb operator (#18877)``
+* ``Removes InputRequired validation with azure extra (#20084)``
+* ``Add operator link to monitor Azure Data Factory pipeline runs (#20207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixing MyPy issues inside providers/microsoft (#20409)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix mypy errors in Microsoft Azure provider (#19923)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Use isort on pyi files (#20556)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove unnecessary connection form customizations in Azure (#19595)``
+* ``Update Azure modules to comply with AIP-21 (#19431)``
+* ``Remove 'host' from hidden fields in 'WasbHook' (#19475)``
+* ``use DefaultAzureCredential if login not provided for Data Factory (#19079)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix argument error in AzureContainerInstancesOperator (#19668)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ensure ''catchup=False'' is used in example dags (#19396)``
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``update azure cosmos to latest version (#18695)``
+* ``Added sas_token var to BlobServiceClient return. Updated tests (#19234)``
+* ``Add pre-commit hook for common misspelling check in files (#18964)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix changelog for Azure Provider (#18736)``
+
+Other
+~~~~~
+
+* ``Expanding docs on client auth for AzureKeyVaultBackend (#18659)``
+* ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Revert 'update azure cosmos version (#18663)' (#18694)``
+   * ``update azure cosmos version (#18663)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Rename AzureDataLakeStorage to ADLS (#18493)``
+* ``Creating ADF pipeline run operator, sensor + ADF custom conn fields (#17885)``
+* ``Rename LocalToAzureDataLakeStorageOperator to LocalFilesystemToADLSOperator (#18168)``
+* ``Rename FileToWasbOperator to LocalFilesystemToWasbOperator (#18109)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed wasb hook attempting to create container when getting a blob client (#18287)``
+* ``Removing redundant relabeling of password conn field (#18386)``
+* ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
+* ``Proper handling of custom conn field values in the AzureDataExplorerHook (#18203)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
+Main
+....
+
+Changes in operators names and import paths are listed in the following table
+This is a backward compatible change. Deprecated operators will be removed in the next major release.
+
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| Deprecated operator name           | New operator name  | Deprecated path                                         | New path                                         |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| AzureDataLakeStorageListOperator   | ADLSListOperator   | airflow.providers.microsoft.azure.operators.adls_list   | airflow.providers.microsoft.azure.operators.adls |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| AzureDataLakeStorageDeleteOperator | ADLSDeleteOperator | airflow.providers.microsoft.azure.operators.adls_delete | airflow.providers.microsoft.azure.operators.adls |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+* ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for managed identity in WASB hook (#16628)``
+* ``Reduce log messages for happy path (#16626)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix multiple issues in Microsoft AzureContainerInstancesOperator (#15634)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Remove/refactor default_args pattern for Microsoft example DAGs (#16873)``
+
 3.0.0
 .....
 
@@ -57,6 +218,7 @@ Bug Fixes
    * ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 2.0.0
 .....

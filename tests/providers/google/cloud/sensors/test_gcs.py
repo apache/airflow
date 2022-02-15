@@ -201,13 +201,11 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
 class TestGCSUploadSessionCompleteSensor(TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-        }
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
-        self.dag = dag
+        self.dag = DAG(
+            TEST_DAG_ID + 'test_schedule_dag_once',
+            schedule_interval="@once",
+            start_date=DEFAULT_DATE,
+        )
 
         self.sensor = GCSUploadSessionCompleteSensor(
             task_id='sensor_1',

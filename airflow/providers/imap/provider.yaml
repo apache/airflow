@@ -22,6 +22,9 @@ description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 versions:
+  - 2.2.0
+  - 2.1.0
+  - 2.0.1
   - 2.0.0
   - 1.0.1
   - 1.0.0
@@ -42,5 +45,9 @@ hooks:
     python-modules:
       - airflow.providers.imap.hooks.imap
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.imap.hooks.imap.ImapHook
+
+connection-types:
+  - hook-class-name: airflow.providers.imap.hooks.imap.ImapHook
+    connection-type: imap

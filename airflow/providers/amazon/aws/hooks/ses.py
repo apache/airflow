@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS SES Hook"""
+import warnings
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.email import build_mime_message
 
 
-class SESHook(AwsBaseHook):
+class SesHook(AwsBaseHook):
     """
     Interact with Amazon Simple Email Service.
 
@@ -36,7 +37,7 @@ class SESHook(AwsBaseHook):
         kwargs['client_type'] = 'ses'
         super().__init__(*args, **kwargs)
 
-    def send_email(  # pylint: disable=too-many-arguments
+    def send_email(
         self,
         mail_from: str,
         to: Union[str, Iterable[str]],
@@ -66,7 +67,7 @@ class SESHook(AwsBaseHook):
         :param return_path: The email address to which replies will be sent. By default, replies
             are sent to the original sender's email address.
         :param reply_to: The email address to which message bounces and complaints should be sent.
-            "Return-Path" is sometimes called "envelope from," "envelope sender," or "MAIL FROM."
+            "Return-Path" is sometimes called "envelope from", "envelope sender", or "MAIL FROM".
         :param custom_headers: Additional headers to add to the MIME message.
             No validations are run on these values and they should be able to be encoded.
         :return: Response from Amazon SES service with unique message identifier.
@@ -95,3 +96,18 @@ class SESHook(AwsBaseHook):
         return ses_client.send_raw_email(
             Source=mail_from, Destinations=recipients, RawMessage={'Data': message.as_string()}
         )
+
+
+class SESHook(SesHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.ses.SesHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. " "Please use :class:`airflow.providers.amazon.aws.hooks.ses.SesHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

@@ -22,7 +22,7 @@ import unittest
 from unittest import mock
 
 import pytest
-from MySQLdb import ProgrammingError  # pylint: disable=no-name-in-module
+from MySQLdb import ProgrammingError
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
@@ -283,7 +283,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 assert not gzip
                 with open(tmp_filename, 'rb') as file:
@@ -309,7 +309,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 assert not gzip
                 with open(tmp_filename, 'rb') as file:

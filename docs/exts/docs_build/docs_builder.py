@@ -30,15 +30,11 @@ from docs.exts.docs_build.code_utils import (
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
-    ROOT_PROJECT_DIR,
     pretty_format_path,
 )
 from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
-
-# pylint: disable=no-name-in-module
+from docs.exts.docs_build.helm_chart_utils import chart_version
 from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
-
-# pylint: enable=no-name-in-module
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -104,6 +100,8 @@ class AirflowDocsBuilder:
         if self.package_name.startswith('apache-airflow-providers-'):
             provider = next(p for p in ALL_PROVIDER_YAMLS if p['package-name'] == self.package_name)
             return provider['versions'][0]
+        if self.package_name == 'helm-chart':
+            return chart_version()
         return Exception(f"Unsupported package: {self.package_name}")
 
     @property
@@ -139,7 +137,7 @@ class AirflowDocsBuilder:
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
 
         build_cmd = [
-            os.path.join(ROOT_PROJECT_DIR, "docs", "exts", "docs_build", "run_patched_sphinx.py"),
+            "sphinx-build",
             "-W",  # turn warnings into errors
             "--color",  # do emit colored output
             "-T",  # show full traceback on exception
@@ -164,7 +162,7 @@ class AirflowDocsBuilder:
             )
             console.print(f"[blue]{self.package_name:60}:[/] The output is hidden until an error occurs.")
         with open(self.log_spelling_filename, "wt") as output:
-            completed_proc = run(  # pylint: disable=subprocess-run-check
+            completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
                 env=env,
@@ -214,7 +212,7 @@ class AirflowDocsBuilder:
         os.makedirs(self._build_dir, exist_ok=True)
 
         build_cmd = [
-            os.path.join(ROOT_PROJECT_DIR, "docs", "exts", "docs_build", "run_patched_sphinx.py"),
+            "sphinx-build",
             "-T",  # show full traceback on exception
             "--color",  # do emit colored output
             "-b",  # builder to use
@@ -243,7 +241,7 @@ class AirflowDocsBuilder:
                 f"The output is hidden until an error occurs."
             )
         with open(self.log_build_filename, "wt") as output:
-            completed_proc = run(  # pylint: disable=subprocess-run-check
+            completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
                 env=env,

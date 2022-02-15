@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook  # noqa
 
 warnings.warn(

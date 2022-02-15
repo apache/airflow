@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObjectsOperator  # noqa
 
 warnings.warn(

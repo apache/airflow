@@ -26,6 +26,9 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_BIGTABLE_KEY)
 class BigTableExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_BIGTABLE_KEY)
     def test_run_example_dag_gcs_bigtable(self):
         self.run_dag('example_gcp_bigtable_operators', CLOUD_DAG_FOLDER)

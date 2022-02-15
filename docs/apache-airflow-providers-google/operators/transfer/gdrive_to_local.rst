@@ -22,11 +22,6 @@ The `Google Drive <https://www.google.com/drive/>`__ is
 used to store daily use data, including documents and photos. Google Drive has built-in mechanisms to facilitate group work e.g.
 document editor, file sharing mechanisms.
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

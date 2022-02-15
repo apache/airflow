@@ -17,7 +17,7 @@
 # under the License.
 
 import time
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import requests
 from pydruid.db import connect
@@ -36,13 +36,10 @@ class DruidHook(BaseHook):
 
     :param druid_ingest_conn_id: The connection id to the Druid overlord machine
                                  which accepts index jobs
-    :type druid_ingest_conn_id: str
     :param timeout: The interval between polling
                     the Druid job for the status of the ingestion job.
                     Must be greater than or equal to 1
-    :type timeout: int
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
-    :type max_ingestion_time: int
     """
 
     def __init__(
@@ -84,7 +81,7 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec: Dict[str, Any]) -> None:
+    def submit_indexing_job(self, json_index_spec: Union[Dict[str, Any], str]) -> None:
         """Submit Druid ingestion job"""
         url = self.get_conn_url()
 
@@ -144,7 +141,7 @@ class DruidDbApiHook(DbApiHook):
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
-        conn = self.get_connection(self.conn_name_attr)
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,
@@ -170,7 +167,7 @@ class DruidDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get('endpoint', 'druid/v2/sql')
         return f'{conn_type}://{host}/{endpoint}'
 
-    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplemented:
+    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
         raise NotImplementedError()
 
     def insert_rows(
@@ -181,5 +178,5 @@ class DruidDbApiHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplemented:
+    ) -> NotImplementedError:
         raise NotImplementedError()

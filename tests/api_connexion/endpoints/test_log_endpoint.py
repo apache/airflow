@@ -26,11 +26,9 @@ from itsdangerous.url_safe import URLSafeSerializer
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_runs
@@ -66,24 +64,39 @@ class TestGetLog:
     default_time = "2020-06-10T20:00:00+00:00"
 
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app, configure_loggers) -> None:  # pylint: disable=unused-argument
+    def setup_attrs(self, configured_app, configure_loggers, dag_maker, session) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
-        self._prepare_db()
 
-    def _create_dagrun(self, session):
-        dagrun_model = DagRun(
-            dag_id=self.DAG_ID,
+        with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
+            DummyOperator(task_id=self.TASK_ID)
+        dr = dag_maker.create_dagrun(
             run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL,
+            run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
-            external_trigger=True,
         )
-        session.add(dagrun_model)
-        session.commit()
+
+        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+
+        # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
+        with dag_maker(
+            f'{self.DAG_ID}_copy', start_date=timezone.parse(self.default_time), session=session
+        ) as dummy_dag:
+            DummyOperator(task_id=self.TASK_ID)
+        dag_maker.create_dagrun(
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+
+        self.ti = dr.task_instances[0]
+        self.ti.try_number = 1
+        self.ti.hostname = 'localhost'
 
     @pytest.fixture
     def configure_loggers(self, tmp_path):
@@ -109,25 +122,10 @@ class TestGetLog:
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
-    def _prepare_db(self):
-        dagbag = self.app.dag_bag  # pylint: disable=no-member
-        dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
-        dag.sync_to_db()
-        dagbag.dags.pop(self.DAG_ID, None)
-        dagbag.bag_dag(dag=dag, root_dag=dag)
-        with create_session() as session:
-            self.ti = TaskInstance(
-                task=DummyOperator(task_id=self.TASK_ID, dag=dag),
-                execution_date=timezone.parse(self.default_time),
-            )
-            self.ti.try_number = 1
-            session.merge(self.ti)
-
     def teardown_method(self):
         clear_db_runs()
 
-    def test_should_respond_200_json(self, session):
-        self._create_dagrun(session)
+    def test_should_respond_200_json(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
@@ -137,19 +135,18 @@ class TestGetLog:
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(":", ".")
+        expected_filename = (
+            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert (
             response.json['content']
-            == f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
+            == f"[('localhost', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json['continuation_token'])
         assert info == {'end_of_log': True}
         assert 200 == response.status_code
 
-    def test_should_respond_200_text_plain(self, session):
-        self._create_dagrun(session)
+    def test_should_respond_200_text_plain(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
@@ -160,20 +157,18 @@ class TestGetLog:
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
+        expected_filename = (
+            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
-    def test_get_logs_of_removed_task(self, session):
-        self._create_dagrun(session)
-
+    def test_get_logs_of_removed_task(self):
         # Recreate DAG without tasks
-        dagbag = self.app.dag_bag  # pylint: disable=no-member
+        dagbag = self.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag, root_dag=dag)
@@ -188,17 +183,16 @@ class TestGetLog:
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
+        expected_filename = (
+            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
-    def test_get_logs_response_with_ti_equal_to_none(self, session):
-        self._create_dagrun(session)
+    def test_get_logs_response_with_ti_equal_to_none(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
@@ -208,11 +202,15 @@ class TestGetLog:
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
             environ_overrides={'REMOTE_USER': "test"},
         )
-        assert response.status_code == 400
-        assert response.json['detail'] == "Task instance did not exist in the DB"
+        assert response.status_code == 404
+        assert response.json == {
+            'detail': None,
+            'status': 404,
+            'title': "TaskInstance not found",
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
 
-    def test_get_logs_with_metadata_as_download_large_file(self, session):
-        self._create_dagrun(session)
+    def test_get_logs_with_metadata_as_download_large_file(self):
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
             first_return = ([[('', '1st line')]], [{}])
             second_return = ([[('', '2nd line')]], [{'end_of_log': False}])
@@ -250,8 +248,7 @@ class TestGetLog:
         assert 400 == response.status_code
         assert 'Task log handler does not support read logs.' in response.data.decode('utf-8')
 
-    def test_bad_signature_raises(self, session):
-        self._create_dagrun(session)
+    def test_bad_signature_raises(self):
         token = {"download_logs": False}
 
         response = self.client.get(
@@ -269,15 +266,16 @@ class TestGetLog:
 
     def test_raises_404_for_invalid_dag_run_id(self):
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN/"  # invalid dagrun_id
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid dagrun_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
+        assert response.status_code == 404
         assert response.json == {
             'detail': None,
             'status': 404,
-            'title': "DAG Run not found",
+            'title': "TaskInstance not found",
             'type': EXCEPTIONS_LINK_MAP[404],
         }
 

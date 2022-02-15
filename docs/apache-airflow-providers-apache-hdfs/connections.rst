@@ -31,14 +31,22 @@ parameter as ``webhdfs_default`` by default.
 Configuring the Connection
 --------------------------
 Host
-    The host to connect to, it can be ``local``, ``yarn`` or an URL.
+    The host to connect to, it can be ``local``, ``yarn`` or an URL. For Web HDFS Hook it is possible to specify multiple hosts as a comma-separated list.
 
 Port
     Specify the port in case of host be an URL.
+
+Login
+    Effective user for HDFS operations (non-Kerberized).
 
 Extra (optional, connection parameters)
     Specify the extra parameters (as json dictionary) that can be used in HDFS connection. The following
     parameters out of the standard python parameters are supported:
 
-    * ``proxy_user`` - Effective user for HDFS operations.
     * ``autoconfig`` - Default value is bool: False. Use snakebite's automatically configured client. This HDFSHook implementation requires snakebite.
+    * ``hdfs_namenode_principal`` - Specifies the Kerberos principal to use for HDFS.
+
+    The following extra parameters can be used to configure SSL for Web HDFS Hook:
+
+    * ``use_ssl`` - If SSL should be used. By default is set to `false`.
+    * ``verify`` - How to verify SSL. For more information refer to https://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification.

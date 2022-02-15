@@ -19,6 +19,85 @@
 Changelog
 ---------
 
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix: ''SFTPHook'' does not respect ''ssh_conn_id'' arg (#20756)``
+* ``fix deprecation messages for SFTPHook (#20692)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Making SFTPHook's constructor consistent with its superclass SSHHook (#20164)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for SFTP provider (#20242)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test_connection method for sftp hook (#19609)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP hook to prefer the SSH paramiko key over the key file path (#18988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for non-RSA type key for SFTP hook (#16314)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove redundant logging in SFTP Hook (#16704)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+
 2.0.0
 .....
 
@@ -41,6 +120,7 @@ Features
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.2.0
 .....

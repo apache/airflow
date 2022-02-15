@@ -26,12 +26,9 @@ try:
     from kubernetes import client, config
     from kubernetes.client import Configuration
     from kubernetes.client.api_client import ApiClient
-    from kubernetes.client.rest import ApiException  # pylint: disable=unused-import
+    from kubernetes.client.rest import ApiException
 
-    from airflow.kubernetes.refresh_config import (  # pylint: disable=ungrouped-imports
-        RefreshConfiguration,
-        load_kube_config,
-    )
+    from airflow.kubernetes.refresh_config import RefreshConfiguration, load_kube_config
 
     has_kubernetes = True
 
@@ -65,7 +62,6 @@ try:
         configuration = Configuration()
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
-
 
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
@@ -122,11 +118,8 @@ def get_kube_client(
     Retrieves Kubernetes client
 
     :param in_cluster: whether we are in cluster
-    :type in_cluster: bool
     :param cluster_context: context of the cluster
-    :type cluster_context: str
     :param config_file: configuration file
-    :type config_file: str
     :return kubernetes client
     :rtype client.CoreV1Api
     """

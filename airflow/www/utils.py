@@ -18,17 +18,27 @@
 import json
 import textwrap
 import time
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
-from flask import Markup, Response, request, url_for
+from flask import Response, request, url_for
+from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
+from flask_appbuilder.models.filters import BaseFilter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_babel import lazy_gettext
+from markupsafe import Markup
+from pendulum.datetime import DateTime
 from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
+from pygments.formatters import HtmlFormatter
+from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow import models
+from airflow.models import errors
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -37,7 +47,56 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
-def get_sensitive_variables_fields():  # noqa: D103
+def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+    if value is None:
+        return None
+    return value.isoformat()
+
+
+def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str, Any]]:
+    if not task_instance:
+        return None
+
+    return {
+        'task_id': task_instance.task_id,
+        'dag_id': task_instance.dag_id,
+        'run_id': task_instance.run_id,
+        'state': task_instance.state,
+        'duration': task_instance.duration,
+        'start_date': datetime_to_string(task_instance.start_date),
+        'end_date': datetime_to_string(task_instance.end_date),
+        'operator': task_instance.operator,
+        'execution_date': datetime_to_string(task_instance.execution_date),
+        'try_number': task_instance.try_number,
+    }
+
+
+def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
+    if not dag_run:
+        return None
+
+    return {
+        'dag_id': dag_run.dag_id,
+        'run_id': dag_run.run_id,
+        'start_date': datetime_to_string(dag_run.start_date),
+        'end_date': datetime_to_string(dag_run.end_date),
+        'state': dag_run.state,
+        'execution_date': datetime_to_string(dag_run.execution_date),
+        'data_interval_start': datetime_to_string(dag_run.data_interval_start),
+        'data_interval_end': datetime_to_string(dag_run.data_interval_end),
+        'run_type': dag_run.run_type,
+    }
+
+
+def check_import_errors(fileloc, session):
+    # Check dag import errors
+    import_errors = session.query(errors.ImportError).filter(errors.ImportError.filename == fileloc).all()
+    if import_errors:
+        for import_error in import_errors:
+            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+
+
+def get_sensitive_variables_fields():
     import warnings
 
     from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
@@ -51,7 +110,7 @@ def get_sensitive_variables_fields():  # noqa: D103
     return get_sensitive_variables_fields()
 
 
-def should_hide_value_for_key(key_name):  # noqa: D103
+def should_hide_value_for_key(key_name):
     import warnings
 
     from airflow.utils.log.secrets_masker import should_hide_value_for_key
@@ -140,7 +199,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
     if current_page > 0:
         page_link = f'?{get_params(page=current_page - 1, search=search, status=status, tags=tags)}'
 
-    output.append(previous_node.format(href_link=page_link, disabled=is_disabled))  # noqa
+    output.append(previous_node.format(href_link=page_link, disabled=is_disabled))
 
     mid = int(window / 2)
     last_page = num_of_pages - 1
@@ -152,7 +211,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
     else:
         pages = list(range(num_of_pages - window, last_page + 1))
 
-    def is_current(current, page):  # noqa
+    def is_current(current, page):
         return page == current
 
     for page in pages:
@@ -163,7 +222,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
             else f'?{get_params(page=page, search=search, status=status, tags=tags)}',
             'page_num': page + 1,
         }
-        output.append(page_node.format(**vals))  # noqa
+        output.append(page_node.format(**vals))
 
     is_disabled = 'disabled' if current_page >= num_of_pages - 1 else ''
 
@@ -173,7 +232,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
         else f'?{get_params(page=current_page + 1, search=search, status=status, tags=tags)}'
     )
 
-    output.append(next_node.format(href_link=page_link, disabled=is_disabled))  # noqa
+    output.append(next_node.format(href_link=page_link, disabled=is_disabled))
 
     last_node_link = (
         void_link
@@ -215,12 +274,12 @@ def task_instance_link(attr):
     """Generates a URL to the Graph view for a TaskInstance."""
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
-    execution_date = attr.get('execution_date')
+    execution_date = attr.get('dag_run.execution_date') or attr.get('execution_date') or timezone.utcnow()
     url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id, execution_date=execution_date.isoformat())
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
     )
-    return Markup(  # noqa
+    return Markup(
         """
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
@@ -237,7 +296,7 @@ def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
     fg_color = State.color_fg(state)
-    return Markup(  # noqa
+    return Markup(
         """
         <span class="label" style="color:{fg_color}; background-color:{color};"
             title="Current State: {state}">{state}</span>
@@ -256,7 +315,7 @@ def nobr_f(attr_name):
 
     def nobr(attr):
         f = attr.get(attr_name)
-        return Markup("<nobr>{}</nobr>").format(f)  # noqa
+        return Markup("<nobr>{}</nobr>").format(f)
 
     return nobr
 
@@ -264,21 +323,22 @@ def nobr_f(attr_name):
 def datetime_f(attr_name):
     """Returns a formatted string with HTML for given DataTime"""
 
-    def dt(attr):  # pylint: disable=invalid-name
+    def dt(attr):
         f = attr.get(attr_name)
-        as_iso = f.isoformat() if f else ''
-        if not as_iso:
-            return Markup('')
-        f = as_iso
-        if timezone.utcnow().isoformat()[:4] == f[:4]:
-            f = f[5:]
-        # The empty title will be replaced in JS code when non-UTC dates are displayed
-        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)  # noqa
+        return datetime_html(f)
 
     return dt
 
 
-# pylint: enable=invalid-name
+def datetime_html(dttm: Optional[DateTime]) -> str:
+    """Return an HTML formatted string with time element to support timezone changes in UI"""
+    as_iso = dttm.isoformat() if dttm else ''
+    if not as_iso:
+        return Markup('')
+    if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
+        as_iso = as_iso[5:]
+    # The empty title will be replaced in JS code when non-UTC dates are displayed
+    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso)
 
 
 def json_f(attr_name):
@@ -287,7 +347,7 @@ def json_f(attr_name):
     def json_(attr):
         f = attr.get(attr_name)
         serialized = json.dumps(f)
-        return Markup('<nobr>{}</nobr>').format(serialized)  # noqa
+        return Markup('<nobr>{}</nobr>').format(serialized)
 
     return json_
 
@@ -296,20 +356,22 @@ def dag_link(attr):
     """Generates a URL to the Graph view for a Dag."""
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
+    if not dag_id:
+        return Markup('None')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')  # noqa
+    return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
 def dag_run_link(attr):
     """Generates a URL to the Graph view for a DagRun."""
     dag_id = attr.get('dag_id')
     run_id = attr.get('run_id')
-    execution_date = attr.get('execution_date')
+    execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
-    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)  # noqa
+    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
-def pygment_html_render(s, lexer=lexers.TextLexer):  # noqa pylint: disable=no-member
+def pygment_html_render(s, lexer=lexers.TextLexer):
     """Highlight text using a given Lexer"""
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
@@ -321,11 +383,11 @@ def render(obj, lexer):
         out = Markup(pygment_html_render(obj, lexer))
     elif isinstance(obj, (tuple, list)):
         for i, text_to_render in enumerate(obj):
-            out += Markup("<div>List item #{}</div>").format(i)  # noqa
+            out += Markup("<div>List item #{}</div>").format(i)
             out += Markup("<div>" + pygment_html_render(text_to_render, lexer) + "</div>")
     elif isinstance(obj, dict):
         for k, v in obj.items():
-            out += Markup('<div>Dict item "{}"</div>').format(k)  # noqa
+            out += Markup('<div>Dict item "{}"</div>').format(k)
             out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
     return out
 
@@ -349,32 +411,31 @@ def wrapped_markdown(s, css_class='rich_doc'):
     return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
 
 
-# pylint: disable=no-member
 def get_attr_renderer():
     """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
     return {
         'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
-        'hql': lambda x: render(x, lexers.SqlLexer),
-        'html': lambda x: render(x, lexers.HtmlLexer),
-        'sql': lambda x: render(x, lexers.SqlLexer),
         'doc': lambda x: render(x, lexers.TextLexer),
         'doc_json': lambda x: render(x, lexers.JsonLexer),
+        'doc_md': wrapped_markdown,
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
-        'doc_md': wrapped_markdown,
+        'hql': lambda x: render(x, lexers.SqlLexer),
+        'html': lambda x: render(x, lexers.HtmlLexer),
         'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
+        'mysql': lambda x: render(x, lexers.MySqlLexer),
+        'postgresql': lambda x: render(x, lexers.PostgresLexer),
         'powershell': lambda x: render(x, lexers.PowerShellLexer),
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'rst': lambda x: render(x, lexers.RstLexer),
+        'sql': lambda x: render(x, lexers.SqlLexer),
+        'tsql': lambda x: render(x, lexers.TransactSqlLexer),
         'yaml': lambda x: render(x, lexers.YamlLexer),
     }
-
-
-# pylint: enable=no-member
 
 
 def get_chart_height(dag):
@@ -388,39 +449,96 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-class UtcAwareFilterMixin:  # noqa: D101
+class UtcAwareFilterMixin:
     """Mixin for filter for UTC time."""
 
     def apply(self, query, value):
         """Apply the filter."""
         value = timezone.parse(value, timezone=timezone.utc)
 
-        return super().apply(query, value)  # noqa
+        return super().apply(query, value)
 
 
-class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
+class FilterGreaterOrEqual(BaseFilter):
+    """Greater than or Equal filter."""
+
+    name = lazy_gettext("Greater than or Equal")
+    arg_name = "gte"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+
+        if value is None:
+            return query
+
+        return query.filter(field >= value)
+
+
+class FilterSmallerOrEqual(BaseFilter):
+    """Smaller than or Equal filter."""
+
+    name = lazy_gettext("Smaller than or Equal")
+    arg_name = "lte"
+
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+
+        if value is None:
+            return query
+
+        return query.filter(field <= value)
+
+
+class UtcAwareFilterSmallerOrEqual(UtcAwareFilterMixin, FilterSmallerOrEqual):
+    """Smaller than or Equal filter for UTC time."""
+
+
+class UtcAwareFilterGreaterOrEqual(UtcAwareFilterMixin, FilterGreaterOrEqual):
+    """Greater than or Equal filter for UTC time."""
+
+
+class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
     """Equality filter for UTC time."""
 
 
-class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
+class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):
     """Greater Than filter for UTC time."""
 
 
-class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
+class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):
     """Smaller Than filter for UTC time."""
 
 
-class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
+class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
     """Not Equal To filter for UTC time."""
 
 
-class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     """Retrieve conversion tables for UTC-Aware filters."""
+
+
+class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+    """Retrieve conversion tables for Airflow-specific filters."""
 
     conversion_table = (
         (
             'is_utcdatetime',
-            [UtcAwareFilterEqual, UtcAwareFilterGreater, UtcAwareFilterSmaller, UtcAwareFilterNotEqual],
+            [
+                UtcAwareFilterEqual,
+                UtcAwareFilterGreater,
+                UtcAwareFilterSmaller,
+                UtcAwareFilterNotEqual,
+                UtcAwareFilterSmallerOrEqual,
+                UtcAwareFilterGreaterOrEqual,
+            ],
+        ),
+        # FAB will try to create filters for extendedjson fields even though we
+        # exclude them from all UI, so we add this here to make it ignore them.
+        (
+            'is_extendedjson',
+            [],
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
 
@@ -443,6 +561,13 @@ class CustomSQLAInterface(SQLAInterface):
                 self.list_columns = {k.lstrip('_'): v for k, v in self.list_columns.items()}
 
         clean_column_names()
+        # Support for AssociationProxy in search and list columns
+        for desc in self.obj.__mapper__.all_orm_descriptors:
+            if not isinstance(desc, AssociationProxy):
+                continue
+            proxy_instance = getattr(self.obj, desc.value_attr)
+            self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
+            self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -457,7 +582,26 @@ class CustomSQLAInterface(SQLAInterface):
             )
         return False
 
-    filter_converter_class = UtcAwareFilterConverter
+    def is_extendedjson(self, col_name):
+        """Checks if it is a special extended JSON type"""
+        from airflow.utils.sqlalchemy import ExtendedJSON
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return (
+                isinstance(obj, ExtendedJSON)
+                or isinstance(obj, sqla.types.TypeDecorator)
+                and isinstance(obj.impl, ExtendedJSON)
+            )
+        return False
+
+    def get_col_default(self, col_name: str) -> Any:
+        if col_name not in self.list_columns:
+            # Handle AssociationProxy etc, or anything that isn't a "real" column
+            return None
+        return super().get_col_default(col_name)
+
+    filter_converter_class = AirflowFilterConverter
 
 
 # This class is used directly (i.e. we can't tell Fab to use a different
@@ -466,3 +610,58 @@ class CustomSQLAInterface(SQLAInterface):
 FieldConverter.conversion_table = (
     ('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
 ) + FieldConverter.conversion_table
+
+
+class UIAlert:
+    """
+    Helper for alerts messages shown on the UI
+
+    :param message: The message to display, either a string or Markup
+    :param category: The category of the message, one of "info", "warning", "error", or any custom category.
+        Defaults to "info".
+    :param roles: List of roles that should be shown the message. If ``None``, show to all users.
+    :param html: Whether the message has safe html markup in it. Defaults to False.
+
+
+    For example, show a message to all users:
+
+    .. code-block:: python
+
+        UIAlert("Welcome to Airflow")
+
+    Or only for users with the User role:
+
+    .. code-block:: python
+
+        UIAlert("Airflow update happening next week", roles=["User"])
+
+    You can also pass html in the message:
+
+    .. code-block:: python
+
+        UIAlert('Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True)
+
+        # or safely escape part of the message
+        # (more details: https://markupsafe.palletsprojects.com/en/2.0.x/formatting/)
+        UIAlert(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",))
+    """
+
+    def __init__(
+        self,
+        message: Union[str, Markup],
+        category: str = "info",
+        roles: Optional[List[str]] = None,
+        html: bool = False,
+    ):
+        self.category = category
+        self.roles = roles
+        self.html = html
+        self.message = Markup(message) if html else message
+
+    def should_show(self, securitymanager) -> bool:
+        """Determine if the user should see the message based on their role membership"""
+        if self.roles:
+            user_roles = {r.name for r in securitymanager.current_user.roles}
+            if not user_roles.intersection(set(self.roles)):
+                return False
+        return True

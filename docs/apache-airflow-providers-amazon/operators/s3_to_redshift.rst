@@ -21,10 +21,6 @@
 S3 To Redshift Transfer Operator
 ================================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Overview
 --------
 
@@ -59,7 +55,7 @@ You need to set at least the ``S3_BUCKET``.
 Copy S3 key into Redshift table
 """""""""""""""""""""""""""""""
 
-In the following code we are copying the S3 key ``s3://{S3_BUCKET}/{S3_KEY}/{REDSHIFT_TABLE}`` into the Redshift table
+In the following code we are copying the S3 key ``s3://{S3_BUCKET}/{S3_KEY}`` into the Redshift table
 ``PUBLIC.{REDSHIFT_TABLE}``.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py

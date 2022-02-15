@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook  # noqa
 
 warnings.warn(

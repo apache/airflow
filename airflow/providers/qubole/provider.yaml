@@ -22,14 +22,22 @@ description: |
     `Qubole <https://www.qubole.com/>`__
 
 versions:
+  - 2.1.0
+  - 2.0.1
   - 2.0.0
   - 1.0.2
   - 1.0.1
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Qubole
-    external-doc-url: https://www.qubole.com/
+    external-doc-url: https://docs.qubole.com/en/latest/
+    how-to-guide:
+      - /docs/apache-airflow-providers-qubole/operators/qubole.rst
+      - /docs/apache-airflow-providers-qubole/operators/qubole_check.rst
     logo: /integration-logos/qubole/Qubole.png
     tags: [service]
 
@@ -50,8 +58,12 @@ hooks:
       - airflow.providers.qubole.hooks.qubole
       - airflow.providers.qubole.hooks.qubole_check
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.qubole.hooks.qubole.QuboleHook
+
+connection-types:
+  - hook-class-name: airflow.providers.qubole.hooks.qubole.QuboleHook
+    connection-type: qubole
 
 extra-links:
   - airflow.providers.qubole.operators.qubole.QDSLink

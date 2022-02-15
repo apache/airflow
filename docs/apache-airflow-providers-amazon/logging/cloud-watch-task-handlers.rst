@@ -17,7 +17,7 @@
 
 .. _write-logs-amazon-cloudwatch:
 
-Writing Logs to Amazon Cloudwatch
+Writing logs to Amazon Cloudwatch
 ---------------------------------
 
 Remote logging to Amazon Cloudwatch uses an existing Airflow connection to read or write logs. If you

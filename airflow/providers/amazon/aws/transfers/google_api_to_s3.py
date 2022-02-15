@@ -19,12 +19,15 @@
 """This module allows you to transfer data from any Google API endpoint into a S3 Bucket."""
 import json
 import sys
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator, TaskInstance
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleApiToS3Operator(BaseOperator):
@@ -41,46 +44,32 @@ class GoogleApiToS3Operator(BaseOperator):
     with the Google Cloud Platform.
 
     :param google_api_service_name: The specific API service that is being requested.
-    :type google_api_service_name: str
     :param google_api_service_version: The version of the API that is being requested.
-    :type google_api_service_version: str
     :param google_api_endpoint_path: The client libraries path to the api call's executing method.
         For example: 'analyticsreporting.reports.batchGet'
 
         .. note:: See https://developers.google.com/apis-explorer
             for more information on which methods are available.
 
-    :type google_api_endpoint_path: str
     :param google_api_endpoint_params: The params to control the corresponding endpoint result.
-    :type google_api_endpoint_params: dict
     :param s3_destination_key: The url where to put the data retrieved from the endpoint in S3.
-    :type s3_destination_key: str
     :param google_api_response_via_xcom: Can be set to expose the google api response to xcom.
-    :type google_api_response_via_xcom: str
     :param google_api_endpoint_params_via_xcom: If set to a value this value will be used as a key
         for pulling from xcom and updating the google api endpoint params.
-    :type google_api_endpoint_params_via_xcom: str
     :param google_api_endpoint_params_via_xcom_task_ids: Task ids to filter xcom by.
-    :type google_api_endpoint_params_via_xcom_task_ids: str or list of str
     :param google_api_pagination: If set to True Pagination will be enabled for this request
         to retrieve all data.
 
         .. note:: This means the response will be a list of responses.
 
-    :type google_api_pagination: bool
     :param google_api_num_retries: Define the number of retries for the google api requests being made
         if it fails.
-    :type google_api_num_retries: int
     :param s3_overwrite: Specifies whether the s3 file will be overwritten if exists.
-    :type s3_overwrite: bool
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param aws_conn_id: The connection id specifying the authentication information for the S3 Bucket.
-    :type aws_conn_id: str
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -89,15 +78,14 @@ class GoogleApiToS3Operator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'google_api_endpoint_params',
         's3_destination_key',
         'google_impersonation_chain',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#cc181e'
 
     def __init__(
@@ -137,12 +125,11 @@ class GoogleApiToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.google_impersonation_chain = google_impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         """
         Transfers Google APIs json data to S3.
 
         :param context: The context that is being provided when executing.
-        :type context: dict
         """
         self.log.info('Transferring data from %s to s3', self.google_api_service_name)
 
@@ -179,11 +166,13 @@ class GoogleApiToS3Operator(BaseOperator):
         )
 
     def _update_google_api_endpoint_params_via_xcom(self, task_instance: TaskInstance) -> None:
-        google_api_endpoint_params = task_instance.xcom_pull(
-            task_ids=self.google_api_endpoint_params_via_xcom_task_ids,
-            key=self.google_api_endpoint_params_via_xcom,
-        )
-        self.google_api_endpoint_params.update(google_api_endpoint_params)
+
+        if self.google_api_endpoint_params_via_xcom:
+            google_api_endpoint_params = task_instance.xcom_pull(
+                task_ids=self.google_api_endpoint_params_via_xcom_task_ids,
+                key=self.google_api_endpoint_params_via_xcom,
+            )
+            self.google_api_endpoint_params.update(google_api_endpoint_params)
 
     def _expose_google_api_response_via_xcom(self, task_instance: TaskInstance, data: dict) -> None:
         if sys.getsizeof(data) < MAX_XCOM_SIZE:

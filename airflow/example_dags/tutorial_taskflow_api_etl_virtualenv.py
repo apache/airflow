@@ -16,98 +16,74 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=missing-function-docstring
 
-# [START tutorial]
-# [START import_module]
-import json
+import logging
+import shutil
+from datetime import datetime
 
 from airflow.decorators import dag, task
-from airflow.utils.dates import days_ago
 
-# [END import_module]
+log = logging.getLogger(__name__)
 
-# [START default_args]
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
-default_args = {
-    'owner': 'airflow',
-}
-# [END default_args]
-
-
-# [START instantiate_dag]
-@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2), tags=['example'])
-def tutorial_taskflow_api_etl_virtualenv():
-    """
-    ### TaskFlow API Tutorial Documentation
-    This is a simple ETL data pipeline example which demonstrates the use of
-    the TaskFlow API using three simple tasks for Extract, Transform, and Load.
-    Documentation that goes along with the Airflow TaskFlow API tutorial is
-    located
-    [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
-    """
-    # [END instantiate_dag]
-
-    # [START extract_virtualenv]
-    @task.virtualenv(
-        use_dill=True,
-        system_site_packages=False,
-        requirements=['funcsigs'],
+if not shutil.which("virtualenv"):
+    log.warning(
+        "The tutorial_taskflow_api_etl_virtualenv example DAG requires virtualenv, please install it."
     )
-    def extract():
+else:
+
+    @dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
+    def tutorial_taskflow_api_etl_virtualenv():
         """
-        #### Extract task
-        A simple Extract task to get data ready for the rest of the data
-        pipeline. In this case, getting data is simulated by reading from a
-        hardcoded JSON string.
-        """
-        data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
-
-        order_data_dict = json.loads(data_string)
-        return order_data_dict
-
-    # [END extract_virtualenv]
-
-    # [START transform_docker]
-    @task.virtualenv(multiple_outputs=True)
-    def transform(order_data_dict: dict):
-        """
-        #### Transform task
-        A simple Transform task which takes in the collection of order data and
-        computes the total order value.
-        """
-        total_order_value = 0
-
-        for value in order_data_dict.values():
-            total_order_value += value
-
-        return {"total_order_value": total_order_value}
-
-    # [END transform_docker]
-
-    # [START load]
-    @task()
-    def load(total_order_value: float):
-        """
-        #### Load task
-        A simple Load task which takes in the result of the Transform task and
-        instead of saving it to end user review, just prints it out.
+        ### TaskFlow API example using virtualenv
+        This is a simple ETL data pipeline example which demonstrates the use of
+        the TaskFlow API using three simple tasks for Extract, Transform, and Load.
         """
 
-        print(f"Total order value is: {total_order_value:.2f}")
+        @task.virtualenv(
+            use_dill=True,
+            system_site_packages=False,
+            requirements=['funcsigs'],
+        )
+        def extract():
+            """
+            #### Extract task
+            A simple Extract task to get data ready for the rest of the data
+            pipeline. In this case, getting data is simulated by reading from a
+            hardcoded JSON string.
+            """
+            import json
 
-    # [END load]
+            data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
 
-    # [START main_flow]
-    order_data = extract()
-    order_summary = transform(order_data)
-    load(order_summary["total_order_value"])
-    # [END main_flow]
+            order_data_dict = json.loads(data_string)
+            return order_data_dict
 
+        @task(multiple_outputs=True)
+        def transform(order_data_dict: dict):
+            """
+            #### Transform task
+            A simple Transform task which takes in the collection of order data and
+            computes the total order value.
+            """
+            total_order_value = 0
 
-# [START dag_invocation]
-tutorial_etl_dag = tutorial_taskflow_api_etl_virtualenv()
-# [END dag_invocation]
+            for value in order_data_dict.values():
+                total_order_value += value
 
-# [END tutorial]
+            return {"total_order_value": total_order_value}
+
+        @task()
+        def load(total_order_value: float):
+            """
+            #### Load task
+            A simple Load task which takes in the result of the Transform task and
+            instead of saving it to end user review, just prints it out.
+            """
+
+            print(f"Total order value is: {total_order_value:.2f}")
+
+        order_data = extract()
+        order_summary = transform(order_data)
+        load(order_summary["total_order_value"])
+
+    tutorial_etl_dag = tutorial_taskflow_api_etl_virtualenv()

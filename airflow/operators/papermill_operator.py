@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.papermill.operators.papermill import PapermillOperator  # noqa
 
 warnings.warn(

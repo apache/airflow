@@ -17,13 +17,17 @@
 # under the License.
 import json
 import warnings
-from typing import Any, Iterable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
 
 from bson import json_util
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mongo.hooks.mongo import MongoHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 _DEPRECATION_MSG = (
     "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
@@ -34,32 +38,24 @@ class MongoToS3Operator(BaseOperator):
     """Operator meant to move data from mongo via pymongo to s3 via boto.
 
     :param mongo_conn_id: reference to a specific mongo connection
-    :type mongo_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
-    :type aws_conn_id: str
     :param mongo_collection: reference to a specific collection in your mongo db
-    :type mongo_collection: str
     :param mongo_query: query to execute. A list including a dict of the query
-    :type mongo_query: Union[list, dict]
+    :param mongo_projection: optional parameter to filter the returned fields by
+        the query. It can be a list of fields names to include or a dictionary
+        for excluding fields (e.g ``projection={"_id": 0}`` )
     :param s3_bucket: reference to a specific S3 bucket to store the data
-    :type s3_bucket: str
     :param s3_key: in which S3 key the file will be stored
-    :type s3_key: str
     :param mongo_db: reference to a specific mongo database
-    :type mongo_db: str
     :param replace: whether or not to replace the file in S3 if it previously existed
-    :type replace: bool
     :param allow_disk_use: enables writing to temporary files in the case you are handling large dataset.
         This only takes effect when `mongo_query` is a list - running an aggregate pipeline
-    :type allow_disk_use: bool
     :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
-    :type compression: str
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
     ui_color = '#589636'
-    template_fields_renderers = {"mongo_query": "py"}
-    # pylint: disable=too-many-instance-attributes
+    template_fields_renderers = {"mongo_query": "json"}
 
     def __init__(
         self,
@@ -72,6 +68,7 @@ class MongoToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         mongo_db: Optional[str] = None,
+        mongo_projection: Optional[Union[list, dict]] = None,
         replace: bool = False,
         allow_disk_use: bool = False,
         compression: Optional[str] = None,
@@ -90,6 +87,7 @@ class MongoToS3Operator(BaseOperator):
         # Grab query and determine if we need to run an aggregate pipeline
         self.mongo_query = mongo_query
         self.is_pipeline = isinstance(self.mongo_query, list)
+        self.mongo_projection = mongo_projection
 
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
@@ -97,7 +95,7 @@ class MongoToS3Operator(BaseOperator):
         self.allow_disk_use = allow_disk_use
         self.compression = compression
 
-    def execute(self, context) -> bool:
+    def execute(self, context: 'Context'):
         """Is written to depend on transform method"""
         s3_conn = S3Hook(self.aws_conn_id)
 
@@ -114,6 +112,7 @@ class MongoToS3Operator(BaseOperator):
             results = MongoHook(self.mongo_conn_id).find(
                 mongo_collection=self.mongo_collection,
                 query=cast(dict, self.mongo_query),
+                projection=self.mongo_projection,
                 mongo_db=self.mongo_db,
             )
 

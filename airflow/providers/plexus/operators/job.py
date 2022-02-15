@@ -33,7 +33,6 @@ class PlexusJobOperator(BaseOperator):
     Submits a Plexus job.
 
     :param job_params: parameters required to launch a job.
-    :type job_params: dict
 
     Required job parameters are the following
         - "name": job name created by user.
@@ -87,8 +86,8 @@ class PlexusJobOperator(BaseOperator):
                 get_job = requests.get(jid_endpoint, headers=headers, timeout=5)
                 if not get_job.ok:
                     raise AirflowException(
-                        "Could not retrieve job status. Status Code: [{}]. "
-                        "Reason: {} - {}".format(get_job.status_code, get_job.reason, get_job.text)
+                        "Could not retrieve job status. "
+                        f"Status Code: [{get_job.status_code}]. Reason: {get_job.reason} - {get_job.text}"
                     )
                 new_state = get_job.json()["last_state"]
                 if new_state in ("Cancelled", "Failed"):
@@ -98,8 +97,8 @@ class PlexusJobOperator(BaseOperator):
                 state = new_state
         else:
             raise AirflowException(
-                "Could not start job. Status Code: [{}]. "
-                "Reason: {} - {}".format(create_job.status_code, create_job.reason, create_job.text)
+                "Could not start job. "
+                f"Status Code: [{create_job.status_code}]. Reason: {create_job.reason} - {create_job.text}"
             )
 
     def _api_lookup(self, param: str, hook):
@@ -143,7 +142,6 @@ class PlexusJobOperator(BaseOperator):
         user-provided value.
 
         :param hook: plexus hook object
-        :type hook: airflow hook
         """
         missing_params = self.required_params - set(self.job_params)
         if len(missing_params) > 0:

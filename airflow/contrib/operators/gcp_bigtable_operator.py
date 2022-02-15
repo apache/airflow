@@ -119,7 +119,6 @@ class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
         super().__init__(*args, **kwargs)
 
 
-# pylint: disable=too-many-ancestors
 class BigtableTableWaitForReplicationSensor(BigtableTableReplicationCompletedSensor):
     """
     This class is deprecated.
