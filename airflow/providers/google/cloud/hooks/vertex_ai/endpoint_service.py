@@ -18,7 +18,7 @@
 #
 """This module contains a Google Cloud Vertex AI hook."""
 
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
@@ -57,15 +57,20 @@ class EndpointServiceHook(GoogleBaseHook):
         """Returns unique id of the endpoint."""
         return obj["name"].rpartition("/")[-1]
 
+    @staticmethod
+    def extract_deployed_model_id(obj: Dict) -> str:
+        """Returns unique id of the deploy model."""
+        return obj["deployed_model"]["id"]
+
     @GoogleBaseHook.fallback_to_default_project_id
     def create_endpoint(
         self,
         project_id: str,
         region: str,
-        endpoint: Endpoint,
+        endpoint: Union[Endpoint, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Creates an Endpoint.
@@ -99,7 +104,7 @@ class EndpointServiceHook(GoogleBaseHook):
         endpoint: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes an Endpoint.
@@ -130,11 +135,11 @@ class EndpointServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         endpoint: str,
-        deployed_model: DeployedModel,
-        traffic_split: Sequence[str] = None,
+        deployed_model: Union[DeployedModel, Dict],
+        traffic_split: Union[Sequence[endpoint_service.DeployModelRequest.TrafficSplitEntry], Dict] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deploys a Model into this Endpoint, creating a DeployedModel within it.
@@ -185,7 +190,7 @@ class EndpointServiceHook(GoogleBaseHook):
         endpoint: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Endpoint:
         """
         Gets an Endpoint.
@@ -222,7 +227,7 @@ class EndpointServiceHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListEndpointsPager:
         """
         Lists Endpoints in a Location.
@@ -280,10 +285,10 @@ class EndpointServiceHook(GoogleBaseHook):
         region: str,
         endpoint: str,
         deployed_model_id: str,
-        traffic_split: Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry],
+        traffic_split: Union[Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry], Dict] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all resources it's
@@ -324,11 +329,11 @@ class EndpointServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         endpoint_id: str,
-        endpoint: Endpoint,
-        update_mask: FieldMask,
+        endpoint: Union[Endpoint, Dict],
+        update_mask: Union[FieldMask, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Endpoint:
         """
         Updates an Endpoint.

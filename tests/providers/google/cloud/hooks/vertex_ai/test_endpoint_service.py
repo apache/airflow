@@ -59,7 +59,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 parent=mock_client.return_value.common_location_path.return_value,
                 endpoint=TEST_ENDPOINT,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -80,7 +80,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -106,7 +106,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 deployed_model=TEST_DEPLOYED_MODEL,
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -128,7 +128,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -154,7 +154,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -179,7 +179,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 deployed_model_id=TEST_DEPLOYED_MODEL_ID,
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -192,6 +192,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
         self.hook.update_endpoint(
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
+            endpoint_id=TEST_ENDPOINT_NAME,
             endpoint=TEST_ENDPOINT,
             update_mask=TEST_UPDATE_MASK,
         )
@@ -201,7 +202,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 endpoint=TEST_ENDPOINT,
                 update_mask=TEST_UPDATE_MASK,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -227,7 +228,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 parent=mock_client.return_value.common_location_path.return_value,
                 endpoint=TEST_ENDPOINT,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -248,7 +249,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -274,7 +275,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 deployed_model=TEST_DEPLOYED_MODEL,
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -296,7 +297,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -322,7 +323,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -347,7 +348,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 deployed_model_id=TEST_DEPLOYED_MODEL_ID,
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -360,6 +361,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
         self.hook.update_endpoint(
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
+            endpoint_id=TEST_ENDPOINT_NAME,
             endpoint=TEST_ENDPOINT,
             update_mask=TEST_UPDATE_MASK,
         )
@@ -369,7 +371,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 endpoint=TEST_ENDPOINT,
                 update_mask=TEST_UPDATE_MASK,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

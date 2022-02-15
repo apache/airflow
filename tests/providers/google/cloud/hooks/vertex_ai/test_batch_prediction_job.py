@@ -29,6 +29,9 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_BATCH_PREDICTION_JOB: dict = {}
+TEST_MODEL_NAME = f"projects/{TEST_PROJECT_ID}/locations/{TEST_REGION}/models/test_model_id"
+TEST_JOB_DISPLAY_NAME = "temp_create_batch_prediction_job_test"
+TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 TEST_UPDATE_MASK: dict = {}
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
@@ -43,50 +46,6 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
             self.hook = BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
-    def test_cancel_batch_prediction_job(self, mock_client) -> None:
-        self.hook.cancel_batch_prediction_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_batch_prediction_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.batch_prediction_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.batch_prediction_job_path.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_REGION,
-            TEST_BATCH_PREDICTION_JOB,
-        )
-
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
-    def test_create_batch_prediction_job(self, mock_client) -> None:
-        self.hook.create_batch_prediction_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.create_batch_prediction_job.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_REGION,
-        )
-
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
     def test_delete_batch_prediction_job(self, mock_client) -> None:
         self.hook.delete_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -98,7 +57,7 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -120,7 +79,7 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -145,7 +104,7 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
                 page_token=None,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -160,50 +119,6 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
             self.hook = BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
-    def test_cancel_batch_prediction_job(self, mock_client) -> None:
-        self.hook.cancel_batch_prediction_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_batch_prediction_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.batch_prediction_job_path.return_value,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.batch_prediction_job_path.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_REGION,
-            TEST_BATCH_PREDICTION_JOB,
-        )
-
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
-    def test_create_batch_prediction_job(self, mock_client) -> None:
-        self.hook.create_batch_prediction_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.create_batch_prediction_job.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-            ),
-            metadata=None,
-            retry=None,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_REGION,
-        )
-
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
     def test_delete_batch_prediction_job(self, mock_client) -> None:
         self.hook.delete_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -215,7 +130,7 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -237,7 +152,7 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -262,7 +177,7 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
                 page_token=None,
                 read_mask=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

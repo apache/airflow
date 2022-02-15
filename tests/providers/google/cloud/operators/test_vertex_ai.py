@@ -30,7 +30,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     ListAutoMLTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import (
-    CancelBatchPredictionJobOperator,
     CreateBatchPredictionJobOperator,
     DeleteBatchPredictionJobOperator,
     ListBatchPredictionJobsOperator,
@@ -49,6 +48,13 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     ImportDataOperator,
     ListDatasetsOperator,
     UpdateDatasetOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import (
+    CreateEndpointOperator,
+    DeleteEndpointOperator,
+    DeployModelOperator,
+    ListEndpointsOperator,
+    UndeployModelOperator,
 )
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -120,10 +126,24 @@ TEST_TRAINING_FORECAST_HORIZON = 10
 TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
 TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
 
-TEST_BATCH_PREDICTION_JOB = {
-    "display_name": "test_batch",
-}
+TEST_MODEL_NAME = f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id"
+TEST_JOB_DISPLAY_NAME = "temp_create_batch_prediction_job_test"
 TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
+
+TEST_ENDPOINT = {
+    "display_name": "endpoint_test",
+}
+TEST_ENDPOINT_ID = "test_endpoint_id"
+TEST_DEPLOYED_MODEL = {
+    # format: 'projects/{project}/locations/{location}/models/{model}'
+    'model': f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id",
+    'display_name': "temp_endpoint_test",
+    "dedicated_resources": {
+        'min_replica_count': 1,
+        "max_replica_count": 1,
+    },
+}
+TEST_DEPLOYED_MODEL_ID = "test_deployed_model_id"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -980,10 +1000,10 @@ class TestVertexAICreateBatchPredictionJobOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-            retry=RETRY,
-            timeout=TIMEOUT,
-            metadata=METADATA,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            instances_format="jsonl",
+            predictions_format="jsonl",
         )
         op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
@@ -992,10 +1012,26 @@ class TestVertexAICreateBatchPredictionJobOperator:
         mock_hook.return_value.create_batch_prediction_job.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB,
-            retry=RETRY,
-            timeout=TIMEOUT,
-            metadata=METADATA,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            instances_format="jsonl",
+            predictions_format="jsonl",
+            gcs_source=None,
+            bigquery_source=None,
+            gcs_destination_prefix=None,
+            bigquery_destination_prefix=None,
+            model_parameters=None,
+            machine_type=None,
+            accelerator_type=None,
+            accelerator_count=None,
+            starting_replica_count=None,
+            max_replica_count=None,
+            generate_explanation=False,
+            explanation_metadata=None,
+            explanation_parameters=None,
+            labels=None,
+            encryption_spec_key_name=None,
+            sync=True,
         )
 
 
@@ -1068,17 +1104,47 @@ class TestVertexAIListBatchPredictionJobsOperator:
         )
 
 
-class TestVertexAICancelBatchPredictionJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
-    def test_execute(self, mock_hook):
-        op = CancelBatchPredictionJobOperator(
+class TestVertexAICreateEndpointOperator:
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.Endpoint.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.EndpointServiceHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = CreateEndpointOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
             delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB_ID,
+            endpoint=TEST_ENDPOINT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.create_endpoint.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            endpoint=TEST_ENDPOINT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIDeleteEndpointOperator:
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.EndpointServiceHook"))
+    def test_execute(self, mock_hook):
+        op = DeleteEndpointOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            endpoint_id=TEST_ENDPOINT_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -1087,10 +1153,120 @@ class TestVertexAICancelBatchPredictionJobOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
         )
-        mock_hook.return_value.cancel_batch_prediction_job.assert_called_once_with(
+        mock_hook.return_value.delete_endpoint.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            batch_prediction_job=TEST_BATCH_PREDICTION_JOB_ID,
+            endpoint=TEST_ENDPOINT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIDeployModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.endpoint_service.DeployModelResponse.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.EndpointServiceHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = DeployModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            endpoint_id=TEST_ENDPOINT_ID,
+            deployed_model=TEST_DEPLOYED_MODEL,
+            traffic_split=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.deploy_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            endpoint=TEST_ENDPOINT_ID,
+            deployed_model=TEST_DEPLOYED_MODEL,
+            traffic_split=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIListEndpointsOperator:
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.EndpointServiceHook"))
+    def test_execute(self, mock_hook):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        read_mask = "read_mask"
+        order_by = "order_by"
+
+        op = ListEndpointsOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.list_endpoints.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIUndeployModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("endpoint_service.EndpointServiceHook"))
+    def test_execute(self, mock_hook):
+        op = UndeployModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            endpoint_id=TEST_ENDPOINT_ID,
+            deployed_model_id=TEST_DEPLOYED_MODEL_ID,
+            traffic_split=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.undeploy_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            endpoint=TEST_ENDPOINT_ID,
+            deployed_model_id=TEST_DEPLOYED_MODEL_ID,
+            traffic_split=None,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

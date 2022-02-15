@@ -73,6 +73,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import 
     DeleteEndpointOperator,
     DeployModelOperator,
     ListEndpointsOperator,
+    UndeployModelOperator,
 )
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
@@ -170,40 +171,30 @@ COLUMN_TRANSFORMATIONS = [
     {"numeric": {"column_name": "PhotoAmt"}},
 ]
 
-MODEL_ID = "9182492194534064128"
+MODEL_ID = "2141958602070425600"
 MODEL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}"
 JOB_DISPLAY_NAME = f"temp_create_batch_prediction_job_test_{uuid4()}"
 GCS_SOURCE = "gs://vertex-ai-system-tests/batch_prediction_input.jsonl"
-BIGQUERY_SOURCE = f"bq://bigquery-public-data:iowa_liquor_sales_forecasting.2021_sales_predict"
+BIGQUERY_SOURCE = "bq://bigquery-public-data:iowa_liquor_sales_forecasting.2021_sales_predict"
 GCS_DESTINATION_PREFIX = "gs://vertex-ai-system-tests/output"
 MODEL_PARAMETERS = json_format.ParseDict({}, Value())
 
-BATCH_PREDICTION_JOB = {
-    "display_name": f"temp_create_batch_prediction_job_test_{uuid4()}",
-    # Format: 'projects/{project}/locations/{location}/models/{model_id}'
-    "model": f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}",
-    "model_parameters": json_format.ParseDict({}, Value()),
-    "input_config": {
-        "instances_format": "jsonl",
-        "gcs_source": {"uris": ["gs://vertex-ai-system-tests/batch_prediction_input.jsonl"]},
-    },
-    "output_config": {
-        "predictions_format": "jsonl",
-        "gcs_destination": {"output_uri_prefix": "gs://vertex-ai-system-tests/output"},
-    },
+ENDPOINT_CONF = {
+    "display_name": f"endpoint_test_{uuid4()}",
+}
+DEPLOYED_MODEL = {
+    # format: 'projects/{project}/locations/{location}/models/{model}'
+    'model': f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}",
+    'display_name': f"temp_endpoint_test_{uuid4()}",
     "dedicated_resources": {
         "machine_spec": {
             "machine_type": "n1-standard-2",
             "accelerator_type": aiplatform.gapic.AcceleratorType.NVIDIA_TESLA_K80,
             "accelerator_count": 1,
         },
-        "starting_replica_count": 1,
+        'min_replica_count': 1,
         "max_replica_count": 1,
     },
-}
-
-ENDPOINT_CONF = {
-    "display_name": f"endpoint_test_{uuid4()}",
 }
 
 with models.DAG(
@@ -593,15 +584,22 @@ with models.DAG(
     deploy_model = DeployModelOperator(
         task_id="deploy_model",
         endpoint_id=create_endpoint.output['endpoint_id'],
-        deployed_model={
-            "model": "auto-ml-forecasting-model-42ab6aac-6c5d-4f6e-8d7e-9d20b1bc2259",
-        },
-        traffic_split="100",
+        deployed_model=DEPLOYED_MODEL,
+        traffic_split={'0': 100},
         region=REGION,
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_deploy_model_operator]
 
-    create_endpoint >> delete_endpoint
-    create_endpoint >> deploy_model
+    # [START how_to_cloud_vertex_ai_undeploy_model_operator]
+    undeploy_model = UndeployModelOperator(
+        task_id="undeploy_model",
+        endpoint_id=create_endpoint.output['endpoint_id'],
+        deployed_model_id=deploy_model.output['deployed_model_id'],
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_undeploy_model_operator]
+
+    create_endpoint >> deploy_model >> undeploy_model >> delete_endpoint
     list_endpoints

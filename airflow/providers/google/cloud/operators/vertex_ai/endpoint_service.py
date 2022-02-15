@@ -109,10 +109,10 @@ class CreateEndpointOperator(BaseOperator):
         *,
         region: str,
         project_id: str,
-        endpoint: Endpoint,
+        endpoint: Union[Endpoint, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -198,7 +198,7 @@ class DeleteEndpointOperator(BaseOperator):
         endpoint_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -244,7 +244,7 @@ class DeployModelOperator(BaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param endpoint:  Required. The name of the Endpoint resource into which to deploy a Model. Format:
+    :param endpoint_id:  Required. The name of the Endpoint resource into which to deploy a Model. Format:
         ``projects/{project}/locations/{location}/endpoints/{endpoint}``
     :param deployed_model:  Required. The DeployedModel to be created within the Endpoint. Note that
         [Endpoint.traffic_split][google.cloud.aiplatform.v1.Endpoint.traffic_split] must be updated for
@@ -286,11 +286,11 @@ class DeployModelOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint_id: str,
-        deployed_model: DeployedModel,
-        traffic_split: Sequence[str] = None,
+        deployed_model: Union[DeployedModel, Dict],
+        traffic_split: Union[Sequence[endpoint_service.DeployModelRequest.TrafficSplitEntry], Dict] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -327,8 +327,14 @@ class DeployModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        hook.wait_for_operation(timeout=self.timeout, operation=operation)
-        self.log.info("Deploy was done successfully")
+        result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+
+        deploy_model = endpoint_service.DeployModelResponse.to_dict(result)
+        deployed_model_id = hook.extract_deployed_model_id(deploy_model)
+        self.log.info("Model was deployed. Deployed Model ID: %s", deployed_model_id)
+
+        self.xcom_push(context, key="deployed_model_id", value=deployed_model_id)
+        return deploy_model
 
 
 class GetEndpointOperator(BaseOperator):
@@ -522,82 +528,90 @@ class ListEndpointsOperator(BaseOperator):
         return [Endpoint.to_dict(result) for result in results]
 
 
-class EndpointServiceJobUndeployModelOperator(BaseOperator):
+class UndeployModelOperator(BaseOperator):
     """
     Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all resources it's
     using.
 
-    :param request:  The request object. Request message for
-        [EndpointService.UndeployModel][google.cloud.aiplatform.v1.EndpointService.UndeployModel].
-    :type request: Union[google.cloud.aiplatform_v1.types.UndeployModelRequest, Dict]
-    :param endpoint:  Required. The name of the Endpoint resource from which to undeploy a Model. Format:
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :param endpoint_id:  Required. The name of the Endpoint resource from which to undeploy a Model. Format:
         ``projects/{project}/locations/{location}/endpoints/{endpoint}``
-
-        This corresponds to the ``endpoint`` field on the ``request`` instance; if ``request`` is provided,
-        this should not be set.
-    :type endpoint: str
     :param deployed_model_id:  Required. The ID of the DeployedModel to be undeployed from the Endpoint.
-
-        This corresponds to the ``deployed_model_id`` field on the ``request`` instance; if ``request`` is
-        provided, this should not be set.
-    :type deployed_model_id: str
-    :param traffic_split:  If this field is provided, then the Endpoint's
+    :param traffic_split: If this field is provided, then the Endpoint's
         [traffic_split][google.cloud.aiplatform.v1.Endpoint.traffic_split] will be overwritten with it. If
-        last DeployedModel is being undeployed from the Endpoint, the [Endpoint.traffic_split] will always end
-        up empty when this call returns. A DeployedModel will be successfully undeployed only if it doesn't
-        have any traffic assigned to it when this method executes, or if this field unassigns any traffic to
-        it.
-
-        This corresponds to the ``traffic_split`` field on the ``request`` instance; if ``request`` is
-        provided, this should not be set.
-    :type traffic_split: Sequence[google.cloud.aiplatform_v1.types.UndeployModelRequest.TrafficSplitEntry]
+        last DeployedModel is being undeployed from the Endpoint, the [Endpoint.traffic_split] will always
+        end up empty when this call returns. A DeployedModel will be successfully undeployed only if it
+        doesn't have any traffic assigned to it when this method executes, or if this field unassigns any
+        traffic to it.
     :param retry: Designation of what errors, if any, should be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The timeout for this request.
-    :type timeout: float
     :param metadata: Strings which should be sent along with the request as metadata.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id:
-    :type gcp_conn_id: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("region", "endpoint_id", "deployed_model_id", "project_id", "impersonation_chain")
 
     def __init__(
         self,
         *,
         region: str,
         project_id: str,
-        endpoint: str,
+        endpoint_id: str,
         deployed_model_id: str,
-        traffic_split: Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry],
+        traffic_split: Union[Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry], Dict] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
-        self.request = request
-        self.endpoint = endpoint
+        super().__init__(**kwargs)
+        self.region = region
+        self.project_id = project_id
+        self.endpoint_id = endpoint_id
         self.deployed_model_id = deployed_model_id
         self.traffic_split = traffic_split
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
-        hook = EndpointServiceHook(gcp_conn_id=self.gcp_conn_id)
-        hook.undeploy_model(
-            request=self.request,
-            endpoint=self.endpoint,
+    def execute(self, context: 'Context'):
+        hook = EndpointServiceHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        self.log.info(f"Removing a DeployedModel {self.deployed_model_id}")
+        operation = hook.undeploy_model(
+            project_id=self.project_id,
+            region=self.region,
+            endpoint=self.endpoint_id,
             deployed_model_id=self.deployed_model_id,
             traffic_split=self.traffic_split,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("DeployedModel was removed successfully")
 
 
 class UpdateEndpointOperator(BaseOperator):

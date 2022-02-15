@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
+from google.cloud.aiplatform import Model, explain
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -201,7 +202,7 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         region: str,
         project_id: str,
         job_display_name: str,
-        model_name: Union[str, "aiplatform.Model"],
+        model_name: Union[str, "Model"],
         instances_format: str = "jsonl",
         predictions_format: str = "jsonl",
         gcs_source: Optional[Union[str, Sequence[str]]] = None,
@@ -215,8 +216,8 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         starting_replica_count: Optional[int] = None,
         max_replica_count: Optional[int] = None,
         generate_explanation: Optional[bool] = False,
-        explanation_metadata: Optional["aiplatform.explain.ExplanationMetadata"] = None,
-        explanation_parameters: Optional["aiplatform.explain.ExplanationParameters"] = None,
+        explanation_metadata: Optional["explain.ExplanationMetadata"] = None,
+        explanation_parameters: Optional["explain.ExplanationParameters"] = None,
         labels: Optional[Dict[str, str]] = None,
         encryption_spec_key_name: Optional[str] = None,
         sync: bool = True,
@@ -342,7 +343,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         batch_prediction_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -416,7 +417,7 @@ class GetBatchPredictionJobOperator(BaseOperator):
         batch_prediction_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -505,7 +506,7 @@ class ListBatchPredictionJobsOperator(BaseOperator):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,

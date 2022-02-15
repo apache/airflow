@@ -22,7 +22,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
-from google.cloud.aiplatform import BatchPredictionJob
+from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceClient
 from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
@@ -80,7 +80,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         job_display_name: str,
-        model_name: Union[str, "aiplatform.Model"],
+        model_name: Union[str, "Model"],
         instances_format: str = "jsonl",
         predictions_format: str = "jsonl",
         gcs_source: Optional[Union[str, Sequence[str]]] = None,
@@ -94,8 +94,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
         starting_replica_count: Optional[int] = None,
         max_replica_count: Optional[int] = None,
         generate_explanation: Optional[bool] = False,
-        explanation_metadata: Optional["aiplatform.explain.ExplanationMetadata"] = None,
-        explanation_parameters: Optional["aiplatform.explain.ExplanationParameters"] = None,
+        explanation_metadata: Optional["explain.ExplanationMetadata"] = None,
+        explanation_parameters: Optional["explain.ExplanationParameters"] = None,
         labels: Optional[Dict[str, str]] = None,
         encryption_spec_key_name: Optional[str] = None,
         sync: bool = True,
@@ -229,7 +229,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         batch_prediction_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a BatchPredictionJob. Can only be called on jobs that already finished.
@@ -262,7 +262,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         batch_prediction_job: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> BatchPredictionJob:
         """
         Gets a BatchPredictionJob
@@ -298,7 +298,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         read_mask: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = "",
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListBatchPredictionJobsPager:
         """
         Lists BatchPredictionJobs in a Location.
