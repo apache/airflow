@@ -46,7 +46,7 @@ application. See the bottom line of the example:
        remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
      # Authentication backend used for the experimental API
      api:
-       auth_backend: airflow.api.auth.backend.deny_all
+       auth_backends: airflow.api.auth.backend.deny_all
      logging:
        remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
        colored_console_log: 'False'
