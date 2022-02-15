@@ -31,6 +31,11 @@ Features
 * ``Add more SQL template fields renderers (#21237)``
 * ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
 * ``Support to upload file to Google Shared Drive (#21319)``
+* ``(providers_google) add a location check in bigquery (#19571)``
+* ``Add support for BeamGoPipelineOperator (#20386)``
+* ``Google Cloud Composer opearators (#21251)``
+* ``Enable asynchronous job submission in BigQuery hook (#21385)``
+* ``Optionally raise an error if source file does not exist in GCSToGCSOperator (#21391)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -56,6 +61,9 @@ Misc
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Fix BigQuery system test (#21320)``
    * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Never set DagRun.state to State.NONE (#21263)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
 
 6.3.0
 .....

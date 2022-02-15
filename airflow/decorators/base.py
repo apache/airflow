@@ -40,12 +40,16 @@ from typing import (
 import attr
 import typing_extensions
 
-from airflow.compat.functools import cached_property
+from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator, MappedOperator
+from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
+from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
 from airflow.models.dag import DAG, DagContext
+from airflow.models.mappedoperator import MappedOperator
+from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
+from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
@@ -280,30 +284,129 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in unknown_args)
             raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
 
-    def map(
-        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> XComArg:
+    def map(self, **kwargs) -> XComArg:
         self._validate_arg_names("map", kwargs)
-        dag = dag or DagContext.get_current_dag()
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-        task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
 
-        operator = MappedOperator.from_decorator(
-            decorator=self,
+        partial_kwargs = self.kwargs.copy()
+
+        dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
+        task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
+        task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+        params = partial_kwargs.pop("params", None)
+        partial_op_kwargs = partial_kwargs.pop("op_kwargs", {})
+
+        # Logic here should be kept in sync with BaseOperatorMeta.partial().
+        if "task_concurrency" in partial_kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
+        if partial_kwargs.get("wait_for_downstream"):
+            partial_kwargs["depends_on_past"] = True
+        start_date = timezone.convert_to_utc(partial_kwargs.pop("start_date", None))
+        end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
+        if partial_kwargs.get("pool") is None:
+            partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+        partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
+        partial_kwargs["retry_delay"] = coerce_retry_delay(
+            partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
+        )
+        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
+        partial_kwargs.setdefault("executor_config", {})
+
+        # Mypy does not work well with a subclassed attrs class :(
+        _MappedOperator = cast(Any, DecoratedMappedOperator)
+        operator = _MappedOperator(
+            operator_class=self.operator_class,
+            mapped_kwargs={"op_args": [], "op_kwargs": kwargs},
+            partial_kwargs=partial_kwargs,
+            task_id=task_id,
+            params=params,
+            deps=MappedOperator.deps_for(self.operator_class),
+            operator_extra_links=self.operator_class.operator_extra_links,
+            template_ext=self.operator_class.template_ext,
+            template_fields=self.operator_class.template_fields,
+            ui_color=self.operator_class.ui_color,
+            ui_fgcolor=self.operator_class.ui_fgcolor,
+            is_dummy=False,
+            task_module=self.operator_class.__module__,
+            task_type=self.operator_class.__name__,
             dag=dag,
             task_group=task_group,
-            task_id=task_id,
-            mapped_kwargs=kwargs,
+            start_date=start_date,
+            end_date=end_date,
+            multiple_outputs=self.multiple_outputs,
+            python_callable=self.function,
+            partial_op_kwargs=partial_op_kwargs,
         )
         return XComArg(operator=operator)
 
-    def partial(
-        self, *, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
-    ) -> "_TaskDecorator[Function, OperatorSubclass]":
-        self._validate_arg_names("partial", kwargs, {'task_id'})
-        partial_kwargs = self.kwargs.copy()
-        partial_kwargs.update(kwargs)
-        return attr.evolve(self, kwargs=partial_kwargs)
+    def partial(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+        self._validate_arg_names("partial", kwargs)
+
+        op_kwargs = self.kwargs.get("op_kwargs", {})
+        op_kwargs = _merge_kwargs(op_kwargs, kwargs, fail_reason="duplicate partial")
+
+        return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
+
+
+def _merge_kwargs(
+    kwargs1: Dict[str, XComArg],
+    kwargs2: Dict[str, XComArg],
+    *,
+    fail_reason: str,
+) -> Dict[str, XComArg]:
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    elif duplicated_keys:
+        duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+        raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+    return {**kwargs1, **kwargs2}
+
+
+@attr.define(kw_only=True, repr=False)
+class DecoratedMappedOperator(MappedOperator):
+    """MappedOperator implementation for @task-decorated task function."""
+
+    multiple_outputs: bool
+    python_callable: Callable
+
+    # We can't save these in partial_kwargs because op_args and op_kwargs need
+    # to be present in mapped_kwargs, and MappedOperator prevents duplication.
+    partial_op_kwargs: Dict[str, Any]
+
+    @classmethod
+    @cache
+    def get_serialized_fields(cls):
+        # The magic argument-less super() does not work well with @cache
+        # (actually lru_cache in general), so we use the explicit form instead.
+        sup = super(DecoratedMappedOperator, DecoratedMappedOperator)
+        return sup.get_serialized_fields() | {"partial_op_kwargs"}
+
+    def _create_unmapped_operator(
+        self,
+        *,
+        mapped_kwargs: Dict[str, Any],
+        partial_kwargs: Dict[str, Any],
+        real: bool,
+    ) -> "BaseOperator":
+        assert not isinstance(self.operator_class, str)
+        mapped_kwargs = mapped_kwargs.copy()
+        del mapped_kwargs["op_kwargs"]
+        op_kwargs = _merge_kwargs(
+            self.partial_op_kwargs,
+            self.mapped_kwargs["op_kwargs"],  # We want to "original" op_kwargs.
+            fail_reason="mapping already partial",
+        )
+        return self.operator_class(
+            dag=self.dag,
+            task_group=self.task_group,
+            task_id=self.task_id,
+            op_kwargs=op_kwargs,
+            multiple_outputs=self.multiple_outputs,
+            python_callable=self.python_callable,
+            _airflow_map_validation=not real,
+            **partial_kwargs,
+            **mapped_kwargs,
+        )
 
 
 class Task(Generic[Function]):

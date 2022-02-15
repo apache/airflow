@@ -380,6 +380,12 @@ def dispose_orm():
         engine = None
 
 
+def reconfigure_orm(disable_connection_pool=False):
+    """Properly close database connections and re-configure ORM"""
+    dispose_orm()
+    configure_orm(disable_connection_pool=disable_connection_pool)
+
+
 def configure_adapters():
     """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
@@ -545,6 +551,9 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0', 'LIGHTORANGE': '#FF9933'}
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_update_interval', fallback=30)
+
+# If set to True, serialized DAGs is compressed before writing to DB,
+COMPRESS_SERIALIZED_DAGS = conf.getboolean('core', 'compress_serialized_dags', fallback=False)
 
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver

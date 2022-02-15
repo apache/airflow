@@ -36,7 +36,6 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
-from airflow.utils.state import State
 
 # [START howto_data_fusion_env_variables]
 SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
@@ -276,5 +275,5 @@ with models.DAG(
     delete_pipeline >> delete_instance
 
 if __name__ == "__main__":
-    dag.clear(dag_run_state=State.NONE)
+    dag.clear()
     dag.run()

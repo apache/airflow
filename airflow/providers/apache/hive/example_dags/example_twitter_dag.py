@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # --------------------------------------------------------------------------------
-# Written By: Ekhtiar Syed
-# Last Update: 8th April 2016
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
@@ -80,12 +78,12 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
-    fetch_tweets = fetch_tweets()
-    clean_tweets = clean_tweets()
-    analyze_tweets = analyze_tweets()
+    fetch = fetch_tweets()
+    clean = clean_tweets()
+    analyze = analyze_tweets()
     hive_to_mysql = transfer_to_db()
 
-    fetch_tweets >> clean_tweets >> analyze_tweets
+    fetch >> clean >> analyze
 
     # --------------------------------------------------------------------------------
     # The following tasks are generated using for loop. The first task puts the eight
@@ -124,7 +122,7 @@ with DAG(
             ),
         )
 
-        analyze_tweets >> load_to_hdfs >> load_to_hive >> hive_to_mysql
+        analyze >> load_to_hdfs >> load_to_hive >> hive_to_mysql
 
     for channel in from_channels:
         file_name = f"from_{channel}_{dt}.csv"
@@ -144,4 +142,4 @@ with DAG(
             ),
         )
 
-        analyze_tweets >> load_to_hdfs >> load_to_hive >> hive_to_mysql
+        analyze >> load_to_hdfs >> load_to_hive >> hive_to_mysql

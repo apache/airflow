@@ -115,6 +115,7 @@ Deserialize
 Deserialized
 DevOps
 Dingding
+DirectRunner
 Dlp
 DlpJob
 DlpServiceClient
@@ -1105,6 +1106,7 @@ personalizations
 pformat
 picklable
 pid
+pidbox
 pigcmd
 pinodb
 pinot

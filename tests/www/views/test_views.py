@@ -24,7 +24,13 @@ import pytest
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
-from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
+from airflow.www.views import (
+    get_key_paths,
+    get_safe_url,
+    get_task_stats_from_query,
+    get_value_from_path,
+    truncate_task_duration,
+)
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -339,3 +345,30 @@ def test_dag_edit_privileged_requires_view_has_action_decorators(cls: type):
     action_funcs = action_funcs - {"action_post"}
     for action_function in action_funcs:
         assert_decorator_used(cls, action_function, views.action_has_dag_edit_access)
+
+
+def test_get_task_stats_from_query():
+    query_data = [
+        ['dag1', 'queued', True, 1],
+        ['dag1', 'running', True, 2],
+        ['dag1', 'success', False, 3],
+        ['dag2', 'running', True, 4],
+        ['dag2', 'success', True, 5],
+        ['dag3', 'success', False, 6],
+    ]
+    expected_data = {
+        'dag1': {
+            'queued': 1,
+            'running': 2,
+        },
+        'dag2': {
+            'running': 4,
+            'success': 5,
+        },
+        'dag3': {
+            'success': 6,
+        },
+    }
+
+    data = get_task_stats_from_query(query_data)
+    assert data == expected_data

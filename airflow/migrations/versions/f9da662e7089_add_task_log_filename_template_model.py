@@ -41,7 +41,6 @@ def upgrade():
         "log_template",
         Column("id", Integer, primary_key=True, autoincrement=True),
         Column("filename", Text, nullable=False),
-        Column("task_prefix", Text, nullable=False),
         Column("elasticsearch_id", Text, nullable=False),
         Column("created_at", UtcDateTime, nullable=False),
     )
