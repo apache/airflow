@@ -62,6 +62,10 @@ class SensorInstance(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow(), nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow(), onupdate=timezone.utcnow(), nullable=False)
 
+    # SmartSensor doesn't support mapped operators, but this is needed for compatibly with the
+    # log_filename_template of TaskInstances
+    map_index = -1
+
     __table_args__ = (
         Index('ti_primary_key', dag_id, task_id, execution_date, unique=True),
         Index('si_hashcode', hashcode),
