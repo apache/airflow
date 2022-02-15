@@ -80,6 +80,13 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### You can't name zip files as ending with .py for DAGs
+
+It was previously possible to load any files as zip files in the DAGs folder via `zipfile.is_zipfile`.
+
+Now .py (extension) files are going to be loaded as modules without checking whether it is zipfile. (Less IO)
+If .py file in the DAGs folder were a zip compressed file, processing it would be failed with exception.
+
 ### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
 
 When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
