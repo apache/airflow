@@ -19,7 +19,7 @@
 """Increase length of email and username
 
 Revision ID: 5e3ec427fdd3
-Revises: c381b21cb7e4
+Revises: 587bdf053233
 Create Date: 2021-12-01 11:49:26.390210
 
 """
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '5e3ec427fdd3'
-down_revision = 'c381b21cb7e4'
+down_revision = '587bdf053233'
 branch_labels = None
 depends_on = None
 
