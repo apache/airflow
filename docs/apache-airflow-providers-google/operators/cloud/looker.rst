@@ -18,8 +18,6 @@ under the License.
 Google Cloud Looker Operators
 ===============================
 
-TODO: [REMOVE] text from here: https://screenshot.googleplex.com/By47uHaoPj2ZMcV (other places have just marketing text)
-
 Looker is a business intelligence software and big data analytics platform that
 helps you explore, analyze and share real-time business analytics easily.
 
