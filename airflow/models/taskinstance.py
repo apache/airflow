@@ -122,7 +122,6 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
@@ -1651,6 +1650,8 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
+        from airflow.models.baseoperator import BaseOperator
+
         self.task = self.task.prepare_for_execution()
         self.render_templates()
         assert isinstance(self.task, BaseOperator)  # For Mypy.
