@@ -38,11 +38,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.4.0
 .....
 
-Latest change: 2022-02-08
+Latest change: 2022-02-13
 
 ================================================================================================  ===========  ============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================================
+`6bb0857df <https://github.com/apache/airflow/commit/6bb0857df94c0f959e7ebe421a00b942fd60b199>`_  2022-02-13   ``(providers_google) add a location check in bigquery (#19571)``
+`6579648af <https://github.com/apache/airflow/commit/6579648af2a21aa01cb93f051d091569a03c04a4>`_  2022-02-13   ``Fix bigquery-hook when no  engine_kwargs are passed``
+`da485da29 <https://github.com/apache/airflow/commit/da485da29a06ecdda720a7ba75f04a2680aac0a2>`_  2022-02-13   ``Add support for BeamGoPipelineOperator (#20386)``
+`05a883b35 <https://github.com/apache/airflow/commit/05a883b35e34853ec9326bd579551a8e161d6cdc>`_  2022-02-11   ``Google Cloud Composer opearators (#21251)``
+`833087f4f <https://github.com/apache/airflow/commit/833087f4f9e86ee063d6a754593d80e9e5cd4100>`_  2022-02-10   ``Enable asynchronous job submission in BigQuery hook (#21385)``
+`51aff276c <https://github.com/apache/airflow/commit/51aff276ca4a33ee70326dd9eea6fba59f1463a3>`_  2022-02-10   ``Optionally raise an error if source file does not exist in GCSToGCSOperator (#21391)``
+`07fe9e8c6 <https://github.com/apache/airflow/commit/07fe9e8c6acf8826ac1dcaf2ad8c94297a0f0c24>`_  2022-02-09   ``Never set DagRun.state to State.NONE (#21263)``
+`0a3ff43d4 <https://github.com/apache/airflow/commit/0a3ff43d41d33d05fb3996e61785919effa9a2fa>`_  2022-02-08   ``Add pre-commit check for docstring param types (#21398)``
+`d94fa3783 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
 `e97374020 <https://github.com/apache/airflow/commit/e9737402081aa9c9bac748de1d75b387b3b8da42>`_  2022-02-08   ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
 `34d63fabc <https://github.com/apache/airflow/commit/34d63fabc0f2a85df38a78a89f9929e110951d11>`_  2022-02-08   ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
 `6b88d432d <https://github.com/apache/airflow/commit/6b88d432d959df73433528fe3d62194239f13edd>`_  2022-02-06   ``Support to upload file to Google Shared Drive (#21319)``

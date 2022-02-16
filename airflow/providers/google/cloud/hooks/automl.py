@@ -32,6 +32,8 @@ from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
     ListTableSpecsPager,
 )
 
+from airflow.providers.google.common.consts import CLIENT_INFO
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
@@ -90,7 +92,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         :rtype: google.cloud.automl_v1beta1.AutoMlClient
         """
         if self._client is None:
-            self._client = AutoMlClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = AutoMlClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property
@@ -101,7 +103,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         :return: Google Cloud AutoML PredictionServiceClient client object.
         :rtype: google.cloud.automl_v1beta1.PredictionServiceClient
         """
-        return PredictionServiceClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return PredictionServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_model(

@@ -55,7 +55,7 @@ class TestLivyOperator(unittest.TestCase):
 
         state_list = 2 * [BatchState.RUNNING] + [BatchState.SUCCESS]
 
-        def side_effect(_):
+        def side_effect(_, retry_args):
             if state_list:
                 return state_list.pop(0)
             # fail if does not stop right before
@@ -67,7 +67,7 @@ class TestLivyOperator(unittest.TestCase):
         task._livy_hook = task.get_hook()
         task.poll_for_termination(BATCH_ID)
 
-        mock_livy.assert_called_with(BATCH_ID)
+        mock_livy.assert_called_with(BATCH_ID, retry_args=None)
         mock_dump_logs.assert_called_with(BATCH_ID)
         assert mock_livy.call_count == 3
 
@@ -80,7 +80,7 @@ class TestLivyOperator(unittest.TestCase):
 
         state_list = 2 * [BatchState.RUNNING] + [BatchState.ERROR]
 
-        def side_effect(_):
+        def side_effect(_, retry_args):
             if state_list:
                 return state_list.pop(0)
             # fail if does not stop right before
@@ -94,7 +94,7 @@ class TestLivyOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             task.poll_for_termination(BATCH_ID)
 
-        mock_livy.assert_called_with(BATCH_ID)
+        mock_livy.assert_called_with(BATCH_ID, retry_args=None)
         mock_dump_logs.assert_called_with(BATCH_ID)
         assert mock_livy.call_count == 3
 
@@ -119,7 +119,7 @@ class TestLivyOperator(unittest.TestCase):
 
         call_args = {k: v for k, v in mock_post.call_args[1].items() if v}
         assert call_args == {'file': 'sparkapp'}
-        mock_get.assert_called_once_with(BATCH_ID)
+        mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
         mock_dump_logs.assert_called_once_with(BATCH_ID)
 
     @patch('airflow.providers.apache.livy.operators.livy.LivyHook.post_batch')
@@ -171,5 +171,5 @@ class TestLivyOperator(unittest.TestCase):
             assert 'INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:first_line' in cm.output
             assert 'INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:second_line' in cm.output
             assert 'INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:third_line' in cm.output
-        mock_get.assert_called_once_with(BATCH_ID)
+        mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
         mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)

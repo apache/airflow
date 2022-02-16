@@ -23,6 +23,7 @@
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, overload
 
 from airflow.decorators.base import Function, Task, TaskDecorator
+from airflow.decorators.branch_python import branch_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
@@ -37,6 +38,7 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
+    "branch_task",
 ]
 
 class TaskDecoratorCollection:
@@ -125,6 +127,24 @@ class TaskDecoratorCollection:
         """
     @overload
     def virtualenv(self, python_callable: Function) -> Task[Function]: ...
+    @overload
+    def branch(
+        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    ) -> TaskDecorator:
+        """Wraps a python function into a BranchPythonOperator
+
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchPythonOperator`
+        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+        :param python_callable: Function to decorate
+        :type python_callable: Optional[Callable]
+        :param multiple_outputs: if set, function return value will be
+            unrolled to multiple XCom values. Dict will unroll to xcom values with keys as XCom keys.
+            Defaults to False.
+        :type multiple_outputs: bool
+        """
+    @overload
+    def branch(self, python_callable: Function) -> Task[Function]: ...
     # [START decorator_signature]
     def docker(
         self,

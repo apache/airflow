@@ -1255,6 +1255,7 @@ sdk
 secretRef
 secretRefs
 securable
+securecookie
 securestring
 securityManager
 seealso
