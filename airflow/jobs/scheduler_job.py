@@ -319,7 +319,7 @@ class SchedulerJob(BaseJob):
                 query = query.filter(not_(TI.dag_id.in_(starved_dags)))
 
             if starved_tasks:
-                if settings.Session.bind.dialect.name == 'mssql':
+                if settings.engine.dialect.name == 'mssql':
                     task_filter = or_(
                         and_(
                             TaskInstance.dag_id == dag_id,
