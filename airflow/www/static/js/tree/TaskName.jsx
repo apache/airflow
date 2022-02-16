@@ -19,7 +19,6 @@
 
 import React from 'react';
 import {
-  Box,
   Text,
   Flex,
 } from '@chakra-ui/react';
@@ -28,34 +27,31 @@ import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 const TaskName = ({
   isGroup = false, isMapped = false, onToggle, isOpen, level, taskName,
 }) => (
-  <Box _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s">
-    <Flex
-      as={isGroup ? 'button' : 'div'}
-      onClick={onToggle}
-      color={level > 4 && 'white'}
-      aria-label={taskName}
-      title={taskName}
-      mr={4}
-      width="100%"
-      backgroundColor={`rgba(203, 213, 224, ${0.25 * level})`}
-      alignItems="center"
+  <Flex
+    as={isGroup ? 'button' : 'div'}
+    onClick={onToggle}
+    color={level > 4 && 'white'}
+    aria-label={taskName}
+    title={taskName}
+    mr={4}
+    width="100%"
+    alignItems="center"
+  >
+    <Text
+      display="inline"
+      fontSize="12px"
+      ml={level * 4 + 4}
+      isTruncated
     >
-      <Text
-        display="inline"
-        fontSize="12px"
-        ml={level * 4 + 4}
-        isTruncated
-      >
-        {taskName}
-        {isMapped && (
-          ' [ ]'
-        )}
-      </Text>
-      {isGroup && (
-        isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
+      {taskName}
+      {isMapped && (
+        ' [ ]'
       )}
-    </Flex>
-  </Box>
+    </Text>
+    {isGroup && (
+      isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
+    )}
+  </Flex>
 );
 
 // Only rerender the component if props change

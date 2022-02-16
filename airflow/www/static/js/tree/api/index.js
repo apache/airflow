@@ -17,33 +17,31 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import axios from 'axios';
+import camelcaseKeys from 'camelcase-keys';
 
-import { formatDateTime, formatDuration } from '../../datetime_utils';
+import useDag from './useDag';
+import useTasks from './useTasks';
+import useClearRun from './useClearRun';
+import useMarkFailedRun from './useMarkFailedRun';
+import useMarkSuccessRun from './useMarkSuccessRun';
+import useRunTask from './useRunTask';
+import useClearTask from './useClearTask';
+import useMarkFailedTask from './useMarkFailedTask';
+import useMarkSuccessTask from './useMarkSuccessTask';
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalEnd,
-  },
-}) => (
-  <Box fontSize="12px" py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      {formatDateTime(dataIntervalEnd)}
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
+axios.interceptors.response.use(
+  (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
 );
 
-export default DagRunTooltip;
+export {
+  useDag,
+  useTasks,
+  useClearRun,
+  useMarkFailedRun,
+  useMarkSuccessRun,
+  useRunTask,
+  useClearTask,
+  useMarkFailedTask,
+  useMarkSuccessTask,
+};

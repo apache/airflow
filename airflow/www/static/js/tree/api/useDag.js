@@ -17,33 +17,12 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import axios from 'axios';
+import { useQuery } from 'react-query';
 
-import { formatDateTime, formatDuration } from '../../datetime_utils';
-
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalEnd,
-  },
-}) => (
-  <Box fontSize="12px" py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      {formatDateTime(dataIntervalEnd)}
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
-);
-
-export default DagRunTooltip;
+export default function useDag(dagId) {
+  return useQuery(
+    ['dag', dagId],
+    () => axios.get(`/api/v1/dags/${dagId}/details`),
+  );
+}

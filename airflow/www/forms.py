@@ -104,13 +104,13 @@ class DateTimeWithNumRunsForm(FlaskForm):
     )
     num_runs = SelectField(
         "Number of runs",
-        default=25,
+        default=10,
         choices=(
             (5, "5"),
+            (10, "10"),
             (25, "25"),
             (50, "50"),
             (100, "100"),
-            (365, "365"),
         ),
     )
 

@@ -39,6 +39,8 @@
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
   <meta name="is_paused" content="{{ dag_is_paused }}">
+  <meta name="csrf_token" content="{{ csrf_token() }}">
+  <meta name="k8s_or_k8scelery_executor" content="{{ k8s_or_k8scelery_executor }}">
   {% if dag_model is defined and dag_model.next_dagrun_create_after is defined and dag_model.next_dagrun_create_after is not none %}
     <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
     <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
@@ -447,7 +449,7 @@
             </span>
           </div>
           <hr style="margin-bottom: 8px;">
-          <a id="btn_dagrun_details" class="btn" data-base-url="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url) }}">
+          <a id="btn_dagrun_details" class="btn" data-base-url="{{ url_for('Airflow.dagrun_details') }}">
             DAG Run details
           </a>
         </div>

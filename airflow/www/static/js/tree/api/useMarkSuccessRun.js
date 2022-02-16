@@ -17,33 +17,33 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import axios from 'axios';
+import { useMutation, useQueryClient } from 'react-query';
+import { getMetaValue } from '../../utils';
 
-import { formatDateTime, formatDuration } from '../../datetime_utils';
+export default function useMarkSuccessRun(dagId, runId) {
+  const queryClient = useQueryClient();
+  return useMutation(
+    ['dagRunSuccess', dagId, runId],
+    () => {
+      const csrfToken = getMetaValue('csrf_token');
+      const params = new URLSearchParams({
+        csrf_token: csrfToken,
+        confirmed: true,
+        dag_id: dagId,
+        dag_run_id: runId,
+      }).toString();
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalEnd,
-  },
-}) => (
-  <Box fontSize="12px" py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      {formatDateTime(dataIntervalEnd)}
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
-);
-
-export default DagRunTooltip;
+      return axios.post('/dagrun_success', params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+    },
+    {
+      onSettled: () => {
+        queryClient.invalidateQueries('treeData');
+      },
+    },
+  );
+}

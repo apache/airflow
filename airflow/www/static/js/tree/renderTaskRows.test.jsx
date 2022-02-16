@@ -119,9 +119,17 @@ describe('Test renderTaskRows', () => {
     global.treeData = mockTreeData;
     const containerRef = {};
     const dagRunIds = mockTreeData.dagRuns.map((dr) => dr.runId);
+    const onSelect = () => {};
+    const selected = {};
+    const task = mockTreeData.groups;
 
     const { getByTestId, getByText, getAllByTestId } = render(
-      <>{renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds })}</>,
+      <>
+        {renderTaskRows({
+          task, containerRef, dagRunIds, onSelect, selected,
+        })}
+
+      </>,
       { wrapper: Wrapper },
     );
 
@@ -164,10 +172,15 @@ describe('Test renderTaskRows', () => {
       dagRuns: [],
     };
     const containerRef = {};
+    const onSelect = () => {};
+    const selected = {};
+    const task = mockTreeData.groups;
 
     const { queryByTestId, getByText } = render(
       <>
-        {renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds: [] })}
+        {renderTaskRows({
+          task, containerRef, dagRunIds: [], selected, onSelect,
+        })}
       </>,
       { wrapper: Wrapper },
     );

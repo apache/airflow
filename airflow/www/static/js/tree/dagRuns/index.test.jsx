@@ -80,7 +80,11 @@ describe('Test DagRuns', () => {
       dagRuns,
     });
     const { queryAllByTestId, getByText, queryByText } = render(
-      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
+      <DagRuns
+        containerRef={mockRef}
+        selected={{}}
+        onSelect={() => {}}
+      />, { wrapper: Wrapper },
     );
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
@@ -118,7 +122,11 @@ describe('Test DagRuns', () => {
       ],
     });
     const { getByText } = render(
-      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
+      <DagRuns
+        containerRef={mockRef}
+        selected={{}}
+        onSelect={() => {}}
+      />, { wrapper: Wrapper },
     );
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
   });
@@ -129,7 +137,11 @@ describe('Test DagRuns', () => {
       dagRuns: [],
     };
     const { queryByTestId } = render(
-      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
+      <DagRuns
+        containerRef={mockRef}
+        selected={{}}
+        onSelect={() => {}}
+      />, { wrapper: Wrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });
@@ -137,7 +149,11 @@ describe('Test DagRuns', () => {
   test('Handles no data correctly', () => {
     global.treeData = {};
     const { queryByTestId } = render(
-      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
+      <DagRuns
+        containerRef={mockRef}
+        selected={{}}
+        onSelect={() => {}}
+      />, { wrapper: Wrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });

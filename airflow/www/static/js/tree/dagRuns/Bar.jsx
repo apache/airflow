@@ -27,21 +27,25 @@ import {
   Tooltip,
   Text,
   VStack,
+  useTheme,
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
 import DagRunTooltip from './Tooltip';
-import { callModalDag } from '../../dag';
 
 const BAR_HEIGHT = 100;
 
 const DagRunBar = ({
-  run, max, index, totalRuns, containerRef,
+  run, max, index, totalRuns, containerRef, selected, onSelect,
 }) => {
+  const { colors } = useTheme();
+  const hoverBlue = `${colors.blue[100]}50`;
+  const isSelected = run.runId === selected.runId;
+
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
     [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
-      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+      .forEach((e) => { e.style.backgroundColor = hoverBlue; });
   };
   const onMouseLeave = () => {
     [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
@@ -51,6 +55,7 @@ const DagRunBar = ({
   return (
     <Box
       className={`js-${run.runId}`}
+      bg={isSelected && 'blue.100'}
       transition="background-color 0.2s"
       px="1px"
       pb="2px"
@@ -64,13 +69,9 @@ const DagRunBar = ({
         cursor="pointer"
         width="14px"
         zIndex={1}
-        onClick={() => {
-          callModalDag({
-            execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId,
-          });
-        }}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
+        onClick={() => onSelect({ runId: run.runId, dagRun: run })}
       >
         <Tooltip
           label={<DagRunTooltip dagRun={run} />}

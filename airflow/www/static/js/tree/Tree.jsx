@@ -17,7 +17,9 @@
  * under the License.
  */
 
-import React, { useRef, useEffect } from 'react';
+/* global localStorage */
+
+import React, { useRef, useEffect, useState } from 'react';
 import {
   Table,
   Tbody,
@@ -27,17 +29,38 @@ import {
   FormLabel,
   Spinner,
   Thead,
+  Flex,
+  useDisclosure,
+  IconButton,
 } from '@chakra-ui/react';
+import { MdArrowForward, MdArrowBack } from 'react-icons/md';
 
 import useTreeData from './useTreeData';
 import renderTaskRows from './renderTaskRows';
 import DagRuns from './dagRuns';
+import Details from './details';
+
+const sidePanelKey = 'showSidePanel';
 
 const Tree = () => {
   const containerRef = useRef();
   const scrollRef = useRef();
   const tableRef = useRef();
   const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const [selected, setSelected] = useState({}); // selected task instance or dag run
+  const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
+  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
+
+  const toggleSidePanel = () => {
+    if (!isOpen) {
+      localStorage.setItem(sidePanelKey, true);
+    } else {
+      setSelected({});
+      localStorage.setItem(sidePanelKey, false);
+    }
+    onToggle();
+  };
+
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
@@ -46,33 +69,68 @@ const Tree = () => {
     // Set initial scroll to far right if it is scrollable
     const runsContainer = scrollRef.current;
     if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-      runsContainer.scrollBy(runsContainer.clientWidth, 0);
+      runsContainer.scrollBy(runsContainer.clientWidth, 250);
     }
-    // only run when the tableWidth changes
-  }, [tableWidth]);
+    // run when tableWidth or sidePanel changes
+  }, [tableWidth, isOpen]);
+
+  const { runId, taskId } = selected;
+
+  // show task/run info in the side panel, or just call the regular action modal
+  const onSelect = (newSelected) => {
+    const isSame = newSelected.runId === runId && newSelected.taskId === taskId;
+    setSelected(isSame ? {} : newSelected);
+    if (!isOpen) toggleSidePanel();
+  };
 
   return (
     <Box position="relative" ref={containerRef}>
-      <FormControl display="flex" alignItems="center" justifyContent="flex-end" width="100%">
-        {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-        <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
-          Auto-refresh
-        </FormLabel>
-        <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
-      </FormControl>
-      <Box position="relative" width="100%" overflow="auto" ref={scrollRef} px="24px">
-        <Table>
-          <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-            <DagRuns containerRef={containerRef} tableWidth={tableWidth} />
-          </Thead>
-          {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
-          <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
-            {renderTaskRows({
-              task: groups, containerRef, dagRunIds, tableWidth,
-            })}
-          </Tbody>
-        </Table>
-      </Box>
+      <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
+        <FormControl display="flex" width="auto" mr={2}>
+          {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
+          <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
+            Auto-refresh
+          </FormLabel>
+          <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
+        </FormControl>
+        <IconButton onClick={toggleSidePanel}>
+          {isOpen
+            ? <MdArrowForward size="18px" aria-label="Collapse Details" title="Collapse Details" />
+            : <MdArrowBack size="18px" title="Expand Details" aria-label="Expand Details" />}
+        </IconButton>
+      </Flex>
+      <Flex flexDirection="row" justifyContent="space-between">
+        <Box
+          position="relative"
+          mr="12px"
+          mt="-8px"
+          pb="12px"
+          overflow="auto"
+          ref={scrollRef}
+          flexGrow={1}
+          minWidth={isOpen && '300px'}
+        >
+          <Table>
+            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
+              <DagRuns
+                containerRef={containerRef}
+                tableWidth={tableWidth}
+                selected={selected}
+                onSelect={onSelect}
+              />
+            </Thead>
+            {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
+              {renderTaskRows({
+                task: groups, containerRef, dagRunIds, tableWidth, onSelect, selected,
+              })}
+            </Tbody>
+          </Table>
+        </Box>
+        {isOpen && (
+          <Details selected={selected} onSelect={onSelect} />
+        )}
+      </Flex>
     </Box>
   );
 };
