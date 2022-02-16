@@ -145,8 +145,6 @@ def _do_delete(*, query, session):
 
 
 def _subquery_keep_last(*, recency_column, keep_last_filters, keep_last_group_by, session):
-    # workaround for MySQL "table specified twice" issue
-    # https://github.com/teamclairvoyant/airflow-maintenance-dags/issues/41
     subquery = session.query(func.max(recency_column))
 
     if keep_last_filters is not None:
@@ -156,6 +154,9 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, keep_last_group_by
     if keep_last_group_by is not None:
         subquery = subquery.group_by(keep_last_group_by)
 
+    # We nest this subquery to work around a MySQL "table specified twice" issue
+    # See https://github.com/teamclairvoyant/airflow-maintenance-dags/issues/41
+    # and https://github.com/teamclairvoyant/airflow-maintenance-dags/pull/57/files.
     subquery = subquery.from_self()
     return subquery
 
