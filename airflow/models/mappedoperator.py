@@ -587,7 +587,7 @@ class MappedOperator(AbstractOperator):
     def _render_template_field(
         self,
         key: str,
-        content: Any,
+        value: Any,
         context: Context,
         jinja_env: Optional["jinja2.Environment"] = None,
         seen_oids: Optional[Set] = None,
@@ -599,13 +599,13 @@ class MappedOperator(AbstractOperator):
         Specifically, if we're rendering a mapped argument, we need to "unmap"
         the value as well to assign it to the unmapped operator.
         """
-        content = super()._render_template_field(key, content, context, jinja_env, seen_oids, session=session)
-        return self._expand_mapped_field(key, content, context, session=session)
+        value = super()._render_template_field(key, value, context, jinja_env, seen_oids, session=session)
+        return self._expand_mapped_field(key, value, context, session=session)
 
-    def _expand_mapped_field(self, key: str, content: Any, context: Context, *, session: Session) -> Any:
+    def _expand_mapped_field(self, key: str, value: Any, context: Context, *, session: Session) -> Any:
         map_index = context["ti"].map_index
         if map_index < 0:
-            return content
+            return value
         expansion_kwargs = self._get_expansion_kwargs()
         all_lengths = self._get_map_lengths(context["run_id"], session=session)
 
@@ -620,12 +620,12 @@ class MappedOperator(AbstractOperator):
 
         found_index = _find_index_for_this_field(map_index)
         if found_index < 0:
-            return content
-        if isinstance(content, collections.abc.Sequence):
-            return content[found_index]
-        if not isinstance(content, dict):
-            raise TypeError(f"can't map over value of type {type(content)}")
-        for i, (k, v) in enumerate(content.items()):
+            return value
+        if isinstance(value, collections.abc.Sequence):
+            return value[found_index]
+        if not isinstance(value, dict):
+            raise TypeError(f"can't map over value of type {type(value)}")
+        for i, (k, v) in enumerate(value.items()):
             if i == found_index:
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")

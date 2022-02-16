@@ -283,17 +283,17 @@ class AbstractOperator(LoggingMixin, DAGNode):
     ) -> None:
         for attr_name in template_fields:
             try:
-                content = getattr(parent, attr_name)
+                value = getattr(parent, attr_name)
             except AttributeError:
                 raise AttributeError(
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-            if not content:
+            if not value:
                 continue
             rendered_content = self._render_template_field(
                 attr_name,
-                content,
+                value,
                 context,
                 jinja_env,
                 seen_oids,
@@ -304,7 +304,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def _render_template_field(
         self,
         key: str,
-        content: Any,
+        value: Any,
         context: Context,
         jinja_env: Optional["jinja2.Environment"] = None,
         seen_oids: Optional[Set] = None,
@@ -312,7 +312,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         session: Session,
     ) -> Any:
         """Override point for MappedOperator to perform further resolution."""
-        return self.render_template(content, context, jinja_env, seen_oids)
+        return self.render_template(value, context, jinja_env, seen_oids)
 
     def render_template(
         self,
@@ -335,58 +335,62 @@ class AbstractOperator(LoggingMixin, DAGNode):
             *RecursionError* on circular dependencies)
         :return: Templated content
         """
+        # "content" is a bad name, but we're stuck to it being public API.
+        value = content
+        del content
+
         if not jinja_env:
             jinja_env = self.get_template_env()
 
         from airflow.models.param import DagParam
         from airflow.models.xcom_arg import XComArg
 
-        if isinstance(content, str):
-            if any(content.endswith(ext) for ext in self.template_ext):  # Content contains a filepath.
-                template = jinja_env.get_template(content)
+        if isinstance(value, str):
+            if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
+                template = jinja_env.get_template(value)
             else:
-                template = jinja_env.from_string(content)
+                template = jinja_env.from_string(value)
             dag = self.get_dag()
             if dag and dag.render_template_as_native_obj:
                 return render_template_as_native(template, context)
             return render_template_to_string(template, context)
 
-        if isinstance(content, (DagParam, XComArg)):
-            return content.resolve(context)
+        if isinstance(value, (DagParam, XComArg)):
+            return value.resolve(context)
 
         # Fast path for common built-in collections.
-        if content.__class__ is tuple:
-            return tuple(self.render_template(element, context, jinja_env) for element in content)
-        elif isinstance(content, tuple):  # Special case for named tuples.
-            return content.__class__(*(self.render_template(el, context, jinja_env) for el in content))
-        elif isinstance(content, list):
-            return [self.render_template(element, context, jinja_env) for element in content]
-        elif isinstance(content, dict):
-            return {key: self.render_template(value, context, jinja_env) for key, value in content.items()}
-        elif isinstance(content, set):
-            return {self.render_template(element, context, jinja_env) for element in content}
+        if value.__class__ is tuple:
+            return tuple(self.render_template(element, context, jinja_env) for element in value)
+        elif isinstance(value, tuple):  # Special case for named tuples.
+            return value.__class__(*(self.render_template(el, context, jinja_env) for el in value))
+        elif isinstance(value, list):
+            return [self.render_template(element, context, jinja_env) for element in value]
+        elif isinstance(value, dict):
+            return {key: self.render_template(value, context, jinja_env) for key, value in value.items()}
+        elif isinstance(value, set):
+            return {self.render_template(element, context, jinja_env) for element in value}
 
         # More complex collections.
         if seen_oids is None:
             oids = set()
         else:
             oids = seen_oids
-        self._render_nested_template_fields(content, context, jinja_env, oids)
-        return content
+        self._render_nested_template_fields(value, context, jinja_env, oids)
+        return value
 
     def _render_nested_template_fields(
         self,
-        content: Any,
+        value: Any,
         context: Context,
         jinja_env: "jinja2.Environment",
         seen_oids: Set[int],
     ) -> None:
-        if id(content) in seen_oids:
+        if id(value) in seen_oids:
             return
-        seen_oids.add(id(content))
+        seen_oids.add(id(value))
         try:
-            nested_template_fields = content.template_fields
+            nested_template_fields = value.template_fields
         except AttributeError:
             # content has no inner template fields
             return
-        self._do_render_template_fields(content, nested_template_fields, context, jinja_env, seen_oids)
+        self._do_render_template_fields(value, nested_template_fields, context, jinja_env, seen_oids)
