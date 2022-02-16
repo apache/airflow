@@ -377,6 +377,31 @@ class TestXComGet:
         assert [x.execution_date for x in stored_xcoms] == [dr2.logical_date, dr1.logical_date]
 
 
+class TestXComSerializeNonAsciiValue:
+    @conf_vars({("core", "enable_xcom_pickling"): "false"})
+    def test_serialize_disable_pickling(self, session, dag_run):
+        utf8_bytes = XCom.serialize_value(['前有大梅林'])
+        assert b"\\u" not in utf8_bytes
+        assert utf8_bytes.decode("utf-8") == '["前有大梅林"]'
+
+    @conf_vars({("core", "enable_xcom_pickling"): "false"})
+    def test_xcom_set_non_ascii(self, session, dag_run):
+        XCom.set(
+            key="xcom_1",
+            value=['前有大梅林'],
+            dag_id=dag_run.dag_id,
+            task_id="task_1",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        stored_xcoms = session.query(XCom).all()
+        assert stored_xcoms[0].key == "xcom_1"
+        assert stored_xcoms[0].value == ['前有大梅林']
+        assert stored_xcoms[0].dag_id == "dag"
+        assert stored_xcoms[0].task_id == "task_1"
+        assert stored_xcoms[0].execution_date == dag_run.logical_date
+
+
 @pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComSet:
     def test_xcom_set(self, session, dag_run):

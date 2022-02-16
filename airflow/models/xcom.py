@@ -463,7 +463,7 @@ class BaseXCom(Base, LoggingMixin):
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode('UTF-8')
+            return json.dumps(value, ensure_ascii=False).encode('UTF-8')
         except (ValueError, TypeError):
             log.error(
                 "Could not serialize the XCom value into JSON."
