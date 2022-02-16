@@ -277,18 +277,12 @@ def run_cleanup(
     be deleted.
 
     :param clean_before_timestamp: The timestamp before which data should be purged
-    :type clean_before_timestamp: DateTime
     :param table_names: Optional. List of table names to perform maintenance on.  If list not provided,
         will perform maintenance on all tables.
-    :type table_names: Optional[List[str]]
     :param dry_run: If true, print rows meeting deletion criteria
-    :type dry_run: bool
     :param verbose: If true, may provide more detailed output.
-    :type verbose: bool
     :param confirm: Require user input to confirm before processing deletions.
-    :type confirm: bool
     :param session: Session representing connection to the metadata database.
-    :type session: Session
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     effective_table_names = table_names if table_names else list(config_dict.keys())
