@@ -117,7 +117,7 @@ all_tables = sorted(config_dict)
 
 @cli_utils.action_cli(check_db=False)
 def cleanup_tables(args):
-    """Purges old records in metastore database"""
+    """Purges old records in metadata database"""
     run_cleanup(
         table_names=args.tables,
         dry_run=args.dry_run,
