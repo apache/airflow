@@ -350,7 +350,8 @@ class CeleryExecutor(BaseExecutor):
                 with timeout(seconds=OPERATION_TIMEOUT):
                     self._clear_stuck_queued_tasks()
             except Exception:
-                self.log.exception("Error while checking for stuck tasks")
+                # This timeout is not important, we should skip
+                pass
 
     def _check_for_stalled_adopted_tasks(self):
         """
