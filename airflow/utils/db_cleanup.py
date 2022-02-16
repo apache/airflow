@@ -57,7 +57,9 @@ class _TableConfig:
     :param orm_model: the table
     :param recency_column: date column to filter by
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
-    :param keep_last_filters:
+    :param keep_last_filters: the "keep last" functionality will preserve the most recent record
+        in the table.  to ignore certain records even if they are the latest in the table, you can
+        supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param warn_if_missing: If True, then we'll suppress "table missing" exception and log a warning.
         If False then the exception will go uncaught.
