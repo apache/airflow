@@ -27,13 +27,13 @@ from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildO
 from airflow.providers.google.cloud.sensors.looker import LookerCheckPdtBuildSensor
 
 with models.DAG(
-        dag_id='example_gcp_looker',
-        schedule_interval='@once',
-        start_date=datetime(2021, 1, 1),
-        catchup=False,
+    dag_id='example_gcp_looker',
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
     # [START cloud_looker_async_start_pdt_sensor]
-    looker_pdt_task_async = LookerStartPdtBuildOperator(
+    start_pdt_task_async = LookerStartPdtBuildOperator(
         task_id='looker_pdt_task_async',
         looker_conn_id='your_airflow_connection_for_looker',
         model='your_lookml_model',
@@ -41,16 +41,16 @@ with models.DAG(
         asynchronous=True,
     )
 
-    looker_pdt_task_async_sensor = LookerCheckPdtBuildSensor(
+    check_pdt_task_async_sensor = LookerCheckPdtBuildSensor(
         task_id='looker_pdt_task_async_sensor_task',
         looker_conn_id='your_airflow_connection_for_looker',
-        materialization_id=looker_pdt_task_async.output,
+        materialization_id=start_pdt_task_async.output,
         poke_interval=10,
     )
     # [END cloud_looker_async_start_pdt_sensor]
 
     # [START how_to_cloud_looker_start_pdt_build_operator]
-    looker_pdt_task = LookerStartPdtBuildOperator(
+    build_pdt_task = LookerStartPdtBuildOperator(
         task_id='looker_pdt_task',
         looker_conn_id='your_airflow_connection_for_looker',
         model='your_lookml_model',
@@ -58,7 +58,6 @@ with models.DAG(
     )
     # [END how_to_cloud_looker_start_pdt_build_operator]
 
-    looker_pdt_task_async >> looker_pdt_task_async_sensor
+    start_pdt_task_async >> check_pdt_task_async_sensor
 
-    # sync mode task has no deps
-    # looker_pdt_task
+    build_pdt_task

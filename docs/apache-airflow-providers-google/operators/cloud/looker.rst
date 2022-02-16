@@ -22,33 +22,16 @@ TODO: [REMOVE] text from here: https://screenshot.googleplex.com/By47uHaoPj2ZMcV
 
 Looker is a business intelligence software and big data analytics platform that
 helps you explore, analyze and share real-time business analytics easily.
+
 Looker has a Public API and associated SDK clients in different languages,
 which allow programmatic access to the Looker data platform.
 
-For more information about the service visit `Looker API documentation <https://docs.looker.com/reference/api-and-integration>`_
+For more information visit `Looker API documentation <https://docs.looker.com/reference/api-and-integration>`_.
 
 Prerequisite Tasks
 ------------------
 
 To use these operators, you must do a few things:
-
-* Obtain Looker API credentials using instructions in the `API documentation <https://docs.looker.com/reference/api-and-integration/api-auth>`_.
-* Create a .ini file with the API credentials, as described in the `Configuring the SDK section <https://developers.looker.com/api/getting-started>`_.
-* Multiple profiles can be defined in a single .ini file using different sections, as described in the `community article <https://community.looker.com/technical-tips-tricks-1021/the-how-to-on-initializing-the-sdk-with-different-profiles-in-your-ini-file-26846>`_.
-
-See following example on an .ini file:
-
-.. code-block::
-
-    [Looker]
-    # Base URL for API. Do not include /api/* in the url
-    base_url=https://self-signed.looker.com:19999
-    # API 3 client id
-    client_id=YourClientID
-    # API 3 client secret
-    client_secret=YourClientSecret
-    # Set to false if testing locally against self-signed certs. Otherwise leave True
-    verify_ssl=True
 
 * Install API libraries via **pip**.
 
@@ -58,60 +41,29 @@ See following example on an .ini file:
 
 Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
-* Setup a Looker Connection. Path to the .ini file and the optional section in file should be specified in JSON format.
+Communication between Airflow and Looker is done via `Looker API 4.0 <https://docs.looker.com/reference/api-and-integration/api-reference/v4.0>`_.
+To facilitate the API communication Looker operators use `Looker SDK <https://pypi.org/project/looker-sdk/>`_ as an API client.
+Before calling API, Looker SDK needs to authenticate itself using your Looker API credentials.
 
-.. note:: If no section is specified, the first section of the .ini file will be used.
+* Obtain your Looker API credentials using instructions in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-auth#authentication_with_an_sdk>`_.
 
-See following example of an Airflow Connection setup:
+* Obtain your Looker API path and port as described in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-getting-started#looker_api_path_and_port>`_.
 
-.. code-block::
+* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection`
 
-  Connection Id: "your_conn_id"
-  Connection Type: "HTTP"
-  Extra: {"config_file": "looker.ini",
-          "section": "Looker"}
-
-
-TODO: ALTERNATIVE WORDING
-Before using Looker within Airflow you need to authenticate your account.
-Communication between Airflow and Looker is done via Looker SDK.
-To get access to Looker API from Looker SDK you need to a .ini file with Looker API credentials.
-
-Please follow the instructions under the 'Configuring the SDK' section
-`here <https://developers.looker.com/api/getting-started>`_ to create a .ini file.
-Looker API credentials can be obtained by following the instructions
-`here <https://docs.looker.com/reference/api-and-integration/api-auth>`_.
-
-Multiple profiles can be defined in a single .ini file using different sections. More on that
-`here <https://community.looker.com/technical-tips-tricks-1021/the-how-to-on-initializing-the-sdk-with-different-profiles-in-your-ini-file-26846>`_.
-
-See following example on an .ini file:
+See the following example of a connection setup:
 
 .. code-block::
 
-    [Looker]
-    # Base URL for API. Do not include /api/* in the url
-    base_url=https://self-signed.looker.com:19999
-    # API 3 client id
-    client_id=YourClientID
-    # API 3 client secret
-    client_secret=YourClientSecret
-    # Set to false if testing locally against self-signed certs. Otherwise leave True
-    verify_ssl=True
-
-The path to the .ini file and the optional section in file should be added to the Connection in Airflow in JSON format.
-You can check :doc:`apache-airflow:howto/connection`
-
-.. note:: If no section is specified, the first section of the .ini file will be used.
-
-See following example of an Airflow Connection setup:
-
-.. code-block::
-
-  Connection Id: "your_conn_id"
-  Connection Type: "HTTP"
-  Extra: {"config_file": "looker.ini",
-          "section": "Looker"}
+  Connection Id: your_conn_id  # Passed to operators as ``looker_conn_id`` parameter.
+  Connection Type: HTTP
+  Host: https://your.looker.com  # Base URL for Looker API. Do not include /api/* in the URL.
+  Login: YourClientID  # Looker API client id
+  Password: YourClientSecret  # Looker API client secret
+  Port: 19999  # Port for Looker API. If hosted on GCP, don't specify the port leaving just the host.
+  # Extras are optional parameters in JSON format.
+  Extra: {"verify_ssl": "true",  # Set to false only if testing locally against self-signed certs. Defaults to true if not specified.
+          "timeout": "120"}  # Timeout in seconds for HTTP requests. Defaults to 2 minutes (120) seconds if not specified.
 
 Start a PDT materialization job
 -------------------------------

@@ -18,11 +18,14 @@
 #
 """This module contains Google Cloud Looker sensors."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.providers.google.cloud.hooks.looker import LookerHook, JobStatus
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class LookerCheckPdtBuildSensor(BaseSensorOperator):
@@ -30,45 +33,47 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
     Check for the state of a previously submitted PDT materialization job.
 
     :param materialization_id: Required. The materialization job ID to poll. (templated)
-    :type materialization_id: str
     :param looker_conn_id: Required. The connection ID to use connecting to Looker.
-    :type looker_conn_id: str
-    :param cancel_on_kill: Optional. Flag which indicates whether cancel the hook's job or not, when on_kill is called.
-    :type cancel_on_kill: bool
+    :param cancel_on_kill: Optional. Flag which indicates whether cancel the hook's job or not,
+    when on_kill is called.
     """
 
     template_fields = ["materialization_id"]
 
     def __init__(
-        self,
-        materialization_id: str,
-        looker_conn_id: str,
-        cancel_on_kill: bool = True,
-        **kwargs) -> None:
+        self, materialization_id: str, looker_conn_id: str, cancel_on_kill: bool = True, **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.materialization_id = materialization_id
         self.looker_conn_id = looker_conn_id
         self.cancel_on_kill = cancel_on_kill
         self.hook: Optional[LookerHook] = None
 
-    def poke(self, context):
-
-        # Airflow 1 support (tentative - possible follow-up feature)
-        # (can be done in DAG during task creation, not here, so materialization_id is always passed)
-        # self.materialization_id = self.xcom_pull(task_ids='looker_start_task_id', key='materialization_id', context=context)
-
-        # Airflow 2: use templated var pulling output from start task
+    def poke(self, context: "Context") -> bool:
 
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 
-        status = self.hook.pdt_build_status(self.materialization_id)
+        # materialization_id is templated var pulling output from start task
+        status_dict = self.hook.pdt_build_status(materialization_id=self.materialization_id)
+        status = status_dict['status']
 
         if status == JobStatus.ERROR.value:
-            raise AirflowException(f'PDT materialization job failed. Job id: {self.materialization_id}.')
+            msg = status_dict["message"]
+            raise AirflowException(
+                f'PDT materialization job failed. Job id: {self.materialization_id}. Message:\n"{msg}"'
+            )
         elif status == JobStatus.CANCELLED.value:
-            raise AirflowException(f'PDT materialization job was cancelled. Job id: {self.materialization_id}.')
+            raise AirflowException(
+                f'PDT materialization job was cancelled. Job id: {self.materialization_id}.'
+            )
+        elif status == JobStatus.UNKNOWN.value:
+            raise AirflowException(
+                f'PDT materialization job has unknown status. Job id: {self.materialization_id}.'
+            )
         elif status == JobStatus.DONE.value:
-            self.log.debug("PDT materialization job completed successfully. Job id: %s.", self.materialization_id)
+            self.log.debug(
+                "PDT materialization job completed successfully. Job id: %s.", self.materialization_id
+            )
             return True
 
         self.log.info("Waiting for PDT materialization job to complete. Job id: %s.", self.materialization_id)

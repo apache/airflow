@@ -20,11 +20,11 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from airflow.models import DAG, DagBag
-from airflow.utils.timezone import datetime
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
+from airflow.utils.timezone import datetime
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
-HOOK_PATH = "airflow_fork.airflow.providers.google.cloud.hooks.looker.LookerHook"
+OPERATOR_PATH = "airflow.providers.google.cloud.operators.looker.{}"
 
 TASK_ID = "task-id"
 LOOKER_CONN_ID = "test-conn"
@@ -57,12 +57,11 @@ class LookerTestBase(unittest.TestCase):
 
 
 class TestLookerStartPdtBuildOperator(LookerTestBase):
-
-    @mock.patch(HOOK_PATH)
+    @mock.patch(OPERATOR_PATH.format("LookerHook"))
     def test_execute(self, mock_hook):
         # mock return vals from hook
-        mock_hook.return_value.wait_for_job.return_value = None
         mock_hook.return_value.start_pdt_build.return_value.materialization_id = TEST_JOB_ID
+        mock_hook.return_value.wait_for_job.return_value = None
 
         # run task in mock context (asynchronous=False)
         task = LookerStartPdtBuildOperator(
@@ -78,31 +77,25 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         # hook's constructor called once
         mock_hook.assert_called_once_with(looker_conn_id=LOOKER_CONN_ID)
 
-        # hook's start_pdt_build called once
+        # hook.start_pdt_build called once
         mock_hook.return_value.start_pdt_build.assert_called_once_with(
             model=MODEL,
             view=VIEW,
             query_params={},
         )
 
-        # hook's wait_for_job called once
+        # hook.wait_for_job called once
         mock_hook.return_value.wait_for_job.assert_called_once_with(
             materialization_id=TEST_JOB_ID,
             wait_time=10,
             timeout=None,
         )
 
-        # Airflow 1 support (tentative - possible follow-up feature)
-        # xcom's push called once
-        # self.mock_ti.xcom_push.assert_called_once_with(
-        #     key="materialization_id", value=TEST_JOB_ID, execution_date=None
-        # )
-
-    @mock.patch(HOOK_PATH)
+    @mock.patch(OPERATOR_PATH.format("LookerHook"))
     def test_execute_async(self, mock_hook):
         # mock return vals from hook
-        mock_hook.return_value.wait_for_job.return_value = None
         mock_hook.return_value.start_pdt_build.return_value.materialization_id = TEST_JOB_ID
+        mock_hook.return_value.wait_for_job.return_value = None
 
         # run task in mock context (asynchronous=True)
         task = LookerStartPdtBuildOperator(
@@ -119,27 +112,21 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         # hook's constructor called once
         mock_hook.assert_called_once_with(looker_conn_id=LOOKER_CONN_ID)
 
-        # hook's start_pdt_build called once
+        # hook.start_pdt_build called once
         mock_hook.return_value.start_pdt_build.assert_called_once_with(
             model=MODEL,
             view=VIEW,
             query_params={},
         )
 
-        # hook's wait_for_job NOT called
+        # hook.wait_for_job NOT called
         mock_hook.return_value.wait_for_job.assert_not_called()
 
-        # Airflow 1 support (tentative - possible follow-up feature)
-        # xcom's push called once
-        # self.mock_ti.xcom_push.assert_called_once_with(
-        #     key="materialization_id", value=TEST_JOB_ID, execution_date=None
-        # )
-
-    @mock.patch(HOOK_PATH)
+    @mock.patch(OPERATOR_PATH.format("LookerHook"))
     def test_on_kill(self, mock_hook):
         # mock return vals from hook
-        mock_hook.return_value.wait_for_job.return_value = None
         mock_hook.return_value.start_pdt_build.return_value.materialization_id = TEST_JOB_ID
+        mock_hook.return_value.wait_for_job.return_value = None
 
         # run task in mock context (cancel_on_kill=False)
         task = LookerStartPdtBuildOperator(
@@ -155,7 +142,7 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         task.on_kill()
         mock_hook.return_value.stop_pdt_build.assert_not_called()
 
-        # kill and assert build is canceled
+        # alternatively, kill and assert build is canceled
         task.cancel_on_kill = True
         task.on_kill()
         mock_hook.return_value.stop_pdt_build.assert_called_once_with(materialization_id=TEST_JOB_ID)
