@@ -36,9 +36,11 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -53,11 +55,13 @@ def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
     return value.isoformat()
 
 
-def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str, Any]]:
+def encode_ti(
+    task_instance: Optional[TaskInstance], is_mapped: Optional[bool], session: Session
+) -> Optional[Dict[str, Any]]:
     if not task_instance:
         return None
 
-    return {
+    summary = {
         'task_id': task_instance.task_id,
         'dag_id': task_instance.dag_id,
         'run_id': task_instance.run_id,
@@ -69,6 +73,66 @@ def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str
         'execution_date': datetime_to_string(task_instance.execution_date),
         'try_number': task_instance.try_number,
     }
+
+    def get_mapped_summary(task_instances):
+        priority = [
+            'failed',
+            'upstream_failed',
+            'up_for_retry',
+            'up_for_reschedule',
+            'queued',
+            'scheduled',
+            'deferred',
+            'sensing',
+            'running',
+            'shutdown',
+            'restarting',
+            'removed',
+            'no_status',
+            'success',
+            'skipped',
+        ]
+
+        mapped_states = [ti.state for ti in task_instances]
+
+        group_state = None
+        for state in priority:
+            if state in mapped_states:
+                group_state = state
+                break
+
+        group_start_date = datetime_to_string(
+            min((ti.start_date for ti in task_instances if ti.start_date), default=None)
+        )
+        group_end_date = datetime_to_string(
+            max((ti.end_date for ti in task_instances if ti.end_date), default=None)
+        )
+
+        return {
+            'task_id': task_instance.task_id,
+            'run_id': task_instance.run_id,
+            'state': group_state,
+            'start_date': group_start_date,
+            'end_date': group_end_date,
+            'mapped_states': mapped_states,
+            'operator': task_instance.operator,
+            'execution_date': datetime_to_string(task_instance.execution_date),
+            'try_number': task_instance.try_number,
+        }
+
+    if is_mapped:
+        return get_mapped_summary(
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == task_instance.dag_id,
+                TaskInstance.run_id == task_instance.run_id,
+                TaskInstance.task_id == task_instance.task_id,
+                TaskInstance.map_index >= 0,
+            )
+            .all()
+        )
+
+    return summary
 
 
 def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
