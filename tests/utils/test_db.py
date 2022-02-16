@@ -170,7 +170,9 @@ class TestDb:
         assert e.exconly() == (
             f"airflow.exceptions.AirflowException: "
             f"Error while checking history for revision range {revision}. "
-            f"Check that the supplied airflow version is in the format 'old_version:new_version'."
+            f"Check that {revision.split(':')[1]} is a valid revision. "
+            f"Supported revision for offline migration is from {rev_2_0_0_head} "
+            f"which is airflow 2.0.0 head"
         )
 
     def test_sqlite_offline_upgrade_raises_with_revision(self):
