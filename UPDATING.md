@@ -126,9 +126,25 @@ See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-a
 
 ### Task log templates are now read from the metadatabase instead of `airflow.cfg`
 
-Previously, a task’s log is dynamically rendered from the `[core] log_filename_template`, `[core] task_log_prefix_template`, and `[elasticsearch] log_id_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
+Previously, a task’s log is dynamically rendered from the `[core] log_filename_template` and `[elasticsearch] log_id_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
 
 A new `log_template` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field `log_template_id` is added to every DAG run to point to the format used by tasks (`NULL` indicates the first ever entry for compatibility).
+
+### `airflow.models.base.Operator` is removed
+
+Previously, there was an empty class `airflow.models.base.Operator` for “type hinting”. This class was never really useful for anything (everything it did could be done better with `airflow.models.baseoperator.BaseOperator`), and has been removed. If you are relying on the class’s existence, use `BaseOperator` (for concrete operators), `airflow.models.abstractoperator.AbstractOperator` (the base class of both `BaseOperator` and the AIP-42 `MappedOperator`), or `airflow.models.operator.Operator` (a union type `BaseOperator | MappedOperator` for type annotation).
+
+### XCom now define `run_id` instead of `execution_date`
+
+As a continuation to the TaskInstance-DagRun relation change started in Airflow 2.2, the `execution_date` columns on XCom has been removed from the database, and replaced by an [association proxy](https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html) field at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the `run_id` column instead.
+
+Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+
+### `auth_backends` replaces `auth_backend` configuration setting
+
+Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by whitespace. Each will be tried in turn until a successful response is returned.
+
+This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
 
 ## Airflow 2.2.3
 

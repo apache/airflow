@@ -179,9 +179,9 @@ info:
     and it is even possible to add your own method.
 
     If you want to check which auth backend is currently set, you can use
-    `airflow config get-value api auth_backend` command as in the example below.
+    `airflow config get-value api auth_backends` command as in the example below.
     ```bash
-    $ airflow config get-value api auth_backend
+    $ airflow config get-value api auth_backends
     airflow.api.auth.backend.basic_auth
     ```
     The default is to deny all requests.

@@ -32,6 +32,7 @@ from google.cloud.dlp_v2.types import DlpJob
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
@@ -61,16 +62,11 @@ class TestCloudDLPHook(unittest.TestCase):
         ):
             self.hook = CloudDLPHook(gcp_conn_id="test")
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.client_info", new_callable=mock.PropertyMock
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.DlpServiceClient")
-    def test_dlp_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_dlp_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.hook._client == result
 

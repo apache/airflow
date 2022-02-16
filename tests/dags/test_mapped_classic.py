@@ -31,4 +31,4 @@ def consumer(*args):
 
 
 with DAG(dag_id='test_mapped_classic', start_date=days_ago(2)) as dag:
-    PythonOperator(task_id='consumer', python_callable=consumer).map(op_args=make_list())
+    PythonOperator.partial(task_id='consumer', python_callable=consumer).map(op_args=make_list())

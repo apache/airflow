@@ -34,6 +34,7 @@ from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -117,24 +118,17 @@ class TestGCSHook(unittest.TestCase):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.client_info',
-        new_callable=mock.PropertyMock,
-        return_value="CLIENT_INFO",
-    )
-    @mock.patch(
         BASE_STRING.format("GoogleBaseHook._get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID"),
     )
     @mock.patch(GCS_STRING.format('GoogleBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
-    def test_storage_client_creation(
-        self, mock_client, mock_get_connection, mock_get_creds_and_project_id, mock_client_info
-    ):
+    def test_storage_client_creation(self, mock_client, mock_get_connection, mock_get_creds_and_project_id):
         hook = gcs.GCSHook()
         result = hook.get_conn()
         # test that Storage Client is called with required arguments
         mock_client.assert_called_once_with(
-            client_info="CLIENT_INFO", credentials="CREDENTIALS", project="PROJECT_ID"
+            client_info=CLIENT_INFO, credentials="CREDENTIALS", project="PROJECT_ID"
         )
         assert mock_client.return_value == result
 
@@ -705,7 +699,7 @@ class TestGCSHook(unittest.TestCase):
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
             [
-                mock.call(suffix='test_object'),
+                mock.call(suffix='test_object', dir=None),
                 mock.call().__enter__(),
                 mock.call().__enter__().flush(),
                 mock.call().__exit__(None, None, None),

@@ -31,11 +31,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-08
 
 ================================================================================================  ===========  ============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================================
+`33ca0f265 <https://github.com/apache/airflow/commit/33ca0f26544a4d280f2f56843e97deac7f33cea5>`_  2022-02-08   ``eks_hook log level fatal -> FATAL  (#21427)``
+`8f81b9a01 <https://github.com/apache/airflow/commit/8f81b9a01c7708a282271f9afd6b16a91011f105>`_  2022-02-08   ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+`d1150182c <https://github.com/apache/airflow/commit/d1150182cb1f699e9877fc543322f3160ca80780>`_  2022-02-06   ``Bug fix in AWS glue operator related to num_of_dpus #19787 (#21353)``
+`0a6ea572f <https://github.com/apache/airflow/commit/0a6ea572fb5340a904e9cefaa656ac0127b15216>`_  2022-02-06   ``Fix to check if values are integer or float and convert accordingly. (#21277)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `ddb5246bd <https://github.com/apache/airflow/commit/ddb5246bd1576e2ce6abf8c80c3328d7d71a75ce>`_  2022-02-03   ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
 `5185d6ab2 <https://github.com/apache/airflow/commit/5185d6ab26113b760fcf14b3dc4863b341b361d8>`_  2022-01-29   ``Alleviate import warning for 'EmrClusterLink' in deprecated AWS module (#21195)``

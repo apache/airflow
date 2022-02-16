@@ -27,6 +27,7 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 from google.cloud.bigtable_admin_v2 import enums
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -56,7 +57,7 @@ class BigtableHook(GoogleBaseHook):
             self._client = Client(
                 project=project_id,
                 credentials=self._get_credentials(),
-                client_info=self.client_info,
+                client_info=CLIENT_INFO,
                 admin=True,
             )
         return self._client

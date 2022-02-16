@@ -96,6 +96,7 @@ PIP package                             Version required
 ``google-api-python-client``            ``>=1.6.0,<2.0.0``
 ``google-auth-httplib2``                ``>=0.0.1``
 ``google-auth``                         ``>=1.0.0,<3.0.0``
+``google-cloud-aiplatform``             ``>=1.7.1,<2.0.0``
 ``google-cloud-automl``                 ``>=2.1.0,<3.0.0``
 ``google-cloud-bigquery-datatransfer``  ``>=3.0.0,<4.0.0``
 ``google-cloud-bigtable``               ``>=1.0.0,<2.0.0``
@@ -110,6 +111,7 @@ PIP package                             Version required
 ``google-cloud-logging``                ``>=2.1.1,<3.0.0``
 ``google-cloud-memcache``               ``>=0.2.0,<1.1.0``
 ``google-cloud-monitoring``             ``>=2.0.0,<3.0.0``
+``google-cloud-orchestration-airflow``  ``>=1.0.0,<2.0.0``
 ``google-cloud-os-login``               ``>=2.0.0,<3.0.0``
 ``google-cloud-pubsub``                 ``>=2.0.0,<3.0.0``
 ``google-cloud-redis``                  ``>=2.0.0,<3.0.0``
@@ -128,6 +130,7 @@ PIP package                             Version required
 ``json-merge-patch``                    ``~=0.2``
 ``pandas-gbq``                          ``<0.15.0``
 ``pandas``                              ``>=0.17.1, <1.4``
+``sqlalchemy-bigquery``                 ``>=1.2.1``
 ======================================  ====================
 
 Cross provider package dependencies

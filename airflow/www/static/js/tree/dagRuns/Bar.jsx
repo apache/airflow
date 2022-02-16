@@ -32,55 +32,81 @@ import { MdPlayArrow } from 'react-icons/md';
 import DagRunTooltip from './Tooltip';
 import { callModalDag } from '../../dag';
 
+const BAR_HEIGHT = 100;
+
 const DagRunBar = ({
   run, max, index, totalRuns, containerRef,
-}) => (
-  <Box position="relative">
-    <Flex
-      height="100px"
-      alignItems="flex-end"
-      justifyContent="center"
-      pb="2px"
-      px="3px"
-      onClick={() => {
-        callModalDag({ execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId });
-      }}
-    >
-      <Tooltip
-        label={<DagRunTooltip dagRun={run} />}
-        hasArrow
-        portalProps={{ containerRef }}
-        placement="top"
-        openDelay={100}
+}) => {
+  let highlightHeight = '100%';
+  if (containerRef && containerRef.current) {
+    const table = containerRef.current.getElementsByTagName('tbody')[0];
+    highlightHeight = table.offsetHeight + BAR_HEIGHT;
+  }
+  return (
+    <Box position="relative">
+      <Flex
+        height={BAR_HEIGHT}
+        alignItems="flex-end"
+        justifyContent="center"
+        mb="2px"
+        // py="2px"
+        px="2px"
+        mx="1px"
+        cursor="pointer"
+        width="14px"
+        zIndex={1}
+        onClick={() => {
+          callModalDag({ execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId });
+        }}
+        position="relative"
+        data-peer
       >
-        <Flex
-          width="10px"
-          height={`${(run.duration / max) * 100}px`}
-          minHeight="12px"
-          backgroundColor={stateColors[run.state]}
-          borderRadius={2}
-          cursor="pointer"
-          pb="2px"
-          direction="column"
-          justifyContent="flex-end"
-          alignItems="center"
-          px="1px"
-          zIndex={1}
-          data-testid="run"
+        <Tooltip
+          label={<DagRunTooltip dagRun={run} />}
+          hasArrow
+          portalProps={{ containerRef }}
+          placement="top"
+          openDelay={100}
         >
-          {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" data-testid="manual-run" />}
-        </Flex>
-      </Tooltip>
-    </Flex>
-    {index < totalRuns - 3 && index % 10 === 0 && (
-    <VStack position="absolute" top="0" left="-22px" spacing={0}>
-      <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
-        {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
-      </Text>
-      <Box borderLeftWidth={1} zIndex={0} opacity={0.7} height="100px" />
-    </VStack>
-    )}
-  </Box>
-);
+          <Flex
+            width="10px"
+            height={`${(run.duration / max) * BAR_HEIGHT}px`}
+            minHeight="12px"
+            backgroundColor={stateColors[run.state]}
+            borderRadius={2}
+            cursor="pointer"
+            pb="2px"
+            direction="column"
+            justifyContent="flex-end"
+            alignItems="center"
+            px="1px"
+            zIndex={1}
+            data-testid="run"
+          >
+            {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" data-testid="manual-run" />}
+          </Flex>
+        </Tooltip>
+      </Flex>
+      <Box
+        position="absolute"
+        width="100%"
+        top="1px"
+        height={highlightHeight}
+        className={`js-${run.runId}`}
+        _peerHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}
+        zIndex={0}
+        transition="background-color 0.2s"
+      />
+      {index < totalRuns - 3 && index % 10 === 0 && (
+      <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
+        <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
+          {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
+        </Text>
+        <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
+      </VStack>
+      )}
+    </Box>
+  );
+};
 
 export default DagRunBar;

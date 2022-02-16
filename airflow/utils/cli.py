@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
-from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
@@ -93,6 +92,8 @@ def action_cli(func=None, check_db=True):
             try:
                 # Check and run migrations if necessary
                 if check_db:
+                    from airflow.utils.db import check_and_run_migrations, synchronize_log_template
+
                     check_and_run_migrations()
                     synchronize_log_template()
                 return f(*args, **kwargs)

@@ -107,8 +107,7 @@ class LocalTaskJob(BaseJob):
             # Unmap the task _after_ it has forked/execed. (This is a bit of a kludge, but if we unmap before
             # fork, then the "run_raw_task" command will see the mapping index and an Non-mapped task and
             # fail)
-            if self.task_instance.task.is_mapped:
-                self.task_instance.task = self.task_instance.task.unmap()
+            self.task_instance.task = self.task_instance.task.unmap()
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
@@ -250,12 +249,12 @@ class LocalTaskJob(BaseJob):
                 session=session,
             ).one()
 
-            # Get a partial dag with just the specific tasks we want to
-            # examine. In order for dep checks to work correctly, we
-            # include ourself (so TriggerRuleDep can check the state of the
-            # task we just executed)
             task = self.task_instance.task
+            assert task.dag  # For Mypy.
 
+            # Get a partial DAG with just the specific tasks we want to examine.
+            # In order for dep checks to work correctly, we include ourself (so
+            # TriggerRuleDep can check the state of the task we just executed).
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
                 include_downstream=True,
