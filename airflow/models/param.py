@@ -19,10 +19,6 @@ import json
 import warnings
 from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
-import jsonschema
-from jsonschema import FormatChecker
-from jsonschema.exceptions import ValidationError
-
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.utils.context import Context
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -61,6 +57,10 @@ class Param:
         :param suppress_exception: To raise an exception or not when the validations fails.
             If true and validations fails, the return value would be None.
         """
+        import jsonschema
+        from jsonschema import FormatChecker
+        from jsonschema.exceptions import ValidationError
+
         try:
             json.dumps(value)
         except Exception:

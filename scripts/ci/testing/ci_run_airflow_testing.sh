@@ -135,7 +135,6 @@ function run_all_test_types_in_parallel() {
     parallel::print_job_summary_and_return_status_code
 }
 
-
 testing::skip_tests_if_requested
 
 build_images::prepare_ci_build

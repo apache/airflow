@@ -33,15 +33,16 @@ class CustomXCom(BaseXCom):
     orm_deserialize_value = mock.Mock()
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def reset_db():
-    """Delete XCom entries left over by other test modules before we start."""
+    """Reset XCom entries."""
     with create_session() as session:
+        session.query(DagRun).delete()
         session.query(XCom).delete()
 
 
 @pytest.fixture()
-def dag_run_factory(session):
+def dag_run_factory(request, session):
     def func(dag_id, execution_date):
         run = DagRun(
             dag_id=dag_id,
@@ -50,11 +51,16 @@ def dag_run_factory(session):
             execution_date=execution_date,
         )
         session.add(run)
-        session.flush()
+        session.commit()
+
+        def delete_dagrun():
+            session.query(DagRun).filter(DagRun.id == run.id).delete()
+            session.commit()
+
+        request.addfinalizer(delete_dagrun)
         return run
 
     yield func
-    session.flush()
 
 
 @pytest.fixture()
@@ -485,10 +491,11 @@ class TestXComClear:
 
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_execution_date(self, session, dag_run):
-        XCom.clear(
-            dag_id=dag_run.dag_id,
-            task_id="task_1",
-            execution_date=timezone.utcnow(),
-            session=session,
-        )
+        with pytest.deprecated_call():
+            XCom.clear(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                execution_date=timezone.utcnow(),
+                session=session,
+            )
         assert session.query(XCom).count() == 1

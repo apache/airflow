@@ -41,7 +41,6 @@ from airflow.providers.google.cloud.sensors.gcs import (
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.utils.state import State
 
 START_DATE = datetime(2021, 1, 1)
 
@@ -215,5 +214,5 @@ with models.DAG(
 
 
 if __name__ == '__main__':
-    dag.clear(dag_run_state=State.NONE)
+    dag.clear()
     dag.run()

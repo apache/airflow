@@ -55,6 +55,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -146,7 +147,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return:
         """
         return Client(
-            client_info=self.client_info,
+            client_info=CLIENT_INFO,
             project=project_id,
             location=location,
             credentials=self._get_credentials(),
@@ -163,6 +164,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if engine_kwargs is None:
+            engine_kwargs = {}
         connection = self.get_connection(self.gcp_conn_id)
         if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
             credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
@@ -186,6 +189,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 ", extra__google_cloud_platform__key_path"
                 "and extra__google_cloud_platform__keyfile_dict"
             )
+
+    def get_records(self, sql, parameters=None):
+        if self.location is None:
+            raise AirflowException("Need to specify 'location' to use BigQueryHook.get_records()")
+        return super().get_records(sql, parameters=parameters)
 
     @staticmethod
     def _resolve_table_reference(
@@ -1498,6 +1506,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
+        nowait: bool = False,
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1514,6 +1523,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             characters. If not provided then uuid will be generated.
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
+        :param nowait: specify whether to insert job without waiting for the result
         """
         location = location or self.location
         job_id = job_id or self._custom_job_id(configuration)
@@ -1541,8 +1551,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
         self.log.info("Inserting job %s", job.job_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
+        if nowait:
+            # Initiate the job and don't wait for it to complete.
+            job._begin()
+        else:
+            # Start the job and wait for it to complete and get the result.
+            job.result()
         return job
 
     def run_with_configuration(self, configuration: dict) -> str:

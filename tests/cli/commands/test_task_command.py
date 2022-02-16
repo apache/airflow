@@ -394,7 +394,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.execution_date_str = self.execution_date.isoformat()
         self.task_args = ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
         self.log_dir = conf.get('logging', 'base_log_folder')
-        self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
+        self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
 
@@ -551,7 +551,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
                 ti.try_number = 1
 
-            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
+            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
 
             try:
                 task_command.task_run(self.parser.parse_args(self.task_args))

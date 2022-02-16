@@ -44,6 +44,7 @@ Features
 * ``AWS: Adds support for optional kwargs in the EKS Operators (#20819)``
 * ``AwsAthenaOperator: do not generate ''client_request_token'' if not provided (#20854)``
 * ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
 
 
 Bug fixes
@@ -51,6 +52,8 @@ Bug fixes
 
 * ``fix: cloudwatch logs fetch logic (#20814)``
 * ``Fix all Amazon Provider MyPy errors (#20935)``
+* ``Bug fix in AWS glue operator related to num_of_dpus #19787 (#21353)``
+* ``Fix to check if values are integer or float and convert accordingly. (#21277)``
 
 
 Misc
@@ -64,8 +67,10 @@ Misc
 * ``Standardize DynamoDB naming (#20360)``
 * ``Standardize AWS ECS naming (#20332)``
 * ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+* ``eks_hook log level fatal -> FATAL  (#21427)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Remove ':type' directives from 'SqlToS3Operator' (#21079)``
    * ``Remove a few stray ':type's in docs (#21014)``
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
@@ -77,6 +82,7 @@ Misc
    * ``Fix MyPy in Amazon provider for Sagemaker operator (#20715)``
    * ``Fix MyPy errors for Amazon DMS in hooks and operator (#20710)``
    * ``Fix MyPy issues in ''airflow/providers/amazon/aws/transfers'' (#20708)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.6.0
 .....

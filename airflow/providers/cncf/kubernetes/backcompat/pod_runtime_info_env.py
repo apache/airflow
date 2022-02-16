@@ -40,9 +40,7 @@ class PodRuntimeInfoEnv:
         Full list of options can be found in kubernetes documentation.
 
         :param name: the name of the environment variable
-        :type: name: str
         :param field_path: path to pod runtime info. Ex: metadata.namespace | status.podIP
-        :type: field_path: str
         """
         self.name = name
         self.field_path = field_path

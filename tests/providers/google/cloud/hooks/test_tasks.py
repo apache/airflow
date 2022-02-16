@@ -23,6 +23,7 @@ from unittest import mock
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
@@ -52,17 +53,11 @@ class TestCloudTasksHook(unittest.TestCase):
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksClient")
-    def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.hook._client == result
 

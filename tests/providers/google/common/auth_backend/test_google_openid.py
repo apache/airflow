@@ -30,7 +30,7 @@ from tests.test_utils.db import clear_db_pools
 @pytest.fixture(scope="module")
 def google_openid_app():
     confs = {
-        ("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid",
+        ("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
         ('api', 'enable_experimental_api'): 'true',
     }
     with conf_vars(confs):
@@ -125,7 +125,7 @@ class TestGoogleOpenID:
         assert 403 == response.status_code
         assert "Forbidden" == response.data.decode()
 
-    @conf_vars({("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid"})
+    @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools")
@@ -133,7 +133,7 @@ class TestGoogleOpenID:
         assert 403 == response.status_code
         assert "Forbidden" == response.data.decode()
 
-    @conf_vars({("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid"})
+    @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_invalid_id_token(self, mock_verify_token):
         mock_verify_token.side_effect = GoogleAuthError("Invalid token")
