@@ -349,12 +349,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
 
 
-def _merge_kwargs(
-    kwargs1: Dict[str, XComArg],
-    kwargs2: Dict[str, XComArg],
-    *,
-    fail_reason: str,
-) -> Dict[str, XComArg]:
+def _merge_kwargs(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> Dict[str, Any]:
     duplicated_keys = set(kwargs1).intersection(kwargs2)
     if len(duplicated_keys) == 1:
         raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
@@ -395,9 +390,13 @@ class DecoratedMappedOperator(MappedOperator):
     def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
         partial_kwargs = self.partial_kwargs.copy()
+        if real:
+            mapped_op_kwargs: Dict[str, Any] = self.mapped_op_kwargs
+        else:
+            mapped_op_kwargs = {k: unittest.mock.MagicMock(name=k) for k in self.mapped_op_kwargs}
         op_kwargs = _merge_kwargs(
             partial_kwargs.pop("op_kwargs"),
-            {k: unittest.mock.MagicMock(name=k) for k in self.mapped_op_kwargs},
+            mapped_op_kwargs,
             fail_reason="mapping already partial",
         )
         return self.operator_class(
