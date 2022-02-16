@@ -356,8 +356,10 @@ def dag_link(attr):
     """Generates a URL to the Graph view for a Dag."""
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
+    if not dag_id:
+        return Markup('None')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')
+    return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
 def dag_run_link(attr):
@@ -414,21 +416,24 @@ def get_attr_renderer():
     return {
         'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
-        'hql': lambda x: render(x, lexers.SqlLexer),
-        'html': lambda x: render(x, lexers.HtmlLexer),
-        'sql': lambda x: render(x, lexers.SqlLexer),
         'doc': lambda x: render(x, lexers.TextLexer),
         'doc_json': lambda x: render(x, lexers.JsonLexer),
+        'doc_md': wrapped_markdown,
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
-        'doc_md': wrapped_markdown,
+        'hql': lambda x: render(x, lexers.SqlLexer),
+        'html': lambda x: render(x, lexers.HtmlLexer),
         'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
+        'mysql': lambda x: render(x, lexers.MySqlLexer),
+        'postgresql': lambda x: render(x, lexers.PostgresLexer),
         'powershell': lambda x: render(x, lexers.PowerShellLexer),
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'rst': lambda x: render(x, lexers.RstLexer),
+        'sql': lambda x: render(x, lexers.SqlLexer),
+        'tsql': lambda x: render(x, lexers.TransactSqlLexer),
         'yaml': lambda x: render(x, lexers.YamlLexer),
     }
 
@@ -656,7 +661,7 @@ class UIAlert:
     def should_show(self, securitymanager) -> bool:
         """Determine if the user should see the message based on their role membership"""
         if self.roles:
-            user_roles = {r.name for r in securitymanager.get_user_roles()}
+            user_roles = {r.name for r in securitymanager.current_user.roles}
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

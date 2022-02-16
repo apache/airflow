@@ -31,8 +31,7 @@ from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
 
-F = TypeVar("F", bound=Callable[..., Any])
-T = TypeVar("T", bound=Callable)
+F = TypeVar("F", bound=Callable)
 R = TypeVar("R")
 
 task_group_sig = signature(TaskGroup.__init__)
@@ -130,6 +129,29 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
             warnings.warn(f"Partial task group {self.function.__name__} was never mapped!")
 
 
+class Group(Generic[F]):
+    """Declaration of a @task_group-decorated callable for type-checking.
+
+    An instance of this type inherits the call signature of the decorated
+    function wrapped in it (not *exactly* since it actually turns the function
+    into an XComArg-compatible, but there's no way to express that right now),
+    and provides two additional methods for task-mapping.
+
+    This type is implemented by ``TaskGroupDecorator`` at runtime.
+    """
+
+    __call__: F
+
+    function: F
+
+    # Return value should match F's return type, but that's impossible to declare.
+    def map(self, **kwargs: Any) -> Any:
+        ...
+
+    def partial(self, **kwargs: Any) -> "Group[F]":
+        ...
+
+
 # This covers the @task_group() case. Annotations are copied from the TaskGroup
 # class, only providing a default to 'group_id' (this is optional for the
 # decorator and defaults to the decorated function's name). Please keep them in
@@ -141,24 +163,24 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
 def task_group(
     group_id: Optional[str] = None,
     prefix_group_id: bool = True,
-    parent_group: Optional["TaskGroup"] = None,
+    parent_group: Optional[TaskGroup] = None,
     dag: Optional["DAG"] = None,
     default_args: Optional[Dict[str, Any]] = None,
     tooltip: str = "",
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
-) -> Callable[[F], F]:
+) -> Callable[[F], Group[F]]:
     ...
 
 
 # This covers the @task_group case (no parentheses).
 @overload
-def task_group(python_callable: F) -> F:
+def task_group(python_callable: F) -> Group[F]:
     ...
 
 
-def task_group(python_callable=None, *tg_args, **tg_kwargs):
+def task_group(python_callable=None, **tg_kwargs):
     """
     Python TaskGroup decorator.
 
@@ -167,9 +189,8 @@ def task_group(python_callable=None, *tg_args, **tg_kwargs):
     TaskGroup class. Can be used to parametrize TaskGroup.
 
     :param python_callable: Function to decorate.
-    :param tg_args: Positional arguments for the TaskGroup object.
     :param tg_kwargs: Keyword arguments for the TaskGroup object.
     """
     if callable(python_callable):
         return TaskGroupDecorator(function=python_callable, kwargs=tg_kwargs)
-    return cast("Callable[[T], T]", functools.partial(TaskGroupDecorator, kwargs=tg_kwargs))
+    return cast(Callable[[F], F], functools.partial(TaskGroupDecorator, kwargs=tg_kwargs))

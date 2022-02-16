@@ -42,7 +42,7 @@ from parameterized import parameterized
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors import celery_executor
-from airflow.executors.celery_executor import BulkStateFetcher
+from airflow.executors.celery_executor import BulkStateFetcher, CeleryExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
@@ -532,6 +532,7 @@ class TestCeleryExecutor:
                 assert ti.state == state
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
+    @mock.patch.object(CeleryExecutor, "update_all_task_states")
     @pytest.mark.backend("mysql", "postgres")
     @freeze_time("2020-01-01")
     @pytest.mark.parametrize(
@@ -543,6 +544,7 @@ class TestCeleryExecutor:
     )
     def test_the_check_interval_to_clear_stuck_queued_task_is_correct_for_db_query(
         self,
+        mock_update_all_task_states,
         mock_result_session,
         task_id,
         state,
@@ -557,7 +559,9 @@ class TestCeleryExecutor:
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
             with mock.patch('airflow.executors.celery_executor.Celery.backend', mock_backend):
                 mock_session = mock_backend.ResultSession.return_value
-                mock_session.query.return_value.all.return_value = [result_obj("SUCCESS", task_id)]
+                mock_session.query.return_value.filter.return_value.all.return_value = [
+                    result_obj("SUCCESS", task_id)
+                ]
 
                 last_check_time = time.time() - 302  # should clear ti state
 

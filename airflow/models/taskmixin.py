@@ -17,7 +17,7 @@
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Union
 
 import pendulum
 
@@ -109,6 +109,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     """
 
     dag: Optional["DAG"] = None
+    task_group: Optional["TaskGroup"] = None
+    """The task_group that contains this node"""
 
     @property
     @abstractmethod
@@ -117,14 +119,11 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def label(self) -> Optional[str]:
-        tg: Optional["TaskGroup"] = getattr(self, 'task_group', None)
+        tg = self.task_group
         if tg and tg.node_id and tg.prefix_group_id:
             # "task_group_id.task_id" -> "task_id"
             return self.node_id[len(tg.node_id) + 1 :]
         return self.node_id
-
-    task_group: Optional["TaskGroup"]
-    """The task_group that contains this node"""
 
     start_date: Optional[pendulum.DateTime]
     end_date: Optional[pendulum.DateTime]
@@ -155,12 +154,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: Optional["EdgeModifier"] = None,
     ) -> None:
         """Sets relatives for the task or task list."""
-        from airflow.models.baseoperator import BaseOperator, MappedOperator
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.models.operator import Operator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
-        task_list: List[DAGNode] = []
+        task_list: List[Operator] = []
         for task_object in task_or_task_list:
             task_object.update_relative(self, not upstream)
             relatives = task_object.leaves if upstream else task_object.roots
@@ -268,3 +269,46 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """This is used by SerializedTaskGroup to serialize a task group's content."""
         raise NotImplementedError()
+
+    def mapped_dependants(self) -> Iterator["DAGNode"]:
+        """Return any mapped nodes that are direct dependencies of the current task
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+
+        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
+            """Recursively walk children in a task group.
+
+            This yields all direct children (including both tasks and task
+            groups), and all children of any task groups.
+            """
+            for key, child in group.children.items():
+                yield key, child
+                if isinstance(child, TaskGroup):
+                    yield from _walk_group(child)
+
+        tg = self.task_group
+        if not tg:
+            raise RuntimeError("Cannot check for mapped_dependants when not attached to a DAG")
+        for key, child in _walk_group(tg):
+            if key == self.node_id:
+                continue
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+                continue
+            if self.node_id in child.upstream_task_ids:
+                yield child
+
+    def has_mapped_dependants(self) -> bool:
+        """Whether any downstream dependencies depend on this task for mapping.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        return any(self.mapped_dependants())

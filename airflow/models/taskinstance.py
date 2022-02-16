@@ -111,17 +111,9 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
-
-try:
-    from kubernetes.client.api_client import ApiClient
-
-    from airflow.kubernetes.kube_config import KubeConfig
-    from airflow.kubernetes.pod_generator import PodGenerator
-except ImportError:
-    ApiClient = None
 
 TR = TaskReschedule
 
@@ -130,8 +122,9 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, DagModel, DagRun
+    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagrun import DagRun
+    from airflow.models.operator import Operator
 
 
 @contextlib.contextmanager
@@ -303,20 +296,23 @@ class TaskInstanceKey(NamedTuple):
     task_id: str
     run_id: str
     try_number: int = 1
+    map_index: int = -1
 
     @property
-    def primary(self) -> Tuple[str, str, str]:
+    def primary(self) -> Tuple[str, str, str, int]:
         """Return task instance primary key part of the key"""
-        return self.dag_id, self.task_id, self.run_id
+        return self.dag_id, self.task_id, self.run_id, self.map_index
 
     @property
     def reduced(self) -> 'TaskInstanceKey':
         """Remake the key by subtracting 1 from try number to match in memory information"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1))
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
+        )
 
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
         """Returns TaskInstanceKey with provided ``try_number``"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
 
     @property
     def key(self) -> "TaskInstanceKey":
@@ -426,9 +422,11 @@ class TaskInstance(Base, LoggingMixin):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
+    task: "Operator"  # Not always set...
+
     def __init__(
         self,
-        task: "BaseOperator",
+        task: "Operator",
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         state: Optional[str] = None,
@@ -457,6 +455,7 @@ class TaskInstance(Base, LoggingMixin):
                     execution_date,
                 )
                 if self.task.has_dag():
+                    assert self.task.dag  # For Mypy.
                     execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
                 else:
                     execution_date = timezone.make_aware(execution_date)
@@ -489,7 +488,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "BaseOperator", map_index: int) -> dict:
+    def insert_mapping(run_id: str, task: "Operator", map_index: int) -> dict:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
@@ -795,9 +794,7 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-        self.log.debug("Refreshed TaskInstance %s", self)
-
-    def refresh_from_task(self, task: "BaseOperator", pool_override=None):
+    def refresh_from_task(self, task: "Operator", pool_override=None):
         """
         Copy common attributes from the given task.
 
@@ -826,15 +823,14 @@ class TaskInstance(Base, LoggingMixin):
         XCom.clear(
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.execution_date,
+            run_id=self.run_id,
             session=session,
         )
-        self.log.debug("XCom data cleared")
 
     @property
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @provide_session
     def set_state(self, state: Optional[str], session=NEW_SESSION):
@@ -1068,7 +1064,10 @@ class TaskInstance(Base, LoggingMixin):
                     yield dep_status
 
     def __repr__(self):
-        return f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} [{self.state}]>"
+        prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
+        if self.map_index != -1:
+            prefix += f"map_index={self.map_index} "
+        return prefix + f"[{self.state}]>"
 
     def next_retry_datetime(self):
         """
@@ -1312,8 +1311,14 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
+        if self.task.is_mapped:
+            raise RuntimeError(
+                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
+                'expanded already!'
+            )
+        task = self.task.unmap()
         self.test_mode = test_mode
-        self.refresh_from_task(self.task, pool_override=pool)
+        self.refresh_from_task(task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
@@ -1325,7 +1330,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
         try:
             if not mark_success:
-                self.task = self.task.prepare_for_execution()
+                self.task = task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
                 self._execute_task_with_callbacks(context)
             if not test_mode:
@@ -1388,7 +1393,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{self.state}')
+            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1415,6 +1420,8 @@ class TaskInstance(Base, LoggingMixin):
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
         with Stats.timer(f'dag.{self.task.dag_id}.{self.task.task_id}.duration'):
+            # Set the validated/merged params on the task object.
+            self.task.params = context['params']
 
             self.render_templates(context=context)
             RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
@@ -1649,8 +1656,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
-        task = self.task
-        task_copy = task.prepare_for_execution()
+        task_copy = self.task.unmap().prepare_for_execution()
         self.task = task_copy
 
         self.render_templates()
@@ -1663,10 +1669,23 @@ class TaskInstance(Base, LoggingMixin):
         # Don't record reschedule request in test mode
         if test_mode:
             return
+
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
         self.refresh_from_db(session)
 
         self.end_date = timezone.utcnow()
         self.set_duration()
+
+        # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
+        # TaskReschedule which apparently also creates lock on corresponding DagRun entity
+        with_row_locks(
+            session.query(DagRun).filter_by(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+            ),
+            session=session,
+        ).one()
 
         # Log reschedule request
         session.add(
@@ -1700,7 +1719,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
-        session=NEW_SESSION,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
@@ -1718,7 +1737,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             self.refresh_from_db(session)
 
-        task = self.task
+        task = self.task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
@@ -1797,8 +1816,10 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        task: "BaseOperator" = self.task
+        task = self.task
+        assert task.dag  # For Mypy.
         dag: DAG = task.dag
+
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
@@ -1810,7 +1831,7 @@ class TaskInstance(Base, LoggingMixin):
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        validated_params = task.params = params.validate()
+        validated_params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -1869,6 +1890,8 @@ class TaskInstance(Base, LoggingMixin):
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
                 return logical_date
+            if dag is None:
+                return None
             next_info = dag.next_dagrun_info(data_interval, restricted=False)
             if next_info is None:
                 return None
@@ -2002,14 +2025,22 @@ class TaskInstance(Base, LoggingMixin):
 
     def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""
+        if self.task.is_mapped:
+            raise RuntimeError(
+                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
+                'expanded already!'
+            )
         if not context:
             context = self.get_template_context()
-
-        self.task.render_template_fields(context)
+        self.task.unmap().render_template_fields(context)
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
+        from kubernetes.client.api_client import ApiClient
+
+        from airflow.kubernetes.kube_config import KubeConfig
         from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
+        from airflow.kubernetes.pod_generator import PodGenerator
 
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(
@@ -2252,19 +2283,29 @@ class TaskInstance(Base, LoggingMixin):
 
         dag_id = first.dag_id
         run_id = first.run_id
+        map_index = first.map_index
         first_task_id = first.task_id
         # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
-        # and task_id -- this can be over 150x for huge numbers of TIs (20k+)
-        if all(t.dag_id == dag_id and t.run_id == run_id for t in tis):
+        # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
+        if all(t.dag_id == dag_id and t.run_id == run_id and t.map_index == map_index for t in tis):
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
+                TaskInstance.map_index == map_index,
                 TaskInstance.task_id.in_(t.task_id for t in tis),
             )
-        if all(t.dag_id == dag_id and t.task_id == first_task_id for t in tis):
+        if all(t.dag_id == dag_id and t.task_id == first_task_id and t.map_index == map_index for t in tis):
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id.in_(t.run_id for t in tis),
+                TaskInstance.map_index == map_index,
+                TaskInstance.task_id == first_task_id,
+            )
+        if all(t.dag_id == dag_id and t.run_id == run_id and t.task_id == first_task_id for t in tis):
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index.in_(t.map_index for t in tis),
                 TaskInstance.task_id == first_task_id,
             )
 
@@ -2274,13 +2315,14 @@ class TaskInstance(Base, LoggingMixin):
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.task_id == ti.task_id,
                     TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
                 )
                 for ti in tis
             )
         else:
-            return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id).in_(
-                [ti.key.primary for ti in tis]
-            )
+            return tuple_(
+                TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index
+            ).in_([ti.key.primary for ti in tis])
 
 
 # State of the task instance.

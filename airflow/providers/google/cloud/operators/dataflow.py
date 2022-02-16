@@ -81,7 +81,7 @@ class DataflowConfiguration:
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
-        successfully cancelled when task is being killed.
+        successfully cancelled when task is being killed. (optional) default to 300s
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -221,7 +221,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         * If the value is False, this option will be skipped
         * If the value is True, the single option - ``--key`` (without value) will be added.
         * If the value is list, the many options will be added for each key.
-          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key=B`` options
           will be left
         * Other value types will be replaced with the Python textual representation.
 
@@ -822,6 +822,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         "project_id",
         "gcp_conn_id",
     )
+    template_fields_renderers = {"query": "sql"}
 
     def __init__(
         self,
@@ -912,7 +913,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         * If the value is False, this option will be skipped
         * If the value is True, the single option - ``--key`` (without value) will be added.
         * If the value is list, the many options will be added for each key.
-          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key=B`` options
           will be left
         * Other value types will be replaced with the Python textual representation.
 

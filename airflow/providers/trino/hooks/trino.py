@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 import trino
 from trino.exceptions import DatabaseError
@@ -106,7 +106,7 @@ class TrinoHook(DbApiHook):
     def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
-    def get_records(self, hql, parameters: Optional[dict] = None):
+    def get_records(self, hql: str, parameters: Optional[dict] = None):
         """Get a set of records from Trino"""
         try:
             return super().get_records(self._strip_sql(hql), parameters)
@@ -120,7 +120,7 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(self, hql, parameters=None, **kwargs):
+    def get_pandas_df(self, hql: str, parameters: Optional[dict] = None, **kwargs):  # type: ignore[override]
         """Get a pandas dataframe from a sql query."""
         import pandas
 
@@ -138,9 +138,17 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    def run(self, hql, autocommit: bool = False, parameters: Optional[dict] = None, handler=None) -> None:
+    def run(
+        self,
+        hql: str,
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+    ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters)
+        return super().run(
+            sql=self._strip_sql(hql), autocommit=autocommit, parameters=parameters, handler=handler
+        )
 
     def insert_rows(
         self,
@@ -169,4 +177,4 @@ class TrinoHook(DbApiHook):
             )
             commit_every = 0
 
-        super().insert_rows(table, rows, target_fields, commit_every)
+        super().insert_rows(table, rows, target_fields, commit_every, replace)

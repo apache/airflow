@@ -19,17 +19,16 @@ import os
 import sys
 from typing import Collection, Optional
 
+from airflow.providers.google.common.consts import CLIENT_INFO
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
 
-from google.api_core.client_info import ClientInfo
-
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
 
-from airflow import version
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -96,7 +95,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         )
         return storage.Client(
             credentials=credentials,
-            client_info=ClientInfo(client_library_version='airflow_v' + version.version),
+            client_info=CLIENT_INFO,
             project=self.project_id if self.project_id else project_id,
         )
 

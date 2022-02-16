@@ -732,18 +732,24 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
-    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+    def check_templates(filename, elasticsearch_id):
+        stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+        if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
+            session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
+
     filename = conf.get("logging", "log_filename_template")
-    task_prefix = conf.get("logging", "task_log_prefix_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
-    if (
-        stored
-        and stored.filename == filename
-        and stored.task_prefix == task_prefix
-        and stored.elasticsearch_id == elasticsearch_id
-    ):
-        return
-    session.merge(LogTemplate(filename=filename, task_prefix=task_prefix, elasticsearch_id=elasticsearch_id))
+
+    # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
+    # place exists!
+    pre_upgrade_filename = conf.upgraded_values.get(('logging', 'log_filename_template'), None)
+    if pre_upgrade_filename is not None:
+        check_templates(pre_upgrade_filename, elasticsearch_id)
+        session.flush()
+
+    check_templates(filename, elasticsearch_id)
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -803,7 +809,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def check_run_id_null(session) -> Iterable[str]:
+def check_run_id_null(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -908,7 +914,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -946,7 +952,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             source_table.c.execution_date == dagrun_table.c.execution_date,
         )
         invalid_rows_query = (
-            session.query(source_table.c.dag_id, source_table.c.task_id, source_table.c.execution_date)
+            session.query(source_table.c.dag_id, source_table.c.execution_date)
             .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
             .filter(dagrun_table.c.dag_id.is_(None))
         )
@@ -1059,9 +1065,12 @@ def drop_airflow_models(connection):
     users.drop(settings.engine, checkfirst=True)
     dag_stats = Table('dag_stats', Base.metadata)
     dag_stats.drop(settings.engine, checkfirst=True)
+    session = Table('session', Base.metadata)
+    session.drop(settings.engine, checkfirst=True)
 
     Base.metadata.drop_all(connection)
     # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
+    Base.metadata.remove(session)
     Base.metadata.remove(dag_stats)
     Base.metadata.remove(users)
     Base.metadata.remove(user)

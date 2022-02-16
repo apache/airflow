@@ -1043,7 +1043,6 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     :param product_id: (Required) The resource id of this Product.
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
-    :type: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
         missing, the default project_id from the Google Cloud connection is used.
     :param retry: (Optional) A retry object used to retry requests. If `None` is
@@ -1127,7 +1126,6 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     :param product_id: (Required) The resource id of this Product.
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
-    :type: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
         missing, the default project_id from the Google Cloud connection is used.
     :param retry: (Optional) A retry object used to retry requests. If `None` is

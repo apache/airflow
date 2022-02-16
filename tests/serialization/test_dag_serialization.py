@@ -37,7 +37,8 @@ from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink, MappedOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
@@ -488,6 +489,9 @@ class TestStringifiedDAGs:
         assert not isinstance(task, SerializedBaseOperator)
         assert isinstance(task, BaseOperator)
 
+        # Every task should have a task_group property -- even if it's the DAG's root task group
+        assert serialized_task.task_group
+
         fields_to_check = task.get_serialized_fields() - {
             # Checked separately
             '_task_type',
@@ -823,7 +827,7 @@ class TestStringifiedDAGs:
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_simple_task.params.dump()
 
-    def test_extra_serialized_field_and_operator_links(self):
+    def test_extra_serialized_field_and_operator_links(self, dag_maker):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -836,8 +840,9 @@ class TestStringifiedDAGs:
         extra link.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
+
+        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
+            CustomOperator(task_id='simple_task', bash_command="true")
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
@@ -857,6 +862,7 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
+        dag_maker.create_dagrun(execution_date=test_date)
         XCom.set(
             key='search_query',
             value="dummy_value_1",
@@ -908,7 +914,7 @@ class TestStringifiedDAGs:
         )
         assert expected_err_msg in caplog.text
 
-    def test_extra_serialized_field_and_multiple_operator_links(self):
+    def test_extra_serialized_field_and_multiple_operator_links(self, dag_maker):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -921,8 +927,8 @@ class TestStringifiedDAGs:
         extra link.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
+        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
+            CustomOperator(task_id='simple_task', bash_command=["echo", "true"])
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
@@ -949,6 +955,7 @@ class TestStringifiedDAGs:
             'google',
         }
 
+        dag_maker.create_dagrun(execution_date=test_date)
         XCom.set(
             key='search_query',
             value=["dummy_value_1", "dummy_value_2"],
@@ -1602,12 +1609,16 @@ def test_mapped_operator_serde():
             },
         },
         'task_id': 'a',
+        'operator_extra_links': [],
         'template_fields': ['bash_command', 'env'],
         'template_ext': ['.sh', '.bash'],
+        'ui_color': '#f0ede4',
+        'ui_fgcolor': '#000',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert isinstance(op, MappedOperator)
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
 
     assert op.operator_class == "airflow.operators.bash.BashOperator"
     assert op.mapped_kwargs['bash_command'] == literal
@@ -1620,7 +1631,7 @@ def test_mapped_operator_xcomarg_serde():
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1634,9 +1645,13 @@ def test_mapped_operator_xcomarg_serde():
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
         'template_ext': [],
+        'operator_extra_links': [],
+        'ui_color': '#fff',
+        'ui_fgcolor': '#000',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'
@@ -1647,6 +1662,61 @@ def test_mapped_operator_xcomarg_serde():
     xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
     assert isinstance(xcom_arg, XComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
+
+
+def test_mapped_decorator_serde():
+    from airflow.decorators import task
+    from airflow.models.xcom_arg import XComArg
+    from airflow.serialization.serialized_objects import _XComRef
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        op1 = BaseOperator(task_id="op1")
+        xcomarg = XComArg(op1, "my_key")
+
+        @task(retry_delay=30)
+        def x(arg1, arg2, arg3):
+            print(arg1, arg2, arg3)
+
+        x.partial(arg1=[1, 2, {"a": "b"}]).map(arg2={"a": 1, "b": 2}, arg3=xcomarg)
+
+    original = dag.get_task("x")
+
+    serialized = SerializedBaseOperator._serialize(original)
+    assert serialized == {
+        '_is_dummy': False,
+        '_is_mapped': True,
+        '_task_module': 'airflow.decorators.python',
+        '_task_type': '_PythonDecoratedOperator',
+        'downstream_task_ids': [],
+        'partial_op_kwargs': {'arg1': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+        'partial_kwargs': {'retry_delay': {'__type': 'timedelta', '__var': 30.0}},
+        'mapped_kwargs': {
+            'op_args': [],
+            'op_kwargs': {
+                'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
+                'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}},
+            },
+        },
+        'operator_extra_links': [],
+        'ui_color': '#ffefeb',
+        'ui_fgcolor': '#000',
+        'task_id': 'x',
+        'template_ext': [],
+        'template_fields': ['op_args', 'op_kwargs'],
+    }
+
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    assert isinstance(deserialized, MappedOperator)
+    assert deserialized.deps is MappedOperator.deps_for(BaseOperator)
+    assert deserialized.upstream_task_ids == set()
+    assert deserialized.downstream_task_ids == set()
+
+    assert deserialized.mapped_kwargs["op_kwargs"] == {
+        "arg2": {"a": 1, "b": 2},
+        "arg3": _XComRef("op1", "my_key"),
+    }
+    assert deserialized.partial_kwargs == {"retry_delay": timedelta(seconds=30)}
+    assert deserialized.partial_op_kwargs == {"arg1": [1, 2, {"a": "b"}]}
 
 
 def test_mapped_task_group_serde():

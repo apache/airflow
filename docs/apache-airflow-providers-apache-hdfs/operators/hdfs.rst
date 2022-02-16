@@ -17,8 +17,8 @@
 
 
 
-Apache Hadoop HDFS Operators
-============================
+HDFS Operators
+==============
 
 `Apache Hadoop HDFS <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__ is a distributed file system
 designed to run on commodity hardware. It has many similarities with existing distributed file systems.

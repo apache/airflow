@@ -34,7 +34,6 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
-from airflow.utils.state import State
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
 FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
@@ -166,5 +165,5 @@ with models.DAG(
 
 
 if __name__ == "__main__":
-    dag.clear(dag_run_state=State.NONE)
+    dag.clear()
     dag.run()

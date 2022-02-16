@@ -37,11 +37,8 @@ GHCR_IO_PREFIX = "ghcr.io"
 
 
 GHCR_IO_IMAGES = [
-    "{prefix}/{repo}/{branch}/ci-manifest/python{python_version}:latest",
     "{prefix}/{repo}/{branch}/ci/python{python_version}:latest",
-    "{prefix}/{repo}/{branch}/prod-build/python{python_version}:latest",
     "{prefix}/{repo}/{branch}/prod/python{python_version}:latest",
-    "{prefix}/{repo}/{branch}/python:{python_version}-slim-buster",
 ]
 
 
