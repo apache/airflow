@@ -25,6 +25,17 @@ repos:
     hooks:
       - id: identity
       - id: check-hooks-apply
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v2.1.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for md files
+        files:
+          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+        exclude: ^airflow/_vendor/
+        args:
+          - "--maxlevel"
+          - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.10
     hooks:
@@ -142,17 +153,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.mermaid$
         exclude: ^airflow/_vendor/
-  - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.1.0
-    hooks:
-      - id: doctoc
-        name: Add TOC for md files
-        files:
-          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
-        exclude: ^airflow/_vendor/
-        args:
-          - "--maxlevel"
-          - "2"
   - repo: https://github.com/psf/black
     rev: 21.12b0
     hooks:

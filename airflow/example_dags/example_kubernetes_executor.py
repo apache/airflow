@@ -58,8 +58,6 @@ if k8s:
         def start_task():
             print_stuff()
 
-        start_task = start_task()
-
         # [START task_with_volume]
         executor_config_volume_mount = {
             "pod_override": k8s.V1Pod(
@@ -229,4 +227,9 @@ if k8s:
 
         four_task = task_with_resource_limits()
 
-        start_task >> [volume_task, other_ns_task, sidecar_task] >> third_task >> [base_image_task, four_task]
+        (
+            start_task()
+            >> [volume_task, other_ns_task, sidecar_task]
+            >> third_task
+            >> [base_image_task, four_task]
+        )

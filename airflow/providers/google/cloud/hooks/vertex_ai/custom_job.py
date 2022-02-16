@@ -38,6 +38,7 @@ from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
 from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
 from airflow import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -73,7 +74,7 @@ class CustomJobHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
 
         return PipelineServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_service_client(
@@ -86,7 +87,7 @@ class CustomJobHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
 
         return JobServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_custom_container_training_job(
