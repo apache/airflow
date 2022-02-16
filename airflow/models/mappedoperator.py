@@ -629,7 +629,3 @@ class MappedOperator(AbstractOperator):
             if i == found_index:
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
-
-
-class _FieldNotMapped(Exception):
-    """Raised by _expand_mapped_field if a field is not mapped."""
