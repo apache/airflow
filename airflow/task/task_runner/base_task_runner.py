@@ -92,7 +92,7 @@ class BaseTaskRunner(LoggingMixin):
             # we are running as the same user, and can pass through environment
             # variables then we don't need to include those in the config copy
             # - the runner can read/execute those values as it needs
-            cfg_path = tmp_configuration_copy(chmod=0o600, include_env=False, include_cmds=False)
+            cfg_path = tmp_configuration_copy(chmod=0o600, include_env=False)
 
         self._cfg_path = cfg_path
         self._command = (
