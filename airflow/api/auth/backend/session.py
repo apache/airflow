@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Session authentication backend"""
+from functools import wraps
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
-"""adding index for dag_id in job
+from flask import Response, g
 
-Revision ID: 587bdf053233
-Revises: c381b21cb7e4
-Create Date: 2021-12-14 10:20:12.482940
-
-"""
-
-from alembic import op
-
-# revision identifiers, used by Alembic.
-revision = '587bdf053233'
-down_revision = 'c381b21cb7e4'
-branch_labels = None
-depends_on = None
+CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
 
 
-def upgrade():
-    """Apply adding index for dag_id in job"""
-    op.create_index('idx_job_dag_id', 'job', ['dag_id'], unique=False)
+def init_app(_):
+    """Initializes authentication backend"""
 
 
-def downgrade():
-    """Unapply adding index for dag_id in job"""
-    op.drop_index('idx_job_dag_id', table_name='job')
+T = TypeVar("T", bound=Callable)
+
+
+def requires_authentication(function: T):
+    """Decorator for functions that require authentication"""
+
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        if g.user.is_anonymous:
+            return Response("Unauthorized", 401, {})
+        return function(*args, **kwargs)
+
+    return cast(T, decorated)
