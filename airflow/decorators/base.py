@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import collections.abc
 import functools
 import inspect
 import re
 import sys
 import unittest.mock
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Collection,
@@ -39,13 +41,14 @@ from typing import (
 
 import attr
 import typing_extensions
+from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
 from airflow.models.dag import DAG, DagContext
-from airflow.models.mappedoperator import MAPPABLE_TYPES, MapArgument, MappedOperator
+from airflow.models.mappedoperator import MappedOperator, ValidationSource, get_mappable_types
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
@@ -53,6 +56,9 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from airflow.models.mappedoperator import MapArgument
 
 
 def validate_python_callable(python_callable: Any) -> None:
@@ -270,22 +276,21 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
-    def _validate_arg_names(self, funcname: str, kwargs: Dict[str, Any]):
+    def _validate_arg_names(self, func: ValidationSource, kwargs: Dict[str, Any]):
         kwargs_left = kwargs.copy()
         for arg_name in self.function_arg_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if value is NOTSET or isinstance(value, MAPPABLE_TYPES):
+            if func != "map" or value is NOTSET or isinstance(value, get_mappable_types()):
                 continue
-            type_name = type(value).__name__
-            raise ValueError(f"{funcname} got unexpected type {type_name!r} for keyword argument {arg_name}")
+            raise ValueError(f"{func} got unexpected value{type(value)!r} for keyword argument {arg_name!r}")
 
         if len(kwargs_left) == 1:
-            raise TypeError(f"{funcname} got unexpected keyword argument {next(iter(kwargs_left))!r}")
+            raise TypeError(f"{func} got unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
-            raise TypeError(f"{funcname} got unexpected keyword arguments {names}")
+            raise TypeError(f"{func} got unexpected keyword arguments {names}")
 
-    def map(self, **kwargs: MapArgument) -> XComArg:
+    def map(self, **kwargs: "MapArgument") -> XComArg:
         self._validate_arg_names("map", kwargs)
 
         partial_kwargs = self.kwargs.copy()
@@ -368,17 +373,23 @@ class DecoratedMappedOperator(MappedOperator):
 
     # We can't save these in mapped_kwargs because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
-    mapped_op_kwargs: Dict[str, MapArgument]
+    mapped_op_kwargs: Dict[str, "MapArgument"]
 
     @classmethod
     @cache
     def get_serialized_fields(cls):
-        # The magic argument-less super() does not work well with @cache
-        # (actually lru_cache in general), so we use the explicit form instead.
+        # The magic super() doesn't work here, so we use the explicit form.
+        # Not using super(..., cls) to work around pyupgrade bug.
         sup = super(DecoratedMappedOperator, DecoratedMappedOperator)
         return sup.get_serialized_fields() | {"mapped_op_kwargs"}
 
-    def _get_expansion_kwargs(self) -> Dict[str, MapArgument]:
+    def __attrs_post_init__(self):
+        # The magic super() doesn't work here, so we use the explicit form.
+        # Not using super(..., self) to work around pyupgrade bug.
+        super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
+        XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
+
+    def _get_expansion_kwargs(self) -> Dict[str, "MapArgument"]:
         """The kwargs to calculate expansion length against.
 
         Different from classic operators, a decorated (taskflow) operator's
@@ -411,6 +422,14 @@ class DecoratedMappedOperator(MappedOperator):
             **mapped_kwargs,
         )
 
+    def _expand_mapped_field(self, key: str, content: Any, context: Context, *, session: Session) -> Any:
+        if key != "op_kwargs" or not isinstance(content, collections.abc.Mapping):
+            return content
+        # The magic super() doesn't work here, so we use the explicit form.
+        # Not using super(..., self) to work around pyupgrade bug.
+        sup: Any = super(DecoratedMappedOperator, DecoratedMappedOperator)
+        return {k: sup._expand_mapped_field(self, k, v, context, session=session) for k, v in content.items()}
+
 
 class Task(Generic[Function]):
     """Declaration of a @task-decorated callable for type-checking.
@@ -427,7 +446,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def map(self, **kwargs: MapArgument) -> XComArg:
+    def map(self, **kwargs: "MapArgument") -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":

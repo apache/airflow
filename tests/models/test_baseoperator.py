@@ -845,7 +845,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         session.add(ti)
     session.flush()
 
-    mapped.expand_mapped_task(upstream_ti=dr.get_task_instance(task1.task_id), session=session)
+    mapped.expand_mapped_task(dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -869,7 +869,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
         TaskMap(dag_id=dr.dag_id, task_id=task1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
     )
 
-    mapped.expand_mapped_task(upstream_ti=dr.get_task_instance(task1.task_id), session=session)
+    mapped.expand_mapped_task(dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)

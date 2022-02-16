@@ -2353,3 +2353,68 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert task_map.map_index == -1
         assert task_map.length == expected_length
         assert task_map.keys == expected_keys
+
+
+class TestMappedTaskInstanceReceiveValue:
+    @pytest.mark.parametrize(
+        "literal, expected_outputs",
+        [
+            ([1, 2, 3], {1, 2, 3}),
+            ({"a": 1, "b": 2}, {("a", 1), ("b", 2)}),
+        ],
+    )
+    def test_map_literal(self, literal, expected_outputs, dag_maker, session):
+        outputs = set()
+
+        with dag_maker(dag_id="literal", session=session) as dag:
+
+            @dag.task
+            def show(value):
+                outputs.add(value)
+
+            show.map(value=literal)
+
+        dag_run = dag_maker.create_dagrun()
+        show_task = dag.get_task("show")
+        tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(tis) == len(literal)
+
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == expected_outputs
+
+    @pytest.mark.parametrize(
+        "upstream_return, expected_outputs",
+        [
+            ([1, 2, 3], {1, 2, 3}),
+            ({"a": 1, "b": 2}, {("a", 1), ("b", 2)}),
+        ],
+    )
+    def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
+        outputs = set()
+
+        with dag_maker(dag_id="xcom", session=session) as dag:
+
+            @dag.task
+            def emit():
+                return upstream_return
+
+            @dag.task
+            def show(value):
+                outputs.add(value)
+
+            show.map(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.run()
+
+        show_task = dag.get_task("show")
+        tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(tis) == len(upstream_return)
+
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == expected_outputs

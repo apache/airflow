@@ -1712,12 +1712,15 @@ def test_mapped_decorator_serde():
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
 
-    assert deserialized.mapped_kwargs["op_kwargs"] == {
+    assert deserialized.mapped_op_kwargs == {
         "arg2": {"a": 1, "b": 2},
         "arg3": _XComRef("op1", "my_key"),
     }
-    assert deserialized.partial_kwargs == {"retry_delay": timedelta(seconds=30)}
-    assert deserialized.partial_op_kwargs == {"arg1": [1, 2, {"a": "b"}]}
+    assert deserialized.partial_kwargs == {
+        "op_args": [],
+        "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
+        "retry_delay": timedelta(seconds=30),
+    }
 
 
 def test_mapped_task_group_serde():

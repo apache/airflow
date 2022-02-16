@@ -83,7 +83,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
-from airflow.utils.helpers import render_template_as_native, render_template_to_string, validate_key
+from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
@@ -1151,7 +1151,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def render_template_fields(
         self, context: Context, jinja_env: Optional["jinja2.Environment"] = None
-    ) -> None:
+    ) -> "BaseOperator":
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
 
@@ -1160,103 +1160,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
-
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
-
-    def _do_render_template_fields(
-        self,
-        parent: Any,
-        template_fields: Iterable[str],
-        context: Context,
-        jinja_env: "jinja2.Environment",
-        seen_oids: Set,
-    ) -> None:
-        for attr_name in template_fields:
-            try:
-                content = getattr(parent, attr_name)
-            except AttributeError:
-                raise AttributeError(
-                    f"{attr_name!r} is configured as a template field "
-                    f"but {parent.task_type} does not have this attribute."
-                )
-
-            if content:
-                rendered_content = self.render_template(content, context, jinja_env, seen_oids)
-                setattr(parent, attr_name, rendered_content)
-
-    def render_template(
-        self,
-        content: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-    ) -> Any:
-        """
-        Render a templated string. The content can be a collection holding multiple templated strings and will
-        be templated recursively.
-
-        :param content: Content to template. Only strings can be templated (may be inside collection).
-        :param context: Dict with values to apply on templated content
-        :param jinja_env: Jinja environment. Can be provided to avoid re-creating Jinja environments during
-            recursion.
-        :param seen_oids: template fields already rendered (to avoid RecursionError on circular dependencies)
-        :return: Templated content
-        """
-        if not jinja_env:
-            jinja_env = self.get_template_env()
-
-        # Imported here to avoid circular dependency
-        from airflow.models.param import DagParam
-        from airflow.models.xcom_arg import XComArg
-
-        if isinstance(content, str):
-            if any(content.endswith(ext) for ext in self.template_ext):  # Content contains a filepath.
-                template = jinja_env.get_template(content)
-            else:
-                template = jinja_env.from_string(content)
-            if self.has_dag() and self.dag.render_template_as_native_obj:
-                return render_template_as_native(template, context)
-            return render_template_to_string(template, context)
-
-        elif isinstance(content, (XComArg, DagParam)):
-            return content.resolve(context)
-
-        if isinstance(content, tuple):
-            if type(content) is not tuple:
-                # Special case for named tuples
-                return content.__class__(
-                    *(self.render_template(element, context, jinja_env) for element in content)
-                )
-            else:
-                return tuple(self.render_template(element, context, jinja_env) for element in content)
-
-        elif isinstance(content, list):
-            return [self.render_template(element, context, jinja_env) for element in content]
-
-        elif isinstance(content, dict):
-            return {key: self.render_template(value, context, jinja_env) for key, value in content.items()}
-
-        elif isinstance(content, set):
-            return {self.render_template(element, context, jinja_env) for element in content}
-
-        else:
-            if seen_oids is None:
-                seen_oids = set()
-            self._render_nested_template_fields(content, context, jinja_env, seen_oids)
-            return content
-
-    def _render_nested_template_fields(
-        self, content: Any, context: Context, jinja_env: "jinja2.Environment", seen_oids: Set
-    ) -> None:
-        if id(content) not in seen_oids:
-            seen_oids.add(id(content))
-            try:
-                nested_template_fields = content.template_fields
-            except AttributeError:
-                # content has no inner template fields
-                return
-
-            self._do_render_template_fields(content, nested_template_fields, context, jinja_env, seen_oids)
+        return self
 
     @provide_session
     def clear(

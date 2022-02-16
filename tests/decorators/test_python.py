@@ -27,7 +27,6 @@ from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -489,9 +488,9 @@ def test_mapped_decorator() -> None:
         doubled_1 = double.map(number=literal)
 
     assert isinstance(doubled_0, XComArg)
-    assert isinstance(doubled_0.operator, MappedOperator)
+    assert isinstance(doubled_0.operator, DecoratedMappedOperator)
     assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
+    assert doubled_0.operator.mapped_op_kwargs == {"number": literal}
 
     assert doubled_1.operator.task_id == "double__1"
 
@@ -501,15 +500,14 @@ def test_mapped_decorator_invalid_args() -> None:
     def double(number: int):
         return number * 2
 
-    with DAG('test_dag', start_date=DEFAULT_DATE):
-        literal = [1, 2, 3]
+    literal = [1, 2, 3]
 
-        with pytest.raises(TypeError, match="arguments 'other', 'b'"):
-            double.partial(other=[1], b=['a'])
-        with pytest.raises(TypeError, match="argument 'other'"):
-            double.map(number=literal, other=[1])
-        with pytest.raises(ValueError, match="argument 'other'"):
-            double.map(number=literal, other=1)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="arguments 'other', 'b'"):
+        double.partial(other=[1], b=['a'])
+    with pytest.raises(TypeError, match="argument 'other'"):
+        double.map(number=literal, other=[1])
+    with pytest.raises(ValueError, match="argument 'number'"):
+        double.map(number=1)  # type: ignore[arg-type]
 
 
 def test_partial_mapped_decorator() -> None:

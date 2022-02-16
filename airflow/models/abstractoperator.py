@@ -17,14 +17,18 @@
 # under the License.
 
 import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, List, Optional, Set, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
+
+from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.context import Context
+from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -249,3 +253,124 @@ class AbstractOperator(LoggingMixin, DAGNode):
         elif link_name in self.global_operator_extra_link_dict:
             return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
         return None
+
+    @provide_session
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Context,
+        jinja_env: "jinja2.Environment",
+        seen_oids: Set,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        for attr_name in template_fields:
+            try:
+                content = getattr(parent, attr_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"{attr_name!r} is configured as a template field "
+                    f"but {parent.task_type} does not have this attribute."
+                )
+            if not content:
+                continue
+            rendered_content = self._render_template_field(
+                attr_name,
+                content,
+                context,
+                jinja_env,
+                seen_oids,
+                session=session,
+            )
+            setattr(parent, attr_name, rendered_content)
+
+    def _render_template_field(
+        self,
+        key: str,
+        content: Any,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+        seen_oids: Optional[Set] = None,
+        *,
+        session: Session,
+    ) -> Any:
+        """Override point for MappedOperator to perform further resolution."""
+        return self.render_template(content, context, jinja_env, seen_oids)
+
+    def render_template(
+        self,
+        content: Any,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+        seen_oids: Optional[Set] = None,
+    ) -> Any:
+        """Render a templated string.
+
+        If *content* is a collection holding multiple templated strings, strings
+        in the collection will be templated recursively.
+
+        :param content: Content to template. Only strings can be templated (may
+            be inside a collection).
+        :param context: Dict with values to apply on templated content
+        :param jinja_env: Jinja environment. Can be provided to avoid
+            re-creating Jinja environments during recursion.
+        :param seen_oids: template fields already rendered (to avoid
+            *RecursionError* on circular dependencies)
+        :return: Templated content
+        """
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+
+        from airflow.models.param import DagParam
+        from airflow.models.xcom_arg import XComArg
+
+        if isinstance(content, str):
+            if any(content.endswith(ext) for ext in self.template_ext):  # Content contains a filepath.
+                template = jinja_env.get_template(content)
+            else:
+                template = jinja_env.from_string(content)
+            dag = self.get_dag()
+            if dag and dag.render_template_as_native_obj:
+                return render_template_as_native(template, context)
+            return render_template_to_string(template, context)
+
+        if isinstance(content, (DagParam, XComArg)):
+            return content.resolve(context)
+
+        # Fast path for common built-in collections.
+        if content.__class__ is tuple:
+            return tuple(self.render_template(element, context, jinja_env) for element in content)
+        elif isinstance(content, tuple):  # Special case for named tuples.
+            return content.__class__(*(self.render_template(el, context, jinja_env) for el in content))
+        elif isinstance(content, list):
+            return [self.render_template(element, context, jinja_env) for element in content]
+        elif isinstance(content, dict):
+            return {key: self.render_template(value, context, jinja_env) for key, value in content.items()}
+        elif isinstance(content, set):
+            return {self.render_template(element, context, jinja_env) for element in content}
+
+        # More complex collections.
+        if seen_oids is None:
+            oids = set()
+        else:
+            oids = seen_oids
+        self._render_nested_template_fields(content, context, jinja_env, oids)
+        return content
+
+    def _render_nested_template_fields(
+        self,
+        content: Any,
+        context: Context,
+        jinja_env: "jinja2.Environment",
+        seen_oids: Set[int],
+    ) -> None:
+        if id(content) in seen_oids:
+            return
+        seen_oids.add(id(content))
+        try:
+            nested_template_fields = content.template_fields
+        except AttributeError:
+            # content has no inner template fields
+            return
+        self._do_render_template_fields(content, nested_template_fields, context, jinja_env, seen_oids)
