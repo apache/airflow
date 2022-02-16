@@ -24,7 +24,7 @@ from pytest import param
 
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
-from airflow.utils.metastore_cleanup import _build_query, _cleanup_table, config_dict, run_cleanup
+from airflow.utils.db_cleanup import _build_query, _cleanup_table, config_dict, run_cleanup
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -39,7 +39,7 @@ def clean_database():
     clear_db_runs()
 
 
-class TestMetastoreCleanup:
+class TestDBCleanup:
     @pytest.mark.parametrize(
         'kwargs, called',
         [
@@ -48,8 +48,8 @@ class TestMetastoreCleanup:
             param(dict(confirm=False), False, id='false'),
         ],
     )
-    @patch('airflow.utils.metastore_cleanup._cleanup_table', new=MagicMock())
-    @patch('airflow.utils.metastore_cleanup._confirm_delete')
+    @patch('airflow.utils.db_cleanup._cleanup_table', new=MagicMock())
+    @patch('airflow.utils.db_cleanup._confirm_delete')
     def test_run_cleanup_confirm(self, confirm_delete_mock, kwargs, called):
         """test that delete confirmation input is called when appropriate"""
         run_cleanup(
@@ -71,8 +71,8 @@ class TestMetastoreCleanup:
             None,
         ],
     )
-    @patch('airflow.utils.metastore_cleanup._cleanup_table')
-    @patch('airflow.utils.metastore_cleanup._confirm_delete', new=MagicMock())
+    @patch('airflow.utils.db_cleanup._cleanup_table')
+    @patch('airflow.utils.db_cleanup._confirm_delete', new=MagicMock())
     def test_run_cleanup_tables(self, clean_table_mock, table_names):
         """
         ``_cleanup_table`` should be called for each table in subset if one
@@ -90,10 +90,10 @@ class TestMetastoreCleanup:
         'dry_run',
         [None, True, False],
     )
-    @patch('airflow.utils.metastore_cleanup._build_query', MagicMock())
-    @patch('airflow.utils.metastore_cleanup._print_entities', MagicMock())
-    @patch('airflow.utils.metastore_cleanup._do_delete')
-    @patch('airflow.utils.metastore_cleanup._confirm_delete', MagicMock())
+    @patch('airflow.utils.db_cleanup._build_query', MagicMock())
+    @patch('airflow.utils.db_cleanup._print_entities', MagicMock())
+    @patch('airflow.utils.db_cleanup._do_delete')
+    @patch('airflow.utils.db_cleanup._confirm_delete', MagicMock())
     def test_run_cleanup_dry_run(self, do_delete, dry_run):
         """Delete should only be called when not dry_run"""
         base_kwargs = dict(

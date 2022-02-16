@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.metastore_cleanup import config_dict, run_cleanup
+from airflow.utils.db_cleanup import config_dict, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
 

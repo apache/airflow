@@ -264,7 +264,7 @@ def run_cleanup(
     session: 'Session' = NEW_SESSION,
 ):
     """
-    Purges old records in airflow metastore database.
+    Purges old records in airflow metadata database.
 
     The last non-externally-triggered dag run will always be kept in order to ensure
     continuity of scheduled dag runs.
@@ -284,14 +284,14 @@ def run_cleanup(
     :type verbose: bool
     :param confirm: Require user input to confirm before processing deletions.
     :type confirm: bool
-    :param session: Session representing connection to the metastore database.
+    :param session: Session representing connection to the metadata database.
     :type session: Session
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     effective_table_names = table_names if table_names else list(config_dict.keys())
     effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
     if dry_run:
-        print('Performing dry run for metastore table cleanup.')
+        print('Performing dry run for db cleanup.')
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"
