@@ -3200,6 +3200,14 @@
                     ],
                     "default": null
                 },
+                "statsSecretName": {
+                    "description": "The PgBouncer stats exporter Secret name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",
                     "type": "object",
