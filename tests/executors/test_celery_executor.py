@@ -559,7 +559,7 @@ class TestCeleryExecutor:
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
             with mock.patch('airflow.executors.celery_executor.Celery.backend', mock_backend):
                 mock_session = mock_backend.ResultSession.return_value
-                mock_session.query.return_value.filter.return_value.all.return_value = [
+                mock_session.query.return_value.filter.return_value.filter.return_value.all.return_value = [
                     result_obj("SUCCESS", task_id)
                 ]
 

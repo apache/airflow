@@ -407,25 +407,32 @@ class CeleryExecutor(BaseExecutor):
             # We only want to do this for database backends where
             # this case has been spotted
             return
-        # We use this instead of using bulk_state_fetcher because we
-        # may not have the stuck task in self.tasks and we don't want
-        # to clear task in self.tasks too
-        session_ = app.backend.ResultSession()
-        task_cls = getattr(app.backend, "task_cls", TaskDb)
-        with session_cleanup(session_):
-            celery_task_ids = [
-                t.task_id
-                for t in session_.query(task_cls.task_id)
-                .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
-                .all()
-            ]
         self.log.debug("Checking for stuck queued tasks")
 
         max_allowed_time = utcnow() - self.task_adoption_timeout
 
-        for task in session.query(TaskInstance).filter(
-            TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
-        ):
+        queued_too_log = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time)
+            .all()
+        )
+
+        if queued_too_log:
+            # We use this instead of using bulk_state_fetcher because we
+            # may not have the stuck task in self.tasks and we don't want
+            # to clear task in self.tasks too
+            session_ = app.backend.ResultSession()
+            task_cls = getattr(app.backend, "task_cls", TaskDb)
+            with session_cleanup(session_):
+                celery_task_ids = [
+                    t.task_id
+                    for t in session_.query(task_cls.task_id)
+                    .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
+                    .filter(task_cls.task_id.in_([ti.external_executor_id for ti in queued_too_log]))
+                    .all()
+                ]
+
+        for task in queued_too_log:
             # If the task is still queued, then it's stuck
             # Check if it's in celery_task_ids, if so, it's now running
             if task.external_executor_id in celery_task_ids:
