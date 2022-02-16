@@ -17,6 +17,9 @@
 # under the License.
 
 import datetime
+import functools
+import itertools
+import operator
 import unittest.mock
 import warnings
 from typing import (
@@ -60,33 +63,49 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.utils.operator_resources import Resources
-from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
 
+# BaseOperator.map() can be called on an XComArg, sequence, or dict (not any
+# mapping since we need the value to be ordered).
+MapArgument = Union[XComArg, Sequence, dict]
+
+# For isinstance() check.
+MAPPABLE_TYPES = (XComArg, dict, list)
+
 
 def validate_mapping_kwargs(op: Type["BaseOperator"], func: str, value: Dict[str, Any]) -> None:
     # use a dict so order of args is same as code order
     unknown_args = value.copy()
     for klass in op.mro():
-        init = klass.__init__  # type: ignore
+        init = klass.__init__  # type: ignore[misc]
         try:
             param_names = init._BaseOperatorMeta__param_names
         except AttributeError:
             continue
         for name in param_names:
-            unknown_args.pop(name, None)
+            value = unknown_args.pop(name, NOTSET)
+            if func != "map":
+                continue
+            if value is NOTSET:
+                continue
+            if isinstance(value, MAPPABLE_TYPES):
+                continue
+            type_name = type(value).__name__
+            error = f"{op.__name__}.map() got unexpected type {type_name!r} for keyword argument {name}"
+            raise ValueError(error)
         if not unknown_args:
             return  # If we have no args left ot check: stop looking at the MRO chian.
 
     if len(unknown_args) == 1:
-        error = f"unexpected keyword argument {unknown_args.popitem()[0]!r}"
+        error = f"an unexpected keyword argument {unknown_args.popitem()[0]!r}"
     else:
         names = ", ".join(repr(n) for n in unknown_args)
         error = f"unexpected keyword arguments {names}"
@@ -132,7 +151,7 @@ class OperatorPartial:
         if not self._map_called:
             warnings.warn(f"{self!r} was never mapped!")
 
-    def map(self, **mapped_kwargs) -> "MappedOperator":
+    def map(self, **mapped_kwargs: MapArgument) -> "MappedOperator":
         from airflow.operators.dummy import DummyOperator
 
         validate_mapping_kwargs(self.operator_class, "map", mapped_kwargs)
@@ -174,7 +193,7 @@ class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
     operator_class: Union[Type["BaseOperator"], str]
-    mapped_kwargs: Dict[str, Any]
+    mapped_kwargs: Dict[str, MapArgument]
     partial_kwargs: Dict[str, Any]
 
     # Needed for serialization.
@@ -245,11 +264,8 @@ class MappedOperator(AbstractOperator):
         """
         if isinstance(self.operator_class, str):
             return  # No need to validate deserialized operator.
-        operator = self._create_unmapped_operator(
-            mapped_kwargs={k: unittest.mock.MagicMock(name=k) for k in self.mapped_kwargs},
-            partial_kwargs=self.partial_kwargs,
-            real=False,
-        )
+        mocked_mapped_kwargs = {k: unittest.mock.MagicMock(name=k) for k in self.mapped_kwargs}
+        operator = self._create_unmapped_operator(mapped_kwargs=mocked_mapped_kwargs, real=False)
         if operator.task_group:
             operator.task_group._remove(operator)
         dag = operator.get_dag()
@@ -384,13 +400,16 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _create_unmapped_operator(
-        self,
-        *,
-        mapped_kwargs: Dict[str, Any],
-        partial_kwargs: Dict[str, Any],
-        real: bool,
-    ) -> "BaseOperator":
+    def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
+        """Create a task of the underlying class based on this mapped operator.
+
+        :param mapped_kwargs: Mapped keyword arguments to be used to create the
+            task. Do not use ``self.mapped_kwargs``.
+        :param real: Whether the task should be created "for real" (i.e. *False*
+            means the operator is only created for validation purposes and not
+            going to be added to the actual DAG). This is simply forwarded to
+            the operator's ``_airflow_map_validation`` argument.
+        """
         assert not isinstance(self.operator_class, str)
         return self.operator_class(
             task_id=self.task_id,
@@ -400,8 +419,8 @@ class MappedOperator(AbstractOperator):
             start_date=self.start_date,
             end_date=self.end_date,
             _airflow_map_validation=not real,
+            **self.partial_kwargs,
             **mapped_kwargs,
-            **partial_kwargs,
         )
 
     def unmap(self) -> "BaseOperator":
@@ -410,47 +429,44 @@ class MappedOperator(AbstractOperator):
         if not dag:
             raise RuntimeError("Cannot unmap a task without a DAG")
         dag._remove_task(self.task_id)
-        return self._create_unmapped_operator(
-            mapped_kwargs=self.mapped_kwargs,
-            partial_kwargs=self.partial_kwargs,
-            real=True,
-        )
+        return self._create_unmapped_operator(mapped_kwargs=self.mapped_kwargs, real=True)
 
-    def expand_mapped_task(
-        self,
-        upstream_ti: "TaskInstance",
-        session: Session = NEW_SESSION,
-    ) -> Sequence["TaskInstance"]:
+    def _get_expansion_kwargs(self) -> Dict[str, MapArgument]:
+        """The kwargs to calculate expansion length against.
+
+        This is ``self.mapped_kwargs`` for classic operators because kwargs to
+        ``BaseOperator.map()`` contribute to operator arguments.
+        """
+        return self.mapped_kwargs
+
+    def expand_mapped_task(self, run_id: str, *, session: Session) -> Sequence["TaskInstance"]:
         """Create the mapped task instances for mapped task.
 
         :return: The mapped task instances, in ascending order by map index.
         """
-        # TODO: support having multiuple mapped upstreams?
         from airflow.models.taskinstance import TaskInstance
         from airflow.models.taskmap import TaskMap
         from airflow.settings import task_instance_mutation_hook
 
-        task_map_info_length: Optional[int] = (
-            session.query(TaskMap.length)
-            .filter_by(
-                dag_id=upstream_ti.dag_id,
-                task_id=upstream_ti.task_id,
-                run_id=upstream_ti.run_id,
-                map_index=upstream_ti.map_index,
-            )
-            .scalar()
-        )
-        if task_map_info_length is None:
-            # TODO: What would lead to this? How can this be better handled?
-            raise RuntimeError("mapped operator cannot be expanded; upstream not found")
+        expansion_kwargs = self._get_expansion_kwargs()
 
-        state = None
+        literal_lengths = (len(v) for v in expansion_kwargs.values() if not isinstance(v, XComArg))
+        upstream_ids = [v.operator.task_id for v in expansion_kwargs.values() if isinstance(v, XComArg)]
+        upstream_length_query = session.query(TaskMap.length).filter(
+            TaskMap.dag_id == self.dag_id,
+            TaskMap.run_id == run_id,
+            TaskMap.task_id.in_(upstream_ids),
+        )
+        upstream_lengths = (r for r, in upstream_length_query)
+        total_length = functools.reduce(operator.mul, itertools.chain(literal_lengths, upstream_lengths))
+
+        state: Optional[TaskInstanceState] = None
         unmapped_ti: Optional[TaskInstance] = (
             session.query(TaskInstance)
             .filter(
-                TaskInstance.dag_id == upstream_ti.dag_id,
-                TaskInstance.run_id == upstream_ti.run_id,
+                TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
+                TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
@@ -462,10 +478,14 @@ class MappedOperator(AbstractOperator):
         if unmapped_ti:
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
-            if task_map_info_length < 1:
+            if total_length < 1:
                 # If the upstream maps this to a zero-length value, simply marked the
                 # unmapped task instance as SKIPPED (if needed).
-                self.log.info("Marking %s as SKIPPED since the map has 0 values to expand", unmapped_ti)
+                self.log.info(
+                    "Marking %s as SKIPPED since the map has %d values to expand",
+                    unmapped_ti,
+                    total_length,
+                )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
                 session.flush()
                 return ret
@@ -475,24 +495,24 @@ class MappedOperator(AbstractOperator):
             state = unmapped_ti.state
             self.log.debug("Updated in place to become %s", unmapped_ti)
             ret.append(unmapped_ti)
-            indexes_to_map = range(1, task_map_info_length)
+            indexes_to_map = range(1, total_length)
         else:
             # Only create "missing" ones.
             current_max_mapping = (
                 session.query(func.max(TaskInstance.map_index))
                 .filter(
-                    TaskInstance.dag_id == upstream_ti.dag_id,
+                    TaskInstance.dag_id == self.dag_id,
                     TaskInstance.task_id == self.task_id,
-                    TaskInstance.run_id == upstream_ti.run_id,
+                    TaskInstance.run_id == run_id,
                 )
                 .scalar()
             )
-            indexes_to_map = range(current_max_mapping + 1, task_map_info_length)
+            indexes_to_map = range(current_max_mapping + 1, total_length)
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
-            ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index, state=state)  # type: ignore
+            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)  # type: ignore
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ret.append(session.merge(ti))
@@ -500,10 +520,10 @@ class MappedOperator(AbstractOperator):
         # Set to "REMOVED" any (old) TaskInstances with map indices greater
         # than the current map value
         session.query(TaskInstance).filter(
-            TaskInstance.dag_id == upstream_ti.dag_id,
+            TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
-            TaskInstance.run_id == upstream_ti.run_id,
-            TaskInstance.map_index >= task_map_info_length,
+            TaskInstance.run_id == run_id,
+            TaskInstance.map_index >= total_length,
         ).update({TaskInstance.state: TaskInstanceState.REMOVED})
 
         session.flush()
