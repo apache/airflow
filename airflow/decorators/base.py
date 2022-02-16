@@ -17,9 +17,9 @@
 
 import functools
 import inspect
-import itertools
 import re
 import sys
+import unittest.mock
 from typing import (
     Any,
     Callable,
@@ -45,13 +45,14 @@ from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
 from airflow.models.dag import DAG, DagContext
-from airflow.models.mappedoperator import MappedOperator
+from airflow.models.mappedoperator import MAPPABLE_TYPES, MapArgument, MappedOperator
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
+from airflow.utils.types import NOTSET
 
 
 def validate_python_callable(python_callable: Any) -> None:
@@ -269,22 +270,22 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
-    def _validate_arg_names(self, funcname: str, kwargs: Dict[str, Any], valid_names: Set[str] = set()):
-        unknown_args = kwargs.copy()
-        for name in itertools.chain(self.function_arg_names, valid_names):
-            unknown_args.pop(name, None)
+    def _validate_arg_names(self, funcname: str, kwargs: Dict[str, Any]):
+        kwargs_left = kwargs.copy()
+        for arg_name in self.function_arg_names:
+            value = kwargs_left.pop(arg_name, NOTSET)
+            if value is NOTSET or isinstance(value, MAPPABLE_TYPES):
+                continue
+            type_name = type(value).__name__
+            raise ValueError(f"{funcname} got unexpected type {type_name!r} for keyword argument {arg_name}")
 
-            if not unknown_args:
-                # If we have no args left ot check, we are valid
-                return
+        if len(kwargs_left) == 1:
+            raise TypeError(f"{funcname} got unexpected keyword argument {next(iter(kwargs_left))!r}")
+        elif kwargs_left:
+            names = ", ".join(repr(n) for n in kwargs_left)
+            raise TypeError(f"{funcname} got unexpected keyword arguments {names}")
 
-        if len(unknown_args) == 1:
-            raise TypeError(f'{funcname} got unexpected keyword argument {next(iter(unknown_args))!r}')
-        else:
-            names = ", ".join(repr(n) for n in unknown_args)
-            raise TypeError(f'{funcname} got unexpected keyword arguments {names}')
-
-    def map(self, **kwargs) -> XComArg:
+    def map(self, **kwargs: MapArgument) -> XComArg:
         self._validate_arg_names("map", kwargs)
 
         partial_kwargs = self.kwargs.copy()
@@ -293,7 +294,6 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         params = partial_kwargs.pop("params", None)
-        partial_op_kwargs = partial_kwargs.pop("op_kwargs", {})
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:
@@ -311,12 +311,13 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
+        partial_kwargs.setdefault("op_kwargs", {})
 
         # Mypy does not work well with a subclassed attrs class :(
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
-            mapped_kwargs={"op_kwargs": kwargs},
+            mapped_kwargs={},
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=params,
@@ -335,7 +336,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
-            partial_op_kwargs=partial_op_kwargs,
+            mapped_op_kwargs=kwargs,
         )
         return XComArg(operator=operator)
 
@@ -370,9 +371,9 @@ class DecoratedMappedOperator(MappedOperator):
     multiple_outputs: bool
     python_callable: Callable
 
-    # We can't save these in partial_kwargs because op_kwargs need to be present
-    # in mapped_kwargs, and MappedOperator prevents duplication.
-    partial_op_kwargs: Dict[str, Any]
+    # We can't save these in mapped_kwargs because op_kwargs need to be present
+    # in partial_kwargs, and MappedOperator prevents duplication.
+    mapped_op_kwargs: Dict[str, MapArgument]
 
     @classmethod
     @cache
@@ -380,21 +381,23 @@ class DecoratedMappedOperator(MappedOperator):
         # The magic argument-less super() does not work well with @cache
         # (actually lru_cache in general), so we use the explicit form instead.
         sup = super(DecoratedMappedOperator, DecoratedMappedOperator)
-        return sup.get_serialized_fields() | {"partial_op_kwargs"}
+        return sup.get_serialized_fields() | {"mapped_op_kwargs"}
 
-    def _create_unmapped_operator(
-        self,
-        *,
-        mapped_kwargs: Dict[str, Any],
-        partial_kwargs: Dict[str, Any],
-        real: bool,
-    ) -> "BaseOperator":
+    def _get_expansion_kwargs(self) -> Dict[str, MapArgument]:
+        """The kwargs to calculate expansion length against.
+
+        Different from classic operators, a decorated (taskflow) operator's
+        ``map()`` contributes to the ``op_kwargs`` operator argument (not the
+        operator arguments themselves), and should therefore expand against it.
+        """
+        return self.mapped_op_kwargs
+
+    def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
         assert not isinstance(self.operator_class, str)
-        mapped_kwargs = mapped_kwargs.copy()
-        del mapped_kwargs["op_kwargs"]
+        partial_kwargs = self.partial_kwargs.copy()
         op_kwargs = _merge_kwargs(
-            self.partial_op_kwargs,
-            self.mapped_kwargs["op_kwargs"],  # We want to "original" op_kwargs.
+            partial_kwargs.pop("op_kwargs"),
+            {k: unittest.mock.MagicMock(name=k) for k in self.mapped_op_kwargs},
             fail_reason="mapping already partial",
         )
         return self.operator_class(
@@ -425,7 +428,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def map(self, **kwargs: Any) -> XComArg:
+    def map(self, **kwargs: MapArgument) -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":

@@ -593,9 +593,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
             serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
         with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["partial_op_kwargs"]
+            op_kwargs = serialized_op["mapped_op_kwargs"]
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["partial_op_kwargs"] = op_kwargs[Encoding.VAR]
+            serialized_op["mapped_op_kwargs"] = op_kwargs[Encoding.VAR]
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -754,7 +754,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
                 if op_kwargs is not None:
                     v["op_kwargs"] = op_kwargs
-            elif k == "partial_op_kwargs":
+            elif k == "mapped_op_kwargs":
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)

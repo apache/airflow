@@ -505,9 +505,11 @@ def test_mapped_decorator_invalid_args() -> None:
         literal = [1, 2, 3]
 
         with pytest.raises(TypeError, match="arguments 'other', 'b'"):
-            double.partial(other=1, b='a')
+            double.partial(other=[1], b=['a'])
         with pytest.raises(TypeError, match="argument 'other'"):
-            double.map(number=literal, other=1)
+            double.map(number=literal, other=[1])
+        with pytest.raises(ValueError, match="argument 'other'"):
+            double.map(number=literal, other=1)  # type: ignore[arg-type]
 
 
 def test_partial_mapped_decorator() -> None:
@@ -532,11 +534,11 @@ def test_partial_mapped_decorator() -> None:
 
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
-    assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
-    assert doubled.operator.partial_op_kwargs == {"multiple": 2}
+    assert doubled.operator.mapped_op_kwargs == {"number": literal}
+    assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
     assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
-    assert trippled.operator.partial_op_kwargs == {"multiple": 3}
+    assert trippled.operator.partial_kwargs["op_kwargs"] == {"multiple": 3}
 
     assert doubled.operator is not trippled.operator
 
