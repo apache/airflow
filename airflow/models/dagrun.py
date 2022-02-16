@@ -42,7 +42,7 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
-from airflow.callbacks import callback_requests
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -486,7 +486,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def update_state(
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
-    ) -> Tuple[List[TI], Optional[callback_requests.DagCallbackRequest]]:
+    ) -> Tuple[List[TI], Optional[DagCallbackRequest]]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
@@ -498,7 +498,7 @@ class DagRun(Base, LoggingMixin):
             needs to be executed
         """
         # Callback to execute in case of Task Failures
-        callback: Optional[callback_requests.DagCallbackRequest] = None
+        callback: Optional[DagCallbackRequest] = None
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
@@ -534,7 +534,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
             elif dag.has_on_failure_callback:
-                callback = callback_requests.DagCallbackRequest(
+                callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
@@ -549,7 +549,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
             elif dag.has_on_success_callback:
-                callback = callback_requests.DagCallbackRequest(
+                callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
@@ -570,7 +570,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
             elif dag.has_on_failure_callback:
-                callback = callback_requests.DagCallbackRequest(
+                callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
