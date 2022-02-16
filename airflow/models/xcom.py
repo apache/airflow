@@ -478,8 +478,8 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def serialize_value(
-        value: Any,
         *,
+        value: Any,
         key=None,
         task_id=None,
         dag_id=None,
