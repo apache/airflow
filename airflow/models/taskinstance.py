@@ -823,7 +823,7 @@ class TaskInstance(Base, LoggingMixin):
         XCom.clear(
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.execution_date,
+            run_id=self.run_id,
             session=session,
         )
 
