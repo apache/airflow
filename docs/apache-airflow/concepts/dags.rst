@@ -157,7 +157,7 @@ The ``schedule_interval`` argument takes any value that is a valid `Crontab <htt
     For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
 
     If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
-    For more information on ``logical date``, see :ref:`data-interval` and 
+    For more information on ``logical date``, see :ref:`data-interval` and
     :ref:`faq:what-does-execution-date-mean`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
@@ -180,18 +180,18 @@ Tasks specified inside a DAG are also instantiated into
 :ref:`Task Instances <concepts:task-instances>` along with it.
 
 When the DAG run starts, it will have the start date and end date. This period
-describes the time when the DAG run actually 'ran.' Aside from the DAG 
-run's start and end date, there is another date called ``logical date`` 
-(formally known as execution date), which describes the intended time for the 
-DAG run to be scheduled or triggered to run. The reason why this is called 
-``logical`` is because of the abstract nature of it having multiple meanings, 
+describes the time when the DAG run actually 'ran.' Aside from the DAG
+run's start and end date, there is another date called ``logical date``
+(formally known as execution date), which describes the intended time for the
+DAG run to be scheduled or triggered to run. The reason why this is called
+``logical`` is because of the abstract nature of it having multiple meanings,
 depending on the context of the DAG run itself.
 
 For example, when the DAG run is being triggered, the logical date would be the
 date and time of which the DAG run was triggered, and the value should be equal
 to DAG run's start date. However, when the DAG is being scheduled, with certain
 schedule interval put in place, this logical date is going to indicate the time
-at which it marks the start of the data interval, where the DAG run's start 
+at which it marks the start of the data interval, where the DAG run's start
 date would then be the logical date + scheduled interval.
 
 DAG Assignment
