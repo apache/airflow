@@ -252,7 +252,7 @@ Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
 
 .. tip::
 
-    For more information on ``logical date``, see :ref:`data-interval` and 
+    For more information on ``logical date``, see :ref:`data-interval` and
     :ref:`concepts:dag-run:`.
 
 
