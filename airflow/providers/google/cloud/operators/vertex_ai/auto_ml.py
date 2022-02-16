@@ -26,56 +26,12 @@ from google.cloud.aiplatform import datasets
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
+from airflow.providers.google.cloud.links.vertex_ai import VertexAIModelLink, VertexAITrainingPipelinesLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
-VERTEX_AI_MODEL_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/models/{model_id}/deploy?project={project_id}"
-)
-VERTEX_AI_TRAINING_PIPELINES_LINK = VERTEX_AI_BASE_LINK + "/training/training-pipelines?project={project_id}"
-
-
-class VertexAIModelLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Model link"""
-
-    name = "Vertex AI Model"
-
-    def get_link(self, operator, dttm):
-        model_conf = XCom.get_one(
-            key='model_conf', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_MODEL_LINK.format(
-                region=model_conf["region"],
-                model_id=model_conf["model_id"],
-                project_id=model_conf["project_id"],
-            )
-            if model_conf
-            else ""
-        )
-
-
-class VertexAITrainingPipelinesLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Training Pipelines link"""
-
-    name = "Vertex AI Training Pipelines"
-
-    def get_link(self, operator, dttm):
-        project_id = XCom.get_one(
-            key='project_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_TRAINING_PIPELINES_LINK.format(
-                project_id=project_id,
-            )
-            if project_id
-            else ""
-        )
 
 
 class AutoMLTrainingJobBaseOperator(BaseOperator):
@@ -167,7 +123,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.TimeSeriesDataset(dataset_name=dataset_id)
+        self.dataset_id = dataset_id
         self.target_column = target_column
         self.time_column = time_column
         self.time_series_identifier_column = time_series_identifier_column
@@ -195,7 +151,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.validation_options = validation_options
         self.budget_milli_node_hours = budget_milli_node_hours
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -205,7 +161,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=self.dataset,
+            dataset=datasets.TimeSeriesDataset(dataset_name=self.dataset_id),
             target_column=self.target_column,
             time_column=self.time_column,
             time_series_identifier_column=self.time_series_identifier_column,
@@ -244,15 +200,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
 
@@ -282,7 +230,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.ImageDataset(dataset_name=dataset_id)
+        self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.multi_label = multi_label
         self.model_type = model_type
@@ -294,7 +242,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.budget_milli_node_hours = budget_milli_node_hours
         self.disable_early_stopping = disable_early_stopping
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -304,7 +252,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=self.dataset,
+            dataset=datasets.ImageDataset(dataset_name=self.dataset_id),
             prediction_type=self.prediction_type,
             multi_label=self.multi_label,
             model_type=self.model_type,
@@ -327,15 +275,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
 
@@ -371,7 +311,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.TabularDataset(dataset_name=dataset_id)
+        self.dataset_id = dataset_id
         self.target_column = target_column
         self.optimization_prediction_type = optimization_prediction_type
         self.optimization_objective = optimization_objective
@@ -393,7 +333,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             export_evaluated_data_items_override_destination
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -403,7 +343,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=self.dataset,
+            dataset=datasets.TabularDataset(dataset_name=self.dataset_id),
             target_column=self.target_column,
             optimization_prediction_type=self.optimization_prediction_type,
             optimization_objective=self.optimization_objective,
@@ -436,15 +376,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
 
@@ -471,7 +403,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.TextDataset(dataset_name=dataset_id)
+        self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.multi_label = multi_label
         self.sentiment_max = sentiment_max
@@ -480,7 +412,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.validation_filter_split = validation_filter_split
         self.test_filter_split = test_filter_split
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -490,7 +422,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=self.dataset,
+            dataset=datasets.TextDataset(dataset_name=self.dataset_id),
             prediction_type=self.prediction_type,
             multi_label=self.multi_label,
             sentiment_max=self.sentiment_max,
@@ -510,15 +442,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
 
@@ -542,13 +466,13 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataset = datasets.VideoDataset(dataset_name=dataset_id)
+        self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.model_type = model_type
         self.training_filter_split = training_filter_split
         self.test_filter_split = test_filter_split
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -558,7 +482,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=self.dataset,
+            dataset=datasets.VideoDataset(dataset_name=self.dataset_id),
             prediction_type=self.prediction_type,
             model_type=self.model_type,
             labels=self.labels,
@@ -575,15 +499,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
 
@@ -619,7 +535,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -686,7 +602,7 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -703,5 +619,5 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.xcom_push(context, key="project_id", value=self.project_id)
+        VertexAITrainingPipelinesLink.persist(context=context, task_instance=self)
         return [TrainingPipeline.to_dict(result) for result in results]

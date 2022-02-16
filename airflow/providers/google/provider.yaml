@@ -484,6 +484,11 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
 
+links:
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.links.vertex_ai
+
 sensors:
   - integration-name: Google BigQuery
     python-modules:
@@ -841,12 +846,10 @@ extra-links:
   - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
-  - airflow.providers.google.cloud.operators.vertex_ai.auto_ml.VertexAIModelLink
-  - airflow.providers.google.cloud.operators.vertex_ai.auto_ml.VertexAITrainingPipelinesLink
-  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAIModelLink
-  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAITrainingPipelinesLink
-  - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetLink
-  - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAITrainingPipelinesLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIDatasetLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIDatasetListLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
