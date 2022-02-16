@@ -52,17 +52,13 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     Wraps a Python callable and executes in a kubernetes pod
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
-    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
-    :type op_args: list
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
-    :type multiple_outputs: bool
     """
 
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
@@ -140,12 +136,10 @@ def kubernetes_task(
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate
-    :type python_callable: Optional[Callable]
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. List/Tuples will unroll to xcom values
         with index as key. Dict will unroll to xcom values with keys as XCom keys.
         Defaults to False.
-    :type multiple_outputs: bool
     """
     return task_decorator_factory(
         python_callable=python_callable,
