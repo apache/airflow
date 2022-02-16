@@ -44,6 +44,17 @@ In order to manually upgrade the database you should run the ``airflow db upgrad
 environment. It can be run either in your virtual environment or in the containers that give
 you access to Airflow ``CLI`` :doc:`/usage-cli` and the database.
 
+Offline SQL migration scripts
+=============================
+If you want to run the upgrade script offline, you can use the ``-r`` or ``--revision-range`` flag
+to get the SQL statements that would be executed. This feature is supported in Postgres and MySQL
+from Airflow 2.0.0 onwards and in MSSQL from Airflow 2.2.0 onwards.
+
+Sample usage:
+   ``airflow db upgrade -r "2.0.0:2.2.0"``
+   ``airflow db upgrade --revision-range "e959f08ac86c:142555e44c17"``
+
+
 Migration best practices
 ========================
 
