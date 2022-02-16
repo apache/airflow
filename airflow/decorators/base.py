@@ -310,12 +310,13 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         )
         partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
         partial_kwargs.setdefault("executor_config", {})
+        partial_kwargs.setdefault("op_args", [])
 
         # Mypy does not work well with a subclassed attrs class :(
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
-            mapped_kwargs={"op_args": [], "op_kwargs": kwargs},
+            mapped_kwargs={"op_kwargs": kwargs},
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=params,
@@ -369,8 +370,8 @@ class DecoratedMappedOperator(MappedOperator):
     multiple_outputs: bool
     python_callable: Callable
 
-    # We can't save these in partial_kwargs because op_args and op_kwargs need
-    # to be present in mapped_kwargs, and MappedOperator prevents duplication.
+    # We can't save these in partial_kwargs because op_kwargs need to be present
+    # in mapped_kwargs, and MappedOperator prevents duplication.
     partial_op_kwargs: Dict[str, Any]
 
     @classmethod
