@@ -1150,10 +1150,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
-        self, context: Context, jinja_env: Optional["jinja2.Environment"] = None
-    ) -> "BaseOperator":
-        """
-        Template all attributes listed in template_fields. Note this operation is irreversible.
+        self,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+    ) -> Optional["BaseOperator"]:
+        """Template all attributes listed in template_fields.
+
+        This mutates the attributes in-place and is irreversible.
 
         :param context: Dict with values to apply on content
         :param jinja_env: Jinja environment

@@ -2027,7 +2027,9 @@ class TaskInstance(Base, LoggingMixin):
         """
         if not context:
             context = self.get_template_context()
-        self.task = self.task.render_template_fields(context)
+        task = self.task.render_template_fields(context)
+        if task is not None:
+            self.task = task
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""

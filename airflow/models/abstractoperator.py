@@ -254,6 +254,22 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
         return None
 
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+    ) -> Optional["BaseOperator"]:
+        """Template all attributes listed in template_fields.
+
+        If the operator is mapped, this should return the unmapped, fully
+        rendered, and map-expanded operator. The mapped operator should not be
+        modified.
+
+        If the operator is not mapped, this should modify the operator in-place
+        and return either *None* (for backwards compatibility) or *self*.
+        """
+        raise NotImplementedError()
+
     @provide_session
     def _do_render_template_fields(
         self,

@@ -562,7 +562,7 @@ class MappedOperator(AbstractOperator):
         self,
         context: Context,
         jinja_env: Optional["jinja2.Environment"] = None,
-    ) -> "BaseOperator":
+    ) -> Optional["BaseOperator"]:
         """Template all attributes listed in template_fields.
 
         Different from the BaseOperator implementation, this renders the
