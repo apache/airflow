@@ -157,6 +157,8 @@ The ``schedule_interval`` argument takes any value that is a valid `Crontab <htt
     For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
 
     If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
+    For more information on ``logical date``, see :ref:`data-interval` and 
+    :ref:`faq:what-does-execution-date-mean`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
 Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the
