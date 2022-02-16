@@ -714,6 +714,10 @@ transfers:
   - source-integration-name: Apache Cassandra
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.cassandra_to_gcs
+  - source-integration-name: Google Calendar
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/calendar_to_gcs.rst
+    python-module: airflow.providers.google.cloud.transfers.calendar_to_gcs
   - source-integration-name: Google Spreadsheet
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sheets_to_gcs.rst
