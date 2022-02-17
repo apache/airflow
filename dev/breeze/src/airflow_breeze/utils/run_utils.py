@@ -22,8 +22,9 @@ import shlex
 import shutil
 import stat
 import subprocess
+from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Mapping, Optional
 
 import psutil
 
@@ -40,12 +41,22 @@ def run_command(
     verbose: bool = False,
     suppress_raise_exception: bool = False,
     suppress_console_print: bool = False,
+    env: Optional[Mapping[str, str]] = None,
     **kwargs,
 ):
     if verbose:
-        console.print(f"[blue]$ {' '.join(shlex.quote(c) for c in cmd)}")
+        command_to_print = ' '.join(shlex.quote(c) for c in cmd)
+        # if we pass environment variables to execute, then
+        env_to_print = ' '.join(f'{key}="{val}"' for (key, val) in env.items()) if env else ''
+        # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
+        console.print(f"[blue]{env_to_print} {command_to_print}[/]", soft_wrap=True)
     try:
-        return subprocess.run(cmd, check=check, **kwargs)
+        # copy existing environment variables
+        cmd_env = deepcopy(os.environ)
+        if env:
+            # Add environment variables passed as parameters
+            cmd_env.update(env)
+        return subprocess.run(cmd, check=check, env=cmd_env, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not suppress_console_print:
             console.print("========================= OUTPUT start ============================")

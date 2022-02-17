@@ -175,7 +175,6 @@ class ShellBuilder:
             sqlite_url = "sqlite:////root/airflow/airflow.db"
         return sqlite_url
 
-    @property
     def print_badge_info(self):
         console.print(f'Use {self.the_image_type} image')
         console.print(f'Branch Name: {self.airflow_branch}')
@@ -206,7 +205,7 @@ class ShellBuilder:
         )
         # mssql based check have to be added
         if self.backend == 'mssql':
-            docker_filesystem = get_filesystem_type()
+            docker_filesystem = get_filesystem_type('.')
             if docker_filesystem == 'tmpfs':
                 compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-mssql-bind-volume.yml")
             else:

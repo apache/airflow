@@ -14,10 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import click
 
@@ -117,18 +116,15 @@ DEFAULT_VALUES_FOR_PARAM = {
 }
 
 
-def construct_arguments_docker_compose_command(shell_params: ShellBuilder) -> List[str]:
-    args_command = []
+def construct_env_variables_docker_compose_command(shell_params: ShellBuilder) -> Dict[str, str]:
+    env_variables: Dict[str, str] = {}
     for param_name in PARAMS_TO_ENTER_SHELL:
         param_value = PARAMS_TO_ENTER_SHELL[param_name]
-        os.environ[param_name] = str(getattr(shell_params, param_value))
-        args_command.append(param_name + '=' + str(getattr(shell_params, param_value)))
+        env_variables[param_name] = str(getattr(shell_params, param_value))
     for constant_param_name in PARAMS_FOR_SHELL_CONSTANTS:
         constant_param_value = PARAMS_FOR_SHELL_CONSTANTS[constant_param_name]
-        os.environ[constant_param_name] = str(constant_param_value)
-        args_command.append(constant_param_name + '=' + str(constant_param_value))
-    # shell_path = write_env_in_cache(args_command)
-    return args_command
+        env_variables[constant_param_name] = str(constant_param_value)
+    return env_variables
 
 
 def build_image_checks(verbose: bool, shell_params: ShellBuilder):
@@ -166,16 +162,14 @@ def build_image_checks(verbose: bool, shell_params: ShellBuilder):
     check_docker_resources(verbose, str(shell_params.airflow_sources), shell_params.airflow_ci_image_name)
     cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
     cmd_added = shell_params.command_passed
+    env_variables = construct_env_variables_docker_compose_command(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
     if verbose:
-        shell_params.print_badge_info
-        show_cmd = construct_arguments_docker_compose_command(shell_params)
-        show_cmd.extend(cmd)
-        console.print('Command to run:', (' ').join(show_cmd))
-    output = run_command(cmd, verbose=False, text=True)
+        shell_params.print_badge_info()
+    output = run_command(cmd, verbose=verbose, env=env_variables, text=True)
     if verbose:
-        console.print(f"[blue]{output}")
+        console.print(f"[blue]{output}[/]")
 
 
 def get_cached_params(user_params) -> Dict:
