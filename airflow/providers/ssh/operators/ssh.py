@@ -17,7 +17,7 @@
 # under the License.
 
 import warnings
-from base64 import b64encode
+from base64 import b64encode,b64decode
 from select import select
 from typing import Optional, Union
 
@@ -194,7 +194,7 @@ class SSHOperator(BaseOperator):
                     if enable_pickling:
                         return agg_stdout
                     else:
-                        return b64encode(agg_stdout).decode('utf-8')
+                        return b64decode(b64encode(agg_stdout)).decode('utf-8')
 
                 else:
                     error_msg = agg_stderr.decode('utf-8')
