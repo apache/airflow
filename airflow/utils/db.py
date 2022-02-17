@@ -1179,9 +1179,15 @@ def resetdb(session: Session = NEW_SESSION):
 
     initdb(session=session)
     # Add permissions (needed in tests)
-    from airflow.www.app import create_app
+    from flask_sqlalchemy import SQLAlchemy
 
-    create_app(config={'UPDATE_FAB_PERMS': True})
+    from airflow.www.app import create_app
+    from airflow.www.session import AirflowDatabaseSessionInterface
+
+    app = create_app(config={'UPDATE_FAB_PERMS': True})
+    db = SQLAlchemy(app)
+    AirflowDatabaseSessionInterface(app=app, db=db, table='session', key_prefix='')
+    db.create_all()
 
 
 @provide_session
