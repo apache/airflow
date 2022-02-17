@@ -187,10 +187,10 @@ DAG run is scheduled or triggered. The reason why this is called
 *logical* is because of the abstract nature of it having multiple meanings,
 depending on the context of the DAG run itself.
 
-For example, when the DAG run is being triggered, the logical date would be the
+For example, if a DAG run is manually triggered by the user, its logical date would be the
 date and time of which the DAG run was triggered, and the value should be equal
-to DAG run's start date. However, when the DAG is being scheduled, with certain
-schedule interval put in place, this logical date is going to indicate the time
+to DAG run's start date. However, when the DAG is being automatically scheduled, with certain
+schedule interval put in place, the logical date is going to indicate the time
 at which it marks the start of the data interval, where the DAG run's start
 date would then be the logical date + scheduled interval.
 
