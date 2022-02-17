@@ -27,7 +27,7 @@ readonly COLOR_RESET
 
 install_postgres_client() {
     echo
-    echo "${COLOR_BLUE}Installing postgres client version ${MYSQL_VERSION}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing postgres client${COLOR_RESET}"
     echo
 
     if [[ "${1}" == "dev" ]]; then
