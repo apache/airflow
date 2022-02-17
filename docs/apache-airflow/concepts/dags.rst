@@ -179,8 +179,8 @@ In much the same way a DAG instantiates into a DAG Run every time it's run,
 Tasks specified inside a DAG are also instantiated into
 :ref:`Task Instances <concepts:task-instances>` along with it.
 
-When the DAG run starts, it will have the start date and end date. This period
-describes the time when the DAG run actually 'ran.' Aside from the DAG
+A DAG run will have a start date when it starts, and end date when it ends.
+This period describes the time when the DAG actually 'ran.' Aside from the DAG
 run's start and end date, there is another date called *logical date*
 (formally known as execution date), which describes the intended time a
 DAG run is scheduled or triggered. The reason why this is called
