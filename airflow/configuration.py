@@ -657,7 +657,7 @@ class AirflowConfigParser(ConfigParser):
         if include_secret:
             self._include_secrets(config_sources, display_sensitive, display_source, raw)
         else:
-            self._filter_by_source(config_sources, display_source, self._get_env_var_option)
+            self._filter_by_source(config_sources, display_source, self._get_secret_option)
 
         return config_sources
 
@@ -718,10 +718,15 @@ class AirflowConfigParser(ConfigParser):
 
     def _filter_by_source(self, config_sources, display_source, getter_func):
         for (section, key) in self.sensitive_config_values:
-            opt = getter_func(section, key)
-            if not opt:
-                continue
+            # Don't bother if we don't have section / key
             if section not in config_sources or key not in config_sources[section]:
+                continue
+            # Check that there is something to override defaults
+            try:
+                opt = getter_func(section, key)
+            except ValueError:
+                continue
+            if not opt:
                 continue
             if display_source:
                 opt, source = config_sources[section][key]
