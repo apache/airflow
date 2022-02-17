@@ -253,7 +253,7 @@ function breeze::initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/scripts/tools/confirm" "Proceeding with the initialization"
         echo
         pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
@@ -329,7 +329,7 @@ function breeze::initialize_virtualenv() {
 function breeze::setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
     echo
-    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/scripts/tools/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d

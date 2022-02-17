@@ -686,6 +686,7 @@ hashicorp                  google
 microsoft.azure            google,oracle,sftp
 mysql                      amazon,presto,trino,vertica
 postgres                   amazon
+presto                     google
 salesforce                 tableau
 sftp                       ssh
 slack                      http

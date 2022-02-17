@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,18 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
-export PRINT_INFO_FROM_SCRIPTS="false"
-export SKIP_CHECK_REMOTE_IMAGE="true"
-
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-function run_helm_lint() {
-    kind::make_sure_kubernetes_tools_are_installed
-
-    cd "${AIRFLOW_SOURCES}/chart" || exit 1
-    helm lint . -f values.yaml
-}
-
-run_helm_lint
