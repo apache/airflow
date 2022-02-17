@@ -18,7 +18,9 @@
 
 """Example DAG demonstrating the usage of the BashOperator."""
 
-from datetime import datetime, timedelta
+import datetime
+
+import pendulum
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -27,9 +29,9 @@ from airflow.operators.dummy import DummyOperator
 with DAG(
     dag_id='example_bash_operator',
     schedule_interval='0 0 * * *',
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1),
     catchup=False,
-    dagrun_timeout=timedelta(minutes=60),
+    dagrun_timeout=datetime.timedelta(minutes=60),
     tags=['example', 'example2'],
     params={"example_key": "example_value"},
 ) as dag:
