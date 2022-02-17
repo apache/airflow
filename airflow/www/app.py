@@ -110,8 +110,10 @@ def create_app(config=None, testing=False):
     db.session = settings.Session
     db.init_app(flask_app)
     flask_alchemy_db = SQLAlchemy(flask_app)
-    AirflowDatabaseSessionInterface(app=flask_app, db=flask_alchemy_db, table='session', key_prefix='')
-    flask_alchemy_db.create_all()
+    alchemy_engine = flask_alchemy_db.get_engine()
+    if not alchemy_engine.dialect.has_table(alchemy_engine.connect(), 'session'):
+        AirflowDatabaseSessionInterface(app=flask_app, db=flask_alchemy_db, table='session', key_prefix='')
+        flask_alchemy_db.create_all()
 
     init_dagbag(flask_app)
 
