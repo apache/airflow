@@ -188,6 +188,10 @@ The selective check algorithm is shown here:
     :align: center
     :alt: Selective check algorithm
 
+.. mermaid::
+  flowchart LR
+      A(PR arrives)-->B[Selective Check]
+
 Approval Workflow and Matrix tests
 ----------------------------------
 
