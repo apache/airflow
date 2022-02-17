@@ -24,6 +24,7 @@ from typing import Optional
 from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 
 from airflow import settings
@@ -48,6 +49,7 @@ from airflow.www.extensions.init_views import (
     init_plugins,
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
+from airflow.www.session import AirflowDatabaseSessionInterface
 
 app: Optional[Flask] = None
 
@@ -107,6 +109,9 @@ def create_app(config=None, testing=False):
     db = SQLA()
     db.session = settings.Session
     db.init_app(flask_app)
+    flask_alchemy_db = SQLAlchemy(flask_app)
+    AirflowDatabaseSessionInterface(app=flask_app, db=flask_alchemy_db, table='session', key_prefix='')
+    flask_alchemy_db.create_all()
 
     init_dagbag(flask_app)
 

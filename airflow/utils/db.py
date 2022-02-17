@@ -718,8 +718,6 @@ def check_and_run_migrations():
         db_command = upgradedb
         command_name = "upgrade"
         verb = "upgrade"
-    log.info("Source heads: %s", source_heads)
-    log.info("DB heads: %s", db_heads)
     if sys.stdout.isatty() and verb:
         print()
         question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
