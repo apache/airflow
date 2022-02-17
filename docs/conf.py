@@ -159,6 +159,7 @@ if PACKAGE_NAME == 'apache-airflow':
             'sphinxcontrib.redoc',
             # Second, update redoc script
             "sphinx_script_update",
+            'sphinxcontrib.mermaid',
         ]
     )
 
