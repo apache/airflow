@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import collections
 import collections.abc
 import datetime
 import functools
@@ -477,8 +478,9 @@ class MappedOperator(AbstractOperator):
 
         expansion_kwargs = self._get_expansion_kwargs()
 
-        # Populate literal mapped arguments first, fill in others with 0.
-        map_lengths = {k: 0 if isinstance(v, XComArg) else len(v) for k, v in expansion_kwargs.items()}
+        # Populate literal mapped arguments first.
+        map_lengths: Dict[str, int] = collections.defaultdict(int)
+        map_lengths.update((k, len(v)) for k, v in expansion_kwargs.items() if not isinstance(v, XComArg))
 
         dep_keys = {v.operator.task_id: k for k, v in expansion_kwargs.items() if isinstance(v, XComArg)}
         taskmap_query = session.query(TaskMap.task_id, TaskMap.length).filter(
@@ -488,6 +490,11 @@ class MappedOperator(AbstractOperator):
         )
         for task_id, length in taskmap_query:
             map_lengths[dep_keys[task_id]] += length
+
+        if len(map_lengths) < len(expansion_kwargs):
+            keys = ", ".join(repr(k) for k in sorted(set(expansion_kwargs).difference(map_lengths)))
+            raise RuntimeError(f"Failed to populate all mapping metadata; missing: {keys}")
+
         return map_lengths
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> Sequence["TaskInstance"]:
@@ -631,6 +638,8 @@ class MappedOperator(AbstractOperator):
             # Need to use self.mapped_kwargs for the original argument order.
             for mapped_key in reversed(list(expansion_kwargs)):
                 mapped_length = all_lengths[mapped_key]
+                if mapped_length < 1:
+                    raise RuntimeError(f"cannot expand field mapped to length {mapped_length!r}")
                 if mapped_key == key:
                     return index % mapped_length
                 index //= mapped_length
