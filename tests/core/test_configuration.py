@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import io
 import os
 import re
@@ -771,10 +772,8 @@ notacommand = OK
         assert message == exception
 
     def test_as_dict_works_without_sensitive_cmds(self):
-        test_conf = conf
-
-        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
-        conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+        conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
 
         assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
         assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
@@ -789,7 +788,7 @@ notacommand = OK
 
     def test_as_dict_respects_sensitive_cmds(self):
         conf_conn = conf['core']['sql_alchemy_conn']
-        test_conf = conf
+        test_conf = copy.copy(conf)
         test_conf.read_string(
             textwrap.dedent(
                 """
