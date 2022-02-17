@@ -41,6 +41,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
 
@@ -214,7 +215,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return ClusterControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_template_client(
@@ -234,7 +235,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return WorkflowTemplateServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_client(
@@ -254,7 +255,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return JobControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_batch_client(
@@ -274,7 +275,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return BatchControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):

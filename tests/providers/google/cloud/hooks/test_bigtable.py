@@ -26,6 +26,7 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
@@ -56,18 +57,14 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
         ):
             self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id='test')
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigtable.BigtableHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")
-    def test_bigtable_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_bigtable_client_creation(self, mock_client, mock_get_creds):
         result = self.bigtable_hook_no_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value,
+            client_info=CLIENT_INFO,
             admin=True,
         )
         assert mock_client.return_value == result
@@ -156,18 +153,14 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         ):
             self.bigtable_hook_default_project_id = BigtableHook(gcp_conn_id='test')
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigtable.BigtableHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")
-    def test_bigtable_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_bigtable_client_creation(self, mock_client, mock_get_creds):
         result = self.bigtable_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value,
+            client_info=CLIENT_INFO,
             admin=True,
         )
         assert mock_client.return_value == result

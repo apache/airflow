@@ -37,7 +37,7 @@ KRB5_KTNAME = os.environ.get("KRB5_KTNAME")
 def app_for_kerberos():
     with conf_vars(
         {
-            ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
+            ("api", "auth_backends"): "airflow.api.auth.backend.kerberos_auth",
             ("kerberos", "keytab"): KRB5_KTNAME,
             ('api', 'enable_experimental_api'): 'true',
         }

@@ -40,6 +40,7 @@ from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
@@ -155,7 +156,7 @@ class GCSHook(GoogleBaseHook):
         """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
-                credentials=self._get_credentials(), client_info=self.client_info, project=self.project_id
+                credentials=self._get_credentials(), client_info=CLIENT_INFO, project=self.project_id
             )
 
         return self._conn

@@ -55,16 +55,16 @@ def get_xcom_entries(
         appbuilder = current_app.appbuilder
         readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
         query = query.filter(XCom.dag_id.in_(readable_dag_ids))
-        query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+        query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:
         query = query.filter(XCom.dag_id == dag_id)
-        query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+        query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
 
     if task_id != '~':
         query = query.filter(XCom.task_id == task_id)
     if dag_run_id != '~':
         query = query.filter(DR.run_id == dag_run_id)
-    query = query.order_by(XCom.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
+    query = query.order_by(DR.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
     total_entries = query.count()
     query = query.offset(offset).limit(limit)
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
@@ -89,7 +89,7 @@ def get_xcom_entry(
 ) -> APIResponse:
     """Get an XCom entry"""
     query = session.query(XCom).filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
-    query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+    query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     query = query.filter(DR.run_id == dag_run_id)
 
     query_object = query.one_or_none()

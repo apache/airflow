@@ -793,7 +793,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: auth_backend
+    - name: auth_backends
       description: |
         How to authenticate users of the API. See
         https://airflow.apache.org/docs/apache-airflow/stable/security.html for possible values.
