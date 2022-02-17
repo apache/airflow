@@ -239,16 +239,16 @@ def setup_autocomplete():
     click.echo(f"Activation command scripts are created in this autocompletion path: {autocomplete_path}")
     if click.confirm(f"Do you want to add the above autocompletion scripts to your {shell} profile?"):
         if shell == 'bash':
-            script_path = Path('~').expanduser() / '/.bash_completion'
+            script_path = Path('~').expanduser() / '.bash_completion'
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, script_path, breeze_comment)
         elif shell == 'zsh':
-            script_path = Path('~').expanduser() / '/.zshrc'
+            script_path = Path('~').expanduser() / '.zshrc'
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, script_path, breeze_comment)
         elif shell == 'fish':
             # Include steps for fish shell
-            script_path = Path('~').expanduser() / f'/.config/fish/completions/{NAME}.fish'
+            script_path = Path('~').expanduser() / f'.config/fish/completions/{NAME}.fish'
             with open(path) as source_file, open(script_path, 'w') as destination_file:
                 for line in source_file:
                     destination_file.write(line)
