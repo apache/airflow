@@ -17,7 +17,7 @@
 # under the License.
 
 import warnings
-from base64 import b64encode
+from base64 import b64encode,b64decode
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.configuration import conf
@@ -175,7 +175,7 @@ class SSHOperator(BaseOperator):
             raise AirflowException(f"SSH operator error: {str(e)}")
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if not enable_pickling:
-            result = b64encode(result).decode('utf-8')
+            result = b64decode(b64encode(result)).decode('utf-8')
         return result
 
     def tunnel(self) -> None:
