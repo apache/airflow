@@ -193,6 +193,8 @@ The selective check algorithm is shown here:
    flowchart LR
       A(PR arrives)-->B[Selective Check]
 
+.. mermaid:: mermind.md
+
 Approval Workflow and Matrix tests
 ----------------------------------
 

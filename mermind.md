@@ -1,0 +1,45 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+```mermaid
+flowchart TD
+A(PR arrives)-->B[Selective Check]
+B-->C{Direct push merge?}
+C-->|Yes| N[Enable images]
+N-->D(Run Full Test<br />+Quarantined<br />Run full static checks)
+C-->|No| E[Retrieve changed files]
+E-->F{Environment files changed?}
+F-->|Yes| N
+F-->|No| G{Docs changed}
+G-->|Yes| O[Enable images building]
+O-->I{Chart files changed?}
+G-->|No| I
+I-->|Yes| P[Enable helm tests]
+P-->J{API files changed}
+I-->|No| J
+J-->|Yes| Q[Enable API tests]
+Q-->H{Sources changed?}
+J-->|No| H
+H-->|Yes| R[Enable Pytests]
+R-->K[Determine test type]
+K-->S{Core files changed}
+S-->|Yes| N
+S-->|No| M(Run selected test+<br />Heisentest, Integration, Quarantined<br />Full static checks)
+H-->|No| L[Skip running test<br />Run subset of static checks]
+```
