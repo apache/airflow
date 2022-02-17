@@ -346,12 +346,7 @@ class CeleryExecutor(BaseExecutor):
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
         if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
-            try:
-                with timeout(seconds=OPERATION_TIMEOUT):
-                    self._clear_stuck_queued_tasks()
-            except Exception:
-                # This timeout is not important, we should skip
-                pass
+            self._clear_stuck_queued_tasks()
 
     def _check_for_stalled_adopted_tasks(self):
         """
@@ -424,13 +419,18 @@ class CeleryExecutor(BaseExecutor):
             session_ = app.backend.ResultSession()
             task_cls = getattr(app.backend, "task_cls", TaskDb)
             with session_cleanup(session_):
-                celery_task_ids = [
-                    t.task_id
-                    for t in session_.query(task_cls.task_id)
-                    .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
-                    .filter(task_cls.task_id.in_([ti.external_executor_id for ti in queued_too_log]))
-                    .all()
-                ]
+                try:
+                    with timeout(seconds=15):
+                        celery_task_ids = [
+                            t.task_id
+                            for t in session_.query(task_cls.task_id)
+                            .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
+                            .filter(task_cls.task_id.in_([ti.external_executor_id for ti in queued_too_log]))
+                            .all()
+                        ]
+                except Exception:
+                    # This timeout is not important, we should skip
+                    pass
 
         for task in queued_too_log:
             # If the task is still queued, then it's stuck
