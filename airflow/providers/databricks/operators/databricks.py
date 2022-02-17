@@ -28,7 +28,6 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
@@ -397,6 +396,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     Currently the named parameters that ``DatabricksRunNowOperator`` supports are
         - ``job_id``
+        - ``job_name``
         - ``json``
         - ``notebook_params``
         - ``python_params``
@@ -489,6 +489,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self,
         *,
         job_id: Optional[str] = None,
+        job_name: Optional[str] = None,
         json: Optional[Any] = None,
         notebook_params: Optional[Dict[str, str]] = None,
         python_params: Optional[List[str]] = None,
@@ -511,6 +512,11 @@ class DatabricksRunNowOperator(BaseOperator):
         self.databricks_retry_delay = databricks_retry_delay
         self.wait_for_termination = wait_for_termination
 
+        if job_name or 'job_name' in self.json:
+            if job_id or 'job_id' in self.json:
+                raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
+        if job_name:
+            self.json['job_name'] = job_name
         if job_id is not None:
             self.json['job_id'] = job_id
         if notebook_params is not None:
@@ -536,6 +542,12 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         hook = self._get_hook()
+        if 'job_name' in self.json:
+            job_id = hook.find_job_id_by_name(self.json['job_name'])
+            if not job_id:
+                raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
+            self.json['job_id'] = job_id
+            del self.json['job_name']
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
