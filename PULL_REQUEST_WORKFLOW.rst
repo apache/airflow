@@ -190,13 +190,8 @@ The selective check algorithm is shown here:
 
 .. mermaid::
 
-   sequenceDiagram
-      participant Alice
-      participant Bob
-      Alice->John: Hello John, how are you?
-      loop Healthcheck
-          John->John: Fight against hypochondria
-      end
+   flowchart LR
+      A(PR arrives)-->B[Selective Check]
 
 Approval Workflow and Matrix tests
 ----------------------------------
