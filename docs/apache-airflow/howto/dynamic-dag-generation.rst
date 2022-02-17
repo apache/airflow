@@ -141,4 +141,4 @@ The code below will generate a DAG for each config: ``dynamic_generated_dag_conf
 Each of them can run separately with related configuration
 
 .. warning::
-  Using this practice, pay attention to "late binding" behaviour in Python loops. See `that GitHub disscusion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
+  Using this practice, pay attention to "late binding" behaviour in Python loops. See `that GitHub discussion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
