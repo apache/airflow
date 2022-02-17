@@ -139,30 +139,6 @@
         "additionalProperties": true
       }
     },
-    "links": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "integration-name": {
-            "type": "string",
-            "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
-          },
-          "python-modules": {
-            "description": "List of python modules containing the links.",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "integration-name",
-          "python-modules"
-        ],
-        "additionalProperties": true
-      }
-    },
     "hooks": {
       "type": "array",
       "items": {

@@ -484,11 +484,6 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
 
-links:
-  - integration-name: Google Vertex AI
-    python-modules:
-      - airflow.providers.google.cloud.links.vertex_ai
-
 sensors:
   - integration-name: Google BigQuery
     python-modules:
