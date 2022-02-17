@@ -1152,7 +1152,7 @@ pgbouncer:
 
   # if you provide the backend credentials via secret (metadataSecretName and resultBackendSecretName)
   # you should also provide configuration for the stats exporter or it would default to postgresql:postgresql
-  # 
+  #
   #  apiVersion: v1
   #  kind: Secret
   #  metadata:
@@ -1160,6 +1160,7 @@ pgbouncer:
   #  data:
   #     connection: postgresql://user:password@127.0.0.1:6543/pgbouncer?sslmode=disable
   #  type: Opaque
+  #
   statsSecretName: ~
 
   # PgBouncer pod disruption budget
