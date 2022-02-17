@@ -129,7 +129,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
 
-_EXECUTION_FRAME_MAPPING: "WeakKeyDictionary[BaseOperator, FrameType]" = WeakKeyDictionary()
+_EXECUTION_FRAME_MAPPING: "WeakKeyDictionary[Operator, FrameType]" = WeakKeyDictionary()
 
 
 @contextlib.contextmanager
