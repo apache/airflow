@@ -116,7 +116,7 @@ def check_docker_permission(verbose) -> bool:
 
 
 def compare_version(current_version: str, min_version: str) -> bool:
-    return version.parse(current_version) > version.parse(min_version)
+    return version.parse(current_version) >= version.parse(min_version)
 
 
 def check_docker_version(verbose: bool):
@@ -145,7 +145,7 @@ def check_docker_version(verbose: bool):
             else:
                 console.print(
                     f'Your version of docker is too old:{docker_version}. Please upgrade to \
-                    at least ${MIN_DOCKER_VERSION}'
+                    at least {MIN_DOCKER_VERSION}'
                 )
 
 

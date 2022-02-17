@@ -42,6 +42,7 @@ def run_command(
     suppress_raise_exception: bool = False,
     suppress_console_print: bool = False,
     env: Optional[Mapping[str, str]] = None,
+    cwd: Optional[Path] = None,
     **kwargs,
 ):
     if verbose:
@@ -56,7 +57,7 @@ def run_command(
         if env:
             # Add environment variables passed as parameters
             cmd_env.update(env)
-        return subprocess.run(cmd, check=check, env=cmd_env, **kwargs)
+        return subprocess.run(cmd, check=check, env=cmd_env, cwd=cwd, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not suppress_console_print:
             console.print("========================= OUTPUT start ============================")
