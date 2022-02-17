@@ -57,7 +57,7 @@ PARAMS = [
     ),
     (
         ("Deployment", f"{RELEASE_NAME}-flower"),
-        ("spec.template.spec.containers[0]"),
+        ("spec.template.spec.containers[0]",),
     ),
 ]
 
