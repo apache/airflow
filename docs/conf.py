@@ -145,6 +145,7 @@ extensions = [
     'sphinx_airflow_theme',
     'redirects',
     'substitution_extensions',
+    'sphinxcontrib.mermaid',
 ]
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
