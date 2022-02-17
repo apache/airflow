@@ -133,6 +133,24 @@ def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
+def create_mocked_kwargs(kwargs: Dict[str, "MapArgument"]) -> Dict[str, unittest.mock.MagicMock]:
+    """Create a mapping of mocks for given map arguments.
+
+    When a mapped operator is created, we want to perform basic validation on
+    the map arguments, especially the count of arguments. However, most of this
+    kind of logic lives directly on an operator class's ``__init__``, and
+    there's no good way to validate the arguments except to actually try to
+    create an operator instance.
+
+    Since the map arguments are yet to be populated when the mapped operator is
+    being parsed, we need to "invent" some mocked values for this validation
+    purpose. The :class:`~unittest.mock.MagicMock` class is a good fit for this
+    since it not only provide good run-time properties, but also enjoy special
+    treatments in Mypy.
+    """
+    return {k: unittest.mock.MagicMock(name=k) for k in kwargs}
+
+
 @attr.define(kw_only=True, repr=False)
 class OperatorPartial:
     """An "intermediate state" returned by ``BaseOperator.partial()``.
@@ -277,7 +295,7 @@ class MappedOperator(AbstractOperator):
         """
         if isinstance(self.operator_class, str):
             return  # No need to validate deserialized operator.
-        mocked_mapped_kwargs = {k: unittest.mock.MagicMock(name=k) for k in self.mapped_kwargs}
+        mocked_mapped_kwargs = create_mocked_kwargs(self.mapped_kwargs)
         op = self._create_unmapped_operator(mapped_kwargs=mocked_mapped_kwargs, real=False)
         if op.task_group:
             op.task_group._remove(op)

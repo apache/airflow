@@ -20,7 +20,6 @@ import functools
 import inspect
 import re
 import sys
-import unittest.mock
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -48,7 +47,12 @@ from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
 from airflow.models.dag import DAG, DagContext
-from airflow.models.mappedoperator import MappedOperator, ValidationSource, get_mappable_types
+from airflow.models.mappedoperator import (
+    MappedOperator,
+    ValidationSource,
+    create_mocked_kwargs,
+    get_mappable_types,
+)
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
@@ -404,7 +408,7 @@ class DecoratedMappedOperator(MappedOperator):
         if real:
             mapped_op_kwargs: Dict[str, Any] = self.mapped_op_kwargs
         else:
-            mapped_op_kwargs = {k: unittest.mock.MagicMock(name=k) for k in self.mapped_op_kwargs}
+            mapped_op_kwargs = create_mocked_kwargs(self.mapped_op_kwargs)
         op_kwargs = _merge_kwargs(
             partial_kwargs.pop("op_kwargs"),
             mapped_op_kwargs,
