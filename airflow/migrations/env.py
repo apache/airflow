@@ -22,16 +22,6 @@ from alembic import context
 
 from airflow import models, settings
 
-
-def include_object(_, name, type_, *args):
-    """Filter objects for autogenerating revisions"""
-    # Ignore _anything_ to do with Flask AppBuilder's tables
-    if type_ == "table" and name.startswith("ab_"):
-        return False
-    else:
-        return True
-
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -93,7 +83,6 @@ def run_migrations_online():
             transaction_per_migration=True,
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
-            include_object=include_object,
             render_as_batch=True,
         )
 
