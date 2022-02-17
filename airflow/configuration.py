@@ -211,6 +211,13 @@ class AirflowConfigParser(ConfigParser):
                 3.0,
             ),
         },
+        'api': {
+            'auth_backends': (
+                re.compile(r'^airflow\.api\.auth\.backend\.deny_all$|^$'),
+                'airflow.api.auth.backend.session',
+                '3.0',
+            ),
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
@@ -281,7 +288,28 @@ class AirflowConfigParser(ConfigParser):
                         version=version,
                     )
 
+        self._upgrade_auth_backends()
         self.is_validated = True
+
+    def _upgrade_auth_backends(self):
+        """
+        Ensure a custom auth_backends setting contains session,
+        which is needed by the UI for ajax queries.
+        """
+        old_value = self.get("api", "auth_backends", fallback="")
+        if old_value in ('airflow.api.auth.backend.default', ''):
+            # handled by deprecated_values
+            pass
+        elif old_value.find('airflow.api.auth.backend.session') == -1:
+            new_value = old_value + "\nairflow.api.auth.backend.session"
+            self._update_env_var(section="api", name="auth_backends", new_value=new_value)
+            self._create_future_warning(
+                name="auth_backends",
+                section="api",
+                current_value=old_value,
+                new_value=new_value,
+                version="3.0",
+            )
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
