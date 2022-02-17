@@ -243,6 +243,8 @@ This allows for a backfill on tasks that have ``depends_on_past=True`` to
 actually start. If this were not the case, the backfill just would not start.
 
 
+.. _faq:what-does-execution-date-mean:
+
 What does ``execution_date`` mean?
 ----------------------------------
 
@@ -276,6 +278,11 @@ misunderstandings.
 
 Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
 *date* ***string***, not *date* ***start*** as may be confusing to some.
+
+.. tip::
+
+    For more information on ``logical date``, see :ref:`data-interval` and
+    :ref:`concepts:dag-run`.
 
 
 How to create DAGs dynamically?
