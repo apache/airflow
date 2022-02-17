@@ -105,7 +105,6 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mysql.sh dev \
     && bash /scripts/docker/install_mssql.sh \
     && bash /scripts/docker/install_postgres.sh dev \
-    && bash /scripts/docker/install_postgres.sh prod \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
               --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
