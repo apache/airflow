@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-16T20:53:42Z
+# This constraints file was automatically generated on 2022-02-17T19:37:34Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -155,7 +155,7 @@ execnet==1.9.0
 executing==0.8.2
 facebook-business==12.0.1
 fastavro==1.4.9
-filelock==3.5.1
+filelock==3.6.0
 fissix==21.11.13
 flake8-colors==0.1.9
 flake8==4.0.1
@@ -182,7 +182,7 @@ google-cloud-audit-log==0.2.0
 google-cloud-automl==2.6.0
 google-cloud-bigquery-datatransfer==3.6.0
 google-cloud-bigquery-storage==2.11.0
-google-cloud-bigquery==2.32.0
+google-cloud-bigquery==2.33.0
 google-cloud-bigtable==1.7.0
 google-cloud-build==3.7.1
 google-cloud-container==1.0.1
@@ -262,7 +262,7 @@ ldap3==2.9.1
 libcst==0.4.1
 locket==0.2.1
 lockfile==0.12.2
-lxml==4.7.1
+lxml==4.8.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
@@ -322,7 +322,7 @@ platformdirs==2.5.0
 pluggy==1.0.0
 ply==3.11
 plyvel==1.4.0
-portalocker==2.3.2
+portalocker==2.4.0
 pre-commit==2.17.0
 presto-python-client==0.7.0
 prison==0.2.1
@@ -378,7 +378,7 @@ python-jenkins==1.7.0
 python-jose==3.3.0
 python-ldap==3.4.0
 python-nvd3==0.15.0
-python-slugify==5.0.2
+python-slugify==6.0.1
 python-telegram-bot==13.11
 python3-openid==3.2.0
 pytz-deprecation-shim==0.1.0.post0
@@ -479,7 +479,7 @@ types-protobuf==3.19.12
 types-python-dateutil==2.8.9
 types-python-slugify==5.0.3
 types-pytz==2021.3.5
-types-redis==4.1.15
+types-redis==4.1.16
 types-requests==2.27.10
 types-setuptools==57.4.9
 types-six==1.16.10
@@ -506,7 +506,7 @@ websocket-client==1.2.3
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.130.0
+yandexcloud==0.131.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
