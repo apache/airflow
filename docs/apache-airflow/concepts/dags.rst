@@ -181,10 +181,10 @@ Tasks specified inside a DAG are also instantiated into
 
 When the DAG run starts, it will have the start date and end date. This period
 describes the time when the DAG run actually 'ran.' Aside from the DAG
-run's start and end date, there is another date called ``logical date``
-(formally known as execution date), which describes the intended time for the
-DAG run to be scheduled or triggered to run. The reason why this is called
-``logical`` is because of the abstract nature of it having multiple meanings,
+run's start and end date, there is another date called *logical date*
+(formally known as execution date), which describes the intended time a
+DAG run is scheduled or triggered. The reason why this is called
+*logical* is because of the abstract nature of it having multiple meanings,
 depending on the context of the DAG run itself.
 
 For example, when the DAG run is being triggered, the logical date would be the
