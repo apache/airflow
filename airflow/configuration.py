@@ -723,11 +723,15 @@ class AirflowConfigParser(ConfigParser):
                 continue
             # Check that there is something to override defaults
             try:
-                opt = getter_func(section, key)
+                getter_opt = getter_func(section, key)
             except ValueError:
                 continue
-            if not opt:
+            if not getter_opt:
                 continue
+            # Check to see that there is a default value
+            if not self.airflow_defaults.has_option(section, key):
+                continue
+            # Check to see if bare setting is the same as defaults
             if display_source:
                 opt, source = config_sources[section][key]
             else:
