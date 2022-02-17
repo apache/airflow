@@ -2359,8 +2359,8 @@ class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
         "literal, expected_outputs",
         [
-            ([1, 2, 3], {1, 2, 3}),
-            ({"a": 1, "b": 2}, {("a", 1), ("b", 2)}),
+            pytest.param([1, 2, 3], {1, 2, 3}, id="list"),
+            pytest.param({"a": 1, "b": 2}, {("a", 1), ("b", 2)}, id="dict"),
         ],
     )
     def test_map_literal(self, literal, expected_outputs, dag_maker, session):
@@ -2387,8 +2387,8 @@ class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
         "upstream_return, expected_outputs",
         [
-            ([1, 2, 3], {1, 2, 3}),
-            ({"a": 1, "b": 2}, {("a", 1), ("b", 2)}),
+            pytest.param([1, 2, 3], {1, 2, 3}, id="list"),
+            pytest.param({"a": 1, "b": 2}, {("a", 1), ("b", 2)}, id="dict"),
         ],
     )
     def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
@@ -2408,6 +2408,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag.get_task("emit"))
         emit_ti.run()
 
         show_task = dag.get_task("show")
@@ -2418,3 +2419,44 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == expected_outputs
+
+    def test_map_product(self, dag_maker, session):
+        outputs = set()
+
+        with dag_maker(dag_id="product", session=session) as dag:
+
+            @dag.task
+            def emit_numbers():
+                return [1, 2]
+
+            @dag.task
+            def emit_letters():
+                return {"a": "x", "b": "y", "c": "z"}
+
+            @dag.task
+            def show(number, letter):
+                outputs.add((number, letter))
+
+            show.map(number=emit_numbers(), letter=emit_letters())
+
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ["emit_numbers", "emit_letters"]:
+            ti = dag_run.get_task_instance(task_id, session=session)
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        show_task = dag.get_task("show")
+        tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(tis) == 6
+
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == {
+            (1, ("a", "x")),
+            (2, ("a", "x")),
+            (1, ("b", "y")),
+            (2, ("b", "y")),
+            (1, ("c", "z")),
+            (2, ("c", "z")),
+        }
