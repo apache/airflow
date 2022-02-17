@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-16T02:13:52Z
+# This constraints file was automatically generated on 2022-02-17T22:28:14Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -74,7 +74,7 @@ dnspython==2.2.0
 docutils==0.16
 email-validator==1.1.3
 eventlet==0.33.0
-filelock==3.5.0
+filelock==3.6.0
 flower==1.0.0
 fsspec==2022.1.0
 gevent==21.12.0
@@ -85,8 +85,8 @@ google-auth==2.6.0
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
-grpcio==1.43.0
-gssapi==1.7.2
+grpcio==1.44.0
+gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.14.7
@@ -101,7 +101,7 @@ isodate==0.6.1
 itsdangerous==1.1.0
 jsonschema==3.2.0
 kombu==5.2.3
-krb5==0.2.0
+krb5==0.3.0
 kubernetes==11.0.0
 lazy-object-proxy==1.4.3
 ldap3==2.9.1
@@ -137,7 +137,7 @@ pycparser==2.21
 pykerberos==1.2.1
 pyparsing==3.0.7
 pyrsistent==0.16.1
-pyspnego==0.3.1
+pyspnego==0.4.0
 python-daemon==2.3.0
 python-dateutil==2.8.2
 python-ldap==3.4.0

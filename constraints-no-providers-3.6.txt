@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-16T02:14:00Z
+# This constraints file was automatically generated on 2022-02-17T22:28:22Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -88,8 +88,8 @@ google-auth==1.35.0
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
-grpcio==1.43.0
-gssapi==1.7.2
+grpcio==1.44.0
+gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.14.7
@@ -105,7 +105,7 @@ isodate==0.6.1
 itsdangerous==1.1.0
 jsonschema==3.2.0
 kombu==5.1.0
-krb5==0.2.0
+krb5==0.3.0
 kubernetes==11.0.0
 lazy-object-proxy==1.4.3
 ldap3==2.9.1
@@ -129,7 +129,7 @@ plyvel==1.4.0
 prison==0.2.1
 prometheus-client==0.13.1
 prompt-toolkit==3.0.28
-proto-plus==1.20.1
+proto-plus==1.20.2
 protobuf==3.19.4
 psutil==5.9.0
 pure-sasl==0.6.2
@@ -140,7 +140,7 @@ pycparser==2.21
 pykerberos==1.2.1
 pyparsing==3.0.7
 pyrsistent==0.16.1
-pyspnego==0.3.1
+pyspnego==0.4.0
 python-daemon==2.3.0
 python-dateutil==2.8.2
 python-ldap==3.4.0
