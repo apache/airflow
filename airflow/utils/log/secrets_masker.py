@@ -147,7 +147,10 @@ class SecretsMasker(logging.Filter):
         return frozenset(record.__dict__).difference({'msg', 'args'})
 
     def _redact_exception_with_context(self, exception):
-        exception.args = (self.redact(v) for v in exception.args)
+        try:
+            exception.args = (self.redact(v) for v in exception.args)
+        except AttributeError:
+            pass
         if exception.__context__:
             self._redact_exception_with_context(exception.__context__)
         if exception.__cause__ and exception.__cause__ is not exception.__context__:

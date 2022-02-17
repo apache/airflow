@@ -1722,10 +1722,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                try:
-                    self.log.error("Task failed with exception", exc_info=error)
-                except AttributeError:
-                    self.log.error("%s", error)
+                self.log.error("Task failed with exception", exc_info=error)
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task
