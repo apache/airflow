@@ -495,7 +495,9 @@ class MappedOperator(AbstractOperator):
             ti = TaskInstance(self, run_id=upstream_ti.run_id, map_index=index, state=state)  # type: ignore
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
-            ret.append(session.merge(ti))
+            ti = session.merge(ti)
+            ti.task = self
+            ret.append(ti)
 
         # Set to "REMOVED" any (old) TaskInstances with map indices greater
         # than the current map value
