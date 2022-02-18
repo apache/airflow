@@ -35,6 +35,15 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+def stringify(line: Union[str, bytes]):
+    """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
+    decode_method = getattr(line, 'decode', None)
+    if decode_method:
+        return decode_method(encoding='utf-8', errors='surrogateescape')
+    else:
+        return line
+
+
 class DockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
@@ -222,7 +231,7 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config(),
         )
 
-    def _run_image(self) -> Optional[str]:
+    def _run_image(self) -> Optional[Union[List[str], str]]:
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
         if not self.cli:
@@ -245,7 +254,9 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> Optional[str]:
+    def _run_image_with_mounts(
+        self, target_mounts, add_tmp_variable: bool
+    ) -> Optional[Union[List[str], str]]:
         if add_tmp_variable:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
@@ -281,10 +292,7 @@ class DockerOperator(BaseOperator):
 
             log_lines = []
             for log_chunk in logstream:
-                if hasattr(log_chunk, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    log_chunk = log_chunk.decode('utf-8', errors='surrogateescape')
-                log_chunk = log_chunk.strip()
+                log_chunk = stringify(log_chunk).strip()
                 log_lines.append(log_chunk)
                 self.log.info("%s", log_chunk)
 
@@ -302,12 +310,15 @@ class DockerOperator(BaseOperator):
                     'stderr': True,
                     'stream': True,
                 }
-
-                return (
-                    self.cli.logs(**log_parameters)
-                    if self.xcom_all
-                    else self.cli.logs(**log_parameters, tail=1)
-                )
+                try:
+                    if self.xcom_all:
+                        return [stringify(line).strip() for line in self.cli.logs(**log_parameters)]
+                    else:
+                        lines = [stringify(line).strip() for line in self.cli.logs(**log_parameters, tail=1)]
+                        return lines[-1] if lines else None
+                except StopIteration:
+                    # handle the case when there is not a single line to iterate on
+                    return None
             return None
         finally:
             if self.auto_remove:

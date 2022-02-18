@@ -20,9 +20,6 @@
  */
 
 import '@testing-library/jest-dom';
-import { enableFetchMocks } from 'jest-fetch-mock';
-
-enableFetchMocks();
 
 // Mock a global object we use across the app
 global.stateColors = {

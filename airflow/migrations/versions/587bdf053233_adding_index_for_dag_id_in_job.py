@@ -19,7 +19,7 @@
 """adding index for dag_id in job
 
 Revision ID: 587bdf053233
-Revises: f9da662e7089
+Revises: c381b21cb7e4
 Create Date: 2021-12-14 10:20:12.482940
 
 """
@@ -28,7 +28,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '587bdf053233'
-down_revision = 'f9da662e7089'
+down_revision = 'c381b21cb7e4'
 branch_labels = None
 depends_on = None
 

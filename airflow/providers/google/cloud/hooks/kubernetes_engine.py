@@ -41,6 +41,7 @@ from google.protobuf.json_format import ParseDict
 
 from airflow import version
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
@@ -77,9 +78,7 @@ class GKEHook(GoogleBaseHook):
         """
         if self._client is None:
             credentials = self._get_credentials()
-            self._client = container_v1.ClusterManagerClient(
-                credentials=credentials, client_info=self.client_info
-            )
+            self._client = container_v1.ClusterManagerClient(credentials=credentials, client_info=CLIENT_INFO)
         return self._client
 
     # To preserve backward compatibility

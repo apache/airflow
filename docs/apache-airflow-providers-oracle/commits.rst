@@ -31,15 +31,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.2.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-11
 
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  ===============================================================================================
+`d72098f6d <https://github.com/apache/airflow/commit/d72098f6d811165225ebee4086969510861a544f>`_  2022-02-11   ``improved backwards compatibility (#21524)``
+`d94fa3783 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`471e368ea <https://github.com/apache/airflow/commit/471e368eacbcae1eedf9b7e1cb4290c385396ea9>`_  2022-02-07   ``[Oracle] Oracle Hook - automatically set current_schema when defined in Connection (#19084)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
 `a8c6451e6 <https://github.com/apache/airflow/commit/a8c6451e6196be64469a99247a4e75d6095b5470>`_  2022-01-07   ``Oracle Provider: Fix handling of bindvars with no parameters (#20720)``
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  ===============================================================================================
 
 2.1.0
 .....

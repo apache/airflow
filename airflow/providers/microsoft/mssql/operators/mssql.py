@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.hooks.dbapi import DbApiHook
@@ -49,7 +50,8 @@ class MsSqlOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'tsql'}
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {'sql': 'tsql' if 'tsql' in wwwutils.get_attr_renderer() else 'sql'}
     ui_color = '#ededed'
 
     def __init__(

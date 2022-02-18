@@ -22,10 +22,10 @@ from unittest import mock
 from google.cloud.automl_v1beta1 import AutoMlClient
 
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
-CLIENT_INFO = "client-info"
 TASK_ID = "test-automl-hook"
 GCP_PROJECT_ID = "test-project"
 GCP_LOCATION = "test-location"
@@ -58,21 +58,13 @@ class TestAuoMLHook(unittest.TestCase):
             self.hook = CloudAutoMLHook()
             self.hook._get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.client_info",
-        new_callable=lambda: CLIENT_INFO,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient")
-    def test_get_conn(self, mock_automl_client, mock_client_info):
+    def test_get_conn(self, mock_automl_client):
         self.hook.get_conn()
         mock_automl_client.assert_called_once_with(credentials=CREDENTIALS, client_info=CLIENT_INFO)
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.client_info",
-        new_callable=lambda: CLIENT_INFO,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient")
-    def test_prediction_client(self, mock_prediction_client, mock_client_info):
+    def test_prediction_client(self, mock_prediction_client):
         client = self.hook.prediction_client  # noqa
         mock_prediction_client.assert_called_once_with(credentials=CREDENTIALS, client_info=CLIENT_INFO)
 

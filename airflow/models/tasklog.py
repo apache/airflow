@@ -24,7 +24,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class LogTemplate(Base):
-    """Changes to ``log_filename_template`` and ``task_log_prefix_template``.
+    """Changes to ``log_filename_template`` and ``elasticsearch_id``.
 
     This table is automatically populated when Airflow starts up, to store the
     config's value if it does not match the last row in the table.
@@ -34,10 +34,9 @@ class LogTemplate(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     filename = Column(Text, nullable=False)
-    task_prefix = Column(Text, nullable=False)
     elasticsearch_id = Column(Text, nullable=False)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
-        attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "task_prefix", "elasticsearch_id"))
+        attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))
         return f"LogTemplate({attrs})"

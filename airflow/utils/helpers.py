@@ -35,19 +35,14 @@ from typing import (
     Tuple,
     TypeVar,
 )
-from urllib import parse
-
-import flask
-import jinja2
-import jinja2.nativetypes
-import unicodedata
-from werkzeug.urls import url_quote
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.models import TaskInstance
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
@@ -66,7 +61,7 @@ def validate_key(k: str, max_length: int = 250):
         raise AirflowException(f"The key has to be less than {max_length} characters")
     if not KEY_REGEX.match(k):
         raise AirflowException(
-            f"The key ({k}) has to be made of alphanumeric characters, dashes, "
+            f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
 
@@ -79,7 +74,7 @@ def validate_group_key(k: str, max_length: int = 200):
         raise AirflowException(f"The key has to be less than {max_length} characters")
     if not GROUP_KEY_REGEX.match(k):
         raise AirflowException(
-            f"The key ({k!r}) has to be made of alphanumeric characters, dashes and underscores exclusively"
+            f"The key {k!r} has to be made of alphanumeric characters, dashes and underscores exclusively"
         )
 
 
@@ -173,8 +168,10 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional[jinja2.Template]]:
+def parse_template_string(template_string: str) -> Tuple[Optional[str], Optional["jinja2.Template"]]:
     """Parses Jinja template string."""
+    import jinja2
+
     if "{{" in template_string:  # jinja mode
         return None, jinja2.Template(template_string)
     else:
@@ -257,9 +254,10 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     For example:
     'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
+    import flask
+
     view = conf.get('webserver', 'dag_default_view').lower()
-    url = flask.url_for(f"Airflow.{view}")
-    return f"{url}?{parse.urlencode(query)}"
+    return flask.url_for(f"Airflow.{view}", **query)
 
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
@@ -287,16 +285,18 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     except Exception:
         env.handle_exception()  # Rewrite traceback to point to the template.
     if native:
+        import jinja2.nativetypes
+
         return jinja2.nativetypes.native_concat(nodes)
     return "".join(nodes)
 
 
-def render_template_to_string(template: jinja2.Template, context: MutableMapping[str, Any]) -> str:
+def render_template_to_string(template: "jinja2.Template", context: MutableMapping[str, Any]) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
     return render_template(template, context, native=False)
 
 
-def render_template_as_native(template: jinja2.Template, context: MutableMapping[str, Any]) -> Any:
+def render_template_as_native(template: "jinja2.Template", context: MutableMapping[str, Any]) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
     return render_template(template, context, native=True)
 

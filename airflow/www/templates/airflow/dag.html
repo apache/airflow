@@ -110,9 +110,9 @@
     <div class="row">
       <div class="col-md-10">
         <ul class="nav nav-pills">
-          <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
-            <span class="material-icons" aria-hidden="true">nature</span>
-            Tree
+          <li><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
+            <span class="material-icons" aria-hidden="true">grid_on</span>
+            Grid
           </a></li>
           <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
@@ -139,6 +139,9 @@
           <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
+          <li><a href="{{ url_for('Airflow.audit_log', dag_id=dag.dag_id, root=root) }}">
+            <span class="material-icons" aria-hidden="true">plagiarism</span>
+            Audit Log</a></li>
         </ul>
       </div>
       <div class="col-md-2">
@@ -182,7 +185,7 @@
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view) }}">
+            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.legacy_' + dag.default_view) }}">
               Zoom into Sub DAG
             </a>
             <hr>
@@ -402,7 +405,7 @@
               </form>
             </span>
             <span class="col-md-4 text-right">
-              <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph') }}" role="button">
+              <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" role="button">
                 <span class="material-icons" aria-hidden="true">account_tree</span>
                 Graph
               </a>

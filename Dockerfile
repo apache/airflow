@@ -68,6 +68,7 @@ FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE
+
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
@@ -86,7 +87,6 @@ ARG DEV_APT_DEPS="\
      libffi-dev \
      libkrb5-dev \
      libldap2-dev \
-     libpq-dev \
      libsasl2-2 \
      libsasl2-dev \
      libsasl2-modules \
@@ -95,7 +95,6 @@ ARG DEV_APT_DEPS="\
      lsb-release \
      nodejs \
      openssh-client \
-     postgresql-client \
      python-selinux \
      sasl2-bin \
      software-properties-common \
@@ -142,6 +141,7 @@ RUN apt-get update \
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_POSTGRES_CLIENT="true"
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
@@ -194,13 +194,16 @@ ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_UID
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT}
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
-COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
+COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh scripts/docker/install_postgres.sh /scripts/docker/
 
-RUN bash /scripts/docker/install_mysql.sh dev && bash /scripts/docker/install_mssql.sh
+RUN bash /scripts/docker/install_mysql.sh dev && \
+    bash /scripts/docker/install_mssql.sh && \
+    bash /scripts/docker/install_postgres.sh dev
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
@@ -348,7 +351,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG AIRFLOW_UID
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
@@ -382,7 +384,6 @@ ARG RUNTIME_APT_DEPS="\
        lsb-release \
        netcat \
        openssh-client \
-       postgresql-client \
        rsync \
        sasl2-bin \
        sqlite3 \
@@ -394,6 +395,7 @@ ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_POSTGRES_CLIENT="true"
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -401,6 +403,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
@@ -440,13 +443,14 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/install_postgres.sh /scripts/docker/
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
 # That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mssql.sh \
+    && bash /scripts/docker/install_postgres.sh prod \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
@@ -512,7 +516,6 @@ ARG AIRFLOW_IMAGE_DATE_CREATED
 ENV BUILD_ID=${BUILD_ID} COMMIT_SHA=${COMMIT_SHA}
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \

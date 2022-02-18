@@ -28,14 +28,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.2.0
+.....
+
+Latest change: 2022-02-12
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`44bd211b1 <https://github.com/apache/airflow/commit/44bd211b19dcb75eeb53ced5bea2cf0c80654b1a>`_  2022-02-12   ``Use compat data interval shim in log handlers (#21289)``
+`0a3ff43d4 <https://github.com/apache/airflow/commit/0a3ff43d41d33d05fb3996e61785919effa9a2fa>`_  2022-02-08   ``Add pre-commit check for docstring param types (#21398)``
+`d94fa3783 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`6184facba <https://github.com/apache/airflow/commit/6184facbaa6c654d15d493b9de918e7ee74b3cce>`_  2022-02-07   ``Emit "logs not found" message when ES logs appear to be missing (#21261)``
+`d8c4449a9 <https://github.com/apache/airflow/commit/d8c4449a91b9b93691c03e1af45bdedc5e23fd5e>`_  2022-02-06   ``Clarify ElasticsearchTaskHandler docstring (#21255)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`6e51608f2 <https://github.com/apache/airflow/commit/6e51608f28f4c769c019624ea0caaa0c6e671f80>`_  2021-12-16   ``Fix mypy for providers: elasticsearch, oracle, yandex (#20344)``
+`853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
+`fe682ec3d <https://github.com/apache/airflow/commit/fe682ec3d376f0983410d64beb4f3529fb7b0f99>`_  2021-11-24   ``Fix duplicate changelog entries (#19759)``
+================================================================================================  ===========  ============================================================================
+
 2.1.0
 .....
 
-Latest change: 2021-09-30
+Latest change: 2021-10-29
 
 ================================================================================================  ===========  ===========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===========================================================================
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `de9b02f79 <https://github.com/apache/airflow/commit/de9b02f797931efbd081996b4f81ba14ca76a17d>`_  2021-09-28   ``Updating the Elasticsearch example DAG to use the TaskFlow API (#18565)``
 `060345c0d <https://github.com/apache/airflow/commit/060345c0d982765e39da5fa8b2e2c6a01e89e394>`_  2021-09-21   ``Add docs for AIP 39: Timetables (#17552)``

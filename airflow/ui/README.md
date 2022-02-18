@@ -35,7 +35,7 @@ To communicate with the API you need to adjust some environment variables for th
 Be sure to allow CORS headers and set up an auth backend on your Airflow instance.
 
 ```
-export AIRFLOW__API__AUTH_BACKEND=airflow.api.auth.backend.basic_auth
+export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
 export AIRFLOW__API__ACCESS_CONTROL_ALLOW_HEADERS=*
 export AIRFLOW__API__ACCESS_CONTROL_ALLOW_METHODS=*
 export AIRFLOW__API__ACCESS_CONTROL_ALLOW_ORIGIN=http://127.0.0.1:28080

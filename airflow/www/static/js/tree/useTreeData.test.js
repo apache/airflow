@@ -20,7 +20,7 @@
 import { renderHook } from '@testing-library/react-hooks';
 import useTreeData from './useTreeData';
 
-/* global describe, test, expect, fetch, beforeEach */
+/* global describe, test, expect, jest, beforeAll */
 
 global.autoRefreshInterval = 5;
 
@@ -47,8 +47,8 @@ const finalTreeData = {
 };
 
 describe('Test useTreeData hook', () => {
-  beforeEach(() => {
-    fetch.resetMocks();
+  beforeAll(() => {
+    global.fetch = jest.fn();
   });
 
   test('data is valid camelcase json', () => {
@@ -66,7 +66,10 @@ describe('Test useTreeData hook', () => {
 
   test('queued run should have refreshOn by default and then turn off when run failed', async () => {
     // return a dag run of failed during refresh
-    fetch.mockResponse(JSON.stringify(finalTreeData));
+    const mockFetch = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ json: jest.fn().mockResolvedValue(finalTreeData) });
+
     global.treeData = JSON.stringify(pendingTreeData);
     global.autoRefreshInterval = 0.1;
 
@@ -74,7 +77,7 @@ describe('Test useTreeData hook', () => {
 
     expect(result.current.isRefreshOn).toBe(true);
 
-    await waitFor(() => expect(fetch).toBeCalled());
+    await waitFor(() => expect(mockFetch).toBeCalled());
 
     expect(result.current.isRefreshOn).toBe(false);
   });

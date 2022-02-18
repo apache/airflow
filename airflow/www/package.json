@@ -55,7 +55,6 @@
     "file-loader": "^6.0.0",
     "imports-loader": "^1.1.0",
     "jest": "^27.3.1",
-    "jest-fetch-mock": "^3.0.3",
     "mini-css-extract-plugin": "1.6.0",
     "moment": "^2.29.1",
     "moment-locales-webpack-plugin": "^1.2.0",
@@ -66,12 +65,12 @@
     "terser-webpack-plugin": "<5.0.0",
     "url-loader": "4.1.0",
     "webpack": "4.44.2",
-    "webpack-cli": "3.3.12",
+    "webpack-cli": "^3.3.12",
     "webpack-license-plugin": "^4.2.1",
     "webpack-manifest-plugin": "^2.2.0"
   },
   "dependencies": {
-    "@chakra-ui/react": "^1.6.6",
+    "@chakra-ui/react": "^1.8.3",
     "@emotion/cache": "^11.4.0",
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11",
@@ -82,18 +81,18 @@
     "d3-shape": "^2.1.0",
     "d3-tip": "^0.9.1",
     "dagre-d3": "^0.6.4",
-    "datatables.net": "^1.10.23",
-    "datatables.net-bs": "^1.10.23",
+    "datatables.net": "^1.11.4",
+    "datatables.net-bs": "^1.11.4",
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
     "framer-motion": "^4",
     "jquery": ">=3.5.0",
-    "jshint": "^2.12.0",
+    "jshint": "^2.13.4",
     "moment-timezone": "^0.5.28",
     "nvd3": "^1.8.6",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-icons": "^4.2.0",
-    "redoc": "^2.0.0-rc.54",
+    "redoc": "^2.0.0-rc.63",
     "url-search-params-polyfill": "^8.1.0"
   },
   "resolutions": {
@@ -105,6 +104,8 @@
     "glob-parent": ">=5.1.2",
     "ssri": ">= 8.0.1",
     "jquery": ">=3.5.0",
-    "browserslist": ">=4.16.5"
+    "browserslist": ">=4.16.5",
+    "tar": ">=6.1.9",
+    "node-fetch": ">=2.6.7"
   }
 }
