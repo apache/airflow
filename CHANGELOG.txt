@@ -40,6 +40,7 @@ Bug Fixes
 - Correctly send timing metrics when using dogstatsd (fix schedule_delay metric) (#19973)
 - Enhance ``multiple_outputs`` inference of dict typing (#19608)
 - Fixing ses email backend (#18042)
+- Pin Markupsafe until we are able to upgrade Flask/Jinja (#21664)
 
 Doc only changes
 """"""""""""""""
