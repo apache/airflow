@@ -24,6 +24,7 @@ import unittest.mock
 import urllib.parse
 
 import pytest
+from werkzeug.urls import url_unquote
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -41,6 +42,7 @@ from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login
 
 DAG_ID = 'dag_for_testing_log_view'
+DAG_ID_NON_ASCII = 'dag_用于测试日志视图'
 DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
 TASK_ID = 'task_for_testing_log_view'
 DEFAULT_DATE = timezone.datetime(2017, 9, 1)
@@ -112,6 +114,15 @@ def dags(log_app, create_dummy_dag, session):
         with_dagrun_type=None,
         session=session,
     )
+
+    dag_non_ascii, _ = create_dummy_dag(
+        dag_id=DAG_ID_NON_ASCII,
+        task_id=TASK_ID,
+        start_date=DEFAULT_DATE,
+        with_dagrun_type=None,
+        session=session,
+    )
+
     dag_removed, _ = create_dummy_dag(
         dag_id=DAG_ID_REMOVED,
         task_id=TASK_ID,
@@ -122,18 +133,19 @@ def dags(log_app, create_dummy_dag, session):
 
     bag = DagBag(include_examples=False)
     bag.bag_dag(dag=dag, root_dag=dag)
+    bag.bag_dag(dag=dag_non_ascii, root_dag=dag_non_ascii)
     bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
     bag.sync_to_db(session=session)
     log_app.dag_bag = bag
 
-    yield dag, dag_removed
+    yield dag, dag_non_ascii, dag_removed
 
     clear_db_dags()
 
 
 @pytest.fixture(autouse=True)
 def tis(dags, session):
-    dag, dag_removed = dags
+    dag, dag_non_ascii, dag_removed = dags
     dagrun = dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -145,6 +157,19 @@ def tis(dags, session):
     (ti,) = dagrun.task_instances
     ti.try_number = 1
     ti.hostname = 'localhost'
+
+    dagrun_non_ascii = dag_non_ascii.create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=DEFAULT_DATE,
+        state=DagRunState.RUNNING,
+        session=session,
+    )
+    (ti_dag_non_ascii,) = dagrun_non_ascii.task_instances
+    ti_dag_non_ascii.try_number = 1
+    ti_dag_non_ascii.hostname = 'localhost'
+
     dagrun_removed = dag_removed.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -156,7 +181,7 @@ def tis(dags, session):
     (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1
 
-    yield ti, ti_removed_dag
+    yield ti, ti_dag_non_ascii, ti_removed_dag
 
     clear_db_runs()
 
@@ -188,7 +213,7 @@ def log_admin_client(log_app):
     ],
 )
 def test_get_file_task_log(log_admin_client, tis, state, try_number, num_logs):
-    ti, _ = tis
+    ti, _, _ = tis
     with create_session() as session:
         ti.state = state
         ti.try_number = try_number
@@ -234,6 +259,34 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
     )
     assert 200 == response.status_code
     assert 'Log for testing.' in response.data.decode('utf-8')
+    assert 'localhost\n' in response.data.decode('utf-8')
+
+
+def test_get_logs_with_metadata_as_download_file_for_non_ascii_dag(log_admin_client):
+    url_template = (
+        "get_logs_with_metadata?dag_id={}&"
+        "task_id={}&execution_date={}&"
+        "try_number={}&metadata={}&format=file"
+    )
+    try_number = 1
+    date = DEFAULT_DATE.isoformat()
+    url = url_template.format(
+        DAG_ID_NON_ASCII,
+        TASK_ID,
+        urllib.parse.quote_plus(date),
+        try_number,
+        "{}",
+    )
+    response = log_admin_client.get(url)
+
+    content_disposition = url_unquote(response.headers['Content-Disposition'])
+    assert content_disposition.startswith('attachment')
+    assert (
+        f'dag_id={DAG_ID_NON_ASCII}/run_id=scheduled__{date}/task_id={TASK_ID}/attempt={try_number}.log'
+        in content_disposition
+    )
+    assert 200 == response.status_code
+    assert 'Log for testing non-ascii dag_id.' in response.data.decode('utf-8')
     assert 'localhost\n' in response.data.decode('utf-8')
 
 

@@ -32,7 +32,7 @@ from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import markupsafe
@@ -85,9 +85,9 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
+from werkzeug.datastructures import Headers
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
-from werkzeug.datastructures import Headers
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -1409,7 +1409,9 @@ class Airflow(AirflowBaseView):
             metadata['download_logs'] = True
             attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
             headers = Headers()
-            headers.add("Content-Disposition", "attachment", **encode_attachment_file_name(attachment_filename))
+            headers.add(
+                "Content-Disposition", "attachment", **encode_attachment_file_name(attachment_filename)
+            )
             log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
             return Response(
                 response=log_stream,

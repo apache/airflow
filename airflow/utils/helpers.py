@@ -22,6 +22,7 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
+from werkzeug.urls import url_quote
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -358,16 +359,13 @@ def prune_dict(val: Any, mode='strict'):
     else:
         return val
 
+
 def encode_attachment_file_name(attachment_filename):
     try:
         attachment_filename = attachment_filename.encode("ascii")
     except UnicodeEncodeError:
-        filenames = {
-            "filename": unicodedata.normalize("NFKD", attachment_filename).encode(
-                "ascii", "ignore"
-            ),
-            "filename*": "UTF-8''%s" % url_quote(attachment_filename, safe=b""),
-        }
+        attachment_filename = url_quote(attachment_filename, safe=b"")
+        filenames = {"filename*": f"UTF-8''{attachment_filename}"}
     else:
         filenames = {"filename": attachment_filename}
 
