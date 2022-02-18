@@ -58,7 +58,7 @@ class BaseExecutor(LoggingMixin):
     """
 
     job_id: Union[None, int, str] = None
-    callbacks_sink: Optional[BaseCallbackSink] = None
+    callback_sink: Optional[BaseCallbackSink] = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -314,13 +314,14 @@ class BaseExecutor(LoggingMixin):
             "\n\t".join(map(repr, self.event_buffer.items())),
         )
 
-    def send_callback_to_execute(self, request: CallbackRequest) -> None:
+    def send_callback(self, request: CallbackRequest) -> None:
         """Sends callback for execution.
 
-        Provides a default implementation which sends the callback to DagProcessor.
+        Provides a default implementation which sends the callback to the `callback_sink` object.
+
 
         :param request: Callback request to be executed.
         """
-        if not self.callbacks_sink:
+        if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
-        self.callbacks_sink.send_callback_to_execute(request)
+        self.callback_sink.send(request)

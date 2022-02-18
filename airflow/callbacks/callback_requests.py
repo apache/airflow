@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import SimpleTaskInstance
 
 
 class CallbackRequest:
@@ -53,7 +56,7 @@ class TaskCallbackRequest(CallbackRequest):
     def __init__(
         self,
         full_filepath: str,
-        simple_task_instance,  #: SimpleTaskInstance, Avoid circular import
+        simple_task_instance: "SimpleTaskInstance",
         is_failure_callback: Optional[bool] = True,
         msg: Optional[str] = None,
     ):

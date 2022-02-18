@@ -634,7 +634,7 @@ class SchedulerJob(BaseJob):
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.executor.send_callback_to_execute(request)
+                    self.executor.send_callback(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -665,7 +665,7 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
-            self.executor.callbacks_sink = PipeCallbackSink(
+            self.executor.callback_sink = PipeCallbackSink(
                 get_sink_pipe=self.processor_agent.get_callbacks_pipe
             )
 
@@ -1127,7 +1127,7 @@ class SchedulerJob(BaseJob):
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.executor.send_callback_to_execute(callback)
+            self.executor.send_callback(callback)
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
@@ -1139,7 +1139,7 @@ class SchedulerJob(BaseJob):
             return
 
         request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
-        self.executor.send_callback_to_execute(request)
+        self.executor.send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
@@ -1300,5 +1300,5 @@ class SchedulerJob(BaseJob):
                 msg=f"Detected {ti} as zombie",
             )
             self.log.error("Detected zombie job: %s", request)
-            self.executor.send_callback_to_execute(request)
+            self.executor.send_callback(request)
             Stats.incr('zombies_killed')

@@ -23,6 +23,6 @@ from airflow.callbacks.callback_requests import CallbackRequest
 class BaseCallbackSink:
     """Base class for Callbacks Sinks."""
 
-    def send_callback_to_execute(self, callback: CallbackRequest) -> None:
+    def send(self, callback: CallbackRequest) -> None:
         """Sends callback for execution."""
         raise NotImplementedError()

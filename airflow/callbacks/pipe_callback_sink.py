@@ -33,7 +33,7 @@ class PipeCallbackSink(BaseCallbackSink):
     def __init__(self, get_sink_pipe: Callable[[], MultiprocessingConnection]):
         self._get_sink_pipe = get_sink_pipe
 
-    def send_callback_to_execute(self, callback: CallbackRequest):
+    def send(self, callback: CallbackRequest):
         """
         Sends information about the callback to be executed by Pipe.
 

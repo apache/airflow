@@ -336,10 +336,8 @@ class TestSchedulerJob:
             'finished (failed) although the task says its queued. (Info: None) '
             'Was the task killed externally?',
         )
-        self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once_with(
-            task_callback
-        )
-        self.scheduler_job.executor.callbacks_sink.reset_mock()
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
+        self.scheduler_job.executor.callback_sink.reset_mock()
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
     @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
@@ -1324,9 +1322,7 @@ class TestSchedulerJob:
         )
 
         # Verify dag failure callback request is sent to file processor
-        self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once_with(
-            expected_callback
-        )
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
         session.rollback()
         session.close()
@@ -1367,9 +1363,7 @@ class TestSchedulerJob:
         )
 
         # Verify dag failure callback request is sent to file processor
-        self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once_with(
-            expected_callback
-        )
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
         session.rollback()
         session.close()
@@ -1445,9 +1439,7 @@ class TestSchedulerJob:
         )
 
         # Verify dag failure callback request is sent to file processor
-        self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once_with(
-            expected_callback
-        )
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
         session.rollback()
         session.close()
 
@@ -2585,7 +2577,7 @@ class TestSchedulerJob:
             self.scheduler_job.executor = MockExecutor()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
-            self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_not_called()
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_send_sla_callbacks_to_processor_sla_no_task_slas(self, dag_maker):
         """Test SLA Callbacks are not sent when no task SLAs are defined"""
@@ -2598,7 +2590,7 @@ class TestSchedulerJob:
             self.scheduler_job.executor = MockExecutor()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
-            self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_not_called()
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, dag_maker):
         """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
@@ -2613,9 +2605,7 @@ class TestSchedulerJob:
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
 
             expected_callback = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
-            self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once_with(
-                expected_callback
-            )
+            self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -3518,8 +3508,8 @@ class TestSchedulerJob:
 
             self.scheduler_job._find_zombies(session=session)
 
-            self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once()
-            requests = self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.call_args[0]
+            self.scheduler_job.executor.callback_sink.send.assert_called_once()
+            requests = self.scheduler_job.executor.callback_sink.send.call_args[0]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.fileloc
             assert requests[0].msg == f"Detected {ti} as zombie"
@@ -3581,8 +3571,8 @@ class TestSchedulerJob:
 
         self.scheduler_job._find_zombies(session=session)
 
-        self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.assert_called_once()
-        callback_requests = self.scheduler_job.executor.callbacks_sink.send_callback_to_execute.call_args[0]
+        self.scheduler_job.executor.callback_sink.send.assert_called_once()
+        callback_requests = self.scheduler_job.executor.callback_sink.send.call_args[0]
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
             result.simple_task_instance.key for result in callback_requests
         }

@@ -33,7 +33,7 @@ class MockExecutor(BaseExecutor):
     def __init__(self, do_update=True, *args, **kwargs):
         self.do_update = do_update
         self._running = []
-        self.callbacks_sink = MagicMock()
+        self.callback_sink = MagicMock()
 
         # A list of "batches" of tasks
         self.history = []
