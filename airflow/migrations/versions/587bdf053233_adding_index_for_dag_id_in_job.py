@@ -19,7 +19,7 @@
 """Add index for ``dag_id`` column in ``job`` table.
 
 Revision ID: 587bdf053233
-Revises: c381b21cb7e4
+Revises: be2bfac3da23
 Create Date: 2021-12-14 10:20:12.482940
 
 """
@@ -28,7 +28,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '587bdf053233'
-down_revision = 'c381b21cb7e4'
+down_revision = 'be2bfac3da23'
 branch_labels = None
 depends_on = None
 airflow_version = '2.3.0'
