@@ -480,14 +480,21 @@ class MappedOperator(AbstractOperator):
         map_lengths: Dict[str, int] = collections.defaultdict(int)
         map_lengths.update((k, len(v)) for k, v in expansion_kwargs.items() if not isinstance(v, XComArg))
 
-        dep_keys = {v.operator.task_id: k for k, v in expansion_kwargs.items() if isinstance(v, XComArg)}
+        # Build a reverse mapping of what arguments each task contributes to.
+        dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
+        for k, v in expansion_kwargs.items():
+            if not isinstance(v, XComArg):
+                continue
+            dep_keys[v.operator.task_id].add(k)
+
         taskmap_query = session.query(TaskMap.task_id, TaskMap.length).filter(
             TaskMap.dag_id == self.dag_id,
             TaskMap.run_id == run_id,
             TaskMap.task_id.in_(list(dep_keys)),
         )
         for task_id, length in taskmap_query:
-            map_lengths[dep_keys[task_id]] += length
+            for mapped_arg_name in dep_keys[task_id]:
+                map_lengths[mapped_arg_name] += length
 
         if len(map_lengths) < len(expansion_kwargs):
             keys = ", ".join(repr(k) for k in sorted(set(expansion_kwargs).difference(map_lengths)))

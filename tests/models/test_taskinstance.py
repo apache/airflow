@@ -2461,3 +2461,34 @@ class TestMappedTaskInstanceReceiveValue:
             (2, ("b", "y")),
             (2, ("c", "z")),
         ]
+
+    def test_map_product_same(self, dag_maker, session):
+        """Test a mapped task can refer to the same source multiple times."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same", session=session) as dag:
+
+            @dag.task
+            def emit_numbers():
+                return [1, 2]
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            emit_task = emit_numbers()
+            show.map(a=emit_task, b=emit_task)
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("emit_numbers", session=session)
+        ti.refresh_from_task(dag.get_task("emit_numbers"))
+        ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 4
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
