@@ -26,7 +26,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, Index, Integer, LargeBinary, String
+from sqlalchemy import Column, Index, Integer, LargeBinary, String, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -58,6 +58,7 @@ class BaseXCom(Base, LoggingMixin):
 
     dagrun_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index = Column(Integer, server_default=text("-1"), nullable=False, primary_key=True)
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
@@ -84,7 +85,7 @@ class BaseXCom(Base, LoggingMixin):
         # but it goes over MySQL's index length limit. So we instead create indexes
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
-        Index("idx_xcom_ti_id", dag_id, task_id, run_id),
+        Index("idx_xcom_ti_id", dag_id, run_id, task_id, map_index),
     )
 
     @reconstructor
@@ -96,7 +97,9 @@ class BaseXCom(Base, LoggingMixin):
         self.value = self.orm_deserialize_value()
 
     def __repr__(self):
-        return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
+        if self.map_index < 0:
+            return f"<XCom {self.key!r} ({self.task_id} @ {self.run_id})>"
+        return f"<XCom {self.key!r} ({self.task_id}[{self.map_index}] @ {self.run_id})>"
 
     @overload
     @classmethod
@@ -108,6 +111,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: str,
         task_id: str,
         run_id: str,
+        map_index: int = -1,
         session: Session = NEW_SESSION,
     ) -> None:
         """Store an XCom value.
@@ -120,6 +124,7 @@ class BaseXCom(Base, LoggingMixin):
         :param dag_id: DAG ID.
         :param task_id: Task ID.
         :param run_id: DAG run ID for the task.
+        :param map_index: Index of mapped task.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -149,6 +154,7 @@ class BaseXCom(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
+        map_index: int = -1,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         from airflow.models.dagrun import DagRun
@@ -180,6 +186,7 @@ class BaseXCom(Base, LoggingMixin):
             task_id=task_id,
             dag_id=dag_id,
             run_id=dagrun_id,
+            map_index=map_index,
         )
 
         # Remove duplicate XComs and insert a new one.
@@ -188,6 +195,7 @@ class BaseXCom(Base, LoggingMixin):
             cls.run_id == run_id,
             cls.task_id == task_id,
             cls.dag_id == dag_id,
+            cls.map_index == map_index,
         ).delete()
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dagrun_id=dagrun_id,
@@ -196,6 +204,7 @@ class BaseXCom(Base, LoggingMixin):
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,
+            map_index=map_index,
         )
         session.add(new)
         session.flush()
@@ -209,6 +218,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
+        map_index: Optional[int] = None,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
     ) -> Optional[Any]:
@@ -245,6 +255,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
+        map_index: Optional[int] = None,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
     ) -> Optional[Any]:
@@ -256,8 +267,9 @@ class BaseXCom(Base, LoggingMixin):
         cls,
         execution_date: Optional[datetime.datetime] = None,
         key: Optional[str] = None,
-        task_id: Optional[Union[str, Iterable[str]]] = None,
-        dag_id: Optional[Union[str, Iterable[str]]] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        map_index: Optional[int] = None,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
         *,
@@ -273,6 +285,7 @@ class BaseXCom(Base, LoggingMixin):
                 key=key,
                 task_ids=task_id,
                 dag_ids=dag_id,
+                map_indexes=map_index,
                 include_prior_dates=include_prior_dates,
                 session=session,
             )
@@ -287,6 +300,7 @@ class BaseXCom(Base, LoggingMixin):
                     key=key,
                     task_ids=task_id,
                     dag_ids=dag_id,
+                    map_indexes=map_index,
                     include_prior_dates=include_prior_dates,
                     session=session,
                 )
@@ -307,6 +321,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_ids: Union[str, Iterable[str], None] = None,
         dag_ids: Union[str, Iterable[str], None] = None,
+        map_indexes: Union[int, Iterable[int], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
         session: Session = NEW_SESSION,
@@ -326,6 +341,8 @@ class BaseXCom(Base, LoggingMixin):
             Pass *None* (default) to remove the filter.
         :param dag_id: Only pulls XComs from this DAG. If *None* (default), the
             DAG of the calling task is used.
+        :param map_indexes: Only pulls XComs with this map index. Pass *None*
+            (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XComs from the
             specified DAG run are returned. If *True*, all matching XComs are
             returned regardless of the run it belongs to.
@@ -341,6 +358,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_ids: Union[str, Iterable[str], None] = None,
         dag_ids: Union[str, Iterable[str], None] = None,
+        map_indexes: Union[int, Iterable[int], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
         session: Session = NEW_SESSION,
@@ -355,6 +373,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
+        map_indexes: Union[int, Iterable[int], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
         session: Session = NEW_SESSION,
@@ -384,6 +403,11 @@ class BaseXCom(Base, LoggingMixin):
             query = query.filter(cls.dag_id.in_(dag_ids))
         elif dag_ids is not None:
             query = query.filter(cls.dag_id == dag_ids)
+
+        if is_container(map_indexes):
+            query = query.filter(cls.map_index.in_(map_indexes))
+        elif map_indexes is not None:
+            query = query.filter(cls.map_index == map_indexes)
 
         if include_prior_dates:
             if execution_date is not None:
@@ -417,7 +441,15 @@ class BaseXCom(Base, LoggingMixin):
 
     @overload
     @classmethod
-    def clear(cls, *, dag_id: str, task_id: str, run_id: str, session: Optional[Session] = None) -> None:
+    def clear(
+        cls,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int = -1,
+        session: Optional[Session] = None,
+    ) -> None:
         """Clear all XCom data from the database for the given task instance.
 
         A deprecated form of this function accepts ``execution_date`` instead of
@@ -426,6 +458,7 @@ class BaseXCom(Base, LoggingMixin):
         :param dag_id: ID of DAG to clear the XCom for.
         :param task_id: ID of task to clear the XCom for.
         :param run_id: ID of DAG run to clear the XCom for.
+        :param map_index: Index of mapped task to clear the XCom for.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -451,6 +484,7 @@ class BaseXCom(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
+        map_index: int = -1,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         from airflow.models import DagRun
@@ -474,7 +508,13 @@ class BaseXCom(Base, LoggingMixin):
                 .scalar()
             )
 
-        return session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id).delete()
+        query = session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.run_id == run_id,
+            cls.map_index == map_index,
+        )
+        return query.delete()
 
     @staticmethod
     def serialize_value(
@@ -484,7 +524,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id=None,
         dag_id=None,
         run_id=None,
-        mapping_index: int = -1,
+        map_index: int = -1,
     ):
         """Serialize XCom value to str or pickled object"""
         if conf.getboolean('core', 'enable_xcom_pickling'):

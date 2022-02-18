@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Switch XCom table to use ``run_id``.
+"""Switch XCom table to use ``run_id`` and add ``map_index``.
 
 Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
@@ -25,7 +25,7 @@ Create Date: 2022-01-19 03:20:35.329037
 from typing import Sequence
 
 from alembic import op
-from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, select
+from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, select, text
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
@@ -107,9 +107,10 @@ def upgrade():
     op.rename_table("__airflow_tmp_xcom", "xcom")
 
     with op.batch_alter_table("xcom") as batch_op:
-        batch_op.create_primary_key("xcom_pkey", ["dagrun_id", "task_id", "key"])
+        batch_op.add_column(Column("map_index", Integer, nullable=False, server_default=text("-1")))
+        batch_op.create_primary_key("xcom_pkey", ["dagrun_id", "task_id", "map_index", "key"])
         batch_op.create_index("idx_xcom_key", ["key"])
-        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "task_id", "run_id"])
+        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "run_id", "task_id", "map_index"])
 
 
 def downgrade():
