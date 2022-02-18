@@ -165,8 +165,9 @@ class TestTrinoHook(unittest.TestCase):
         rows = [("hello",), ("world",)]
         target_fields = None
         commit_every = 10
-        self.db_hook.insert_rows(table, rows, target_fields, commit_every)
-        mock_insert_rows.assert_called_once_with(table, rows, None, 10)
+        replace = True
+        self.db_hook.insert_rows(table, rows, target_fields, commit_every, replace)
+        mock_insert_rows.assert_called_once_with(table, rows, None, 10, True)
 
     def test_get_first_record(self):
         statement = 'SQL'
@@ -202,6 +203,15 @@ class TestTrinoHook(unittest.TestCase):
         assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement, None)
+
+    @patch('airflow.hooks.dbapi.DbApiHook.run')
+    def test_run(self, mock_run):
+        hql = "SELECT 1"
+        autocommit = False
+        parameters = {"hello": "world"}
+        handler = str
+        self.db_hook.run(hql, autocommit, parameters, handler)
+        mock_run.assert_called_once_with(sql=hql, autocommit=False, parameters=parameters, handler=str)
 
 
 class TestTrinoHookIntegration(unittest.TestCase):

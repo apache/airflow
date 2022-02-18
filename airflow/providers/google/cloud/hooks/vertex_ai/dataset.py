@@ -32,6 +32,7 @@ from google.cloud.aiplatform_v1.types import AnnotationSpec, Dataset, ExportData
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -45,7 +46,7 @@ class DatasetHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
 
         return DatasetServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):

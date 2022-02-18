@@ -22,8 +22,9 @@ import os
 import sys
 import time
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
 
+from bcrypt import warnings
 from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
@@ -67,6 +68,21 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+REVISION_HEADS_MAP = {
+    "2.0.0": "e959f08ac86c",
+    "2.0.1": "82b7c48c147f",
+    "2.0.2": "2e42bb497a22",
+    "2.1.0": "a13f7613ad25",
+    "2.1.1": "a13f7613ad25",
+    "2.1.2": "a13f7613ad25",
+    "2.1.3": "97cdd93827b8",
+    "2.1.4": "ccde3e26fe78",
+    "2.2.0": "7b2661a43ba3",
+    "2.2.1": "7b2661a43ba3",
+    "2.2.2": "7b2661a43ba3",
+    "2.2.3": "be2bfac3da23",
+}
 
 
 def _format_airflow_moved_table_name(source_table, version):
@@ -809,7 +825,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def check_run_id_null(session) -> Iterable[str]:
+def check_run_id_null(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -914,7 +930,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -952,7 +968,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             source_table.c.execution_date == dagrun_table.c.execution_date,
         )
         invalid_rows_query = (
-            session.query(source_table.c.dag_id, source_table.c.task_id, source_table.c.execution_date)
+            session.query(source_table.c.dag_id, source_table.c.execution_date)
             .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
             .filter(dagrun_table.c.dag_id.is_(None))
         )
@@ -1001,8 +1017,93 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         session.commit()
 
 
+def _offline_migration(command, config, revision):
+    log.info("Running offline migrations for revision range %s", revision)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        logging.disable(logging.CRITICAL)
+        command.upgrade(config, revision, sql=True)
+        logging.disable(logging.NOTSET)
+
+
+def _validate_version_range(command, config, version_range):
+    if ':' not in version_range:
+        raise AirflowException(
+            'Please provide Airflow version range with the format "old_version:new_version"'
+        )
+    lower, upper = version_range.split(':')
+
+    if not REVISION_HEADS_MAP.get(lower) or not REVISION_HEADS_MAP.get(upper):
+        raise AirflowException('Please provide valid Airflow versions above 2.0.0.')
+    if REVISION_HEADS_MAP.get(lower) == REVISION_HEADS_MAP.get(upper):
+        if sys.stdout.isatty():
+            size = os.get_terminal_size().columns
+        else:
+            size = 0
+        print(f"Hey this is your migration script from {lower}, to {upper}, but guess what?".center(size))
+        print(
+            "There is no migration needed as the database has not changed between those versions. "
+            "You are done.".center(size)
+        )
+        print("""/\\_/\\""".center(size))
+        print("""(='_' )""".center(size))
+        print("""(,(") (")""".center(size))
+        print("""^^^""".center(size))
+        return
+    dbname = settings.engine.dialect.name
+    if dbname == 'sqlite':
+        raise AirflowException('SQLite is not supported for offline migration.')
+    elif dbname == 'mssql' and (lower != '2.2.0' or int(lower.split('.')[1]) < 2):
+        raise AirflowException(
+            'MSSQL is not supported for offline migration in Airflow versions less than 2.2.0.'
+        )
+    revision = f"{REVISION_HEADS_MAP[lower]}:{REVISION_HEADS_MAP[upper]}"
+    try:
+        command.history(config, rev_range=revision)
+    except Exception:
+        raise AirflowException(
+            f"Error while checking history for revision range {revision}. "
+            f"Check that the supplied airflow version is in the format 'old_version:new_version'."
+        )
+    return revision
+
+
+def _validate_revision(command, config, revision_range):
+    if ':' not in revision_range:
+        raise AirflowException(
+            'Please provide Airflow revision range with the format "old_revision:new_revision"'
+        )
+    dbname = settings.engine.dialect.name
+    if dbname == 'sqlite':
+        raise AirflowException('SQLite is not supported for offline migration.')
+    start_version = '2.0.0'
+    rev_2_0_0_head = 'e959f08ac86c'
+    _lowerband, _upperband = revision_range.split(':')
+    if dbname == 'mssql':
+        rev_2_2_0_head = '7b2661a43ba3'
+        head_to_lowerband_range = f"{rev_2_2_0_head}:{_lowerband}"
+        head_to_upperband_range = f"{rev_2_2_0_head}:{_upperband}"
+        rev_2_0_0_head = rev_2_2_0_head  # for logging purposes
+        start_version = '2.2.0'
+    else:
+        head_to_lowerband_range = f"{rev_2_0_0_head}:{_lowerband}"
+        head_to_upperband_range = f"{rev_2_0_0_head}:{_upperband}"
+    for i in [head_to_lowerband_range, head_to_upperband_range]:
+        try:
+            command.history(config, rev_range=i)
+        except Exception:
+            raise AirflowException(
+                f"Error while checking history for revision range {i}. "
+                f"Check that {i.split(':')[1]} is a valid revision. "
+                f"Supported revision for offline migration is from {rev_2_0_0_head} "
+                f"which is airflow {start_version} head"
+            )
+
+
 @provide_session
-def upgradedb(session: Session = NEW_SESSION):
+def upgradedb(
+    version_range: Optional[str] = None, revision_range: Optional[str] = None, session: Session = NEW_SESSION
+):
     """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
     if not settings.SQL_ALCHEMY_CONN:
@@ -1012,6 +1113,14 @@ def upgradedb(session: Session = NEW_SESSION):
     config = _get_alembic_config()
 
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+    if version_range:
+        revision = _validate_version_range(command, config, version_range)
+        if not revision:
+            return
+        return _offline_migration(command, config, revision)
+    elif revision_range:
+        _validate_revision(command, config, revision_range)
+        return _offline_migration(command, config, revision_range)
 
     errors_seen = False
     for err in _check_migration_errors(session=session):
@@ -1065,9 +1174,12 @@ def drop_airflow_models(connection):
     users.drop(settings.engine, checkfirst=True)
     dag_stats = Table('dag_stats', Base.metadata)
     dag_stats.drop(settings.engine, checkfirst=True)
+    session = Table('session', Base.metadata)
+    session.drop(settings.engine, checkfirst=True)
 
     Base.metadata.drop_all(connection)
     # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
+    Base.metadata.remove(session)
     Base.metadata.remove(dag_stats)
     Base.metadata.remove(users)
     Base.metadata.remove(user)

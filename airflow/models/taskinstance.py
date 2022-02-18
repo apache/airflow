@@ -354,7 +354,7 @@ class TaskInstance(Base, LoggingMixin):
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False)
+    pool_slots = Column(Integer, default=1, nullable=False, server_default=text("1"))
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -823,7 +823,7 @@ class TaskInstance(Base, LoggingMixin):
         XCom.clear(
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.execution_date,
+            run_id=self.run_id,
             session=session,
         )
 

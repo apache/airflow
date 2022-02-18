@@ -3555,19 +3555,14 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    label_columns = {
-        'execution_date': 'Logical Date',
-    }
-
-    search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    base_order = ('execution_date', 'desc')
+    search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    base_order = ('dagrun_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
         'task_id': wwwutils.task_instance_link,
-        'execution_date': wwwutils.datetime_f('execution_date'),
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
@@ -3582,12 +3577,24 @@ class XComModelView(AirflowModelView):
     def pre_add(self, item):
         """Pre add hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
     def pre_update(self, item):
         """Pre update hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
 
 def lazy_add_provider_discovered_options_to_connection_form():
@@ -4315,6 +4322,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_muldelete(self, items: List[DagRun]):
         """Multiple delete."""
         self.datamodel.delete_all(items)
@@ -4323,12 +4331,14 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_queued', "Set state to 'queued'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_queued(self, drs: List[DagRun]):
         """Set state to queued."""
         return self._set_dag_runs_to_active_state(drs, State.QUEUED)
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_running(self, drs: List[DagRun]):
         """Set state to running."""
         return self._set_dag_runs_to_active_state(drs, State.RUNNING)
@@ -4358,6 +4368,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_set_failed(self, drs: List[DagRun], session=None):
         """Set state to failed."""
         try:
@@ -4382,6 +4393,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_set_success(self, drs: List[DagRun], session=None):
         """Set state to success."""
         try:
@@ -4401,6 +4413,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action('clear', "Clear the state", "All task instances would be cleared, are you sure?", single=False)
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_clear(self, drs: List[DagRun], session=None):
         """Clears the state."""
         try:
@@ -4690,6 +4703,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_clear(self, task_instances, session=None):
         """Clears the action."""
         try:
@@ -4711,6 +4725,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
@@ -4730,6 +4745,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_running(self, tis):
         """Set state to 'running'"""
         self.set_task_instance_state(tis, State.RUNNING)
@@ -4738,6 +4754,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_failed', "Set state to 'failed'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_failed(self, tis):
         """Set state to 'failed'"""
         self.set_task_instance_state(tis, State.FAILED)
@@ -4746,6 +4763,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_success', "Set state to 'success'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_success(self, tis):
         """Set state to 'success'"""
         self.set_task_instance_state(tis, State.SUCCESS)
@@ -4754,6 +4772,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_retry', "Set state to 'up_for_retry'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
@@ -4762,6 +4781,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_skipped', "Set state to 'skipped'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_skipped(self, tis):
         """Set state to skipped."""
         self.set_task_instance_state(tis, TaskInstanceState.SKIPPED)
