@@ -84,10 +84,8 @@ class TrinoHook(DbApiHook):
                 delegate=_boolify(extra.get('kerberos__delegate', False)),
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
-        
         if _boolify(extra.get('impersonate_as_owner', False)):
             user = os.getenv('AIRFLOW_CTX_DAG_OWNER', None)
-        
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
