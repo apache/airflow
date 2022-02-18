@@ -664,8 +664,8 @@ def check_migrations(timeout):
     """
     with _configured_alembic_environment() as env:
         context = env.get_context()
-        source_heads = None
-        db_heads = None
+        source_heads = set(script_.get_heads())
+        db_heads = set(context.get_current_heads())
         for ticker in range(timeout):
             source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
@@ -1184,8 +1184,10 @@ def resetdb(session: Session = NEW_SESSION):
 
     app = create_app(config={'UPDATE_FAB_PERMS': True})
     db = SQLAlchemy(app)
-    AirflowDatabaseSessionInterface(app=app, db=db, table='session', key_prefix='')
-    db.create_all()
+    engine = db.get_engine()
+    if not engine.dialect.has_table(engine.connect(), 'session'):
+        AirflowDatabaseSessionInterface(app=app, db=db, table='session', key_prefix='')
+        db.create_all()
 
 
 @provide_session
