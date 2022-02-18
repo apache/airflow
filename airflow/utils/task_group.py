@@ -261,6 +261,10 @@ class TaskGroup(DAGNode):
                         f"or operators; received {task.__class__.__name__}"
                     )
 
+                # Do not set a relationship between a TaskGroup and a Label's roots
+                if self == task:
+                    continue
+
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
                     if edge_modifier:
