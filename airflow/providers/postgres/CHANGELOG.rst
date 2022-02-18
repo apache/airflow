@@ -36,8 +36,10 @@ Features
 ~~~~~~~~
 
 * ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
    * ``Fix K8S changelog to be PyPI-compatible (#20614)``
    * ``Update documentation for provider December 2021 release (#20523)``
@@ -46,8 +48,7 @@ Features
    * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Fix mypy providers (#20190)``
-
-.. Review and move the new changes to one of the sections above:
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.4.0
 .....

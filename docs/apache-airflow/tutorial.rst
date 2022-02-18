@@ -230,6 +230,14 @@ Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more
 than once.
 
+Using time zones
+----------------
+
+Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware dates
+using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
+
 Recap
 -----
 Alright, so we have a pretty basic DAG. At this point your code should look
@@ -373,11 +381,30 @@ We need to have Docker and Postgres installed.
 We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
 Follow the instructions properly to set up Airflow.
 
-Create a Employee table in Postgres using this:
+You can use the postgres_default connection:
+
+- Conn id: postgres_default
+- Conn Type: postgres
+- Host: postgres
+- Schema: airflow
+- Login: airflow
+- Password: airflow
+
+
+After that, you can test your connection and if you followed all the steps correctly, it should show a success notification. Proceed with saving the connection. For
+
+
+Open up a postgres shell:
+
+.. code-block:: bash
+
+  ./airflow.sh airflow db shell
+
+Create the Employees table with:
 
 .. code-block:: sql
 
-  CREATE TABLE "Employees"
+  CREATE TABLE EMPLOYEES
   (
       "Serial Number" NUMERIC PRIMARY KEY,
       "Company Name" TEXT,
@@ -386,7 +413,11 @@ Create a Employee table in Postgres using this:
       "Leave" INTEGER
   );
 
-  CREATE TABLE "Employees_temp"
+Afterwards, create the Employees_temp table:
+
+.. code-block:: sql
+
+  CREATE TABLE EMPLOYEES_TEMP
   (
       "Serial Number" NUMERIC PRIMARY KEY,
       "Company Name" TEXT,
@@ -395,17 +426,9 @@ Create a Employee table in Postgres using this:
       "Leave" INTEGER
   );
 
-We also need to add a connection to Postgres. Go to the UI and click "Admin" >> "Connections". Specify the following for each field:
+We are now ready write the DAG.
 
-- Conn id: LOCAL
-- Conn Type: postgres
-- Host: postgres
-- Schema: <DATABASE_NAME>
-- Login: airflow
-- Password: airflow
-- Port: 5432
 
-After that, you can test your connection and if you followed all the steps correctly, it should show a success notification. Proceed with saving the connection and we are now ready write the DAG.
 
 Let's break this down into 2 steps: get data & merge data:
 
@@ -413,7 +436,7 @@ Let's break this down into 2 steps: get data & merge data:
 
   import requests
   from airflow.decorators import task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @task
@@ -428,12 +451,12 @@ Let's break this down into 2 steps: get data & merge data:
       with open(data_path, "w") as file:
           file.write(response.text)
 
-      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
       with open(data_path, "r") as file:
           cur.copy_expert(
-              "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+              "COPY EMPLOYEES_TEMP FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
               file,
           )
       conn.commit()
@@ -449,16 +472,16 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
   @task
   def merge_data():
       query = """
-          DELETE FROM "Employees" e
-          USING "Employees_temp" et
+          DELETE FROM EMPLOYEES e
+          USING EMPLOYEES_TEMP et
           WHERE e."Serial Number" = et."Serial Number";
 
-          INSERT INTO "Employees"
+          INSERT INTO EMPLOYEES
           SELECT *
-          FROM "Employees_temp";
+          FROM EMPLOYEES_TEMP;
       """
       try:
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           cur.execute(query)
@@ -474,18 +497,19 @@ Lets look at our DAG:
 
 .. code-block:: python
 
-  from datetime import datetime, timedelta
+  import datetime
+  import pendulum
 
   import requests
   from airflow.decorators import dag, task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @dag(
       schedule_interval="0 0 * * *",
-      start_date=datetime(2021, 1, 1),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
-      dagrun_timeout=timedelta(minutes=60),
+      dagrun_timeout=datetime.timedelta(minutes=60),
   )
   def Etl():
       @task
@@ -500,12 +524,12 @@ Lets look at our DAG:
           with open(data_path, "w") as file:
               file.write(response.text)
 
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           with open(data_path, "r") as file:
               cur.copy_expert(
-                  "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+                  "COPY EMPLOYEES_TEMP FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
                   file,
               )
           conn.commit()
@@ -513,16 +537,16 @@ Lets look at our DAG:
       @task
       def merge_data():
           query = """
-                  DELETE FROM "Employees" e
-                  USING "Employees_temp" et
+                  DELETE FROM EMPLOYEES e
+                  USING EMPLOYEES_TEMP et
                   WHERE e."Serial Number" = et."Serial Number";
 
-                  INSERT INTO "Employees"
+                  INSERT INTO EMPLOYEES
                   SELECT *
-                  FROM "Employees_temp";
+                  FROM EMPLOYEES_TEMP;
                   """
           try:
-              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              postgres_hook = PostgresHook(postgres_conn_id="postgres_default")
               conn = postgres_hook.get_conn()
               cur = conn.cursor()
               cur.execute(query)

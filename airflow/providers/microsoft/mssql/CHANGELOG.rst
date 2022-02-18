@@ -26,6 +26,7 @@ Features
 ~~~~~~~~
 
 * ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
 
 Misc
 ~~~~
@@ -41,6 +42,7 @@ Misc
    * ``Update documentation for provider December 2021 release (#20523)``
    * ``Even more typing in operators (template_fields/ext) (#20608)``
    * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.0.1
 .....

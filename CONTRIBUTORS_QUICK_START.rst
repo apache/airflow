@@ -317,10 +317,14 @@ Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 .. code-block:: bash
 
   $ sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
+
+2. Initialize virtual environment with breeze.
+
+.. code-block:: bash
+
   $ ./breeze initialize-local-virtualenv --python 3.8
 
-
-2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
+3. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
 .. code-block:: bash
 
@@ -420,6 +424,9 @@ Using Breeze
 3. Setup mysql database in
    MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
    blank(leave empty), default schema ``airflow``.
+
+   If you cannot connect to MySQL, refer to the Prerequisites section in the
+   |Breeze documentation| and try increasing Docker disk space.
 
    .. raw:: html
 
@@ -617,21 +624,18 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   root@63528318c8b1:/opt/airflow# pytest tests/utils/test_decorators.py
-   ======================================= test session starts =======================================
-   platform linux -- Python 3.8.6, pytest-6.0.1, py-1.9.0, pluggy-0.13.1 -- /usr/local/bin/python
-   cachedir: .pytest_cache
-   rootdir: /opt/airflow, configfile: pytest.ini
-   plugins: celery-4.4.7, requests-mock-1.8.0, xdist-1.34.0, flaky-3.7.0, rerunfailures-9.0, instafail
-   -0.4.2, forked-1.3.0, timeouts-1.2.1, cov-2.10.0
-   setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
-   collected 3 items
+  root@51d89409f7a2:/opt/airflow# pytest tests/utils/test_trigger_rule.py
+  ================================================ test session starts ================================================
+  platform linux -- Python 3.8.12, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /usr/local/bin/python
+  cachedir: .pytest_cache
+  rootdir: /opt/airflow, configfile: pytest.ini
+  plugins: forked-1.4.0, rerunfailures-9.1.1, requests-mock-1.9.3, asyncio-0.18.1, cov-3.0.0, httpx-0.20.0, xdist-2.5.0, flaky-3.7.0, timeouts-1.2.1, anyio-3.5.0, instafail-0.4.2
+  asyncio: mode=strict
+  setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
+  collected 1 item
 
-   tests/utils/test_decorators.py::TestApplyDefault::test_apply PASSED                         [ 33%]
-   tests/utils/test_decorators.py::TestApplyDefault::test_default_args PASSED                  [ 66%]
-   tests/utils/test_decorators.py::TestApplyDefault::test_incorrect_default_args PASSED        [100%]
-
-   ======================================== 3 passed in 1.49s ========================================
+  tests/utils/test_trigger_rule.py::TestTriggerRule::test_valid_trigger_rules PASSED                            [100%]
+  =========================================== 1 passed, 1 warning in 0.66s ============================================
 
 - Running All the test with Breeze by specifying required python version, backend, backend version
 

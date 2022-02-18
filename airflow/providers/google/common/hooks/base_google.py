@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import tempfile
+import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union, cast
@@ -47,6 +48,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
@@ -348,8 +350,12 @@ class GoogleBaseHook(BaseHook):
         the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
         based APIs.
         """
-        client_info = ClientInfo(client_library_version='airflow_v' + version.version)
-        return client_info
+        warnings.warn(
+            "This method is deprecated, please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return CLIENT_INFO
 
     @property
     def scopes(self) -> Sequence[str]:

@@ -17,7 +17,7 @@
 # under the License.
 
 """Example DAG demonstrating the usage of XComs."""
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
@@ -64,7 +64,7 @@ def pull_value_from_bash_push(ti=None):
 with DAG(
     'example_xcom',
     schedule_interval="@once",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
 ) as dag:

@@ -25,6 +25,7 @@ from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 TASK_ID = 'test-gke-cluster-operator'
 CLUSTER_NAME = 'test-cluster'
@@ -36,18 +37,12 @@ class TestGKEHookClient(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient")
-    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
 
         result = self.gke_hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.gke_hook._client == result
 
@@ -236,14 +231,13 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient')
-    @mock.patch('airflow.providers.google.common.hooks.base_google.ClientInfo')
     @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials')
-    def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
+    def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value
+            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO
         )
 
     def test_get_operation(self):

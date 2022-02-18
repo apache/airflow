@@ -159,7 +159,8 @@ class OracleHook(DbApiHook):
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
         # https://cx-oracle.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
-        if schema is not None:
+        # Only set schema when not using conn.schema as Service Name
+        if schema and service_name:
             conn.current_schema = schema
 
         return conn

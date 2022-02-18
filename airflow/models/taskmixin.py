@@ -154,12 +154,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: Optional["EdgeModifier"] = None,
     ) -> None:
         """Sets relatives for the task or task list."""
-        from airflow.models.baseoperator import BaseOperator, MappedOperator
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.models.operator import Operator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
-        task_list: List[DAGNode] = []
+        task_list: List[Operator] = []
         for task_object in task_or_task_list:
             task_object.update_relative(self, not upstream)
             relatives = task_object.leaves if upstream else task_object.roots
@@ -276,7 +278,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         only contains operators, not task groups. In the future, we should
         provide a way to record an DAG node's all downstream nodes instead.
         """
-        from airflow.models.baseoperator import MappedOperator
+        from airflow.models.mappedoperator import MappedOperator
         from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
         def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:

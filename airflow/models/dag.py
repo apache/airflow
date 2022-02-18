@@ -62,12 +62,13 @@ from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import ID_LEN, Base
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
@@ -192,6 +193,9 @@ class DAG(LoggingMixin):
 
     DAGs essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
+
+    Note that if you plan to use time zones all the dates provided should be pendulum
+    dates. See :ref:`timezone_aware_dags`.
 
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
@@ -373,7 +377,7 @@ class DAG(LoggingMixin):
         # set file location to caller source path
         back = sys._getframe().f_back
         self.fileloc = back.f_code.co_filename if back else ""
-        self.task_dict: Dict[str, BaseOperator] = {}
+        self.task_dict: Dict[str, Operator] = {}
 
         # set timezone from start_date
         tz = None
@@ -979,7 +983,7 @@ class DAG(LoggingMixin):
         return DagParam(current_dag=self, name=name, default=default)
 
     @property
-    def tasks(self) -> List[BaseOperator]:
+    def tasks(self) -> List[Operator]:
         return list(self.task_dict.values())
 
     @tasks.setter
@@ -1686,12 +1690,12 @@ class DAG(LoggingMixin):
         return altered
 
     @property
-    def roots(self) -> List[BaseOperator]:
+    def roots(self) -> List[Operator]:
         """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
         return [task for task in self.tasks if not task.upstream_list]
 
     @property
-    def leaves(self) -> List[BaseOperator]:
+    def leaves(self) -> List[Operator]:
         """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
         return [task for task in self.tasks if not task.downstream_list]
 
@@ -1711,7 +1715,7 @@ class DAG(LoggingMixin):
         # convert into an OrderedDict to speedup lookup while keeping order the same
         graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
 
-        graph_sorted = []  # type: List[BaseOperator]
+        graph_sorted: List[Operator] = []
 
         # special case
         if len(self.tasks) == 0:
@@ -1986,6 +1990,9 @@ class DAG(LoggingMixin):
         :param include_upstream: Include all upstream tasks of matched tasks,
             in addition to matched tasks.
         """
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         memo = {id(self.task_dict): None, id(self._task_group): None}
@@ -1996,14 +2003,15 @@ class DAG(LoggingMixin):
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
 
-        also_include = []
+        also_include: List[Operator] = []
         for t in matched_tasks:
             if include_downstream:
-                also_include += t.get_flat_relatives(upstream=False)
+                also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
-                also_include += t.get_flat_relatives(upstream=True)
+                also_include.extend(t.get_flat_relatives(upstream=True))
             elif include_direct_upstream:
-                also_include += t.upstream_list
+                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
+                also_include.extend(upstream)
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task
@@ -2021,7 +2029,7 @@ class DAG(LoggingMixin):
             copied.children = {}
 
             for child in group.children.values():
-                if isinstance(child, BaseOperator):
+                if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
                         copied.children[child.task_id] = dag.task_dict[child.task_id]
                     else:
@@ -2060,7 +2068,7 @@ class DAG(LoggingMixin):
     def has_task(self, task_id: str):
         return task_id in self.task_dict
 
-    def get_task(self, task_id: str, include_subdags: bool = False) -> BaseOperator:
+    def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         if include_subdags:
@@ -2116,7 +2124,7 @@ class DAG(LoggingMixin):
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
-    def add_task(self, task):
+    def add_task(self, task: Operator) -> None:
         """
         Add a task to the DAG
 
@@ -2152,7 +2160,7 @@ class DAG(LoggingMixin):
 
         self.task_count = len(self.task_dict)
 
-    def add_tasks(self, tasks):
+    def add_tasks(self, tasks: Iterable[Operator]) -> None:
         """
         Add a list of tasks to the DAG
 
@@ -2207,12 +2215,9 @@ class DAG(LoggingMixin):
         :param verbose: Make logging output more verbose
         :param conf: user defined dictionary passed from CLI
         :param rerun_failed_tasks:
-        :type: bool
         :param run_backwards:
-        :type: bool
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
-        :type: bool
         """
         from airflow.jobs.backfill_job import BackfillJob
 

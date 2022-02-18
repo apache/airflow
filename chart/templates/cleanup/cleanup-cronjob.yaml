@@ -58,6 +58,12 @@ spec:
 {{- end }}
           annotations:
             sidecar.istio.io/inject: "false"
+            {{- if .Values.airflowPodAnnotations }}
+            {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
+            {{- end }}
+            {{- if .Values.cleanup.podAnnotations }}
+            {{- toYaml .Values.cleanup.podAnnotations | nindent 12 }}
+            {{- end }}
         spec:
           restartPolicy: Never
           nodeSelector:

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy.orm.session import Session
 
@@ -56,7 +56,7 @@ class DepContext:
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
     :param ignore_ti_state: Ignore the task instance's previous failure/success
-    :param finished_tasks: A list of all the finished tasks of this run
+    :param finished_tis: A list of all the finished task instances of this run
     """
 
     def __init__(
@@ -69,7 +69,7 @@ class DepContext:
         ignore_in_reschedule_period: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        finished_tasks=None,
+        finished_tis: Optional[List["TaskInstance"]] = None,
     ):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
@@ -79,17 +79,20 @@ class DepContext:
         self.ignore_in_reschedule_period = ignore_in_reschedule_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
-        self.finished_tasks = finished_tasks
+        self.finished_tis = finished_tis
 
-    def ensure_finished_tasks(self, dag_run: "DagRun", session: Session) -> "List[TaskInstance]":
+    def ensure_finished_tis(self, dag_run: "DagRun", session: Session) -> List["TaskInstance"]:
         """
-        This method makes sure finished_tasks is populated if it's currently None.
+        This method makes sure finished_tis is populated if it's currently None.
         This is for the strange feature of running tasks without dag_run.
 
         :param dag_run: The DagRun for which to find finished tasks
         :return: A list of all the finished tasks of this DAG and execution_date
         :rtype: list[airflow.models.TaskInstance]
         """
-        if self.finished_tasks is None:
-            self.finished_tasks = dag_run.get_task_instances(state=State.finished, session=session)
-        return self.finished_tasks
+        if self.finished_tis is None:
+            finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
+            self.finished_tis = finished_tis
+        else:
+            finished_tis = self.finished_tis
+        return finished_tis

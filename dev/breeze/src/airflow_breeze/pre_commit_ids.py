@@ -45,6 +45,7 @@ PRE_COMMIT_LIST = [
     'daysago-import-check',
     'debug-statements',
     'detect-private-key',
+    'docstring-params',
     'doctoc',
     'dont-use-safe-filter',
     'end-of-file-fixer',

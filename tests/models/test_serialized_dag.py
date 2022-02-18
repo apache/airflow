@@ -19,8 +19,9 @@
 """Unit tests for SerializedDagModel."""
 
 import unittest
+from unittest import mock
 
-from parameterized import parameterized
+from parameterized import parameterized, parameterized_class
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -43,13 +44,27 @@ def clear_db_serialized_dags():
         session.query(SDM).delete()
 
 
+@parameterized_class(
+    [
+        {"compress_serialized_dags": "False"},
+        {"compress_serialized_dags": "True"},
+    ]
+)
 class SerializedDagModelTest(unittest.TestCase):
     """Unit tests for SerializedDagModel."""
 
+    compress_serialized_dags = "False"
+
     def setUp(self):
+        self.patcher = mock.patch(
+            'airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS', self.compress_serialized_dags
+        )
+        self.patcher.start()
+
         clear_db_serialized_dags()
 
     def tearDown(self):
+        self.patcher.stop()
         clear_db_serialized_dags()
 
     def test_dag_fileloc_hash(self):
@@ -63,13 +78,13 @@ class SerializedDagModelTest(unittest.TestCase):
         return example_dags
 
     def test_write_dag(self):
-        """DAGs can be written into database."""
+        """DAGs can be written into database"""
         example_dags = self._write_example_dags()
 
         with create_session() as session:
             for dag in example_dags.values():
                 assert SDM.has_dag(dag.dag_id)
-                result = session.query(SDM.fileloc, SDM.data).filter(SDM.dag_id == dag.dag_id).one()
+                result = session.query(SDM).filter(SDM.dag_id == dag.dag_id).one()
 
                 assert result.fileloc == dag.fileloc
                 # Verifies JSON schema.
@@ -77,7 +92,6 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
         """Test Serialized DAG is updated if DAG is changed"""
-
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
         dag_updated = SDM.write_dag(dag=example_bash_op_dag)

@@ -31,6 +31,7 @@ from collections import OrderedDict
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from contextlib import suppress
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -184,6 +185,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
         ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.2.0'),
         ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
+        ('api', 'auth_backends'): ('api', 'auth_backend', '2.3'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -202,6 +204,13 @@ class AirflowConfigParser(ConfigParser):
                 '2.1',
             ),
         },
+        'logging': {
+            'log_filename_template': (
+                re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                "XX-set-after-default-config-loaded-XX",
+                3.0,
+            ),
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
@@ -213,6 +222,9 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
     }
 
+    upgraded_values: Dict[Tuple[str, str], str]
+    """Mapping of (section,option) to the old value that was upgraded"""
+
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
     # to instead be case-preserving
@@ -221,10 +233,27 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.upgraded_values = {}
 
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
             self.airflow_defaults.read_string(default_config)
+            # Set the upgrade value based on the current loaded default
+            default = self.airflow_defaults.get('logging', 'log_filename_template', fallback=None, raw=True)
+            if default:
+                replacement = self.deprecated_values['logging']['log_filename_template']
+                self.deprecated_values['logging']['log_filename_template'] = (
+                    replacement[0],
+                    default,
+                    replacement[2],
+                )
+            else:
+                # In case of tests it might not exist
+                with suppress(KeyError):
+                    del self.deprecated_values['logging']['log_filename_template']
+        else:
+            with suppress(KeyError):
+                del self.deprecated_values['logging']['log_filename_template']
 
         self.is_validated = False
 
@@ -239,6 +268,7 @@ class AirflowConfigParser(ConfigParser):
                 old, new, version = info
                 current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
+                    self.upgraded_values[(section, name)] = current_value
                     new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(

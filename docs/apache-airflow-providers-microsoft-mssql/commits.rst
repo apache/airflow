@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2022-02-04
+Latest change: 2022-02-08
 
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
+`8f81b9a01 <https://github.com/apache/airflow/commit/8f81b9a01c7708a282271f9afd6b16a91011f105>`_  2022-02-08   ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+`6c3a67d4f <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f98 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
 `602abe839 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
 `f77417eb0 <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
@@ -45,7 +47,7 @@ Commit                                                                          
 `e63e23c58 <https://github.com/apache/airflow/commit/e63e23c582cd757ea6593bdb4dfde66d76a8c9f1>`_  2021-12-23   ``Fixing MyPy issues inside providers/microsoft (#20409)``
 `853576d90 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `0c9ce5475 <https://github.com/apache/airflow/commit/0c9ce547594bad6451d9139676d0a5039d3ec182>`_  2021-11-15   ``Add how-to Guide for MSSQL operators (#19470)``
-================================================================================================  ===========  =========================================================================
+================================================================================================  ===========  =================================================================================
 
 2.0.1
 .....

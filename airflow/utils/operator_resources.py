@@ -50,6 +50,8 @@ class Resource:
         self._qty = qty
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.__dict__ == other.__dict__
 
     def __repr__(self):
@@ -126,6 +128,8 @@ class Resources:
         self.gpus = GpuResource(gpus)
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.__dict__ == other.__dict__
 
     def __repr__(self):

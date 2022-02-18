@@ -47,30 +47,23 @@ class PsrpHook(BaseHook):
     sessions.
 
     :param psrp_conn_id: Required. The name of the PSRP connection.
-    :type psrp_conn_id: str
     :param logging_level:
         Logging level for message streams which are received during remote execution.
         The default is to include all messages in the task log.
-    :type logging_level: int
     :param operation_timeout: Override the default WSMan timeout when polling the pipeline.
-    :type operation_timeout: float
     :param runspace_options:
         Optional dictionary which is passed when creating the runspace pool. See
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
         available options.
-    :type runspace_options: dict
     :param wsman_options:
         Optional dictionary which is passed when creating the `WSMan` client. See
         :py:class:`~pypsrp.wsman.WSMan` for a description of the available options.
-    :type wsman_options: dict
     :param on_output_callback:
         Optional callback function to be called whenever an output response item is
         received during job status polling.
-    :type on_output_callback: OutputCallback
     :param exchange_keys:
         If true (default), automatically initiate a session key exchange when the
         hook is used as a context manager.
-    :type exchange_keys: bool
 
     You can provide an alternative `configuration_name` using either `runspace_options`
     or by setting this key as the extra fields of your connection.

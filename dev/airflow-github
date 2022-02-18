@@ -147,7 +147,6 @@ def is_core_commit(files: List[str]) -> bool:
         # dev/release/testing
         "breeze",
         "codecov.yml",
-        "confirm",
         "pytest.ini",
         "kubernetes_tests/",
         ".github/",

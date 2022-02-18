@@ -127,6 +127,8 @@ integrations:
   - integration-name: Amazon Simple Notification Service (SNS)
     external-doc-url: https://aws.amazon.com/sns/
     logo: /integration-logos/aws/Amazon-Simple-Notification-Service-SNS_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sns.rst
     tags: [aws]
   - integration-name: Amazon Simple Queue Service (SQS)
     external-doc-url: https://aws.amazon.com/sqs/
