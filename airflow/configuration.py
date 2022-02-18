@@ -352,10 +352,11 @@ class AirflowConfigParser(ConfigParser):
         return old.search(current_value) is not None
 
     def _update_env_var(self, section, name, new_value):
-        # Make sure the env var option is removed, otherwise it
-        # would be read and used instead of the value we set
         env_var = self._env_var_name(section, name)
-        os.environ.pop(env_var, None)
+        # If the config comes from environment, set it there so that any subprocesses keep the same override!
+        if os.environ.get(env_var):
+            os.environ[env_var] = new_value
+            return
         if not self.has_section(section):
             self.add_section(section)
         self.set(section, name, new_value)
