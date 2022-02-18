@@ -34,9 +34,7 @@ dag = DAG(
 
 # [START howto_operator_mysql]
 
-drop_table_mysql_task = MySqlOperator(
-    task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag
-)
+drop_table_mysql_task = MySqlOperator(task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag)
 
 # [END howto_operator_mysql]
 
