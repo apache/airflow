@@ -184,7 +184,7 @@ Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
 ```python
 dag = DAG(
     dag_id="example_dag",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     concurrency=3,
 )
@@ -195,7 +195,7 @@ dag = DAG(
 ```python
 dag = DAG(
     dag_id="example_dag",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     max_active_tasks=3,
 )
@@ -3216,7 +3216,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from airflow.models.dag import DAG
 >>> from airflow.operators.dummy import DummyOperator
 >>>
->>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))
+>>> dag = DAG('simple_dag', start_date=pendulum.datetime(2017, 9, 1, tz="UTC"))
 >>>
 >>> task = DummyOperator(task_id='task_1', dag=dag)
 >>>

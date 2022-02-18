@@ -230,6 +230,14 @@ Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more
 than once.
 
+Using time zones
+----------------
+
+Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware dates
+using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
+
 Recap
 -----
 Alright, so we have a pretty basic DAG. At this point your code should look
@@ -474,7 +482,8 @@ Lets look at our DAG:
 
 .. code-block:: python
 
-  from datetime import datetime, timedelta
+  import datetime
+  import pendulum
 
   import requests
   from airflow.decorators import dag, task
@@ -483,9 +492,9 @@ Lets look at our DAG:
 
   @dag(
       schedule_interval="0 0 * * *",
-      start_date=datetime(2021, 1, 1),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
-      dagrun_timeout=timedelta(minutes=60),
+      dagrun_timeout=datetime.timedelta(minutes=60),
   )
   def Etl():
       @task

@@ -38,19 +38,22 @@ There are three ways to declare a DAG - either you can use a context manager,
 which will add the DAG to anything inside it implicitly::
 
     with DAG(
-        "my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+        "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule_interval="@daily", catchup=False
     ) as dag:
         op = DummyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
-    my_dag = DAG("my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
+    my_dag = DAG("my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+                 schedule_interval="@daily", catchup=False)
     op = DummyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
-    @dag(start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
+    @dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+         schedule_interval="@daily", catchup=False)
     def generate_dag():
         op = DummyOperator(task_id="task")
 
@@ -214,10 +217,11 @@ Default Arguments
 Often, many Operators inside a DAG need the same set of default arguments (such as their ``retries``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it::
 
 
+    import pendulum
 
     with DAG(
         dag_id='my_dag',
-        start_date=datetime(2016, 1, 1),
+        start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
         schedule_interval='@daily',
         catchup=False,
         default_args={'retries': 2},
@@ -390,7 +394,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
     .. code-block:: python
 
         # dags/branch_without_trigger.py
-        import datetime as dt
+        import pendulum
 
         from airflow.models import DAG
         from airflow.operators.dummy import DummyOperator
@@ -399,7 +403,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         dag = DAG(
             dag_id="branch_without_trigger",
             schedule_interval="@once",
-            start_date=dt.datetime(2019, 2, 28),
+            start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
         )
 
         run_this_first = DummyOperator(task_id="run_this_first", dag=dag)
@@ -483,9 +487,11 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 
 TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
+    import pendulum
+
     with DAG(
         dag_id='dag1',
-        start_date=datetime(2016, 1, 1),
+        start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
         schedule_interval="@daily",
         catchup=False,
         default_args={'retries': 1},
@@ -563,9 +569,13 @@ This is especially useful if your tasks are built dynamically from configuration
     """
     ### My great DAG
     """
+    import pendulum
 
     dag = DAG(
-        "my_dag", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+        "my_dag",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule_interval="@daily",
+        catchup=False,
     )
     dag.doc_md = __doc__
 

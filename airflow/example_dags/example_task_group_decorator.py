@@ -18,7 +18,7 @@
 
 """Example DAG demonstrating the usage of the @taskgroup decorator."""
 
-from datetime import datetime
+import pendulum
 
 from airflow.decorators import task, task_group
 from airflow.models.dag import DAG
@@ -65,7 +65,10 @@ def task_group_function(value):
 
 # Executing Tasks and TaskGroups
 with DAG(
-    dag_id="example_task_group_decorator", start_date=datetime(2021, 1, 1), catchup=False, tags=["example"]
+    dag_id="example_task_group_decorator",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
 ) as dag:
     start_task = task_start()
     end_task = task_end()

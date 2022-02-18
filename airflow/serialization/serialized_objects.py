@@ -42,6 +42,7 @@ from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.task_group import TaskGroup
 
@@ -113,7 +114,10 @@ def encode_timezone(var: Timezone) -> Union[str, int]:
         return var.offset
     if isinstance(var, Timezone):
         return var.name
-    raise ValueError(f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}")
+    raise ValueError(
+        f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}. "
+        f"See {get_docs_url('timezone.html#time-zone-aware-dags')}"
+    )
 
 
 def decode_timezone(var: Union[str, int]) -> Timezone:

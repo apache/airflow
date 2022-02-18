@@ -121,7 +121,7 @@ Bad example:
 
 .. code-block:: python
 
-  from datetime import datetime
+  import pendulum
 
   from airflow import DAG
   from airflow.operators.python import PythonOperator
@@ -131,7 +131,7 @@ Bad example:
   with DAG(
       dag_id="example_python_operator",
       schedule_interval=None,
-      start_date=datetime(2021, 1, 1),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
   ) as dag:
@@ -151,7 +151,7 @@ Good example:
 
 .. code-block:: python
 
-  from datetime import datetime
+  import pendulum
 
   from airflow import DAG
   from airflow.operators.python import PythonOperator
@@ -159,7 +159,7 @@ Good example:
   with DAG(
       dag_id="example_python_operator",
       schedule_interval=None,
-      start_date=datetime(2021, 1, 1),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
   ) as dag:
@@ -237,12 +237,13 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
 
 .. code-block:: python
 
+    import pendulum
     from my_company_utils.common import ALL_TASKS
 
     with DAG(
         dag_id="my_dag",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
     ) as dag:
         for task in ALL_TASKS:
@@ -486,13 +487,14 @@ This is an example test want to verify the structure of a code-generated DAG aga
 .. code-block:: python
 
     import datetime
+    import pendulum
 
     import pytest
 
     from airflow.utils.state import DagRunState
     from airflow.utils.types import DagRunType
 
-    DATA_INTERVAL_START = datetime.datetime(2021, 9, 13)
+    DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
     DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
 
     TEST_DAG_ID = "my_custom_operator_dag"

@@ -20,7 +20,8 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import logging
 import os
-from datetime import datetime
+
+import pendulum
 
 from airflow import DAG
 from airflow.configuration import conf
@@ -45,7 +46,7 @@ if k8s:
     with DAG(
         dag_id='example_kubernetes_executor',
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=['example3'],
     ) as dag:

@@ -17,7 +17,7 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the ShortCircuitOperator."""
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
@@ -26,7 +26,7 @@ from airflow.operators.python import ShortCircuitOperator
 
 with DAG(
     dag_id='example_short_circuit_operator',
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
 ) as dag:
