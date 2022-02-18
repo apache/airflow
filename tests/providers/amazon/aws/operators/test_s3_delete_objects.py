@@ -24,7 +24,6 @@ from moto import mock_s3
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.s3 import S3DeleteObjectsOperator
-from airflow.exceptions import AirflowException
 
 
 class TestS3DeleteObjectsOperator(unittest.TestCase):
