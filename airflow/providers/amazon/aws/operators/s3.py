@@ -368,7 +368,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-        if not keys is None ^ prefix is None:
+        if not bool(keys is None) ^ bool(prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
     def execute(self, context: 'Context'):
