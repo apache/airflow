@@ -22,6 +22,7 @@ import signal
 import sys
 import urllib
 from tempfile import NamedTemporaryFile
+from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
@@ -1877,7 +1878,8 @@ class TestTaskInstance:
         assert log.error.call_args[0] == ("Task failed with exception",)
         exc_info = log.error.call_args[1]["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
-        assert sys.modules[PythonOperator.__module__].__file__ == filename
+        formatted_exc = format_exception(*exc_info)
+        assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
 
     def _env_var_check_callback(self):
         assert 'test_echo_env_variables' == os.environ['AIRFLOW_CTX_DAG_ID']
