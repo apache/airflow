@@ -664,8 +664,8 @@ def check_migrations(timeout):
     """
     with _configured_alembic_environment() as env:
         context = env.get_context()
-        source_heads = set(script_.get_heads())
-        db_heads = set(context.get_current_heads())
+        source_heads = None
+        db_heads = None
         for ticker in range(timeout):
             source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
