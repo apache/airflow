@@ -33,6 +33,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, c
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
@@ -860,14 +861,14 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=XComArg(task1, XCOM_RETURN_KEY))
 
     dr = dag_maker.create_dagrun()
 
     session.add(
         TaskMap(dag_id=dr.dag_id, task_id=task1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
     )
+    session.flush()
 
     mapped.expand_mapped_task(dr.run_id, session=session)
 
