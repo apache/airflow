@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import operator
 import os
 import signal
 import urllib
@@ -2359,27 +2360,27 @@ class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
         "literal, expected_outputs",
         [
-            pytest.param([1, 2, 3], {1, 2, 3}, id="list"),
-            pytest.param({"a": 1, "b": 2}, {("a", 1), ("b", 2)}, id="dict"),
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
         ],
     )
     def test_map_literal(self, literal, expected_outputs, dag_maker, session):
-        outputs = set()
+        outputs = []
 
         with dag_maker(dag_id="literal", session=session) as dag:
 
             @dag.task
             def show(value):
-                outputs.add(value)
+                outputs.append(value)
 
             show.map(value=literal)
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
-        tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(tis) == len(literal)
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == len(literal)
 
-        for ti in tis:
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == expected_outputs
@@ -2387,12 +2388,12 @@ class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
         "upstream_return, expected_outputs",
         [
-            pytest.param([1, 2, 3], {1, 2, 3}, id="list"),
-            pytest.param({"a": 1, "b": 2}, {("a", 1), ("b", 2)}, id="dict"),
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
         ],
     )
     def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
-        outputs = set()
+        outputs = []
 
         with dag_maker(dag_id="xcom", session=session) as dag:
 
@@ -2402,7 +2403,7 @@ class TestMappedTaskInstanceReceiveValue:
 
             @dag.task
             def show(value):
-                outputs.add(value)
+                outputs.append(value)
 
             show.map(value=emit())
 
@@ -2412,16 +2413,16 @@ class TestMappedTaskInstanceReceiveValue:
         emit_ti.run()
 
         show_task = dag.get_task("show")
-        tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(tis) == len(upstream_return)
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == len(upstream_return)
 
-        for ti in tis:
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == expected_outputs
 
     def test_map_product(self, dag_maker, session):
-        outputs = set()
+        outputs = []
 
         with dag_maker(dag_id="product", session=session) as dag:
 
@@ -2435,7 +2436,7 @@ class TestMappedTaskInstanceReceiveValue:
 
             @dag.task
             def show(number, letter):
-                outputs.add((number, letter))
+                outputs.append((number, letter))
 
             show.map(number=emit_numbers(), letter=emit_letters())
 
@@ -2446,17 +2447,17 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         show_task = dag.get_task("show")
-        tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(tis) == 6
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 6
 
-        for ti in tis:
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
             ti.run()
-        assert outputs == {
+        assert outputs == [
             (1, ("a", "x")),
-            (2, ("a", "x")),
             (1, ("b", "y")),
-            (2, ("b", "y")),
             (1, ("c", "z")),
+            (2, ("a", "x")),
+            (2, ("b", "y")),
             (2, ("c", "z")),
-        }
+        ]
