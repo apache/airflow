@@ -21,7 +21,7 @@ Example DAG demonstrating a workflow with nested branching. The join tasks are c
 ``none_failed_min_one_success`` trigger rule such that they are skipped whenever their corresponding
 ``BranchPythonOperator`` are skipped.
 """
-from datetime import datetime
+import pendulum
 
 from airflow.models import DAG
 from airflow.operators.dummy import DummyOperator
@@ -30,7 +30,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
     dag_id="example_nested_branch_dag",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule_interval="@daily",
     tags=["example"],

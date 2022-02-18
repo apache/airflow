@@ -178,7 +178,8 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
 
     from airflow import DAG
     from airflow.operators.python_operator import PythonOperator
-    from datetime import datetime
+
+    import pendulum
 
 
     def create_dag(dag_id, schedule, dag_number, default_args):
@@ -186,7 +187,12 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
             print("Hello World")
             print("This is DAG: {}".format(str(dag_number)))
 
-        dag = DAG(dag_id, schedule_interval=schedule, default_args=default_args)
+        dag = DAG(
+            dag_id,
+            schedule_interval=schedule,
+            default_args=default_args,
+            pendulum.datetime(2021, 9, 13, tz="UTC"),
+        )
 
         with dag:
             t1 = PythonOperator(task_id="hello_world", python_callable=hello_world_py)
@@ -241,6 +247,14 @@ It is also important to note that the task's ``start_date``, in the context of a
 backfill CLI command, gets overridden by the backfill's ``start_date`` commands.
 This allows for a backfill on tasks that have ``depends_on_past=True`` to
 actually start. If this were not the case, the backfill just would not start.
+
+Using time zones
+----------------
+
+Creating a time zone aware datetime (e.g. DAG's ``start_date``) is quite simple. Just make sure to supply
+a time zone aware dates using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
 
 
 .. _faq:what-does-execution-date-mean:
@@ -389,11 +403,11 @@ upstream task.
 
 .. code-block:: python
 
+    import pendulum
+
     from airflow.decorators import dag, task
     from airflow.exceptions import AirflowException
     from airflow.utils.trigger_rule import TriggerRule
-
-    from datetime import datetime
 
 
     @task
@@ -408,7 +422,7 @@ upstream task.
         pass
 
 
-    @dag(schedule_interval="@once", start_date=datetime(2021, 1, 1))
+    @dag(schedule_interval="@once", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"))
     def my_dag():
         a = a_func()
         b = b_func()

@@ -113,17 +113,18 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     """
     from airflow.models.dag import DAG
     from airflow.operators.bash import BashOperator
-    from datetime import datetime, timedelta
 
+    import datetime
+    import pendulum
 
     dag = DAG(
         "tutorial",
         default_args={
             "depends_on_past": True,
             "retries": 1,
-            "retry_delay": timedelta(minutes=3),
+            "retry_delay": datetime.timedelta(minutes=3),
         },
-        start_date=datetime(2015, 12, 1),
+        start_date=pendulum.datetime(2015, 12, 1, tz="UTC"),
         description="A simple tutorial DAG",
         schedule_interval="@daily",
         catchup=False,
@@ -225,7 +226,7 @@ Example of a parameterized DAG:
 
 .. code-block:: python
 
-    from datetime import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.operators.bash import BashOperator
@@ -233,7 +234,7 @@ Example of a parameterized DAG:
     dag = DAG(
         "example_parameterized_dag",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
     )
 
