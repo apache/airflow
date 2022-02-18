@@ -597,7 +597,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = None
 
-        exception_message = f"Job ID for job name {JOB_NAME} could not be found"
+        exception_message = f"Job ID for job name {JOB_NAME} can not be found"
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
