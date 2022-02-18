@@ -83,6 +83,7 @@ class TestTrinoHookConn:
         )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_auth)
+
     @patch(JWT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
