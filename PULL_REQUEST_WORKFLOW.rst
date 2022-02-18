@@ -190,10 +190,14 @@ The selective check algorithm is shown here:
 
 .. mermaid::
 
-   flowchart LR
-      A(PR arrives)-->B[Selective Check]
+   sequenceDiagram
+      participant Alice
+      participant Bob
 
-.. mermaid:: mermind.md
+.. mermaid:: mermaid.mmd
+
+.. autoclasstree:: sphinx.util.SphinxParallelError sphinx.util.ExtensionError
+   :full:
 
 Approval Workflow and Matrix tests
 ----------------------------------
