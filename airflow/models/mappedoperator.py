@@ -298,8 +298,6 @@ class MappedOperator(AbstractOperator):
             return  # No need to validate deserialized operator.
         mocked_mapped_kwargs = create_mocked_kwargs(self.mapped_kwargs)
         op = self._create_unmapped_operator(mapped_kwargs=mocked_mapped_kwargs, real=False)
-        if op.task_group:
-            op.task_group._remove(op)
         dag = op.get_dag()
         if dag:
             dag._remove_task(op.task_id)
