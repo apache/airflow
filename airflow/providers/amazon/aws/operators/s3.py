@@ -370,19 +370,18 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         if not keys is None ^ prefix is None:
             raise AirflowException("Either keys or prefix should be set.")
-    
+
     def execute(self, context: 'Context'):
-        if not self.keys is None ^ self.prefix is None:
+        if not bool(self.keys is None) ^ bool(self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
-        if isinstance(self.keys, list) and len(self.keys) == 0:
+
+        if isinstance(self.keys, (list, str)) and not bool(self.keys):
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
         if keys:
             s3_hook.delete_objects(bucket=self.bucket, keys=keys)
-            
-     
 
 
 class S3FileTransformOperator(BaseOperator):
