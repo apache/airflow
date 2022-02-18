@@ -22,7 +22,6 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from werkzeug.urls import url_quote
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,6 +35,8 @@ from typing import (
     Tuple,
     TypeVar,
 )
+
+from werkzeug.urls import url_quote
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -361,9 +362,17 @@ def prune_dict(val: Any, mode='strict'):
 
 
 def encode_attachment_file_name(attachment_filename):
+    """
+    Given attachment_filename, returns dictionary with key 'filename' or 'filename*',
+    encodes attachment_filename if it contains non-ascii characters.
+
+    :param attachment_filename: attachment filename
+    """
+
     try:
         attachment_filename = attachment_filename.encode("ascii")
     except UnicodeEncodeError:
+        # this would be decoded by browsers, this is supported by all modern browsers.
         attachment_filename = url_quote(attachment_filename, safe=b"")
         filenames = {"filename*": f"UTF-8''{attachment_filename}"}
     else:
