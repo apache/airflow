@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-17T22:24:42Z
+# This constraints file was automatically generated on 2022-02-18T01:03:27Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -385,7 +385,7 @@ pdpyras==4.4.0
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
-pinotdb==0.3.8
+pinotdb==0.3.9
 pipdeptree==2.2.1
 pkginfo==1.8.2
 platformdirs==2.5.0
