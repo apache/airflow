@@ -68,6 +68,9 @@ def test_taskgroup_dag():
 def test_complex_taskgroup_dag():
     """Creates a test DAG with many operators and a task group."""
 
+    def f(task_id):
+        return f"OP:{task_id}"
+
     with DAG(dag_id="test_complex_dag", default_args=DEFAULT_ARGS) as dag:
         with TaskGroup("group_1") as group:
             group_dm1 = DummyOperator(task_id="group_dummy1")
@@ -81,6 +84,8 @@ def test_complex_taskgroup_dag():
         dm_out2 = DummyOperator(task_id="dummy_out2")
         dm_out3 = DummyOperator(task_id="dummy_out3")
         dm_out4 = DummyOperator(task_id="dummy_out4")
+        op_in1 = PythonOperator(python_callable=f, task_id="op_in1")
+        op_out1 = PythonOperator(python_callable=f, task_id="op_out1")
 
         return (
             dag,
@@ -97,6 +102,8 @@ def test_complex_taskgroup_dag():
                 dm_out2,
                 dm_out3,
                 dm_out4,
+                op_in1,
+                op_out1,
             ),
         )
 
@@ -156,12 +163,24 @@ def complex_dag_expected_edges():
         {'source_id': 'group_1.group_dummy3', 'target_id': 'group_1.group_dummy1'},
         {'source_id': 'group_1.upstream_join_id', 'target_id': 'group_1.group_dummy2'},
         {'source_id': 'group_1.upstream_join_id', 'target_id': 'group_1.group_dummy3'},
+        {
+            'label': 'label op_in1 <=> group',
+            'source_id': 'op_in1',
+            'target_id': 'group_1.upstream_join_id',
+        },
+        {
+            'label': 'label group <=> op_out1',
+            'source_id': 'group_1.downstream_join_id',
+            'target_id': 'op_out1',
+        },
     ]
 
 
 def compare_dag_edges(current, expected):
     assert len(current) == len(expected)
-    assert all(current.count(i) == expected.count(i) for i in current)
+
+    for i in current:
+        assert current.count(i) == expected.count(i), f'The unexpected DAG edge: {i}'
 
 
 class TestEdgeModifierBuilding:
@@ -294,6 +313,8 @@ class TestEdgeModifierBuilding:
                 dm_out2,
                 dm_out3,
                 dm_out4,
+                op_in1,
+                op_out1,
             ),
         ) = test_complex_taskgroup_dag
 
@@ -302,10 +323,12 @@ class TestEdgeModifierBuilding:
         dm_in1 >> group
         dm_in2 >> Label('label dm_in2 <=> group') >> group
         [dm_in3, dm_in4] >> Label('label dm_in3/dm_in4 <=> group') >> group
+        XComArg(op_in1, 'test_key') >> Label('label op_in1 <=> group') >> group
 
         group >> dm_out1
         group >> Label('label group <=> dm_out2') >> dm_out2
         group >> Label('label group <=> dm_out3/dm_out4') >> [dm_out3, dm_out4]
+        group >> Label('label group <=> op_out1') >> XComArg(op_out1, 'test_key')
 
         compare_dag_edges(dag_edges(dag), complex_dag_expected_edges)
 
@@ -326,6 +349,8 @@ class TestEdgeModifierBuilding:
                 dm_out2,
                 dm_out3,
                 dm_out4,
+                op_in1,
+                op_out1,
             ),
         ) = test_complex_taskgroup_dag
 
@@ -334,9 +359,11 @@ class TestEdgeModifierBuilding:
         group << dm_in1
         group << Label('label dm_in2 <=> group') << dm_in2
         group << Label('label dm_in3/dm_in4 <=> group') << [dm_in3, dm_in4]
+        group << Label('label op_in1 <=> group') << XComArg(op_in1, 'test_key')
 
         dm_out1 << group
         dm_out2 << Label('label group <=> dm_out2') << group
         [dm_out3, dm_out4] << Label('label group <=> dm_out3/dm_out4') << group
+        XComArg(op_out1, 'test_key') << Label('label group <=> op_out1') << group
 
         compare_dag_edges(dag_edges(dag), complex_dag_expected_edges)
